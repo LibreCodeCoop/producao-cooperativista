@@ -13,6 +13,10 @@
 ## Setup
 Primeiro clone o repositório e entre nele.
 
+Copie o arquivo `.env.example` para `.env`
+
+Edite o arquivo `.env` preenchendo os dados necessários.
+
 Em um terminal:
 ```
 docker compose up
