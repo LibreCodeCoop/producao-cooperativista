@@ -1,0 +1,82 @@
+#!/usr/bin/env php
+<?php
+/**
+ * @copyright Copyright (c) 2023, Vitor Mattos <vitor@php.rio>
+ *
+ * @author Vitor Mattos <vitor@php.rio>
+ *
+ * @license GNU AGPL version 3 or any later version
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+if (PHP_SAPI !== 'cli') {
+    echo 'Warning: Should be invoked via the CLI version of PHP, not the '.PHP_SAPI.' SAPI'.PHP_EOL;
+}
+
+require __DIR__.'/../src/bootstrap.php';
+
+use KimaiClient\Command\GetCustomersCommand;
+use KimaiClient\Command\GetNfseCommand;
+use KimaiClient\Command\GetProjectsCommand;
+use KimaiClient\Command\GetTimesheetsCommand;
+use KimaiClient\Command\GetTransactionsCommand;
+use KimaiClient\Command\GetUsersCommand;
+use KimaiClient\Command\ReportBrutoCommand;
+use KimaiClient\DB\Database;
+use KimaiClient\Service\BaseCalculo;
+use KimaiClient\Service\Source\Customers;
+use KimaiClient\Service\Source\Nfse;
+use KimaiClient\Service\Source\Projects;
+use KimaiClient\Service\Source\Timesheets;
+use KimaiClient\Service\Source\Transactions;
+use KimaiClient\Service\Source\Users;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
+use Symfony\Component\Console\Application;
+
+error_reporting(-1);
+
+$application = new Application();
+
+$logger = new Logger('PRODUCAO_COOPERATIVISTA');
+$logger->pushHandler(new StreamHandler('logs/system.log'));
+
+$database = new Database(null, $logger);
+$customers = new Customers($database, $logger);
+$nfse = new Nfse($database, $logger);
+$projects = new Projects($database, $logger);
+$timesheets = new Timesheets($database, $logger);
+$transactions = new Transactions($database, $logger);
+$users = new Users($database, $logger);
+$baseCalculo = new BaseCalculo(
+    $database,
+    $logger,
+    $customers,
+    $nfse,
+    $projects,
+    $timesheets,
+    $transactions,
+    $users
+);
+
+$application->add(new GetCustomersCommand($customers));
+$application->add(new GetNfseCommand($nfse));
+$application->add(new GetProjectsCommand($projects));
+$application->add(new GetTimesheetsCommand($timesheets));
+$application->add(new GetTransactionsCommand($transactions));
+$application->add(new GetUsersCommand($users));
+$application->add(new ReportBrutoCommand($baseCalculo));
+$application->run();

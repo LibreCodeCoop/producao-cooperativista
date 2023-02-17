@@ -1,0 +1,7 @@
+/volumes/
+/vendor-bin/**/vendor/
+/vendor/
+/logs/
+.vscode
+.env
+cookies.json

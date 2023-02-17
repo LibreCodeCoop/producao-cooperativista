@@ -1,0 +1,28 @@
+{
+    "type": "project",
+    "license": "AGPL-3.0-or-later",
+    "require": {
+        "symfony/http-client": "^6.2",
+        "vlucas/phpdotenv": "^5.5",
+        "symfony/console": "^6.2",
+        "bamarni/composer-bin-plugin": "^1.8",
+        "doctrine/dbal": "^3.5",
+        "symfony/browser-kit": "^6.2",
+        "symfony/css-selector": "^6.2",
+        "symfony/mime": "^6.2",
+        "monolog/monolog": "^3.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "KimaiClient\\": "src/"
+        }
+    },
+    "bin" : [
+        "bin/import"
+    ],
+    "config": {
+        "allow-plugins": {
+            "bamarni/composer-bin-plugin": true
+        }
+    }
+}

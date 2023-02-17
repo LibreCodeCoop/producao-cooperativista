@@ -1,0 +1,29 @@
+services:
+  php:
+    build:
+      context: .docker/php
+    tty: true
+    volumes:
+      - ./:/app
+      - ./.docker/php/wait-for-db.php:/var/www/scripts/wait-for-db.php
+    environment:
+      - XDEBUG_CONFIG
+      - TZ
+  mysql:
+    image: mysql
+    cap_add:
+      - SYS_NICE  # CAP_SYS_NICE
+    volumes:
+      - ./.docker/mysql/conf:/etc/mysql/conf.d
+      - ./volumes/mysql/dump:/docker-entrypoint-initdb.d
+      - ./volumes/mysql/data:/var/lib/mysql
+    ports:
+      - 3306:3306
+    restart: unless-stopped
+    environment:
+      - TZ
+      - MYSQL_HOST
+      - MYSQL_ROOT_PASSWORD
+      - MYSQL_DATABASE
+      - MYSQL_USER
+      - MYSQL_PASSWORD
