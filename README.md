@@ -1,3 +1,7 @@
+# Cálculo de produção cooperativista
+
+Calcular o bruto da produção cooperativista por cooperado com base em dados coletados do Akaunting, Kimai e site da prefeitura.
+
 ## Pendências
 * Akaunting
   * Dados de clientes
@@ -18,11 +22,11 @@ Copie o arquivo `.env.example` para `.env`
 Edite o arquivo `.env` preenchendo os dados necessários.
 
 Em um terminal:
-```
+```bash
 docker compose up
 ```
 Em outro terminal:
-```
+```bash
 docker compose exec php bash
 composer install
 vendor/bin/phinx migrate
@@ -31,6 +35,22 @@ vendor/bin/phinx migrate
 ## Comandos
 ### Exemplos
 
+O principal comando é:
+
+```bash
+./bin/import report:bruto --ano-mes=2022-12 --csv
+
+> OBS: Este comando não salva o cálculo em lugar algum pois estes dados devem ser inseridos no sistema utilizado para gerar a produção de cada mês.
+
+```
+`--csv` Esta opção é importante para ver a saída de dados senão o comando vai executar sem exibir nada.
+
+`--atualizar-dados=0`
+
+Após executar uma vez e constatar que baixou todos os dados corretamente, você pode usar esta opção para não ficar baixando os dados de todas as fontes externas o tempo inteiro pois baixar isto tudo é o que hoje faz este comando demorar um pouco. Esta opção só é útil caso você queira ficar executando o mesmo comando mais de uma vez quando for analizar os dados importados ou os logs do sistema ou debugar a aplicação.
+
+O comando principal é composto pela execução independente de cada um dos comandos abaixo que você provavelmente não precisará usar:
+
 ```bash
 ./bin/import get:customers --database
 ./bin/import get:nfse --database --ano-mes=2022-09
@@ -38,12 +58,11 @@ vendor/bin/phinx migrate
 ./bin/import get:timesheet --database --year-month=2022-09
 ./bin/import get:transactions --database --year-month=2022-09
 ./bin/import get:users --database
-./bin/import report:bruto --ano-mes=2022-12 --csv
 ```
 
 ## Logs
 Tudo (ou quase tudo) o que é feito fica registrado em log e pode ser monitorado em:
 
-```
+```bash
 tail -f logs/system.log
 ```
