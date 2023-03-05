@@ -111,7 +111,7 @@ class Customers
             $this->logger->debug('Dados extras do customer: {name}', ['name' => $customer['name']]);
             $result = $client->request(
                 'GET',
-                $_ENV['KIMAI_API_BASE_URL'] . '/api/customers/' . $customer['id'],
+                rtrim($_ENV['KIMAI_API_BASE_URL'], '/') . '/api/customers/' . $customer['id'],
                 [
                     'headers' => [
                         'X-AUTH-USER' => $_ENV['KIMAI_AUTH_USER'],

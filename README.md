@@ -34,15 +34,14 @@ vendor/bin/phinx migrate
 
 ## Comandos
 ### Exemplos
-
+e
 O principal comando é:
 
 ```bash
 ./bin/import report:bruto --ano-mes=2022-12 --csv
-
+```
 > OBS: Este comando não salva o cálculo em lugar algum pois estes dados devem ser inseridos no sistema utilizado para gerar a produção de cada mês.
 
-```
 `--csv` Esta opção é importante para ver a saída de dados senão o comando vai executar sem exibir nada.
 
 `--atualizar-dados=0`

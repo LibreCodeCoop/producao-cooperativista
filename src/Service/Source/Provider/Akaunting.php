@@ -38,7 +38,7 @@ trait Akaunting
             $this->logger->debug('Akaunting endpoint: {endpoint}', ['endpoint' => $endpoint]);
             $result = $client->request(
                 'GET',
-                $_ENV['AKAUNTING_API_BASE_URL'] . $endpoint,
+                rtrim($_ENV['AKAUNTING_API_BASE_URL'], '/') . $endpoint,
                 [
                     'query' => $query,
                     'auth_basic' => [

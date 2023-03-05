@@ -243,8 +243,7 @@ class BaseCalculo
             ->from('nfse', 'n')
             ->where('n.numero_substituta IS NULL')
             ->andWhere('data_emissao >= :inicio')
-            ->andWhere('data_emissao <= :fim')
-            ->andWhere('cnpj NOT IN :lista_cnpj_ignorados');
+            ->andWhere('data_emissao <= :fim');
         if ($_ENV['IGNORAR_CNPJ']) {
             $listaCnpj = explode(',', $_ENV['IGNORAR_CNPJ']);
             $select
@@ -403,19 +402,12 @@ class BaseCalculo
                         ELSE 100 - (sum(t.duration) * 100 / c.time_budget)
                         END AS percentual_sobras
             FROM customers c
-            JOIN (
-                    -- Clientes que pagaram
-                    SELECT CASE WHEN setor IS NOT NULL THEN CONCAT(cnpj, '|', setor)
-                                ELSE cnpj END as codigo,
-                        n.razao_social
-                    FROM nfse n 
-                    WHERE n.data_emissao >= :data_inicio_proximo_mes
-                    AND n.data_emissao <= :data_fim_proximo_mes
-                    GROUP BY n.razao_social,
-                            n.valor_servico,
-                            n.setor,
-                            n.cnpj
-                ) faturados_mes ON faturados_mes.codigo = c.vat_id
+            JOIN transactions tr
+              ON tr.contact_reference = c.vat_id
+            AND tr.paid_at >= :data_inicio_proximo_mes
+            AND tr.paid_at <= :data_fim_proximo_mes
+            AND tr.category_type = 'income'
+            AND tr.category_name IN ('Recorrência', 'Serviço')
             LEFT JOIN projects p ON p.customer_id = c.id
             LEFT JOIN timesheet t ON t.project_id = p.id AND t.`begin` >= :data_inicio AND t.`end` <= :data_fim
             GROUP BY c.time_budget,

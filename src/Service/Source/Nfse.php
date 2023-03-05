@@ -421,9 +421,10 @@ class Nfse
             foreach ($discriminacao as $value) {
                 $exploded = explode(':', $value);
                 if (count($exploded) === 2) {
-                    $normalized[$exploded[0]] = trim($exploded[1]);
-                    if (empty($normalized[$exploded[0]])) {
-                        unset($normalized[$exploded[0]]);
+                    $key = strtolower($exploded[0]);
+                    $normalized[$key] = trim($exploded[1]);
+                    if (empty($normalized[$key])) {
+                        unset($normalized[$key]);
                     }
                 } else {
                     $normalized['raw'][] = implode(':', $exploded);

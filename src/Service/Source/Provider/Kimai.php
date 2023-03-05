@@ -40,7 +40,7 @@ trait Kimai
             $this->logger->debug('Kimai endpoint: {endpoint}', ['endpoint' => $endpoint]);
             $result = $client->request(
                 'GET',
-                $_ENV['KIMAI_API_BASE_URL'] . $endpoint,
+                rtrim($_ENV['KIMAI_API_BASE_URL'], '/') . $endpoint,
                 [
                     'query' => $query,
                     'headers' => [
