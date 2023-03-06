@@ -79,13 +79,13 @@ class BaseCalculo
 
         $totalSegundosLibreCode = $this->getTotalSegundosLibreCode($inicio, $fim);
         $totalDispendios = $this->getTotalDispendios($inicioProximoMes, $fimProximoMes);
-        $taxaMinima = $totalDispendios - $totalCustoCliente;
+        /**
+         * Para a taxa mínima utiliza-se o total de dispêndios apenas pois no total
+         * de dispêndios já está sem o custo dos clientes.
+         */
+        $taxaMinima = $totalDispendios;
         $taxaMaxima = $taxaMinima * 2;
-        $percentualNota = $totalNotas['notas'] * $percentualMaximo / 100;
-        $trabalhoLibreCode = $totalSegundosLibreCode / 60 / 60 / 8 / $diasUteis;
-        $percentualLibreCode = $trabalhoLibreCode / $totalCooperados * 100;
-        $bruto = $totalNotas['notas'] - $totalNotas['impostos'] - $totalCustoCliente - $totalDispendios;
-        $percentualImpostoNota = $totalNotas['impostos'] * 100 / $totalNotas['notas'];
+
         if ($totalNotas['notas'] * $percentualMaximo / 100 >= $taxaMaxima) {
             $taxaAdministrativa = $taxaMaxima;
         } elseif ($totalNotas['notas'] * $percentualMaximo / 100 >= $taxaMinima) {
@@ -93,35 +93,67 @@ class BaseCalculo
         } else {
             $taxaAdministrativa = $taxaMinima;
         }
+
+        /**
+         * Converte taxa administrativa em percentual
+         */
         $percentualDispendio = $taxaAdministrativa / ($totalNotas['notas'] - $totalNotas['impostos'] - $totalCustoCliente) * 100;
-        $totalLibrecodeSobreClientes = $bruto * $percentualLibreCode / 100;
-        $brutoLibreCode = $this->getBrutoLibreCode(
-            $inicio,
-            $fim,
-            $inicioProximoMes,
-            $fimProximoMes,
-            $totalLibrecodeSobreClientes,
-            $percentualDispendio,
-            $percentualLibreCode
+        /**
+         * Bruto neste contexto é o que tem para ser dividido por todos no mês
+         * sem todos os custos.
+         *
+         * O bruto é o total de nota sem impostos, sem os custos dos clientes
+         * e sem os disêndios pois dispêndio não contém custo cliente
+         */
+        $bruto = $totalNotas['notas'] - $totalNotas['impostos'] - $totalCustoCliente - $totalDispendios;
+
+        $percentualLibreCode = $this->percentualLibreCode(
+            $totalCooperados,
+            $diasUteis,
+            $totalSegundosLibreCode
         );
+
         $valoresPorProjeto = $this->getValoresPorProjeto(
             $inicioProximoMes,
             $fimProximoMes,
             $percentualDispendio,
             $percentualLibreCode
         );
-        $trabalhadoPorCliente = $this->getTrabalhadoPorCliente(
+        $percentualTrabalhadoPorCliente = $this->getPercentualTrabalhadoPorCliente(
             $inicio,
             $fim,
             $inicioProximoMes,
             $fimProximoMes
         );
         $brutoPorCooperado = $this->getBrutoPorCooperado(
-            $trabalhadoPorCliente,
+            $percentualTrabalhadoPorCliente,
             $valoresPorProjeto,
-            $brutoLibreCode
+            $bruto
         );
         return $brutoPorCooperado;
+    }
+
+    /**
+     * O percentual LibreCode é utilizado para pagar quem trabalha diretamente
+     * para a LibreCode, neste cenário entra Conselho Administrativo e quem
+     * trabalha executando atividades em projetos internos.
+     *
+     * Este percentual é a proporção entre total de horas trabalhadas para a
+     * LibreCode versus o total hipotético de trabalho 100% das horas pelo total
+     * de cooperados que registraram horas no Kimai.
+     */
+    private function percentualLibreCode(
+        int $totalCooperados,
+        int $diasUteis,
+        int $totalSegundosLibreCode
+    ): float
+    {
+        $totalPossivelDeHoras = $totalCooperados * 8 * $diasUteis;
+
+        $totalHorasLibreCode = $totalSegundosLibreCode / 60 / 60;
+        $percentualLibreCode = $totalHorasLibreCode * 100 / $totalPossivelDeHoras;
+
+        return $percentualLibreCode;
     }
 
     private function loadFromExternalSources(
@@ -202,6 +234,16 @@ class BaseCalculo
         return (int) $return;
     }
 
+    /**
+     * Dispêndios da LibreCode
+     * 
+     * Desconsidera-se:
+     * * Produção cooperativista (cliente interno)
+     * * Produção externa (pagamento para quem trabalha diretamente para cliente externo)
+     * * Impostos em geral: nota fiscal, IRPF, INSS
+     * * Cliente: Todos os custos dos clientes
+     * * Plano de saúde: Este valor é reembolsado pelo cooperado então não entra para ser dividido por todos
+     */
     private function getTotalDispendios(DateTime $inicio, DateTime $fim): float
     {
         $stmt = $this->db->getConnection()->prepare(<<<SQL
@@ -212,7 +254,13 @@ class BaseCalculo
                 AND t.paid_at <= :fim
             --    AND t.category_id = 16
                 AND t.category_type = 'expense'
-                AND category_name NOT IN ('Produção cooperativista', 'Produção externa', 'Impostos', 'Cliente')
+                AND category_name NOT IN (
+                    'Produção cooperativista',
+                    'Produção externa',
+                    'Impostos',
+                    'Cliente',
+                    'Plano de saúde'
+                )
             SQL
         );
         $result = $stmt->executeQuery([
@@ -247,7 +295,7 @@ class BaseCalculo
         if ($_ENV['IGNORAR_CNPJ']) {
             $listaCnpj = explode(',', $_ENV['IGNORAR_CNPJ']);
             $select
-                ->where($select->expr()->notIn('cnpj', ':cnpj'))
+                ->andWhere($select->expr()->notIn('cnpj', ':cnpj'))
                 ->setParameter('cnpj', $listaCnpj, Connection::PARAM_STR_ARRAY);
         }
         $select
@@ -373,17 +421,16 @@ class BaseCalculo
         ]);
         $this->valoresPorProjeto = [];
         while ($row = $result->fetchAssociative()) {
-            $base = $row['valor_servico'] - $row['impostos'] - $row['total_custos'];
-            $semDispendios = $base - ($base * $percentualDispendio / 100);
-            $semPercentualLibreCode = $semDispendios - ($semDispendios * $percentualLibreCode / 100);
-            $row['bruto'] = $semPercentualLibreCode;
+            $base = $row['valor_servico'] - /*$row['impostos'] - */$row['total_custos'];
+            $percentualDesconto = $percentualDispendio + $percentualLibreCode;
+            $row['bruto'] = $base - ($base * $percentualDesconto / 100);
             $this->valoresPorProjeto[] = $row;
         }
         $this->logger->debug('Valores por projetos: {valores}', ['valores' => json_encode($this->valoresPorProjeto)]);
         return $this->valoresPorProjeto;
     }
 
-    private function getSobrasPorCliente(
+    private function getSobrasDeHorasPorCliente(
         DateTime $inicio,
         DateTime $fim,
         DateTime $inicioProximoMes,
@@ -401,6 +448,7 @@ class BaseCalculo
                         WHEN sum(t.duration) IS NULL THEN 100
                         ELSE 100 - (sum(t.duration) * 100 / c.time_budget)
                         END AS percentual_sobras
+            -- Clientes que pagaram
             FROM customers c
             JOIN transactions tr
               ON tr.contact_reference = c.vat_id
@@ -408,7 +456,9 @@ class BaseCalculo
             AND tr.paid_at <= :data_fim_proximo_mes
             AND tr.category_type = 'income'
             AND tr.category_name IN ('Recorrência', 'Serviço')
+            -- Tabela de conexão de cliente com timesheets
             LEFT JOIN projects p ON p.customer_id = c.id
+            -- Horas trabalhadas por clientes
             LEFT JOIN timesheet t ON t.project_id = p.id AND t.`begin` >= :data_inicio AND t.`end` <= :data_fim
             GROUP BY c.time_budget,
                     c.id,
@@ -433,38 +483,7 @@ class BaseCalculo
         return $rows;
     }
 
-    private function getBrutoLibreCode(
-        DateTime $inicio,
-        DateTime $fim,
-        DateTime $inicioProximoMes,
-        DateTime $fimProximoMes,
-        float $totalLibrecodeSobreClientes,
-        float $percentualDispendio,
-        float $percentualLibreCode
-    ): float
-    {
-        $sobrasPorClientes = $this->getSobrasPorCliente($inicio, $fim, $inicioProximoMes, $fimProximoMes);
-        $valoresPorProjeto = $this->getValoresPorProjeto(
-            $inicioProximoMes,
-            $fimProximoMes,
-            $percentualDispendio,
-            $percentualLibreCode
-        );
-        $percentual = [];
-        foreach ($sobrasPorClientes as $row) {
-            $percentual[$row['vat_id']] = $row['percentual_sobras'];
-        }
-        $totalSobras = 0;
-        foreach ($valoresPorProjeto as $row) {
-            $percentual[$row['contact_reference']] * $row['bruto'] / 100;
-            $totalSobras += $percentual[$row['contact_reference']] * $row['bruto'] / 100;
-        }
-        $brutoLibreCode = $totalSobras + $totalLibrecodeSobreClientes;
-        $this->logger->debug('Bruto LibreCode: {total}', ['total' => (int) $brutoLibreCode]);
-        return $brutoLibreCode;
-    }
-
-    private function getTrabalhadoPorCliente(
+    private function getPercentualTrabalhadoPorCliente(
         DateTime $inicio,
         DateTime $fim,
         DateTime $inicioProximoMes,
@@ -472,7 +491,7 @@ class BaseCalculo
     ): array
     {
         $stmt = $this->db->getConnection()->prepare(<<<SQL
-            -- Trabalhado por cliente
+            -- Percentual trabalhado por cliente
             SELECT u.alias,
                 c.name,
                 COALESCE(sum(t.duration), 0) * 100 / total_cliente.total AS percentual_trabalhado,
@@ -483,7 +502,7 @@ class BaseCalculo
             JOIN timesheet t ON t.project_id = p.id
             JOIN users u ON u.id = t.user_id
             JOIN (
-                    -- Total horas por cliente
+                -- Total minutos faturados por cliente
                 SELECT c.id as customer_id,
                     c.name,
                     c.vat_id,
@@ -542,9 +561,9 @@ class BaseCalculo
     }
 
     private function getBrutoPorCooperado(
-        array $trabalhadoPorCliente,
+        array $percentualTrabalhadoPorCliente,
         array $valoresPorProjeto,
-        float $brutoLibreCode
+        float $bruto
     ): array
     {
         $totalPorCliente = [];
@@ -553,18 +572,30 @@ class BaseCalculo
         }
 
         // Inicia array com zero para poder incrementar com valores
-        $cooperados = array_unique(array_column($trabalhadoPorCliente, 'alias'));
+        $cooperados = array_unique(array_column($percentualTrabalhadoPorCliente, 'alias'));
         $cooperados = array_combine(
             $cooperados,
             array_fill(0, count($cooperados), 0)
         );
 
-        foreach ($trabalhadoPorCliente as $row) {
+        // Distribui os percentuais por cada cliente, exceto o cliente LibreCode
+        $totalDistribuido = 0;
+        foreach ($percentualTrabalhadoPorCliente as $row) {
             if ($row['name'] === 'LibreCode') {
-                $cooperados[$row['alias']] += $brutoLibreCode * $row['percentual_trabalhado'] / 100;
-            } else {
-                $cooperados[$row['alias']] += $totalPorCliente[$row['vat_id']] * $row['percentual_trabalhado'] / 100;
+                continue;
             }
+            $aReceber = $totalPorCliente[$row['vat_id']] * $row['percentual_trabalhado'] / 100;
+            $totalDistribuido += $aReceber;
+            $cooperados[$row['alias']] += $aReceber;
+        }
+
+        // Distribui as sobras no cliente LibreCode
+        $sobras = $bruto - $totalDistribuido;
+        foreach ($percentualTrabalhadoPorCliente as $row) {
+            if ($row['name'] !== 'LibreCode') {
+                continue;
+            }
+            $cooperados[$row['alias']] += $sobras * $row['percentual_trabalhado'] / 100;
         }
         $this->logger->debug('Bruto por cooperado: {json}', ['json' => json_encode($cooperados)]);
         return $cooperados;
