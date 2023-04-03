@@ -422,9 +422,9 @@ class BaseCalculo
             'data_fim' => $fim->format('Y-m-d'),
         ]);
         $this->valoresPorProjeto = [];
+        $percentualDesconto = $percentualDispendio + $percentualLibreCode;
         while ($row = $result->fetchAssociative()) {
-            $base = $row['valor_servico'] - /*$row['impostos'] - */$row['total_custos'];
-            $percentualDesconto = $percentualDispendio + $percentualLibreCode;
+            $base = $row['valor_servico'] - $row['impostos'] - $row['total_custos'];
             $row['bruto'] = $base - ($base * $percentualDesconto / 100);
             $this->valoresPorProjeto[] = $row;
         }
