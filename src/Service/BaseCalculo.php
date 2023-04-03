@@ -79,15 +79,64 @@ class BaseCalculo
 
         $totalSegundosLibreCode = $this->getTotalSegundosLibreCode($inicio, $fim);
         $totalDispendios = $this->getTotalDispendios($inicioProximoMes, $fimProximoMes);
+
+        $baseCalculoDispendios = $totalNotas['notas'] - $totalNotas['impostos'] - $totalCustoCliente;
+
+        $percentualLibreCode = $this->percentualLibreCode(
+            $totalCooperados,
+            $diasUteis,
+            $totalSegundosLibreCode
+        );
+        $percentualConselhoAdministrativo = $this->percentualConselhoAdministrativo(
+            $totalDispendios,
+            $baseCalculoDispendios,
+            $percentualMaximo
+        );
+        $percentualDesconto = $percentualConselhoAdministrativo + $percentualLibreCode;
+
+        $valoresPorProjeto = $this->getValoresPorProjeto(
+            $inicioProximoMes,
+            $fimProximoMes,
+            $percentualDesconto
+        );
+        $percentualTrabalhadoPorCliente = $this->getPercentualTrabalhadoPorCliente(
+            $inicio,
+            $fim,
+            $inicioProximoMes,
+            $fimProximoMes
+        );
+
+        /**
+         * Bruto neste contexto é o que tem para ser dividido por todos no mês
+         * sem todos os custos.
+         *
+         * O bruto é o total de nota sem impostos, sem os custos dos clientes
+         * e sem os disêndios pois dispêndio não contém custo cliente
+         */
+        $brutoProducao = $baseCalculoDispendios - $totalDispendios;
+        $brutoPorCooperado = $this->getBrutoPorCooperado(
+            $percentualTrabalhadoPorCliente,
+            $valoresPorProjeto,
+            $brutoProducao
+        );
+        return $brutoPorCooperado;
+    }
+
+    /**
+     * Valor reservado de cada projeto para pagar o Conselho Administrativo
+     */
+    private function percentualConselhoAdministrativo(
+        float $totalDispendios,
+        float $baseCalculoDispendios,
+        float $percentualMaximo
+    ): float
+    {
         /**
          * Para a taxa mínima utiliza-se o total de dispêndios apenas pois no total
          * de dispêndios já está sem o custo dos clientes.
          */
         $taxaMinima = $totalDispendios;
         $taxaMaxima = $taxaMinima * 2;
-
-        $baseCalculoDispendios = $totalNotas['notas'] - $totalNotas['impostos'] - $totalCustoCliente;
-
         if ($baseCalculoDispendios * $percentualMaximo / 100 >= $taxaMaxima) {
             $taxaAdministrativa = $taxaMaxima;
         } elseif ($baseCalculoDispendios * $percentualMaximo / 100 >= $taxaMinima) {
@@ -96,43 +145,8 @@ class BaseCalculo
             $taxaAdministrativa = $taxaMinima;
         }
 
-        /**
-         * Converte taxa administrativa em percentual
-         */
-        $percentualDispendio = $taxaAdministrativa / ($baseCalculoDispendios) * 100;
-        /**
-         * Bruto neste contexto é o que tem para ser dividido por todos no mês
-         * sem todos os custos.
-         *
-         * O bruto é o total de nota sem impostos, sem os custos dos clientes
-         * e sem os disêndios pois dispêndio não contém custo cliente
-         */
-        $bruto = $baseCalculoDispendios - $totalDispendios;
-
-        $percentualLibreCode = $this->percentualLibreCode(
-            $totalCooperados,
-            $diasUteis,
-            $totalSegundosLibreCode
-        );
-
-        $valoresPorProjeto = $this->getValoresPorProjeto(
-            $inicioProximoMes,
-            $fimProximoMes,
-            $percentualDispendio,
-            $percentualLibreCode
-        );
-        $percentualTrabalhadoPorCliente = $this->getPercentualTrabalhadoPorCliente(
-            $inicio,
-            $fim,
-            $inicioProximoMes,
-            $fimProximoMes
-        );
-        $brutoPorCooperado = $this->getBrutoPorCooperado(
-            $percentualTrabalhadoPorCliente,
-            $valoresPorProjeto,
-            $bruto
-        );
-        return $brutoPorCooperado;
+        $percentual = $taxaAdministrativa / ($baseCalculoDispendios) * 100;
+        return $percentual;
     }
 
     /**
@@ -381,8 +395,7 @@ class BaseCalculo
     private function getValoresPorProjeto(
         DateTime $inicio,
         DateTime $fim,
-        float $percentualDispendio,
-        float $percentualLibreCode
+        float $percentualDesconto
     ): array
     {
         if ($this->valoresPorProjeto) {
@@ -422,7 +435,6 @@ class BaseCalculo
             'data_fim' => $fim->format('Y-m-d'),
         ]);
         $this->valoresPorProjeto = [];
-        $percentualDesconto = $percentualDispendio + $percentualLibreCode;
         while ($row = $result->fetchAssociative()) {
             $base = $row['valor_servico'] - $row['impostos'] - $row['total_custos'];
             $row['bruto'] = $base - ($base * $percentualDesconto / 100);
