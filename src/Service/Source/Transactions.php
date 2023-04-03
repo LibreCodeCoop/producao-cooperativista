@@ -127,7 +127,9 @@ class Transactions
                     ->set('reference', $update->createNamedParameter($row['reference']))
                     ->set('contact_id', $update->createNamedParameter($row['contact_id'], ParameterType::INTEGER))
                     ->set('tax_number', $update->createNamedParameter($row['contact']['tax_number']))
-                    ->set('contact_reference', $update->createNamedParameter($row['contact']['reference'] ?? $row['contact']['tax_number']))
+                    ->set('contact_reference', $update->createNamedParameter($row['contact']['reference']
+                        ?? $row['contact']['tax_number']
+                        ?? $row['reference']))
                     ->set('contact_name', $update->createNamedParameter($row['contact']['name']))
                     ->set('contact_type', $update->createNamedParameter($row['contact']['type']))
                     ->set('category_id', $update->createNamedParameter($row['category_id'], ParameterType::INTEGER))
@@ -148,7 +150,9 @@ class Transactions
                     'contact_id' => $insert->createNamedParameter($row['contact_id'], ParameterType::INTEGER),
                     'reference' => $insert->createNamedParameter($row['reference']),
                     'tax_number' => $insert->createNamedParameter($row['contact']['tax_number']),
-                    'contact_reference' => $insert->createNamedParameter($row['contact']['reference'] ?? $row['contact']['tax_number']),
+                    'contact_reference' => $insert->createNamedParameter($row['contact']['reference']
+                        ?? $row['contact']['tax_number']
+                        ?? $row['reference']),
                     'contact_name' => $insert->createNamedParameter($row['contact']['name']),
                     'contact_type' => $insert->createNamedParameter($row['contact']['type']),
                     'category_id' => $insert->createNamedParameter($row['category_id'], ParameterType::INTEGER),
