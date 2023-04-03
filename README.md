@@ -34,7 +34,7 @@ vendor/bin/phinx migrate
 
 ## Comandos
 ### Exemplos
-e
+
 O principal comando é:
 
 ```bash
