@@ -2,6 +2,14 @@
 
 Calcular o bruto da produção cooperativista por cooperado com base em dados coletados do Akaunting, Kimai e site da prefeitura.
 
+## Requisitos
+
+| Sistema                            | Descrição                                                                                                  |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| [Kimai](https://www.kimai.org)     | Registro de horas trabalhadas por projeto, emissão de relatório de horas trabalhadas para clientes         |
+| [Akaunting](https://akaunting.com) | Gestão financeira                                                                                          |
+| Site da prefeitura                 | Emissão de NFSe. Hoje o sistema dá suporte oficial apenas as prefeituras dos municípios do Rio e Niteróio. |
+
 ## Ações para que tudo funcione
 * Emissão de notas fiscais
   * Definir a descrição da nota fiscal com campos separados por `:` (dois pontos)
