@@ -23,9 +23,9 @@
 
 declare(strict_types=1);
 
-namespace KimaiClient\Command;
+namespace ProducaoCooperativista\Command;
 
-use KimaiClient\Service\Source\Users;
+use ProducaoCooperativista\Service\Source\Users;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;

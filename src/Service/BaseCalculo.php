@@ -23,19 +23,19 @@
 
 declare(strict_types=1);
 
-namespace KimaiClient\Service;
+namespace ProducaoCooperativista\Service;
 
 use DateTime;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
-use KimaiClient\DB\Database;
-use KimaiClient\Service\Source\Customers;
-use KimaiClient\Service\Source\Nfse;
-use KimaiClient\Service\Source\Projects;
-use KimaiClient\Service\Source\Timesheets;
-use KimaiClient\Service\Source\Transactions;
-use KimaiClient\Service\Source\Users;
+use ProducaoCooperativista\DB\Database;
+use ProducaoCooperativista\Service\Source\Customers;
+use ProducaoCooperativista\Service\Source\Nfse;
+use ProducaoCooperativista\Service\Source\Projects;
+use ProducaoCooperativista\Service\Source\Timesheets;
+use ProducaoCooperativista\Service\Source\Transactions;
+use ProducaoCooperativista\Service\Source\Users;
 use Psr\Log\LoggerInterface;
 
 class BaseCalculo

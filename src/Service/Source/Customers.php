@@ -23,13 +23,13 @@
 
 declare(strict_types=1);
 
-namespace KimaiClient\Service\Source;
+namespace ProducaoCooperativista\Service\Source;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
-use KimaiClient\DB\Database;
-use KimaiClient\Service\Source\Provider\Kimai;
+use ProducaoCooperativista\DB\Database;
+use ProducaoCooperativista\Service\Source\Provider\Kimai;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpClient\HttpClient;
 

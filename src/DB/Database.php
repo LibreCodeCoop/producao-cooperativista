@@ -23,7 +23,7 @@
 
 declare(strict_types=1);
 
-namespace KimaiClient\DB;
+namespace ProducaoCooperativista\DB;
 
 use Doctrine\DBAL\Configuration;
 use Doctrine\DBAL\Connection;

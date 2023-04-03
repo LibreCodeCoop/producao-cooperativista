@@ -15,7 +15,7 @@
     },
     "autoload": {
         "psr-4": {
-            "KimaiClient\\": "src/"
+            "ProducaoCooperativista\\": "src/"
         }
     },
     "bin" : [

@@ -28,21 +28,21 @@ if (PHP_SAPI !== 'cli') {
 
 require __DIR__.'/../src/bootstrap.php';
 
-use KimaiClient\Command\GetCustomersCommand;
-use KimaiClient\Command\GetNfseCommand;
-use KimaiClient\Command\GetProjectsCommand;
-use KimaiClient\Command\GetTimesheetsCommand;
-use KimaiClient\Command\GetTransactionsCommand;
-use KimaiClient\Command\GetUsersCommand;
-use KimaiClient\Command\ReportBrutoCommand;
-use KimaiClient\DB\Database;
-use KimaiClient\Service\BaseCalculo;
-use KimaiClient\Service\Source\Customers;
-use KimaiClient\Service\Source\Nfse;
-use KimaiClient\Service\Source\Projects;
-use KimaiClient\Service\Source\Timesheets;
-use KimaiClient\Service\Source\Transactions;
-use KimaiClient\Service\Source\Users;
+use ProducaoCooperativista\Command\GetCustomersCommand;
+use ProducaoCooperativista\Command\GetNfseCommand;
+use ProducaoCooperativista\Command\GetProjectsCommand;
+use ProducaoCooperativista\Command\GetTimesheetsCommand;
+use ProducaoCooperativista\Command\GetTransactionsCommand;
+use ProducaoCooperativista\Command\GetUsersCommand;
+use ProducaoCooperativista\Command\ReportBrutoCommand;
+use ProducaoCooperativista\DB\Database;
+use ProducaoCooperativista\Service\BaseCalculo;
+use ProducaoCooperativista\Service\Source\Customers;
+use ProducaoCooperativista\Service\Source\Nfse;
+use ProducaoCooperativista\Service\Source\Projects;
+use ProducaoCooperativista\Service\Source\Timesheets;
+use ProducaoCooperativista\Service\Source\Transactions;
+use ProducaoCooperativista\Service\Source\Users;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 use Symfony\Component\Console\Application;

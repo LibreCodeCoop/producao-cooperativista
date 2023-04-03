@@ -23,11 +23,11 @@
 
 declare(strict_types=1);
 
-namespace KimaiClient\Command;
+namespace ProducaoCooperativista\Command;
 
 use DateTime;
-use KimaiClient\Service\Nfse;
-use KimaiClient\Service\Source\Nfse as SourceNfse;
+use ProducaoCooperativista\Service\Nfse;
+use ProducaoCooperativista\Service\Source\Nfse as SourceNfse;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;

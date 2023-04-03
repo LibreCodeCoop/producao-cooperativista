@@ -23,10 +23,10 @@
 
 declare(strict_types=1);
 
-namespace KimaiClient\Command;
+namespace ProducaoCooperativista\Command;
 
-use KimaiClient\Service\Projects;
-use KimaiClient\Service\Source\Projects as SourceProjects;
+use ProducaoCooperativista\Service\Projects;
+use ProducaoCooperativista\Service\Source\Projects as SourceProjects;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
