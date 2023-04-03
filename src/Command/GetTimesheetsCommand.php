@@ -27,7 +27,6 @@ namespace KimaiClient\Command;
 
 use DateTime;
 use KimaiClient\Service\Source\Timesheets as SourceTimesheets;
-use KimaiClient\Service\Timesheets;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;

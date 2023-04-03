@@ -86,10 +86,12 @@ class BaseCalculo
         $taxaMinima = $totalDispendios;
         $taxaMaxima = $taxaMinima * 2;
 
-        if ($totalNotas['notas'] * $percentualMaximo / 100 >= $taxaMaxima) {
+        $baseCalculoDispendios = $totalNotas['notas'] - $totalNotas['impostos'] - $totalCustoCliente;
+
+        if ($baseCalculoDispendios * $percentualMaximo / 100 >= $taxaMaxima) {
             $taxaAdministrativa = $taxaMaxima;
-        } elseif ($totalNotas['notas'] * $percentualMaximo / 100 >= $taxaMinima) {
-            $taxaAdministrativa = $totalNotas['notas'] * $percentualMaximo / 100;
+        } elseif ($baseCalculoDispendios * $percentualMaximo / 100 >= $taxaMinima) {
+            $taxaAdministrativa = $baseCalculoDispendios * $percentualMaximo / 100;
         } else {
             $taxaAdministrativa = $taxaMinima;
         }
@@ -97,7 +99,7 @@ class BaseCalculo
         /**
          * Converte taxa administrativa em percentual
          */
-        $percentualDispendio = $taxaAdministrativa / ($totalNotas['notas'] - $totalNotas['impostos'] - $totalCustoCliente) * 100;
+        $percentualDispendio = $taxaAdministrativa / ($baseCalculoDispendios) * 100;
         /**
          * Bruto neste contexto é o que tem para ser dividido por todos no mês
          * sem todos os custos.
@@ -105,7 +107,7 @@ class BaseCalculo
          * O bruto é o total de nota sem impostos, sem os custos dos clientes
          * e sem os disêndios pois dispêndio não contém custo cliente
          */
-        $bruto = $totalNotas['notas'] - $totalNotas['impostos'] - $totalCustoCliente - $totalDispendios;
+        $bruto = $baseCalculoDispendios - $totalDispendios;
 
         $percentualLibreCode = $this->percentualLibreCode(
             $totalCooperados,
@@ -293,10 +295,10 @@ class BaseCalculo
             ->andWhere('data_emissao >= :inicio')
             ->andWhere('data_emissao <= :fim');
         if ($_ENV['IGNORAR_CNPJ']) {
-            $listaCnpj = explode(',', $_ENV['IGNORAR_CNPJ']);
+            $cnpjIgnorados = explode(',', $_ENV['IGNORAR_CNPJ']);
             $select
                 ->andWhere($select->expr()->notIn('cnpj', ':cnpj'))
-                ->setParameter('cnpj', $listaCnpj, Connection::PARAM_STR_ARRAY);
+                ->setParameter('cnpj', $cnpjIgnorados, Connection::PARAM_STR_ARRAY);
         }
         $select
             ->setParameter('inicio', $inicio->format('Y-m-d'))
@@ -420,9 +422,9 @@ class BaseCalculo
             'data_fim' => $fim->format('Y-m-d'),
         ]);
         $this->valoresPorProjeto = [];
+        $percentualDesconto = $percentualDispendio + $percentualLibreCode;
         while ($row = $result->fetchAssociative()) {
-            $base = $row['valor_servico'] - /*$row['impostos'] - */$row['total_custos'];
-            $percentualDesconto = $percentualDispendio + $percentualLibreCode;
+            $base = $row['valor_servico'] - $row['impostos'] - $row['total_custos'];
             $row['bruto'] = $base - ($base * $percentualDesconto / 100);
             $this->valoresPorProjeto[] = $row;
         }
@@ -566,10 +568,7 @@ class BaseCalculo
         float $bruto
     ): array
     {
-        $totalPorCliente = [];
-        foreach ($valoresPorProjeto as $row) {
-            $totalPorCliente[$row['contact_reference']] = $row['bruto'];
-        }
+        $totalPorCliente = array_column($valoresPorProjeto, 'bruto', 'contact_reference');
 
         // Inicia array com zero para poder incrementar com valores
         $cooperados = array_unique(array_column($percentualTrabalhadoPorCliente, 'alias'));
@@ -579,6 +578,7 @@ class BaseCalculo
         );
 
         // Distribui os percentuais por cada cliente, exceto o cliente LibreCode
+        // pois o cliente LibreCode não tem NFSe
         $totalDistribuido = 0;
         foreach ($percentualTrabalhadoPorCliente as $row) {
             if ($row['name'] === 'LibreCode') {
