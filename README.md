@@ -2,17 +2,20 @@
 
 Calcular o bruto da produção cooperativista por cooperado com base em dados coletados do Akaunting, Kimai e site da prefeitura.
 
-## Pendências
+## Ações para que tudo funcione
+* Emissão de notas fiscais
+  * Definir a descrição da nota fiscal com campos separados por `:` (dois pontos)
+  * Quando for NFSe para mais de um setor de um mesmo CNPJ, acrescentar o campo `setor: <setor>`
 * Akaunting
   * Dados de clientes
-    * [ ] Definir número de identificação fiscal (cpf/cnpj) para todo fornecedor/cliente. Quando houver nota emitida para mais de um setor de um mesmo CNPJ e figurarem diferentes contas na LibreCode (conta = contrato), concatenar da seguinte forma: `<cpf/CNPJ>|<setor>`
+    * Definir número de identificação fiscal (cpf/cnpj) para todo fornecedor/cliente. Quando houver nota emitida para mais de um setor de um mesmo CNPJ e figurarem diferentes contas na LibreCode (conta = contrato), concatenar da seguinte forma: `<cpf/CNPJ>|<setor>`
   * Receitas
-    * [ ] Toda transação com nota fiscal emitida pela LibreCode deve conter o número da nota fiscal no campo `referência`.
-    * [ ] Sempre que for receita vind de cliente deve possuir a categoria `Recorrência` ou `Serviço`
+    * Toda transação com nota fiscal emitida pela LibreCode deve conter o número da nota fiscal no campo `referência`.
+    * Sempre que for receita vinda de cliente deve possuir a categoria `Recorrência` ou `Serviço`
   * Custos
-    * [ ] Categorizar transação de saída como `Custos clientes` quando forem custos de clientes
-    * [ ] Sempre que for custo reembolsável pelo cliente, adicionar CPF/CNPJ na transação no campo `Referência` para que seja possível identificar qual cliente deverá reembolsar este custo de entrada. Lembrar de acrescentar o setor sempre que necessário.
-    * [ ] Importar custos de clientes
+    * Categorizar transação de saída como `Cliente (custo)` quando forem custos de clientes
+    * Sempre que for custo reembolsável pelo cliente, adicionar `<cpf/CNPJ>|<setor>` na transação no campo `Referência` para que seja possível identificar qual cliente deverá reembolsar este custo de entrada. Lembrar de acrescentar o setor sempre que necessário.
+    * Plano de saúde deve ser categorizado como `Plano de saúde`
 
 ## Setup
 Primeiro clone o repositório e entre nele.
