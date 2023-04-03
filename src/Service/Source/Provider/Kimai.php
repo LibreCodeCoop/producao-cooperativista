@@ -23,7 +23,7 @@
 
 declare(strict_types=1);
 
-namespace KimaiClient\Service\Source\Provider;
+namespace ProducaoCooperativista\Service\Source\Provider;
 
 use Symfony\Component\HttpClient\HttpClient;
 

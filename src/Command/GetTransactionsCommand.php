@@ -23,11 +23,11 @@
 
 declare(strict_types=1);
 
-namespace KimaiClient\Command;
+namespace ProducaoCooperativista\Command;
 
 use DateTime;
-use KimaiClient\Service\Source\Transactions as SourceTransactions;
-use KimaiClient\Service\Transactions;
+use ProducaoCooperativista\Service\Source\Transactions as SourceTransactions;
+use ProducaoCooperativista\Service\Transactions;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;

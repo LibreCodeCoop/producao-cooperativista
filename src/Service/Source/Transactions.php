@@ -23,15 +23,15 @@
 
 declare(strict_types=1);
 
-namespace KimaiClient\Service\Source;
+namespace ProducaoCooperativista\Service\Source;
 
 use DateTime;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Types;
-use KimaiClient\DB\Database;
-use KimaiClient\Service\Source\Provider\Akaunting;
+use ProducaoCooperativista\DB\Database;
+use ProducaoCooperativista\Service\Source\Provider\Akaunting;
 use Psr\Log\LoggerInterface;
 
 class Transactions

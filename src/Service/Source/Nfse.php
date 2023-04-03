@@ -23,14 +23,14 @@
 
 declare(strict_types=1);
 
-namespace KimaiClient\Service\Source;
+namespace ProducaoCooperativista\Service\Source;
 
 use DateTime;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Types;
-use KimaiClient\DB\Database;
+use ProducaoCooperativista\DB\Database;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\BrowserKit\CookieJar;
