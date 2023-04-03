@@ -444,59 +444,6 @@ class BaseCalculo
         return $this->valoresPorProjeto;
     }
 
-    private function getSobrasDeHorasPorCliente(
-        DateTime $inicio,
-        DateTime $fim,
-        DateTime $inicioProximoMes,
-        DateTime $fimProximoMes
-    ): array
-    {
-        $stmt = $this->db->getConnection()->prepare(<<<SQL
-            -- Sobras por clientes
-            SELECT COALESCE(sum(t.duration), 0) AS trabalhado,
-                c.time_budget as contratado,
-                c.id as customer_id,
-                c.vat_id,
-                c.name,
-                CASE WHEN sum(t.duration) > c.time_budget THEN 0
-                        WHEN sum(t.duration) IS NULL THEN 100
-                        ELSE 100 - (sum(t.duration) * 100 / c.time_budget)
-                        END AS percentual_sobras
-            -- Clientes que pagaram
-            FROM customers c
-            JOIN transactions tr
-              ON tr.contact_reference = c.vat_id
-            AND tr.paid_at >= :data_inicio_proximo_mes
-            AND tr.paid_at <= :data_fim_proximo_mes
-            AND tr.category_type = 'income'
-            AND tr.category_name IN ('Recorrência', 'Serviço')
-            -- Tabela de conexão de cliente com timesheets
-            LEFT JOIN projects p ON p.customer_id = c.id
-            -- Horas trabalhadas por clientes
-            LEFT JOIN timesheet t ON t.project_id = p.id AND t.`begin` >= :data_inicio AND t.`end` <= :data_fim
-            GROUP BY c.time_budget,
-                    c.id,
-                    c.name,
-                    c.vat_id
-            SQL
-        );
-        $result = $stmt->executeQuery([
-            'data_inicio' => $inicio->format('Y-m-d'),
-            'data_fim' => $fim->format('Y-m-d H:i:s'),
-            'data_inicio_proximo_mes' => $inicioProximoMes->format('Y-m-d'),
-            'data_fim_proximo_mes' => $fimProximoMes->format('Y-m-d'),
-        ]);
-        $rows = [];
-        while ($row = $result->fetchAssociative()) {
-            if (!preg_match('/^\d+(\|\S+)?$/', $row['vat_id'])) {
-                throw new Exception('Referência de cliente (campo vat_id) inválida no Kimai: ' . json_encode($row));
-            }
-            $rows[] = $row;
-        }
-        $this->logger->debug('Sobras por clientes: {sobras}', ['sobras' => json_encode($rows)]);
-        return $rows;
-    }
-
     private function getPercentualTrabalhadoPorCliente(
         DateTime $inicio,
         DateTime $fim,
