@@ -87,13 +87,15 @@ class ReportBrutoCommand extends BaseCommand
         $diasUteis = (int) $input->getOption('dias-uteis');
         $percentualMaximo = (int) $input->getOption('percentual-maximo');
         $inicio = DateTime::createFromFormat('Y-m', $input->getOption('ano-mes'));
-        $list = $this->baseCalculo->getData(
-            $inicio,
-            $diasUteis,
-            $percentualMaximo,
-            (bool) $input->getOption('atualizar-dados')
-        );
         if ($input->getOption('csv')) {
+            if ((bool) $input->getOption('atualizar-dados')) {
+                $this->baseCalculo->loadFromExternalSources($inicio);
+            }
+            $list = $this->baseCalculo->getData(
+                $inicio,
+                $diasUteis,
+                $percentualMaximo
+            );
             $output->writeLn('cooperado,total');
             foreach ($list as $cooperado => $total) {
                 $output->writeLn($cooperado . ',' . $total);

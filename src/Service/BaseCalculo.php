@@ -26,7 +26,7 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Service;
 
 use DateTime;
-use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
 use ProducaoCooperativista\DB\Database;
@@ -42,6 +42,23 @@ class BaseCalculo
 {
     private array $custosPorCliente = [];
     private array $valoresPorProjeto = [];
+    private array $percentualTrabalhadoPorCliente = [];
+    private array $brutoPorCooperado = [];
+    private int $totalCooperados = 0;
+    private float $totalNotas = 0;
+    private float $totalImpostos = 0;
+    private float $totalCustoCliente = 0;
+    private float $totalDispendios = 0;
+    private int $totalSegundosLibreCode = 0;
+    private float $baseCalculoDispendios = 0;
+    private int $percentualMaximo = 0;
+    private float $percentualConselhoAdministrativo = 0;
+    private int $diasUteis;
+    private bool $sobrasDistribuidas = false;
+    private ?DateTime $inicio = null;
+    private DateTime $fim;
+    private DateTime $inicioProximoMes;
+    private DateTime $fimProximoMes;
 
     public function __construct(
         private Database $db,
@@ -56,97 +73,55 @@ class BaseCalculo
     {
     }
 
-    public function getData(DateTime $inicio, int $diasUteis, int $percentualMaximo, bool $forceUpdate): array
+    private function getBaseCalculoDispendios(): float
     {
-        $inicio = $inicio
+        if ($this->baseCalculoDispendios) {
+            return $this->baseCalculoDispendios;
+        }
+        $this->baseCalculoDispendios = $this->getTotalNotas() - $this->getTotalImpostos() - $this->getTotalCustoCliente();
+        return $this->baseCalculoDispendios;
+    }
+
+    public function setInicio(DateTime $inicio): void
+    {
+        if ($this->inicio) {
+            return;
+        }
+        $this->inicio = $inicio
             ->modify('first day of this month')
             ->setTime(00, 00, 00);
         $fim = clone $inicio;
-        $fim = $fim->modify('last day of this month')
+        $this->fim = $fim->modify('last day of this month')
             ->setTime(23, 59, 59);
 
-        $inicioProximoMes = (clone $inicio)->modify('first day of next month');
-        $fimProximoMes = (clone $fim)->modify('last day of next month');
-
-        if ($forceUpdate) {
-            $this->loadFromExternalSources($inicio, $inicioProximoMes);
-        }
-
-        // Funções que disparam exception são executadas primeiro para validação dos dados
-        $totalCooperados = $this->getTotalPessoasMes($inicio, $fim);
-        $totalNotas = $this->getTotalNotasEImpostos($inicioProximoMes, $fimProximoMes);
-        $totalCustoCliente = $this->getTotalCustoCliente($inicioProximoMes, $fimProximoMes);
-
-        $totalSegundosLibreCode = $this->getTotalSegundosLibreCode($inicio, $fim);
-        $totalDispendios = $this->getTotalDispendios($inicioProximoMes, $fimProximoMes);
-
-        $baseCalculoDispendios = $totalNotas['notas'] - $totalNotas['impostos'] - $totalCustoCliente;
-
-        $percentualLibreCode = $this->percentualLibreCode(
-            $totalCooperados,
-            $diasUteis,
-            $totalSegundosLibreCode
-        );
-        $percentualConselhoAdministrativo = $this->percentualConselhoAdministrativo(
-            $totalDispendios,
-            $baseCalculoDispendios,
-            $percentualMaximo
-        );
-        $percentualDesconto = $percentualConselhoAdministrativo + $percentualLibreCode;
-
-        $valoresPorProjeto = $this->getValoresPorProjeto(
-            $inicioProximoMes,
-            $fimProximoMes,
-            $percentualDesconto
-        );
-        $percentualTrabalhadoPorCliente = $this->getPercentualTrabalhadoPorCliente(
-            $inicio,
-            $fim,
-            $inicioProximoMes,
-            $fimProximoMes
-        );
-
-        /**
-         * Bruto neste contexto é o que tem para ser dividido por todos no mês
-         * sem todos os custos.
-         *
-         * O bruto é o total de nota sem impostos, sem os custos dos clientes
-         * e sem os disêndios pois dispêndio não contém custo cliente
-         */
-        $brutoProducao = $baseCalculoDispendios - $totalDispendios;
-        $brutoPorCooperado = $this->getBrutoPorCooperado(
-            $percentualTrabalhadoPorCliente,
-            $valoresPorProjeto,
-            $brutoProducao
-        );
-        return $brutoPorCooperado;
+        $this->inicioProximoMes = (clone $inicio)->modify('first day of next month');
+        $this->fimProximoMes = (clone $fim)->modify('last day of next month');
     }
 
     /**
      * Valor reservado de cada projeto para pagar o Conselho Administrativo
      */
-    private function percentualConselhoAdministrativo(
-        float $totalDispendios,
-        float $baseCalculoDispendios,
-        float $percentualMaximo
-    ): float
+    private function percentualConselhoAdministrativo(): float
     {
+        if ($this->percentualConselhoAdministrativo) {
+            return $this->percentualConselhoAdministrativo;
+        }
         /**
          * Para a taxa mínima utiliza-se o total de dispêndios apenas pois no total
          * de dispêndios já está sem o custo dos clientes.
          */
-        $taxaMinima = $totalDispendios;
+        $taxaMinima = $this->getTotalDispendios();
         $taxaMaxima = $taxaMinima * 2;
-        if ($baseCalculoDispendios * $percentualMaximo / 100 >= $taxaMaxima) {
+        if ($this->getBaseCalculoDispendios() * $this->percentualMaximo / 100 >= $taxaMaxima) {
             $taxaAdministrativa = $taxaMaxima;
-        } elseif ($baseCalculoDispendios * $percentualMaximo / 100 >= $taxaMinima) {
-            $taxaAdministrativa = $baseCalculoDispendios * $percentualMaximo / 100;
+        } elseif ($this->getBaseCalculoDispendios() * $this->percentualMaximo / 100 >= $taxaMinima) {
+            $taxaAdministrativa = $this->getBaseCalculoDispendios() * $this->percentualMaximo / 100;
         } else {
             $taxaAdministrativa = $taxaMinima;
         }
 
-        $percentual = $taxaAdministrativa / ($baseCalculoDispendios) * 100;
-        return $percentual;
+        $this->percentualConselhoAdministrativo = $taxaAdministrativa / ($this->getBaseCalculoDispendios()) * 100;
+        return $this->percentualConselhoAdministrativo;
     }
 
     /**
@@ -158,36 +133,33 @@ class BaseCalculo
      * LibreCode versus o total hipotético de trabalho 100% das horas pelo total
      * de cooperados que registraram horas no Kimai.
      */
-    private function percentualLibreCode(
-        int $totalCooperados,
-        int $diasUteis,
-        int $totalSegundosLibreCode
-    ): float
+    private function percentualLibreCode(): float
     {
-        $totalPossivelDeHoras = $totalCooperados * 8 * $diasUteis;
+        $totalPossivelDeHoras = $this->getTotalCooperados() * 8 * $this->diasUteis;
 
-        $totalHorasLibreCode = $totalSegundosLibreCode / 60 / 60;
+        $totalHorasLibreCode = $this->getTotalSegundosLibreCode() / 60 / 60;
         $percentualLibreCode = $totalHorasLibreCode * 100 / $totalPossivelDeHoras;
 
         return $percentualLibreCode;
     }
 
-    private function loadFromExternalSources(
-        DateTIme $inicio,
-        DateTIme $inicioProximoMes
-    ): void
+    public function loadFromExternalSources(DateTime $inicio): void
     {
+        $this->setInicio($inicio);
         $this->logger->debug('Baixando dados externos');
         $this->customers->updateDatabase();
-        $this->nfse->updateDatabase($inicioProximoMes);
+        $this->nfse->updateDatabase($this->inicioProximoMes);
         $this->projects->updateDatabase();
-        $this->timesheets->updateDatabase($inicio);
-        $this->transactions->updateDatabase($inicioProximoMes);
+        $this->timesheets->updateDatabase($this->inicio);
+        $this->transactions->updateDatabase($this->inicioProximoMes);
         $this->users->updateDatabase();
     }
 
-    private function getTotalSegundosLibreCode(DateTime $inicio, DateTime $fim): int
+    private function getTotalSegundosLibreCode(): int
     {
+        if ($this->totalSegundosLibreCode) {
+            return $this->totalSegundosLibreCode;
+        }
         $stmt = $this->db->getConnection()->prepare(<<<SQL
             -- Total horas LibreCode
             SELECT sum(t.duration) as total_segundos_librecode
@@ -203,12 +175,12 @@ class BaseCalculo
             SQL
         );
         $result = $stmt->executeQuery([
-            'inicio' => $inicio->format('Y-m-d'),
-            'fim' => $fim->format('Y-m-d H:i:s'),
+            'inicio' => $this->inicio->format('Y-m-d'),
+            'fim' => $this->fim->format('Y-m-d H:i:s'),
         ]);
-        $return = $result->fetchOne();
-        $this->logger->debug('Total segundos LibreCode: {total}', ['total' => (int) $return]);
-        return (int) $return;
+        $this->totalSegundosLibreCode = (int) $result->fetchOne();
+        $this->logger->debug('Total segundos LibreCode: {total}', ['total' => $this->totalSegundosLibreCode]);
+        return $this->totalSegundosLibreCode;
     }
 
     /**
@@ -216,12 +188,12 @@ class BaseCalculo
      * de datas
      *
      * @throws Exception
-     * @param DateTime $inicio
-     * @param DateTime $fim
-     * @return integer
      */
-    private function getTotalPessoasMes(DateTime $inicio, DateTime $fim): int
+    private function getTotalCooperados(): int
     {
+        if ($this->totalCooperados) {
+            return $this->totalCooperados;
+        }
         $stmt = $this->db->getConnection()->prepare(<<<SQL
             -- Total pessoas que registraram horas no mês
             SELECT count(distinct t.user_id) as total_cooperados
@@ -233,21 +205,22 @@ class BaseCalculo
             SQL
         );
         $result = $stmt->executeQuery([
-            'inicio' => $inicio->format('Y-m-d'),
-            'fim' => $fim->format('Y-m-d'),
+            'inicio' => $this->inicio->format('Y-m-d'),
+            'fim' => $this->fim->format('Y-m-d'),
         ]);
-        $return = $result->fetchOne();
+        $result = $result->fetchOne();
 
-        if (!$return) {
+        if (!$result) {
             $messagem = sprintf(
                 'Sem registro de horas no Kimai entre os dias %s e %s.',
-                $inicio->format(('Y-m-d')),
-                $fim->format(('Y-m-d'))
+                $this->inicio->format(('Y-m-d')),
+                $this->fim->format(('Y-m-d'))
             );
             throw new Exception($messagem);
         }
-        $this->logger->debug('Total pessoas no mês: {total}', ['total' => (int) $return]);
-        return (int) $return;
+        $this->totalCooperados = (int) $result;
+        $this->logger->debug('Total pessoas no mês: {total}', ['total' => $this->totalCooperados]);
+        return $this->totalCooperados;
     }
 
     /**
@@ -260,8 +233,11 @@ class BaseCalculo
      * * Cliente: Todos os custos dos clientes
      * * Plano de saúde: Este valor é reembolsado pelo cooperado então não entra para ser dividido por todos
      */
-    private function getTotalDispendios(DateTime $inicio, DateTime $fim): float
+    private function getTotalDispendios(): float
     {
+        if ($this->totalDispendios) {
+            return $this->totalDispendios;
+        }
         $stmt = $this->db->getConnection()->prepare(<<<SQL
             -- Total dispêndios
             SELECT sum(t.amount) AS total_dispendios
@@ -280,24 +256,24 @@ class BaseCalculo
             SQL
         );
         $result = $stmt->executeQuery([
-            'inicio' => $inicio->format('Y-m-d'),
-            'fim' => $fim->format('Y-m-d'),
+            'inicio' => $this->inicioProximoMes->format('Y-m-d'),
+            'fim' => $this->fimProximoMes->format('Y-m-d'),
         ]);
-        $return = $result->fetchOne();
-        $this->logger->debug('Total dispêndios: {total}', ['total' => (int) $return]);
-        return (float) $return;
+        $this->totalDispendios = (float) $result->fetchOne();
+        $this->logger->debug('Total dispêndios: {total}', ['total' => $this->totalDispendios]);
+        return $this->totalDispendios;
     }
 
     /**
      * Retorna valor total de notas e de impostos em um mês
      *
      * @throws Exception
-     * @param DateTime $inicio
-     * @param DateTime $fim
-     * @return array
      */
-    private function getTotalNotasEImpostos(DateTime $inicio, DateTime $fim): array
+    private function totalNotasEImpostos(): void
     {
+        if ($this->totalNotas) {
+            return;
+        }
         $select = new QueryBuilder($this->db->getConnection());
         $select
             ->select(
@@ -312,53 +288,65 @@ class BaseCalculo
             $cnpjIgnorados = explode(',', $_ENV['IGNORAR_CNPJ']);
             $select
                 ->andWhere($select->expr()->notIn('cnpj', ':cnpj'))
-                ->setParameter('cnpj', $cnpjIgnorados, Connection::PARAM_STR_ARRAY);
+                ->setParameter('cnpj', $cnpjIgnorados, ArrayParameterType::STRING);
         }
         $select
-            ->setParameter('inicio', $inicio->format('Y-m-d'))
-            ->setParameter('fim', $fim->format('Y-m-d'));
+            ->setParameter('inicio', $this->inicioProximoMes->format('Y-m-d'))
+            ->setParameter('fim', $this->fimProximoMes->format('Y-m-d'));
         $result = $select->executeQuery();
         $return = $result->fetchAssociative();
         if (is_null($return['notas'])) {
             $messagem = sprintf(
                 'Sem notas entre os dias %s e %s.',
-                $inicio->format(('Y-m-d')),
-                $fim->format(('Y-m-d'))
+                $this->inicio->format(('Y-m-d')),
+                $this->fim->format(('Y-m-d'))
             );
             throw new Exception($messagem);
         }
         $this->logger->debug('Total notas e impostos: {total}', ['total' => json_encode($return)]);
-        return $return;
+        $this->totalNotas = $return['notas'];
+        $this->totalImpostos = $return['impostos'];
+    }
+
+    private function getTotalNotas(): float
+    {
+        $this->totalNotasEImpostos();
+        return $this->totalNotas;
+    }
+
+    private function getTotalImpostos(): float
+    {
+        $this->totalNotasEImpostos();
+        return $this->totalImpostos;
     }
 
     /**
      * Total de custos por cliente
      *
      * @throws Exception
-     * @param DateTime $inicio
-     * @param DateTime $fim
      * @return float
      */
-    private function getTotalCustoCliente(DateTime $inicio, DateTime $fim): float
+    private function getTotalCustoCliente(): float
     {
-        $rows = $this->getCustosPorCliente($inicio, $fim);
-        $total = array_reduce($rows, function($total, $row): float {
+        if ($this->totalCustoCliente) {
+            return $this->totalCustoCliente;
+        }
+        $rows = $this->getCustosPorCliente();
+        $this->totalCustoCliente = array_reduce($rows, function($total, $row): float {
             $total += $row['total_custos'];
             return $total;
         }, 0);
-        $this->logger->debug('Total custos clientes: {total}', ['total' => $total]);
-        return $total;
+        $this->logger->debug('Total custos clientes: {total}', ['total' => $this->totalCustoCliente]);
+        return $this->totalCustoCliente;
     }
 
     /**
      * Lista de clientes e seus custos em um mês
      *
      * @throws Exception
-     * @param DateTime $inicio
-     * @param DateTime $fim
      * @return array
      */
-    private function getCustosPorCliente(DateTime $inicio, DateTime $fim): array
+    private function getCustosPorCliente(): array
     {
         if ($this->custosPorCliente) {
             return $this->custosPorCliente;
@@ -378,8 +366,8 @@ class BaseCalculo
             SQL
         );
         $result = $stmt->executeQuery([
-            'inicio' => $inicio->format('Y-m-d'),
-            'fim' => $fim->format('Y-m-d'),
+            'inicio' => $this->inicioProximoMes->format('Y-m-d'),
+            'fim' => $this->fimProximoMes->format('Y-m-d'),
         ]);
         $this->custosPorCliente = [];
         while ($row = $result->fetchAssociative()) {
@@ -392,15 +380,20 @@ class BaseCalculo
         return $this->custosPorCliente;
     }
 
-    private function getValoresPorProjeto(
-        DateTime $inicio,
-        DateTime $fim,
-        float $percentualDesconto
-    ): array
+    private function getPercentualDesconto(): float
+    {
+        $percentualDesconto = $this->percentualConselhoAdministrativo() + $this->percentualLibreCode();
+        return $percentualDesconto;
+    }
+
+    private function getValoresPorProjeto(): array
     {
         if ($this->valoresPorProjeto) {
             return $this->valoresPorProjeto;
         }
+
+        $percentualDesconto = $this->getPercentualDesconto();
+
         $stmt = $this->db->getConnection()->prepare(<<<SQL
             -- Notas clientes
             SELECT c.name,
@@ -431,8 +424,8 @@ class BaseCalculo
             SQL
         );
         $result = $stmt->executeQuery([
-            'data_inicio' => $inicio->format('Y-m-d'),
-            'data_fim' => $fim->format('Y-m-d'),
+            'data_inicio' => $this->inicio->format('Y-m-d'),
+            'data_fim' => $this->fim->format('Y-m-d'),
         ]);
         $this->valoresPorProjeto = [];
         while ($row = $result->fetchAssociative()) {
@@ -444,13 +437,11 @@ class BaseCalculo
         return $this->valoresPorProjeto;
     }
 
-    private function getPercentualTrabalhadoPorCliente(
-        DateTime $inicio,
-        DateTime $fim,
-        DateTime $inicioProximoMes,
-        DateTime $fimProximoMes
-    ): array
+    private function getPercentualTrabalhadoPorCliente(): array
     {
+        if (count($this->percentualTrabalhadoPorCliente)) {
+            return $this->percentualTrabalhadoPorCliente;
+        }
         $stmt = $this->db->getConnection()->prepare(<<<SQL
             -- Percentual trabalhado por cliente
             SELECT u.alias,
@@ -505,58 +496,107 @@ class BaseCalculo
             SQL
         );
         $result = $stmt->executeQuery([
-            'data_inicio' => $inicio->format('Y-m-d'),
-            'data_fim' => $fim->format('Y-m-d H:i:s'),
-            'data_inicio_proximo_mes' => $inicioProximoMes->format('Y-m-d'),
-            'data_fim_proximo_mes' => $fimProximoMes->format('Y-m-d'),
+            'data_inicio' => $this->inicio->format('Y-m-d'),
+            'data_fim' => $this->fim->format('Y-m-d H:i:s'),
+            'data_inicio_proximo_mes' => $this->inicioProximoMes->format('Y-m-d'),
+            'data_fim_proximo_mes' => $this->fimProximoMes->format('Y-m-d'),
         ]);
-        $rows = [];
+        $this->percentualTrabalhadoPorCliente = [];
         while ($row = $result->fetchAssociative()) {
             if (!$row['vat_id']) {
                 continue;
             }
-            $rows[] = $row;
+            // Inicializa o bruto com zero
+            $this->setBrutoCooperado($row['alias'], 0);
+            $this->percentualTrabalhadoPorCliente[] = $row;
         }
-        $this->logger->debug('Trabalhado por cliente: {json}', ['json' => json_encode($rows)]);
-        return $rows;
+        $this->logger->debug('Trabalhado por cliente: {json}', ['json' => json_encode($this->percentualTrabalhadoPorCliente)]);
+        return $this->percentualTrabalhadoPorCliente;
     }
 
-    private function getBrutoPorCooperado(
-        array $percentualTrabalhadoPorCliente,
-        array $valoresPorProjeto,
-        float $bruto
-    ): array
+    public function setDiasUteis(int $diasUteis): void
     {
-        $totalPorCliente = array_column($valoresPorProjeto, 'bruto', 'contact_reference');
+        $this->diasUteis = $diasUteis;
+    }
 
-        // Inicia array com zero para poder incrementar com valores
-        $cooperados = array_unique(array_column($percentualTrabalhadoPorCliente, 'alias'));
-        $cooperados = array_combine(
-            $cooperados,
-            array_fill(0, count($cooperados), 0)
-        );
+    public function setPercentualMaximo(int $percentualMaximo): void
+    {
+        $this->percentualMaximo = $percentualMaximo;
+    }
 
-        // Distribui os percentuais por cada cliente, exceto o cliente LibreCode
-        // pois o cliente LibreCode não tem NFSe
-        $totalDistribuido = 0;
-        foreach ($percentualTrabalhadoPorCliente as $row) {
-            if ($row['name'] === 'LibreCode') {
-                continue;
-            }
-            $aReceber = $totalPorCliente[$row['vat_id']] * $row['percentual_trabalhado'] / 100;
-            $totalDistribuido += $aReceber;
-            $cooperados[$row['alias']] += $aReceber;
+    public function getBrutoPorCooperado(): array
+    {
+        if ($this->brutoPorCooperado) {
+            return $this->brutoPorCooperado;
         }
 
-        // Distribui as sobras no cliente LibreCode
-        $sobras = $bruto - $totalDistribuido;
+        $this->distribuiProducaoExterna();
+        $this->distribuiSobras();
+        $this->logger->debug('Bruto por cooperado: {json}', ['json' => json_encode($this->brutoPorCooperado)]);
+        return $this->brutoPorCooperado;
+    }
+
+    private function distribuiSobras(): void
+    {
+        $percentualTrabalhadoPorCliente = $this->getPercentualTrabalhadoPorCliente();
+        $sobras = $this->getTotalSobras();
         foreach ($percentualTrabalhadoPorCliente as $row) {
             if ($row['name'] !== 'LibreCode') {
                 continue;
             }
-            $cooperados[$row['alias']] += $sobras * $row['percentual_trabalhado'] / 100;
+            $aReceberDasSobras = ($sobras * $row['percentual_trabalhado'] / 100);
+            $this->setBrutoCooperado(
+                $row['alias'],
+                $this->getBrutoCooperado($row['alias']) + $aReceberDasSobras
+            );
         }
-        $this->logger->debug('Bruto por cooperado: {json}', ['json' => json_encode($cooperados)]);
-        return $cooperados;
+    }
+
+    private function setBrutoCooperado(string $cooperado, float $bruto): void
+    {
+        $this->brutoPorCooperado[$cooperado] = $bruto;
+    }
+
+    private function getBrutoCooperado(string $cooperado): float
+    {
+        if (!array_key_exists($cooperado, $this->brutoPorCooperado)) {
+            throw new Exception(sprintf(
+                'Cooperado %s não encontrado',
+                [$cooperado]
+            ));
+        }
+        return $this->brutoPorCooperado[$cooperado];
+    }
+
+    private function distribuiProducaoExterna(): void
+    {
+        if ($this->sobrasDistribuidas) {
+            return;
+        }
+        $percentualTrabalhadoPorCliente = $this->getPercentualTrabalhadoPorCliente();
+        $totalPorCliente = array_column($this->getValoresPorProjeto(), 'bruto', 'contact_reference');
+        foreach ($percentualTrabalhadoPorCliente as $row) {
+            if ($row['name'] === 'LibreCode') {
+                continue;
+            }
+            $brutoCliente = $totalPorCliente[$row['vat_id']];
+            $aReceber = $brutoCliente * $row['percentual_trabalhado'] / 100;
+            $this->setBrutoCooperado(
+                $row['alias'],
+                $this->getBrutoCooperado($row['alias']) + $aReceber
+            );
+        }
+        $this->sobrasDistribuidas = true;
+    }
+
+    private function getTotalDistribuido(): float
+    {
+        return array_sum($this->brutoPorCooperado);
+    }
+
+    private function getTotalSobras(): float
+    {
+        $this->distribuiProducaoExterna();
+        return $this->getBaseCalculoDispendios() - $this->getTotalDispendios() - $this->getTotalDistribuido();
     }
 }
