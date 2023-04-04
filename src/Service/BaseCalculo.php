@@ -68,7 +68,7 @@ class BaseCalculo
         private Projects $projects,
         private Timesheets $timesheets,
         private Transactions $transactions,
-        private Users $users,
+        private Users $users
     )
     {
     }
@@ -598,5 +598,64 @@ class BaseCalculo
     {
         $this->distribuiProducaoExterna();
         return $this->getBaseCalculoDispendios() - $this->getTotalDispendios() - $this->getTotalDistribuido();
+    }
+
+    public function saveOds(): void
+    {
+        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Ods();
+        $spreadsheet = $reader->load(__DIR__ . '/../assets/base.ods');
+        $spreadsheet->getSheetByName('valores calculados')
+            ->setCellValue('B1', $this->inicio->format('Y-m-d H:i:s'))
+            ->setCellValue('B2', $this->fim->format('Y-m-d H:i:s'))
+            ->setCellValue('B3', $this->inicioProximoMes->format('Y-m-d H:i:s'))
+            ->setCellValue('B4', $this->fimProximoMes->format('Y-m-d H:i:s'))
+            ->setCellValue('B5', $this->getTotalCooperados())
+            ->setCellValue('B6', $this->getTotalNotas())
+            ->setCellValue('B7', $this->getTotalImpostos())
+            ->setCellValue('B8', $this->getTotalCustoCliente())
+            ->setCellValue('B9', $this->getTotalSegundosLibreCode() / 60 / 60)
+            ->setCellValue('B10', $this->percentualLibreCode())
+            ->setCellValue('B11', $this->percentualConselhoAdministrativo())
+            ->setCellValue('B12', $this->getPercentualDesconto());
+
+        $spreadsheet->createSheet()
+        ->fromArray(['Referência', 'Custo', 'Fornecedor'])
+        ->setTitle('Custo por cliente')
+            ->fromArray($this->getCustosPorCliente(), null, 'A2');
+
+        $spreadsheet->createSheet()
+            ->setTitle('Valores por projeto')
+            ->fromArray(['Cliente', 'referência', 'valor do serviço', 'impostos', 'total dos custos', 'bruto'])
+            ->fromArray($this->getValoresPorProjeto(), null, 'A2');
+
+        $spreadsheet->createSheet()
+            ->setTitle('Trabalhado por cliente')
+            ->fromArray(['Cooperado', 'Cliente', 'Percentual trabalhado', 'vat_id', 'customer id'])
+            ->fromArray($this->getPercentualTrabalhadoPorCliente(), null, 'A2');
+
+        $producao = $spreadsheet->getSheetByName('mês')
+            ->setTitle($this->inicio->format('Y-m'));
+        $brutoCooperado = $this->getBrutoPorCooperado();
+        $row = 4;
+        foreach ($brutoCooperado as $nome => $bruto) {
+            $producao->setCellValue('A' . $row, $nome);
+            $producao->setCellValue('N' . $row, $nome);
+            $producao->setCellValue('O' . $row, 'Produção cooperativista');
+            $producao->setCellValue('P' . $row, $bruto);
+            $producao->setCellValue('Q' . $row, 1);
+            $row++;
+        }
+        if ($row < 35) {
+            for ($i = $row;$i<=35;$i++) {
+                $producao->setCellValue('A' . $i, '');
+                $producao->setCellValue('N' . $i, '');
+                $producao->setCellValue('O' . $i, '');
+                $producao->setCellValue('P' . $i, '');
+                $producao->setCellValue('Q' . $i, '');
+            }
+        }
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Ods($spreadsheet);
+        $writer->save($this->inicio->format('Y-m-d') . '.ods');
     }
 }

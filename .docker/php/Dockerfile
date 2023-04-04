@@ -6,22 +6,21 @@ RUN apt-get install -y \
     git \
     libzip-dev \
     procps \
-    unzip \
-    && docker-php-ext-install zip
+    unzip
 
-# Install sockets
-RUN docker-php-ext-install sockets
-
-# Install MySQL
-RUN docker-php-ext-configure mysqli -with-mysqli=mysqlnd \
-    && docker-php-ext-configure pdo_mysql -with-pdo-mysql=mysqlnd \
-    && docker-php-ext-install pdo pdo_mysql mysqli
-
-# Install xdebug
-RUN pecl install xdebug-3.2.0 \
-    && docker-php-ext-enable xdebug
-
-COPY --from=composer /usr/bin/composer /usr/bin/composer
+# Install PHP extensions
+ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
+RUN chmod uga+x /usr/local/bin/install-php-extensions && sync \
+    && install-php-extensions \
+    sockets \
+    gd \
+    mysqli \
+    pdo \
+    pdo_mysql \
+    xdebug \
+    zip \
+    @composer \
+    && rm /usr/local/bin/install-php-extensions
 
 COPY config/php.ini /usr/local/etc/php/conf.d/
 
