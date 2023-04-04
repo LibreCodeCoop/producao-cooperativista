@@ -11,7 +11,8 @@
         "symfony/css-selector": "^6.2",
         "symfony/mime": "^6.2",
         "monolog/monolog": "^3.3",
-        "robmorgan/phinx": "^0.13.4"
+        "robmorgan/phinx": "^0.13.4",
+        "phpoffice/phpspreadsheet": "^1.28"
     },
     "autoload": {
         "psr-4": {

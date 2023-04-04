@@ -75,6 +75,12 @@ class ReportBrutoCommand extends BaseCommand
                 InputOption::VALUE_REQUIRED,
                 'Acessa todas as bases externas e atualiza o banco de dados. Valores: 1 = sim, 0 = não.',
                 1
+            )
+            ->addOption(
+                'ods',
+                null,
+                InputOption::VALUE_NONE,
+                'To output as ods'
             );
     }
 
@@ -87,19 +93,23 @@ class ReportBrutoCommand extends BaseCommand
         $diasUteis = (int) $input->getOption('dias-uteis');
         $percentualMaximo = (int) $input->getOption('percentual-maximo');
         $inicio = DateTime::createFromFormat('Y-m', $input->getOption('ano-mes'));
+        if ((bool) $input->getOption('atualizar-dados')) {
+            $this->baseCalculo->loadFromExternalSources($inicio);
+        }
+        $this->baseCalculo->setInicio($inicio);
+        $this->baseCalculo->setDiasUteis($diasUteis);
+        $this->baseCalculo->setPercentualMaximo($percentualMaximo);
+        $list = $this->baseCalculo->getBrutoPorCooperado();
+
         if ($input->getOption('csv')) {
-            if ((bool) $input->getOption('atualizar-dados')) {
-                $this->baseCalculo->loadFromExternalSources($inicio);
-            }
-            $list = $this->baseCalculo->getData(
-                $inicio,
-                $diasUteis,
-                $percentualMaximo
-            );
             $output->writeLn('cooperado,total');
             foreach ($list as $cooperado => $total) {
                 $output->writeLn($cooperado . ',' . $total);
             }
+        }
+
+        if ($input->getOption('ods')) {
+            $this->baseCalculo->saveOds();
         }
         return Command::SUCCESS;
     }
