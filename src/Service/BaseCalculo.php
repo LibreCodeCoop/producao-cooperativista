@@ -370,11 +370,15 @@ class BaseCalculo
             'fim' => $this->fimProximoMes->format('Y-m-d'),
         ]);
         $this->custosPorCliente = [];
+        $errors = [];
         while ($row = $result->fetchAssociative()) {
-            if (!preg_match('/^\d+(\|\S+)?$/', $row['reference'])) {
-                throw new Exception('Referência de cliente inválida no Akaunting: ' . json_encode($row));
+            if (empty($row['reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['reference'])) {
+                $errors[] = $row;
             }
             $this->custosPorCliente[] = $row;
+        }
+        if (count($errors)) {
+            throw new Exception('Referência de cliente inválida no Akaunting: ' . json_encode($row, JSON_PRETTY_PRINT));
         }
         $this->logger->debug('Custos por clientes: {json}', ['json' => json_encode($this->custosPorCliente)]);
         return $this->custosPorCliente;
@@ -397,7 +401,10 @@ class BaseCalculo
         $stmt = $this->db->getConnection()->prepare(<<<SQL
             -- Notas clientes
             SELECT c.name,
+                ti.id,
                 ti.contact_reference,
+                ti.reference,
+                ti.paid_at,
                 n.valor_servico,
                 n.valor_cofins + n.valor_ir + n.valor_pis + n.valor_iss AS impostos,
                 COALESCE(custos.total_custos, 0) AS total_custos
@@ -408,7 +415,7 @@ class BaseCalculo
             AND ti.paid_at <= :data_fim
             AND ti.category_type = 'income'
             AND category_name IN ('Recorrência', 'Serviço')
-            JOIN nfse n ON n.numero = ti.reference
+            LEFT JOIN nfse n ON n.numero = ti.reference
             LEFT JOIN (
                 -- Custos clientes
                 SELECT t.reference,
@@ -424,14 +431,21 @@ class BaseCalculo
             SQL
         );
         $result = $stmt->executeQuery([
-            'data_inicio' => $this->inicio->format('Y-m-d'),
-            'data_fim' => $this->fim->format('Y-m-d'),
+            'data_inicio' => $this->inicioProximoMes->format('Y-m-d'),
+            'data_fim' => $this->fimProximoMes->format('Y-m-d'),
         ]);
         $this->valoresPorProjeto = [];
+        $errors = [];
         while ($row = $result->fetchAssociative()) {
+            if (empty($row['reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['reference'])) {
+                $errors[] = $row;
+            }
             $base = $row['valor_servico'] - $row['impostos'] - $row['total_custos'];
             $row['bruto'] = $base - ($base * $percentualDesconto / 100);
             $this->valoresPorProjeto[] = $row;
+        }
+        if (count($errors)) {
+            throw new Exception('Referência de cliente inválida no Akaunting: ' . json_encode($errors, JSON_PRETTY_PRINT));
         }
         $this->logger->debug('Valores por projetos: {valores}', ['valores' => json_encode($this->valoresPorProjeto)]);
         return $this->valoresPorProjeto;
