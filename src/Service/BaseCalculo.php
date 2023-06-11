@@ -378,7 +378,10 @@ class BaseCalculo
             $this->custosPorCliente[] = $row;
         }
         if (count($errors)) {
-            throw new Exception('Referência de cliente inválida no Akaunting: ' . json_encode($row, JSON_PRETTY_PRINT));
+            throw new Exception(
+                "Referência de cliente inválida no Akaunting para calcular custos por cliente: \n"
+                . json_encode($errors, JSON_PRETTY_PRINT)
+            );
         }
         $this->logger->debug('Custos por clientes: {json}', ['json' => json_encode($this->custosPorCliente)]);
         return $this->custosPorCliente;
@@ -445,7 +448,10 @@ class BaseCalculo
             $this->valoresPorProjeto[] = $row;
         }
         if (count($errors)) {
-            throw new Exception('Referência de cliente inválida no Akaunting: ' . json_encode($errors, JSON_PRETTY_PRINT));
+            throw new Exception(
+                "Referência de cliente inválida no Akaunting para calcular valores por projeto: \n" .
+                json_encode($errors, JSON_PRETTY_PRINT)
+            );
         }
         $this->logger->debug('Valores por projetos: {valores}', ['valores' => json_encode($this->valoresPorProjeto)]);
         return $this->valoresPorProjeto;
@@ -589,8 +595,13 @@ class BaseCalculo
         }
         $percentualTrabalhadoPorCliente = $this->getPercentualTrabalhadoPorCliente();
         $totalPorCliente = array_column($this->getValoresPorProjeto(), 'bruto', 'contact_reference');
+        $errors = [];
         foreach ($percentualTrabalhadoPorCliente as $row) {
             if ($row['name'] === 'LibreCode') {
+                continue;
+            }
+            if (!isset($totalPorCliente[$row['vat_id']])) {
+                $errors[] = $row;
                 continue;
             }
             $brutoCliente = $totalPorCliente[$row['vat_id']];
@@ -598,6 +609,12 @@ class BaseCalculo
             $this->setBrutoCooperado(
                 $row['alias'],
                 $this->getBrutoCooperado($row['alias']) + $aReceber
+            );
+        }
+        if (count($errors)) {
+            throw new Exception(
+                "Cnpj (vat_id) não encontrado, provavelmente sem nota fiscal ou sem transação no mês: \n" .
+                json_encode($errors, JSON_PRETTY_PRINT)
             );
         }
         $this->sobrasDistribuidas = true;

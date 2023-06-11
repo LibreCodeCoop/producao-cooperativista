@@ -37,6 +37,11 @@ use Psr\Log\LoggerInterface;
 class Transactions
 {
     use Akaunting;
+    private array $dictionaryParamsAtDescription = [
+        'NFSe' => 'reference',
+        'Transação do mês' => 'transaction_of_month',
+    ];
+
     public function __construct(
         private Database $db,
         private LoggerInterface $logger
@@ -53,6 +58,12 @@ class Transactions
 
     public function getFromApi(DateTime $date, int $companyId = 1, ?int $categoryId = null): array
     {
+        $transactions = $this->getTransactions($date, $companyId, $categoryId);
+        return $transactions;
+    }
+
+    private function getTransactions(DateTime $date, int $companyId = 1, ?int $categoryId = null): array
+    {
         $begin = $date
             ->modify('first day of this month');
         $end = clone $begin;
@@ -64,11 +75,45 @@ class Transactions
         }
         $search[] = 'paid_at>=' . $begin->format('Y-m-d');
         $search[] = 'paid_at<=' . $end->format('Y-m-d');
-        $list = $this->doRequestAkaunting('/api/transactions', [
+        $transactions = $this->doRequestAkaunting('/api/transactions', [
             'company_id' => $companyId,
             'search' => implode(' ', $search),
         ]);
+        $transactions = $this->parseTransactions($transactions);
+        return $transactions;
+    }
+
+    private function parseTransactions(array $list): array
+    {
+        array_walk($list, function(&$row) {
+            $row = $this->parseDescription($row);
+            $row = $this->defineTransactionOfMonth($row);
+        });
         return $list;
+    }
+
+    private function parseDescription(array $row): array {
+        if (empty($row['description'])) {
+            return $row;
+        }
+        $explodedDescription = explode("\n", $row['description']);
+        $pattern = '/^(?<paramName>NFSe|Transação do mês): (?<paramValue>.*)$/';
+        foreach ($explodedDescription as $rowOfDescription) {
+            if (!preg_match($pattern, $rowOfDescription, $matches)) {
+                continue;
+            }
+            $row[$this->dictionaryParamsAtDescription[$matches['paramName']]] = trim($matches['paramValue']);
+        }
+        return $row;
+    }
+
+    private function defineTransactionOfMonth(array $row): array
+    {
+        if (!array_key_exists('transaction_of_month', $row)) {
+            $date = $this->convertDate($row['paid_at']);
+            $row['transaction_of_month'] = $date->format('Y-m');
+        }
+        return $row;
     }
 
     public function saveToDatabase(array $list, DateTime $date, ?string $category = null): void
@@ -122,6 +167,7 @@ class Transactions
                 $update->update('transactions')
                     ->set('type', $update->createNamedParameter($row['type']))
                     ->set('paid_at', $update->createNamedParameter($this->convertDate($row['paid_at']), Types::DATE_MUTABLE))
+                    ->set('transaction_of_month', $update->createNamedParameter($row['transaction_of_month']))
                     ->set('amount', $update->createNamedParameter($row['amount'], Types::FLOAT))
                     ->set('currency_code', $update->createNamedParameter($row['currency_code']))
                     ->set('reference', $update->createNamedParameter($row['reference']))
@@ -145,6 +191,7 @@ class Transactions
                     'id' => $insert->createNamedParameter($row['id'], ParameterType::INTEGER),
                     'type' => $insert->createNamedParameter($row['type']),
                     'paid_at' => $insert->createNamedParameter($this->convertDate($row['paid_at']), Types::DATE_MUTABLE),
+                    'transaction_of_month' => $insert->createNamedParameter($row['transaction_of_month']),
                     'amount' => $insert->createNamedParameter($row['amount'], Types::FLOAT),
                     'currency_code' => $insert->createNamedParameter($row['currency_code']),
                     'contact_id' => $insert->createNamedParameter($row['contact_id'], ParameterType::INTEGER),
