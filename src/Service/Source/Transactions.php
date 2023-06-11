@@ -58,6 +58,12 @@ class Transactions
 
     public function getFromApi(DateTime $date, int $companyId = 1, ?int $categoryId = null): array
     {
+        $transactions = $this->getTransactions($date, $companyId, $categoryId);
+        return $transactions;
+    }
+
+    private function getTransactions(DateTime $date, int $companyId = 1, ?int $categoryId = null): array
+    {
         $begin = $date
             ->modify('first day of this month');
         $end = clone $begin;
@@ -73,6 +79,7 @@ class Transactions
             'company_id' => $companyId,
             'search' => implode(' ', $search),
         ]);
+        $transactions = $this->parseTransactions($transactions);
         return $transactions;
     }
 
