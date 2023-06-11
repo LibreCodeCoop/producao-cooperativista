@@ -11,6 +11,7 @@ final class Transactions extends AbstractMigration
         $users
             ->addColumn('type', 'string', ['limit' => 50])
             ->addColumn('paid_at', 'date')
+            ->addColumn('transaction_of_month', 'string')
             ->addColumn('amount', 'double')
             ->addColumn('currency_code', 'string', ['limit' => 14])
             ->addColumn('reference', 'string')
