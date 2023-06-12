@@ -25,7 +25,7 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service\Source;
 
-use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use ProducaoCooperativista\DB\Database;
@@ -63,7 +63,7 @@ class Customers
         $select->select('id')
             ->from('customers')
             ->where($select->expr()->in('id', ':id'))
-            ->setParameter('id', array_column($list, 'id'), Connection::PARAM_INT_ARRAY);
+            ->setParameter('id', array_column($list, 'id'), ArrayParameterType::INTEGER);
         $result = $select->executeQuery();
         $exists = [];
         while ($row = $result->fetchAssociative()) {

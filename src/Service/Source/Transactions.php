@@ -26,7 +26,7 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Service\Source;
 
 use DateTime;
-use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Types;
@@ -131,7 +131,7 @@ class Transactions
                     'id',
                     $select->createNamedParameter(
                         array_column($list, 'id'),
-                        Connection::PARAM_INT_ARRAY
+                        ArrayParameterType::INTEGER
                     )
                 )
             );
