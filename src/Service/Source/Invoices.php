@@ -34,13 +34,9 @@ use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Service\Source\Provider\Akaunting;
 use Psr\Log\LoggerInterface;
 
-class Transactions
+class Invoices
 {
     use Akaunting;
-    private array $dictionaryParamsAtDescription = [
-        'NFSe' => 'reference',
-        'Transação do mês' => 'transaction_of_month',
-    ];
 
     public function __construct(
         private Database $db,
@@ -49,20 +45,20 @@ class Transactions
     {
     }
 
-    public function updateDatabase(DateTime $data): void
+    public function updateDatabase(DateTime $data, string $type = 'invoice'): void
     {
-        $this->logger->debug('Baixando dados de transactions');
-        $list = $this->getFromApi($data);
+        $this->logger->debug('Baixando dados de invoices');
+        $list = $this->getFromApi($data, type: $type);
         $this->saveToDatabase($list, $data);
     }
 
-    public function getFromApi(DateTime $date, int $companyId = 1, ?int $categoryId = null): array
+    public function getFromApi(DateTime $date, int $companyId = 1, string $type = 'invoice'): array
     {
-        $transactions = $this->getTransactions($date, $companyId, $categoryId);
-        return $transactions;
+        $invoices = $this->getInvoices($date, $companyId, $type);
+        return $invoices;
     }
 
-    private function getTransactions(DateTime $date, int $companyId, ?int $categoryId): array
+    private function getInvoices(DateTime $date, int $companyId, string $type): array
     {
         $begin = $date
             ->modify('first day of this month');
@@ -70,53 +66,18 @@ class Transactions
         $end = $end->modify('last day of this month');
 
         $search = [];
-        if ($categoryId) {
-            $search[] = 'category_id:' . $categoryId;
-        }
-        $search[] = 'paid_at>=' . $begin->format('Y-m-d');
-        $search[] = 'paid_at<=' . $end->format('Y-m-d');
-        $transactions = $this->doRequestAkaunting('/api/transactions', [
+        $search[] = 'type:' . $type;
+        $search[] = 'invoiced_at>=' . $begin->format('Y-m-d');
+        $search[] = 'invoiced_at<=' . $end->format('Y-m-d');
+        $documents = $this->doRequestAkaunting('/api/documents', [
             'company_id' => $companyId,
             'search' => implode(' ', $search),
         ]);
-        $transactions = $this->parseTransactions($transactions);
-        return $transactions;
+        return $documents;
+
     }
 
-    private function parseTransactions(array $list): array
-    {
-        array_walk($list, function(&$row) {
-            $row = $this->parseDescription($row);
-            $row = $this->defineTransactionOfMonth($row);
-        });
-        return $list;
-    }
-
-    private function parseDescription(array $row): array {
-        if (empty($row['description'])) {
-            return $row;
-        }
-        $explodedDescription = explode("\n", $row['description']);
-        $pattern = '/^(?<paramName>NFSe|Transação do mês): (?<paramValue>.*)$/';
-        foreach ($explodedDescription as $rowOfDescription) {
-            if (!preg_match($pattern, $rowOfDescription, $matches)) {
-                continue;
-            }
-            $row[$this->dictionaryParamsAtDescription[$matches['paramName']]] = trim($matches['paramValue']);
-        }
-        return $row;
-    }
-
-    private function defineTransactionOfMonth(array $row): array
-    {
-        if (!array_key_exists('transaction_of_month', $row)) {
-            $date = $this->convertDate($row['paid_at']);
-            $row['transaction_of_month'] = $date->format('Y-m');
-        }
-        return $row;
-    }
-
-    public function saveToDatabase(array $list, DateTime $date, ?string $category = null): void
+    public function saveToDatabase(array $list, DateTime $date): void
     {
         $begin = $date
             ->modify('first day of this month');
@@ -125,7 +86,7 @@ class Transactions
 
         $select = new QueryBuilder($this->db->getConnection());
         $select->select('id')
-            ->from('transactions')
+            ->from('invoices')
             ->where(
                 $select->expr()->in(
                     'id',
@@ -137,24 +98,16 @@ class Transactions
             );
         $select->andWhere(
             $select->expr()->gte(
-                'paid_at',
+                'issued_at',
                 $select->createNamedParameter($begin, Types::DATE_MUTABLE)
             )
         );
         $select->andWhere(
             $select->expr()->lte(
-                'paid_at',
+                'issued_at',
                 $select->createNamedParameter($end, Types::DATE_MUTABLE)
             )
         );
-        if ($category) {
-            $select->andWhere(
-                $select->expr()->eq(
-                    'category_id',
-                    $select->createNamedParameter($category)
-                )
-            );
-        }
         $result = $select->executeQuery();
         $exists = [];
         while ($row = $result->fetchAssociative()) {
@@ -164,47 +117,41 @@ class Transactions
         foreach ($list as $row) {
             if (in_array($row['id'], $exists)) {
                 $update = new QueryBuilder($this->db->getConnection());
-                $update->update('transactions')
+                $update->update('invoices')
                     ->set('type', $update->createNamedParameter($row['type']))
-                    ->set('paid_at', $update->createNamedParameter($this->convertDate($row['paid_at']), Types::DATE_MUTABLE))
-                    ->set('transaction_of_month', $update->createNamedParameter($row['transaction_of_month']))
+                    ->set('issued_at', $update->createNamedParameter($this->convertDate($row['issued_at']), Types::DATE_MUTABLE))
+                    ->set('due_at', $update->createNamedParameter($this->convertDate($row['due_at']), Types::DATE_MUTABLE))
                     ->set('amount', $update->createNamedParameter($row['amount'], Types::FLOAT))
                     ->set('currency_code', $update->createNamedParameter($row['currency_code']))
-                    ->set('reference', $update->createNamedParameter($row['reference']))
-                    ->set('contact_id', $update->createNamedParameter($row['contact_id'], ParameterType::INTEGER))
+                    ->set('document_number', $update->createNamedParameter($row['document_number']))
                     ->set('tax_number', $update->createNamedParameter($row['contact']['tax_number']))
+                    ->set('contact_id', $update->createNamedParameter($row['contact_id'], ParameterType::INTEGER))
                     ->set('contact_reference', $update->createNamedParameter($row['contact']['reference']
                         ?? $row['contact']['tax_number']
-                        ?? $row['reference']))
+                        ?? $row['document_number']))
                     ->set('contact_name', $update->createNamedParameter($row['contact']['name']))
                     ->set('contact_type', $update->createNamedParameter($row['contact']['type']))
-                    ->set('category_id', $update->createNamedParameter($row['category_id'], ParameterType::INTEGER))
-                    ->set('category_name', $update->createNamedParameter($row['category']['name']))
-                    ->set('category_type', $update->createNamedParameter($row['category']['type']))
                     ->set('metadata', $update->createNamedParameter(json_encode($row)))
                     ->where($update->expr()->eq('id', $update->createNamedParameter($row['id'], ParameterType::INTEGER)))
                     ->executeStatement();
                 continue;
             }
-            $insert->insert('transactions')
+            $insert->insert('invoices')
                 ->values([
                     'id' => $insert->createNamedParameter($row['id'], ParameterType::INTEGER),
                     'type' => $insert->createNamedParameter($row['type']),
-                    'paid_at' => $insert->createNamedParameter($this->convertDate($row['paid_at']), Types::DATE_MUTABLE),
-                    'transaction_of_month' => $insert->createNamedParameter($row['transaction_of_month']),
+                    'issued_at' => $insert->createNamedParameter($this->convertDate($row['issued_at']), Types::DATE_MUTABLE),
+                    'due_at' => $insert->createNamedParameter($this->convertDate($row['due_at']), Types::DATE_MUTABLE),
                     'amount' => $insert->createNamedParameter($row['amount'], Types::FLOAT),
                     'currency_code' => $insert->createNamedParameter($row['currency_code']),
-                    'contact_id' => $insert->createNamedParameter($row['contact_id'], ParameterType::INTEGER),
-                    'reference' => $insert->createNamedParameter($row['reference']),
+                    'document_number' => $insert->createNamedParameter($row['document_number']),
                     'tax_number' => $insert->createNamedParameter($row['contact']['tax_number']),
+                    'contact_id' => $insert->createNamedParameter($row['contact_id'], ParameterType::INTEGER),
                     'contact_reference' => $insert->createNamedParameter($row['contact']['reference']
                         ?? $row['contact']['tax_number']
-                        ?? $row['reference']),
+                        ?? $row['document_number']),
                     'contact_name' => $insert->createNamedParameter($row['contact']['name']),
                     'contact_type' => $insert->createNamedParameter($row['contact']['type']),
-                    'category_id' => $insert->createNamedParameter($row['category_id'], ParameterType::INTEGER),
-                    'category_name' => $insert->createNamedParameter($row['category']['name']),
-                    'category_type' => $insert->createNamedParameter($row['category']['type']),
                     'metadata' => $insert->createNamedParameter(json_encode($row)),
                 ])
                 ->executeStatement();
