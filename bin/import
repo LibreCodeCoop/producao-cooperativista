@@ -70,6 +70,7 @@ $baseCalculo = new BaseCalculo(
     $customers,
     $nfse,
     $projects,
+    $invoices,
     $timesheets,
     $transactions,
     $users

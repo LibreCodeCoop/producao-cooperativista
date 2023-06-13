@@ -31,6 +31,7 @@ use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Service\Source\Customers;
+use ProducaoCooperativista\Service\Source\Invoices;
 use ProducaoCooperativista\Service\Source\Nfse;
 use ProducaoCooperativista\Service\Source\Projects;
 use ProducaoCooperativista\Service\Source\Timesheets;
@@ -66,6 +67,7 @@ class BaseCalculo
         private Customers $customers,
         private Nfse $nfse,
         private Projects $projects,
+        private Invoices $invoices,
         private Timesheets $timesheets,
         private Transactions $transactions,
         private Users $users
@@ -150,6 +152,8 @@ class BaseCalculo
         $this->customers->updateDatabase();
         $this->nfse->updateDatabase($this->inicioProximoMes);
         $this->projects->updateDatabase();
+        $this->invoices->updateDatabase($this->inicio, 'invoice');
+        $this->invoices->updateDatabase($this->inicio, 'bill');
         $this->timesheets->updateDatabase($this->inicio);
         $this->transactions->updateDatabase($this->inicioProximoMes);
         $this->users->updateDatabase();

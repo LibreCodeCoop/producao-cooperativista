@@ -45,10 +45,10 @@ class Invoices
     {
     }
 
-    public function updateDatabase(DateTime $data): void
+    public function updateDatabase(DateTime $data, string $type = 'invoice'): void
     {
         $this->logger->debug('Baixando dados de invoices');
-        $list = $this->getFromApi($data);
+        $list = $this->getFromApi($data, type: $type);
         $this->saveToDatabase($list, $data);
     }
 
