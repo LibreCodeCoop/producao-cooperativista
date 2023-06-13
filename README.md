@@ -32,8 +32,8 @@ Calcular o bruto da produção cooperativista por cooperado com base em dados co
 
       Valores customizados devem ser precedidos com `>` e seprarar o nome da propriedade do valor com dois pointos, exemplo:
       ```
-      > NFSe: 123456789
-      > Transação do mês: 2023-05
+      NFSe: 123456789
+      Transação do mês: 2023-05
       ```
 
 ## Setup
