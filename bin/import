@@ -28,6 +28,8 @@ if (PHP_SAPI !== 'cli') {
 
 require __DIR__.'/../src/bootstrap.php';
 
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
 use ProducaoCooperativista\Command\GetCustomersCommand;
 use ProducaoCooperativista\Command\GetNfseCommand;
 use ProducaoCooperativista\Command\GetProjectsCommand;
@@ -43,8 +45,6 @@ use ProducaoCooperativista\Service\Source\Projects;
 use ProducaoCooperativista\Service\Source\Timesheets;
 use ProducaoCooperativista\Service\Source\Transactions;
 use ProducaoCooperativista\Service\Source\Users;
-use Monolog\Handler\StreamHandler;
-use Monolog\Logger;
 use Symfony\Component\Console\Application;
 
 error_reporting(-1);
