@@ -29,6 +29,7 @@ if (PHP_SAPI !== 'cli') {
 require __DIR__.'/../src/bootstrap.php';
 
 use ProducaoCooperativista\Command\GetCustomersCommand;
+use ProducaoCooperativista\Command\GetInvoicesCommand;
 use ProducaoCooperativista\Command\GetNfseCommand;
 use ProducaoCooperativista\Command\GetProjectsCommand;
 use ProducaoCooperativista\Command\GetTimesheetsCommand;
@@ -38,6 +39,7 @@ use ProducaoCooperativista\Command\ReportBrutoCommand;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Service\BaseCalculo;
 use ProducaoCooperativista\Service\Source\Customers;
+use ProducaoCooperativista\Service\Source\Invoices;
 use ProducaoCooperativista\Service\Source\Nfse;
 use ProducaoCooperativista\Service\Source\Projects;
 use ProducaoCooperativista\Service\Source\Timesheets;
@@ -56,6 +58,7 @@ $logger->pushHandler(new StreamHandler('logs/system.log'));
 
 $database = new Database(null, $logger);
 $customers = new Customers($database, $logger);
+$invoices = new Invoices($database, $logger);
 $nfse = new Nfse($database, $logger);
 $projects = new Projects($database, $logger);
 $timesheets = new Timesheets($database, $logger);
@@ -73,6 +76,7 @@ $baseCalculo = new BaseCalculo(
 );
 
 $application->add(new GetCustomersCommand($customers));
+$application->add(new GetInvoicesCommand($invoices));
 $application->add(new GetNfseCommand($nfse));
 $application->add(new GetProjectsCommand($projects));
 $application->add(new GetTimesheetsCommand($timesheets));
