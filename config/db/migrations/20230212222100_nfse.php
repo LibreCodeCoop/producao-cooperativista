@@ -21,7 +21,7 @@ final class Nfse extends AbstractMigration
             ->addColumn('valor_iss', 'double')
             ->addColumn('discriminacao_normalizada', 'text')
             ->addColumn('setor', 'string')
-            ->addColumn('codigo', 'string')
+            ->addColumn('codigo_cliente', 'string')
             ->addColumn('metadata', 'text')
             ->create();
     }

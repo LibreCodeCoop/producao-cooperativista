@@ -38,8 +38,10 @@ class Transactions
 {
     use Akaunting;
     private array $dictionaryParamsAtDescription = [
-        'NFSe' => 'reference',
+        'NFSe' => 'nfse',
         'Transação do mês' => 'transaction_of_month',
+        'CNPJ cliente' => 'customer',
+        'Setor' => 'sector',
     ];
 
     public function __construct(
@@ -97,12 +99,12 @@ class Transactions
             return $row;
         }
         $explodedDescription = explode("\n", $row['description']);
-        $pattern = '/^(?<paramName>NFSe|Transação do mês): (?<paramValue>.*)$/';
+        $pattern = '/^(?<paramName>' . implode('|', array_keys($this->dictionaryParamsAtDescription)) . '): (?<paramValue>.*)$/';
         foreach ($explodedDescription as $rowOfDescription) {
             if (!preg_match($pattern, $rowOfDescription, $matches)) {
                 continue;
             }
-            $row[$this->dictionaryParamsAtDescription[$matches['paramName']]] = trim($matches['paramValue']);
+            $row[$this->dictionaryParamsAtDescription[$matches['paramName']]] = strtolower(trim($matches['paramValue']));
         }
         return $row;
     }
@@ -112,6 +114,23 @@ class Transactions
         if (!array_key_exists('transaction_of_month', $row)) {
             $date = $this->convertDate($row['paid_at']);
             $row['transaction_of_month'] = $date->format('Y-m');
+        }
+        return $row;
+    }
+
+    public function defineCustomerReference(array $row): array
+    {
+        if (!empty($row['contact']['reference'])) {
+            $row['customer_reference'] = $row['contact']['reference'];
+        } elseif (!empty($row['contact']['tax_number'])) {
+            $row['customer_reference'] = $row['contact']['tax_number'];
+        } elseif (!empty($row['customer'])) {
+            $row['customer_reference'] = $row['customer'];
+            if (!empty($row['sector'])) {
+                $row['customer_reference'] = $row['customer_reference'] . '|' . $row['sector'];
+            }
+        } else {
+            $row['customer_reference'] = null;
         }
         return $row;
     }
@@ -170,12 +189,10 @@ class Transactions
                     ->set('transaction_of_month', $update->createNamedParameter($row['transaction_of_month']))
                     ->set('amount', $update->createNamedParameter($row['amount'], Types::FLOAT))
                     ->set('currency_code', $update->createNamedParameter($row['currency_code']))
-                    ->set('reference', $update->createNamedParameter($row['reference']))
+                    ->set('nfse', $update->createNamedParameter($row['nfse'] ?? null))
                     ->set('contact_id', $update->createNamedParameter($row['contact_id'], ParameterType::INTEGER))
                     ->set('tax_number', $update->createNamedParameter($row['contact']['tax_number']))
-                    ->set('contact_reference', $update->createNamedParameter($row['contact']['reference']
-                        ?? $row['contact']['tax_number']
-                        ?? $row['reference']))
+                    ->set('contact_reference', $update->createNamedParameter($row['contact']['reference']))
                     ->set('contact_name', $update->createNamedParameter($row['contact']['name']))
                     ->set('contact_type', $update->createNamedParameter($row['contact']['type']))
                     ->set('category_id', $update->createNamedParameter($row['category_id'], ParameterType::INTEGER))
@@ -195,11 +212,9 @@ class Transactions
                     'amount' => $insert->createNamedParameter($row['amount'], Types::FLOAT),
                     'currency_code' => $insert->createNamedParameter($row['currency_code']),
                     'contact_id' => $insert->createNamedParameter($row['contact_id'], ParameterType::INTEGER),
-                    'reference' => $insert->createNamedParameter($row['reference']),
+                    'nfse' => $insert->createNamedParameter($row['nfse'] ?? null),
                     'tax_number' => $insert->createNamedParameter($row['contact']['tax_number']),
-                    'contact_reference' => $insert->createNamedParameter($row['contact']['reference']
-                        ?? $row['contact']['tax_number']
-                        ?? $row['reference']),
+                    'contact_reference' => $insert->createNamedParameter($row['contact']['reference']),
                     'contact_name' => $insert->createNamedParameter($row['contact']['name']),
                     'contact_type' => $insert->createNamedParameter($row['contact']['type']),
                     'category_id' => $insert->createNamedParameter($row['category_id'], ParameterType::INTEGER),

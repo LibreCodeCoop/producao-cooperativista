@@ -30,6 +30,7 @@ use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Types;
+use Exception;
 use ProducaoCooperativista\DB\Database;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\BrowserKit\Cookie;
@@ -79,6 +80,7 @@ class Nfse
     ];
     private DateTime $inicio;
     private DateTime $fim;
+    private array $nfseFromDatabase = [];
 
     public function __construct(
         private Database $db,
@@ -124,6 +126,32 @@ class Nfse
         }
         $list = $this->getNfse();
         return $list;
+    }
+
+    public function getByListNumber(array $nfseNumbers): array
+    {
+        if ($this->nfseFromDatabase) {
+            return $this->nfseFromDatabase;
+        }
+        $select = new QueryBuilder($this->db->getConnection());
+        $select->select('*')
+            ->addSelect('n.valor_cofins + n.valor_ir + n.valor_pis + n.valor_iss AS impostos')
+            ->from('nfse', 'n')
+            ->where('n.numero_substituta IS NULL')
+            ->andWhere($select->expr()->in('numero', ':numeros'))
+            ->setParameter('numeros', $nfseNumbers, ArrayParameterType::STRING);
+        $result = $select->executeQuery();
+        while ($row = $result->fetchAssociative()) {
+            $this->nfseFromDatabase[$row['numero']] = $row;
+        }
+        $diff = array_diff($nfseNumbers, array_keys($this->nfseFromDatabase));
+        if (count($diff)) {
+            throw new Exception(
+                "Notas fiscais não encontradas no site da prefeitura: \n" .
+                json_encode($diff, JSON_PRETTY_PRINT)
+            );
+        }
+        return $this->nfseFromDatabase;
     }
 
     public function saveToDatabase(array $list): void
@@ -187,8 +215,8 @@ class Nfse
                     ->set('discriminacao_normalizada', $update->createNamedParameter(
                         $row['discriminacao_normalizada']
                     ))
-                    ->set('codigo', $update->createNamedParameter(
-                        $row['codigo']
+                    ->set('codigo_cliente', $update->createNamedParameter(
+                        $row['codigo_cliente']
                     ))
                     ->set('metadata', $update->createNamedParameter(
                         json_encode($row)
@@ -246,8 +274,8 @@ class Nfse
                     'setor' => $insert->createNamedParameter(
                         $row['setor']
                     ),
-                    'codigo' => $insert->createNamedParameter(
-                        $row['codigo']
+                    'codigo_cliente' => $insert->createNamedParameter(
+                        $row['codigo_cliente']
                     ),
                     'metadata' => $insert->createNamedParameter(
                         json_encode($row)
@@ -433,10 +461,10 @@ class Nfse
             $row['discriminacao_normalizada'] = json_encode($normalized);
             if (isset($normalized['setor'])) {
                 $row['setor'] = $normalized['setor'];
-                $row['codigo'] = $row[$this->columnInternalToExternal('cnpj')] . '|' . $normalized['setor'];
+                $row['codigo_cliente'] = $row[$this->columnInternalToExternal('cnpj')] . '|' . $normalized['setor'];
             } else {
                 $row['setor'] = null;
-                $row['codigo'] = $row[$this->columnInternalToExternal('cnpj')];
+                $row['codigo_cliente'] = $row[$this->columnInternalToExternal('cnpj')];
             }
         });
         return $csv;
