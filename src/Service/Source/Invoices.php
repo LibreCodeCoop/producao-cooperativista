@@ -58,7 +58,7 @@ class Invoices
         return $invoices;
     }
 
-    private function getInvoices(DateTime $date, int $companyId = 1, string $type = 'invoice'): array
+    private function getInvoices(DateTime $date, int $companyId, string $type): array
     {
         $begin = $date
             ->modify('first day of this month');

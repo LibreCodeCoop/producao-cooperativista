@@ -62,7 +62,7 @@ class Transactions
         return $transactions;
     }
 
-    private function getTransactions(DateTime $date, int $companyId = 1, ?int $categoryId = null): array
+    private function getTransactions(DateTime $date, int $companyId, ?int $categoryId): array
     {
         $begin = $date
             ->modify('first day of this month');
