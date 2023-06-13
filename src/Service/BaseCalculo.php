@@ -56,6 +56,7 @@ class BaseCalculo
     private float $percentualConselhoAdministrativo = 0;
     private int $diasUteis;
     private bool $sobrasDistribuidas = false;
+    private bool $previsao = false;
     private ?DateTime $inicio = null;
     private DateTime $fim;
     private DateTime $inicioProximoMes;
@@ -152,8 +153,8 @@ class BaseCalculo
         $this->customers->updateDatabase();
         $this->nfse->updateDatabase($this->inicioProximoMes);
         $this->projects->updateDatabase();
-        $this->invoices->updateDatabase($this->inicio, 'invoice');
-        $this->invoices->updateDatabase($this->inicio, 'bill');
+        $this->invoices->updateDatabase($this->inicioProximoMes, 'invoice');
+        $this->invoices->updateDatabase($this->inicioProximoMes, 'bill');
         $this->timesheets->updateDatabase($this->inicio);
         $this->transactions->updateDatabase($this->inicioProximoMes);
         $this->users->updateDatabase();
@@ -242,26 +243,43 @@ class BaseCalculo
         if ($this->totalDispendios) {
             return $this->totalDispendios;
         }
-        $stmt = $this->db->getConnection()->prepare(<<<SQL
-            -- Total dispêndios
-            SELECT sum(t.amount) AS total_dispendios
-                FROM transactions t
-            WHERE t.paid_at >= :inicio
-                AND t.paid_at <= :fim
-            --    AND t.category_id = 16
-                AND t.category_type = 'expense'
-                AND category_name NOT IN (
-                    'Produção cooperativista',
-                    'Produção externa',
-                    'Impostos',
-                    'Cliente',
-                    'Plano de saúde'
-                )
-            SQL
-        );
+        if ($this->previsao) {
+            $stmt = $this->db->getConnection()->prepare(<<<SQL
+                -- Total dispêndios
+                SELECT sum(amount) AS total_dispendios
+                    FROM invoices i
+                WHERE i.type = 'bill'
+                    AND transaction_of_month = :ano_mes
+                    AND category_type = 'expense'
+                    AND category_name NOT IN (
+                        'Produção cooperativista',
+                        'Produção externa',
+                        'Impostos',
+                        'Cliente',
+                        'Serviços de clientes',
+                        'Plano de saúde'
+                    )
+                SQL
+            );
+        } else {
+            $stmt = $this->db->getConnection()->prepare(<<<SQL
+                -- Total dispêndios
+                SELECT sum(amount) AS total_dispendios
+                    FROM transactions t
+                WHERE transaction_of_month = :ano_mes
+                    AND category_type = 'expense'
+                    AND category_name NOT IN (
+                        'Produção cooperativista',
+                        'Produção externa',
+                        'Impostos',
+                        'Cliente',
+                        'Plano de saúde'
+                    )
+                SQL
+            );
+        }
         $result = $stmt->executeQuery([
-            'inicio' => $this->inicioProximoMes->format('Y-m-d'),
-            'fim' => $this->fimProximoMes->format('Y-m-d'),
+            'ano_mes' => $this->inicioProximoMes->format('Y-m'),
         ]);
         $this->totalDispendios = (float) $result->fetchOne();
         $this->logger->debug('Total dispêndios: {total}', ['total' => $this->totalDispendios]);
@@ -302,8 +320,8 @@ class BaseCalculo
         if (is_null($return['notas'])) {
             $messagem = sprintf(
                 'Sem notas entre os dias %s e %s.',
-                $this->inicio->format(('Y-m-d')),
-                $this->fim->format(('Y-m-d'))
+                $this->inicioProximoMes->format(('Y-m-d')),
+                $this->fimProximoMes->format(('Y-m-d'))
             );
             throw new Exception($messagem);
         }
@@ -355,37 +373,64 @@ class BaseCalculo
         if ($this->custosPorCliente) {
             return $this->custosPorCliente;
         }
-        $stmt = $this->db->getConnection()->prepare(<<<SQL
-            -- Custos clientes
-            SELECT t.reference,
-                SUM(amount) AS total_custos,
-                t.contact_name
-            FROM transactions t
-            WHERE t.paid_at >= :inicio
-            AND t.paid_at <= :fim
-            --    AND t.category_id = 
-            AND t.category_type = 'expense'
-            AND category_name IN ('Cliente')
-            GROUP BY t.reference, t.contact_name
-            SQL
-        );
+        if ($this->previsao) {
+            $stmt = $this->db->getConnection()->prepare(<<<SQL
+                -- Custos clientes
+                SELECT customer_reference as cliente_codigo,
+                    SUM(amount) AS total_custos,
+                    i.type,
+                    'invoices' as 'table',
+                    contact_name
+                FROM invoices i
+                WHERE i.type = 'bill'
+                AND transaction_of_month = :ano_mes
+                AND category_type = 'expense'
+                AND category_name IN (
+                    'Cliente',
+                    'Serviços de clientes'
+                )
+                GROUP BY customer_reference, i.type, contact_name
+                SQL
+            );
+        } else {
+            $stmt = $this->db->getConnection()->prepare(<<<SQL
+                -- Custos clientes
+                SELECT customer_reference as cliente_codigo,
+                    SUM(amount) AS total_custos,
+                    t.type,
+                    'transactions' as 'table',
+                    contact_name
+                FROM transactions t
+                WHERE transaction_of_month = :ano_mes
+                AND category_type = 'expense'
+                AND category_name IN (
+                    'Cliente',
+                    'Serviços de clientes'
+                )
+                GROUP BY customer_reference, t.type, contact_name
+                SQL
+            );
+        }
         $result = $stmt->executeQuery([
-            'inicio' => $this->inicioProximoMes->format('Y-m-d'),
-            'fim' => $this->fimProximoMes->format('Y-m-d'),
+            'ano_mes' => $this->inicioProximoMes->format('Y-m'),
         ]);
         $this->custosPorCliente = [];
         $errors = [];
         while ($row = $result->fetchAssociative()) {
-            if (empty($row['reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['reference'])) {
+            if (empty($row['cliente_codigo']) || !preg_match('/^\d+(\|\S+)?$/', $row['cliente_codigo'])) {
                 $errors[] = $row;
             }
             $this->custosPorCliente[] = $row;
         }
         if (count($errors)) {
-            throw new Exception(
-                "Referência de cliente inválida no Akaunting para calcular custos por cliente: \n"
-                . json_encode($errors, JSON_PRETTY_PRINT)
-            );
+            throw new Exception(sprintf(
+                "Código de cliente inválido no Akaunting para calcular custos por cliente.\n" .
+                "Intervalo: %s a %s\n" .
+                "Dados:\n%s",
+                $this->inicioProximoMes->format('Y-m-d'),
+                $this->fimProximoMes->format('Y-m-d'),
+                json_encode($errors, JSON_PRETTY_PRINT)
+            ));
         }
         $this->logger->debug('Custos por clientes: {json}', ['json' => json_encode($this->custosPorCliente)]);
         return $this->custosPorCliente;
@@ -405,57 +450,110 @@ class BaseCalculo
 
         $percentualDesconto = $this->getPercentualDesconto();
 
-        $stmt = $this->db->getConnection()->prepare(<<<SQL
-            -- Notas clientes
-            SELECT c.name,
-                ti.id,
-                ti.contact_reference,
-                ti.reference,
-                ti.paid_at,
-                n.valor_servico,
-                n.valor_cofins + n.valor_ir + n.valor_pis + n.valor_iss AS impostos,
-                COALESCE(custos.total_custos, 0) AS total_custos
-            FROM customers c
-            JOIN transactions ti
-                ON ti.contact_reference = c.vat_id
-            AND ti.paid_at >= :data_inicio
-            AND ti.paid_at <= :data_fim
-            AND ti.category_type = 'income'
-            AND category_name IN ('Recorrência', 'Serviço')
-            LEFT JOIN nfse n ON n.numero = ti.reference
-            LEFT JOIN (
-                -- Custos clientes
-                SELECT t.reference,
-                    SUM(amount) AS total_custos
-                FROM transactions t
-                WHERE t.paid_at >= :data_inicio
-                AND t.paid_at <= :data_fim
-                --    AND t.category_id = 
-                AND t.category_type = 'expense'
-                AND category_name IN ('Cliente')
-                GROUP BY t.reference
-                ) custos ON custos.reference = ti.contact_reference
-            SQL
-        );
-        $result = $stmt->executeQuery([
-            'data_inicio' => $this->inicioProximoMes->format('Y-m-d'),
-            'data_fim' => $this->fimProximoMes->format('Y-m-d'),
-        ]);
-        $this->valoresPorProjeto = [];
-        $errors = [];
-        while ($row = $result->fetchAssociative()) {
-            if (empty($row['reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['reference'])) {
-                $errors[] = $row;
-            }
-            $base = $row['valor_servico'] - $row['impostos'] - $row['total_custos'];
-            $row['bruto'] = $base - ($base * $percentualDesconto / 100);
-            $this->valoresPorProjeto[] = $row;
-        }
-        if (count($errors)) {
-            throw new Exception(
-                "Referência de cliente inválida no Akaunting para calcular valores por projeto: \n" .
-                json_encode($errors, JSON_PRETTY_PRINT)
+        if ($this->previsao) {
+            $stmt = $this->db->getConnection()->prepare(<<<SQL
+                SELECT i.id,
+                    i.type,
+                    'invoices' as 'table',
+                    i.category_type,
+                    i.category_name,
+                    i.customer_reference,
+                    i.nfse,
+                    i.issued_at,
+                    transaction_of_month
+                FROM invoices i
+                WHERE transaction_of_month = :ano_mes
+                AND i.type = 'invoice'
+                AND category_name IN (
+                    'Cliente',
+                    'Serviços de clientes',
+                    'Recorrência',
+                    'Serviço'
+                )
+                SQL
             );
+        } else {
+            $stmt = $this->db->getConnection()->prepare(<<<SQL
+                SELECT ti.id,
+                    ti.type,
+                    'transactions' as 'table',
+                    ti.category_type,
+                    ti.category_name,
+                    ti.customer_reference,
+                    ti.nfse,
+                    ti.paid_at,
+                    transaction_of_month
+                FROM transactions ti
+                WHERE transaction_of_month = :ano_mes
+                AND ti.category_type = 'income'
+                AND category_name IN (
+                    'Cliente',
+                    'Serviços de clientes',
+                    'Recorrência',
+                    'Serviço'
+                )
+                SQL
+            );
+        }
+        $result = $stmt->executeQuery([
+            'ano_mes' => $this->inicioProximoMes->format('Y-m'),
+        ]);
+        $incomes = [];
+        $errorsSemNfse = [];
+        $errorsSemContactReference = [];
+        while ($row = $result->fetchAssociative()) {
+            if (empty($row['customer_reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['customer_reference'])) {
+                $errorsSemContactReference[] = $row;
+            }
+            if (empty($row['nfse'])) {
+                $errorsSemNfse[] = $row;
+            }
+            $incomes[] = $row;
+        }
+        if (count($errorsSemContactReference)) {
+            throw new Exception(
+                "Cliente da transação não possui referência de contato válida no Akaunting.\n" .
+                "Dados: \n" .
+                json_encode($errorsSemContactReference, JSON_PRETTY_PRINT)
+            );
+        }
+        if (count($errorsSemNfse)) {
+            throw new Exception(
+                "Transação de entrada sem número de NFSe na descrição.\n" .
+                "Dados: \n" .
+                json_encode($errorsSemNfse, JSON_PRETTY_PRINT)
+            );
+        }
+
+        $this->valoresPorProjeto = [];
+        $custosPorCliente = $this->getCustosPorCliente();
+        $custosPorCliente = array_column($custosPorCliente, 'total_custos', 'cliente_codigo');
+
+        // Lista de notas fiscais
+        $nfseNumbers = array_column($incomes, 'nfse');
+        $nfseList = $this->nfse->getByListNumber($nfseNumbers);
+
+        $errorsNfse = [];
+        foreach ($incomes as $income) {
+            $valoresPorProjeto = [];
+            $nfse = $nfseList[$income['nfse']];
+            if (empty($nfse)) {
+                $errorsNfse[] = $income;
+            }
+            $base = $nfse['valor_servico'] - $nfse['impostos'] - ($custosPorCliente[$income['customer_reference']] ?? 0);
+            $valoresPorProjeto = [
+                'bruto' => $base - ($base * $percentualDesconto / 100),
+                'customer_reference' => $income['customer_reference'],
+            ];
+            $this->valoresPorProjeto[] = $valoresPorProjeto;
+        }
+        if (count($errorsNfse)) {
+            throw new Exception(sprintf(
+                "Sem NFSe encontrada no intervalo %s e %s para os seguintes dados: \n%s",
+                $this->inicioProximoMes->format('Y-m-d'),
+                $this->fimProximoMes->format('Y-m-d'),
+                json_encode($errorsNfse, JSON_PRETTY_PRINT)
+            ));
         }
         $this->logger->debug('Valores por projetos: {valores}', ['valores' => json_encode($this->valoresPorProjeto)]);
         return $this->valoresPorProjeto;
@@ -466,6 +564,8 @@ class BaseCalculo
         if (count($this->percentualTrabalhadoPorCliente)) {
             return $this->percentualTrabalhadoPorCliente;
         }
+        $cnpjClientesInternos = explode(',', $_ENV['CNPJ_CLIENTES_INTERNOS']);
+        $cnpjClientesInternos = '"' . implode('","', $cnpjClientesInternos) . '"';
         $stmt = $this->db->getConnection()->prepare(<<<SQL
             -- Percentual trabalhado por cliente
             SELECT u.alias,
@@ -490,19 +590,16 @@ class BaseCalculo
                 JOIN timesheet t ON t.project_id = p.id AND t.`begin` >= :data_inicio AND t.`end` <= :data_fim
                 JOIN users u2 ON u2.id = t.user_id
                 LEFT JOIN (
-                        SELECT CASE WHEN setor IS NOT NULL THEN CONCAT(cnpj, '|', setor)
-                                    ELSE cnpj END as codigo,
-                                n.razao_social
-                            FROM nfse n 
-                        WHERE n.data_emissao >= :data_inicio_proximo_mes
-                            AND n.data_emissao <= :data_fim_proximo_mes
-                        GROUP BY n.razao_social,
-                                    n.valor_servico,
-                                    n.setor,
-                                    n.cnpj
+                    SELECT customer_reference as codigo,
+                        contact_name
+                    FROM invoices
+                    WHERE category_type = 'income'
+                    AND transaction_of_month = :ano_mes
+                    GROUP BY customer_reference,
+                    contact_name
                     ) faturados_mes ON faturados_mes.codigo = c.vat_id
                 WHERE u2.enabled = 1
-                AND (faturados_mes.codigo IS NOT NULL OR c.id IN (1, 2))
+                AND (faturados_mes.codigo IS NOT NULL OR c.vat_id IN ($cnpjClientesInternos))
                 GROUP BY c.id,
                         c.name,
                         c.vat_id
@@ -522,8 +619,7 @@ class BaseCalculo
         $result = $stmt->executeQuery([
             'data_inicio' => $this->inicio->format('Y-m-d'),
             'data_fim' => $this->fim->format('Y-m-d H:i:s'),
-            'data_inicio_proximo_mes' => $this->inicioProximoMes->format('Y-m-d'),
-            'data_fim_proximo_mes' => $this->fimProximoMes->format('Y-m-d'),
+            'ano_mes' => $this->inicioProximoMes->format('Y-m'),
         ]);
         $this->percentualTrabalhadoPorCliente = [];
         while ($row = $result->fetchAssociative()) {
@@ -546,6 +642,11 @@ class BaseCalculo
     public function setPercentualMaximo(int $percentualMaximo): void
     {
         $this->percentualMaximo = $percentualMaximo;
+    }
+
+    public function setPrevisao(bool $previsao): void
+    {
+        $this->previsao = $previsao;
     }
 
     public function getBrutoPorCooperado(): array
@@ -598,7 +699,7 @@ class BaseCalculo
             return;
         }
         $percentualTrabalhadoPorCliente = $this->getPercentualTrabalhadoPorCliente();
-        $totalPorCliente = array_column($this->getValoresPorProjeto(), 'bruto', 'contact_reference');
+        $totalPorCliente = array_column($this->getValoresPorProjeto(), 'bruto', 'customer_reference');
         $errors = [];
         foreach ($percentualTrabalhadoPorCliente as $row) {
             if ($row['name'] === 'LibreCode') {
@@ -654,7 +755,7 @@ class BaseCalculo
             ->setCellValue('B12', $this->getPercentualDesconto());
 
         $spreadsheet->createSheet()
-        ->fromArray(['Referência', 'Custo', 'Fornecedor'])
+        ->fromArray(['Código cliente', 'Custo', 'Fornecedor'])
         ->setTitle('Custo por cliente')
             ->fromArray($this->getCustosPorCliente(), null, 'A2');
 

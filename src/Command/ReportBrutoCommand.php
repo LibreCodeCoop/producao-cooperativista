@@ -50,6 +50,12 @@ class ReportBrutoCommand extends BaseCommand
         parent::configure();
         $this
             ->addOption(
+                'previsao',
+                null,
+                InputOption::VALUE_NONE,
+                'Previsão de cálculo e não o valor real com base nas NFSe.'
+            )
+            ->addOption(
                 'ano-mes',
                 null,
                 InputOption::VALUE_REQUIRED,
@@ -92,6 +98,7 @@ class ReportBrutoCommand extends BaseCommand
         }
         $diasUteis = (int) $input->getOption('dias-uteis');
         $percentualMaximo = (int) $input->getOption('percentual-maximo');
+        $previsao = (bool) $input->getOption('previsao');
         $inicio = DateTime::createFromFormat('Y-m', $input->getOption('ano-mes'));
         if ((bool) $input->getOption('atualizar-dados')) {
             $this->baseCalculo->loadFromExternalSources($inicio);
@@ -99,6 +106,7 @@ class ReportBrutoCommand extends BaseCommand
         $this->baseCalculo->setInicio($inicio);
         $this->baseCalculo->setDiasUteis($diasUteis);
         $this->baseCalculo->setPercentualMaximo($percentualMaximo);
+        $this->baseCalculo->setPrevisao($previsao);
         $list = $this->baseCalculo->getBrutoPorCooperado();
 
         if ($input->getOption('csv')) {

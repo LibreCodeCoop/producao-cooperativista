@@ -37,6 +37,12 @@ use Psr\Log\LoggerInterface;
 class Invoices
 {
     use Akaunting;
+    private array $dictionaryParamsAtNotes = [
+        'NFSe' => 'nfse',
+        'Transação do mês' => 'transaction_of_month',
+        'CNPJ cliente' => 'customer',
+        'Setor' => 'sector',
+    ];
 
     public function __construct(
         private Database $db,
@@ -73,8 +79,60 @@ class Invoices
             'company_id' => $companyId,
             'search' => implode(' ', $search),
         ]);
+        $documents = $this->parseDocuments($documents);
         return $documents;
 
+    }
+
+    private function parseDocuments(array $list): array
+    {
+        array_walk($list, function(&$row) {
+            $row = $this->parseNotes($row);
+            $row = $this->defineTransactionOfMonth($row);
+            $row = $this->defineCustomerReference($row);
+        });
+        return $list;
+    }
+
+    private function parseNotes(array $row): array {
+        if (empty($row['notes'])) {
+            return $row;
+        }
+        $explodedNotes = explode("\n", $row['notes']);
+        $pattern = '/^(?<paramName>' . implode('|', array_keys($this->dictionaryParamsAtNotes)) . '): (?<paramValue>.*)$/';
+        foreach ($explodedNotes as $rowOfNotes) {
+            if (!preg_match($pattern, $rowOfNotes, $matches)) {
+                continue;
+            }
+            $row[$this->dictionaryParamsAtNotes[$matches['paramName']]] = strtolower(trim($matches['paramValue']));
+        }
+        return $row;
+    }
+
+    private function defineTransactionOfMonth(array $row): array
+    {
+        if (!array_key_exists('transaction_of_month', $row)) {
+            $date = $this->convertDate($row['issued_at']);
+            $row['transaction_of_month'] = $date->format('Y-m');
+        }
+        return $row;
+    }
+
+    public function defineCustomerReference(array $row): array
+    {
+        if (!empty($row['contact']['reference'])) {
+            $row['customer_reference'] = $row['contact']['reference'];
+        } elseif (!empty($row['contact']['tax_number'])) {
+            $row['customer_reference'] = $row['contact']['tax_number'];
+        } elseif (!empty($row['customer'])) {
+            $row['customer_reference'] = $row['customer'];
+            if (!empty($row['sector'])) {
+                $row['customer_reference'] = $row['customer_reference'] . '|' . $row['sector'];
+            }
+        } else {
+            $row['customer_reference'] = null;
+        }
+        return $row;
     }
 
     public function saveToDatabase(array $list, DateTime $date): void
@@ -121,16 +179,20 @@ class Invoices
                     ->set('type', $update->createNamedParameter($row['type']))
                     ->set('issued_at', $update->createNamedParameter($this->convertDate($row['issued_at']), Types::DATE_MUTABLE))
                     ->set('due_at', $update->createNamedParameter($this->convertDate($row['due_at']), Types::DATE_MUTABLE))
+                    ->set('transaction_of_month', $update->createNamedParameter($row['transaction_of_month']))
                     ->set('amount', $update->createNamedParameter($row['amount'], Types::FLOAT))
                     ->set('currency_code', $update->createNamedParameter($row['currency_code']))
+                    ->set('nfse', $update->createNamedParameter($row['nfse'] ?? null))
                     ->set('document_number', $update->createNamedParameter($row['document_number']))
                     ->set('tax_number', $update->createNamedParameter($row['contact']['tax_number']))
+                    ->set('customer_reference', $update->createNamedParameter($row['customer_reference']))
                     ->set('contact_id', $update->createNamedParameter($row['contact_id'], ParameterType::INTEGER))
-                    ->set('contact_reference', $update->createNamedParameter($row['contact']['reference']
-                        ?? $row['contact']['tax_number']
-                        ?? $row['document_number']))
+                    ->set('contact_reference', $update->createNamedParameter($row['contact']['reference']))
                     ->set('contact_name', $update->createNamedParameter($row['contact']['name']))
                     ->set('contact_type', $update->createNamedParameter($row['contact']['type']))
+                    ->set('category_id', $update->createNamedParameter($row['category_id'], ParameterType::INTEGER))
+                    ->set('category_name', $update->createNamedParameter($row['category']['name']))
+                    ->set('category_type', $update->createNamedParameter($row['category']['type']))
                     ->set('metadata', $update->createNamedParameter(json_encode($row)))
                     ->where($update->expr()->eq('id', $update->createNamedParameter($row['id'], ParameterType::INTEGER)))
                     ->executeStatement();
@@ -142,16 +204,20 @@ class Invoices
                     'type' => $insert->createNamedParameter($row['type']),
                     'issued_at' => $insert->createNamedParameter($this->convertDate($row['issued_at']), Types::DATE_MUTABLE),
                     'due_at' => $insert->createNamedParameter($this->convertDate($row['due_at']), Types::DATE_MUTABLE),
+                    'transaction_of_month' => $insert->createNamedParameter($row['transaction_of_month']),
                     'amount' => $insert->createNamedParameter($row['amount'], Types::FLOAT),
                     'currency_code' => $insert->createNamedParameter($row['currency_code']),
+                    'nfse' => $insert->createNamedParameter($row['nfse'] ?? null),
                     'document_number' => $insert->createNamedParameter($row['document_number']),
                     'tax_number' => $insert->createNamedParameter($row['contact']['tax_number']),
+                    'customer_reference' => $insert->createNamedParameter($row['customer_reference']),
                     'contact_id' => $insert->createNamedParameter($row['contact_id'], ParameterType::INTEGER),
-                    'contact_reference' => $insert->createNamedParameter($row['contact']['reference']
-                        ?? $row['contact']['tax_number']
-                        ?? $row['document_number']),
+                    'contact_reference' => $insert->createNamedParameter($row['contact']['reference']),
                     'contact_name' => $insert->createNamedParameter($row['contact']['name']),
                     'contact_type' => $insert->createNamedParameter($row['contact']['type']),
+                    'category_id' => $insert->createNamedParameter($row['category_id'], ParameterType::INTEGER),
+                    'category_name' => $insert->createNamedParameter($row['category']['name']),
+                    'category_type' => $insert->createNamedParameter($row['category']['type']),
                     'metadata' => $insert->createNamedParameter(json_encode($row)),
                 ])
                 ->executeStatement();
