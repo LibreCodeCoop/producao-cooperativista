@@ -101,7 +101,7 @@ class Transactions
             return $row;
         }
         $explodedDescription = explode("\n", $row['description']);
-        $pattern = '/^(?<paramName>' . implode('|', array_keys($this->dictionaryParamsAtDescription)) . '): (?<paramValue>.*)$/';
+        $pattern = '/^(?<paramName>' . implode('|', array_keys($this->dictionaryParamsAtDescription)) . '): (?<paramValue>.*)$/i';
         foreach ($explodedDescription as $rowOfDescription) {
             if (!preg_match($pattern, $rowOfDescription, $matches)) {
                 continue;

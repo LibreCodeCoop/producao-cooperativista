@@ -100,7 +100,7 @@ class Invoices
             return $row;
         }
         $explodedNotes = explode("\n", $row['notes']);
-        $pattern = '/^(?<paramName>' . implode('|', array_keys($this->dictionaryParamsAtNotes)) . '): (?<paramValue>.*)$/';
+        $pattern = '/^(?<paramName>' . implode('|', array_keys($this->dictionaryParamsAtNotes)) . '): (?<paramValue>.*)$/i';
         foreach ($explodedNotes as $rowOfNotes) {
             if (!preg_match($pattern, $rowOfNotes, $matches)) {
                 continue;
