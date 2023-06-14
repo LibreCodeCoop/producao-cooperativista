@@ -47,13 +47,12 @@ class BaseCalculo
     private array $brutoPorCooperado = [];
     private int $totalCooperados = 0;
     private float $totalNotas = 0;
-    private float $totalImpostos = 0;
     private float $totalCustoCliente = 0;
     private float $totalDispendios = 0;
     private int $totalSegundosLibreCode = 0;
     private float $baseCalculoDispendios = 0;
     private int $percentualMaximo = 0;
-    private float $percentualConselhoAdministrativo = 0;
+    private float $percentualDispendios = 0;
     private int $diasUteis;
     private bool $sobrasDistribuidas = false;
     private bool $previsao = false;
@@ -81,7 +80,7 @@ class BaseCalculo
         if ($this->baseCalculoDispendios) {
             return $this->baseCalculoDispendios;
         }
-        $this->baseCalculoDispendios = $this->getTotalNotas() - $this->getTotalImpostos() - $this->getTotalCustoCliente();
+        $this->baseCalculoDispendios = $this->getTotalNotas() - $this->getTotalCustoCliente();
         return $this->baseCalculoDispendios;
     }
 
@@ -102,12 +101,12 @@ class BaseCalculo
     }
 
     /**
-     * Valor reservado de cada projeto para pagar o Conselho Administrativo
+     * Valor reservado de cada projeto para pagar os dispêndios
      */
-    private function percentualConselhoAdministrativo(): float
+    private function percentualDispendios(): float
     {
-        if ($this->percentualConselhoAdministrativo) {
-            return $this->percentualConselhoAdministrativo;
+        if ($this->percentualDispendios) {
+            return $this->percentualDispendios;
         }
         /**
          * Para a taxa mínima utiliza-se o total de dispêndios apenas pois no total
@@ -123,8 +122,8 @@ class BaseCalculo
             $taxaAdministrativa = $taxaMinima;
         }
 
-        $this->percentualConselhoAdministrativo = $taxaAdministrativa / ($this->getBaseCalculoDispendios()) * 100;
-        return $this->percentualConselhoAdministrativo;
+        $this->percentualDispendios = $taxaAdministrativa / ($this->getBaseCalculoDispendios()) * 100;
+        return $this->percentualDispendios;
     }
 
     /**
@@ -254,7 +253,7 @@ class BaseCalculo
                     AND category_name NOT IN (
                         'Produção cooperativista',
                         'Produção externa',
-                        'Impostos',
+                        'Imposto Pessoa Física',
                         'Cliente',
                         'Serviços de clientes',
                         'Plano de saúde'
@@ -271,8 +270,9 @@ class BaseCalculo
                     AND category_name NOT IN (
                         'Produção cooperativista',
                         'Produção externa',
-                        'Impostos',
+                        'Imposto Pessoa Física',
                         'Cliente',
+                        'Serviços de clientes',
                         'Plano de saúde'
                     )
                 SQL
@@ -287,37 +287,34 @@ class BaseCalculo
     }
 
     /**
-     * Retorna valor total de notas e de impostos em um mês
+     * Retorna valor total de notas em um mês
      *
      * @throws Exception
      */
-    private function totalNotasEImpostos(): void
+    private function getTotalNotas(): float
     {
         if ($this->totalNotas) {
-            return;
+            return $this->totalNotas;
         }
-        $select = new QueryBuilder($this->db->getConnection());
-        $select
-            ->select(
-                'SUM(n.valor_servico) as notas',
-                'SUM(n.valor_cofins + n.valor_ir + n.valor_pis + n.valor_iss) as impostos'
+
+        $stmt = $this->db->getConnection()->prepare(<<<SQL
+            SELECT SUM(amount) AS notas
+            FROM invoices i
+            WHERE type = 'invoice'
+            AND category_name IN (
+                'Cliente',
+                'Serviços de clientes',
+                'Recorrência',
+                'Serviço'
             )
-            ->from('nfse', 'n')
-            ->where('n.numero_substituta IS NULL')
-            ->andWhere('data_emissao >= :inicio')
-            ->andWhere('data_emissao <= :fim');
-        if ($_ENV['IGNORAR_CNPJ']) {
-            $cnpjIgnorados = explode(',', $_ENV['IGNORAR_CNPJ']);
-            $select
-                ->andWhere($select->expr()->notIn('cnpj', ':cnpj'))
-                ->setParameter('cnpj', $cnpjIgnorados, ArrayParameterType::STRING);
-        }
-        $select
-            ->setParameter('inicio', $this->inicioProximoMes->format('Y-m-d'))
-            ->setParameter('fim', $this->fimProximoMes->format('Y-m-d'));
-        $result = $select->executeQuery();
-        $return = $result->fetchAssociative();
-        if (is_null($return['notas'])) {
+            AND transaction_of_month = :ano_mes
+            SQL
+        );
+        $result = $stmt->executeQuery([
+            'ano_mes' => $this->inicioProximoMes->format('Y-m'),
+        ]);
+        $this->totalNotas = (float) $result->fetchOne();
+        if (!$this->totalNotas) {
             $messagem = sprintf(
                 'Sem notas entre os dias %s e %s.',
                 $this->inicioProximoMes->format(('Y-m-d')),
@@ -325,21 +322,8 @@ class BaseCalculo
             );
             throw new Exception($messagem);
         }
-        $this->logger->debug('Total notas e impostos: {total}', ['total' => json_encode($return)]);
-        $this->totalNotas = $return['notas'];
-        $this->totalImpostos = $return['impostos'];
-    }
-
-    private function getTotalNotas(): float
-    {
-        $this->totalNotasEImpostos();
+        $this->logger->debug('Total notas: {total}', ['total' => $this->totalNotas]);
         return $this->totalNotas;
-    }
-
-    private function getTotalImpostos(): float
-    {
-        $this->totalNotasEImpostos();
-        return $this->totalImpostos;
     }
 
     /**
@@ -438,7 +422,7 @@ class BaseCalculo
 
     private function getPercentualDesconto(): float
     {
-        $percentualDesconto = $this->percentualConselhoAdministrativo() + $this->percentualLibreCode();
+        $percentualDesconto = $this->percentualDispendios() + $this->percentualLibreCode();
         return $percentualDesconto;
     }
 
@@ -449,10 +433,13 @@ class BaseCalculo
         }
 
         $percentualDesconto = $this->getPercentualDesconto();
+        $custosPorCliente = $this->getCustosPorCliente();
+        $custosPorCliente = array_column($custosPorCliente, 'total_custos', 'cliente_codigo');
 
         if ($this->previsao) {
             $stmt = $this->db->getConnection()->prepare(<<<SQL
                 SELECT i.id,
+                    i.amount,
                     i.type,
                     'invoices' as 'table',
                     i.category_type,
@@ -475,6 +462,7 @@ class BaseCalculo
         } else {
             $stmt = $this->db->getConnection()->prepare(<<<SQL
                 SELECT ti.id,
+                    ti.amount,
                     ti.type,
                     'transactions' as 'table',
                     ti.category_type,
@@ -498,9 +486,9 @@ class BaseCalculo
         $result = $stmt->executeQuery([
             'ano_mes' => $this->inicioProximoMes->format('Y-m'),
         ]);
-        $incomes = [];
         $errorsSemNfse = [];
         $errorsSemContactReference = [];
+        $this->valoresPorProjeto = [];
         while ($row = $result->fetchAssociative()) {
             if (empty($row['customer_reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['customer_reference'])) {
                 $errorsSemContactReference[] = $row;
@@ -508,7 +496,14 @@ class BaseCalculo
             if (empty($row['nfse'])) {
                 $errorsSemNfse[] = $row;
             }
-            $incomes[] = $row;
+
+            $valoresPorProjeto = [];
+            $base = $row['amount'] - ($custosPorCliente[$row['customer_reference']] ?? 0);
+            $valoresPorProjeto = [
+                'bruto' => $base - ($base * $percentualDesconto / 100),
+                'customer_reference' => $row['customer_reference'],
+            ];
+            $this->valoresPorProjeto[] = $valoresPorProjeto;
         }
         if (count($errorsSemContactReference)) {
             throw new Exception(
@@ -517,7 +512,7 @@ class BaseCalculo
                 json_encode($errorsSemContactReference, JSON_PRETTY_PRINT)
             );
         }
-        if (count($errorsSemNfse)) {
+        if (!$this->previsao && count($errorsSemNfse)) {
             throw new Exception(
                 "Transação de entrada sem número de NFSe na descrição.\n" .
                 "Dados: \n" .
@@ -525,36 +520,6 @@ class BaseCalculo
             );
         }
 
-        $this->valoresPorProjeto = [];
-        $custosPorCliente = $this->getCustosPorCliente();
-        $custosPorCliente = array_column($custosPorCliente, 'total_custos', 'cliente_codigo');
-
-        // Lista de notas fiscais
-        $nfseNumbers = array_column($incomes, 'nfse');
-        $nfseList = $this->nfse->getByListNumber($nfseNumbers);
-
-        $errorsNfse = [];
-        foreach ($incomes as $income) {
-            $valoresPorProjeto = [];
-            $nfse = $nfseList[$income['nfse']];
-            if (empty($nfse)) {
-                $errorsNfse[] = $income;
-            }
-            $base = $nfse['valor_servico'] - $nfse['impostos'] - ($custosPorCliente[$income['customer_reference']] ?? 0);
-            $valoresPorProjeto = [
-                'bruto' => $base - ($base * $percentualDesconto / 100),
-                'customer_reference' => $income['customer_reference'],
-            ];
-            $this->valoresPorProjeto[] = $valoresPorProjeto;
-        }
-        if (count($errorsNfse)) {
-            throw new Exception(sprintf(
-                "Sem NFSe encontrada no intervalo %s e %s para os seguintes dados: \n%s",
-                $this->inicioProximoMes->format('Y-m-d'),
-                $this->fimProximoMes->format('Y-m-d'),
-                json_encode($errorsNfse, JSON_PRETTY_PRINT)
-            ));
-        }
         $this->logger->debug('Valores por projetos: {valores}', ['valores' => json_encode($this->valoresPorProjeto)]);
         return $this->valoresPorProjeto;
     }
@@ -665,8 +630,9 @@ class BaseCalculo
     {
         $percentualTrabalhadoPorCliente = $this->getPercentualTrabalhadoPorCliente();
         $sobras = $this->getTotalSobras();
+        $cnpjClientesInternos = explode(',', $_ENV['CNPJ_CLIENTES_INTERNOS']);
         foreach ($percentualTrabalhadoPorCliente as $row) {
-            if ($row['name'] !== 'LibreCode') {
+            if (!in_array($row['vat_id'], $cnpjClientesInternos)) {
                 continue;
             }
             $aReceberDasSobras = ($sobras * $row['percentual_trabalhado'] / 100);
@@ -701,8 +667,9 @@ class BaseCalculo
         $percentualTrabalhadoPorCliente = $this->getPercentualTrabalhadoPorCliente();
         $totalPorCliente = array_column($this->getValoresPorProjeto(), 'bruto', 'customer_reference');
         $errors = [];
+        $cnpjClientesInternos = explode(',', $_ENV['CNPJ_CLIENTES_INTERNOS']);
         foreach ($percentualTrabalhadoPorCliente as $row) {
-            if ($row['name'] === 'LibreCode') {
+            if (in_array($row['vat_id'], $cnpjClientesInternos)) {
                 continue;
             }
             if (!isset($totalPorCliente[$row['vat_id']])) {
@@ -747,12 +714,11 @@ class BaseCalculo
             ->setCellValue('B4', $this->fimProximoMes->format('Y-m-d H:i:s'))
             ->setCellValue('B5', $this->getTotalCooperados())
             ->setCellValue('B6', $this->getTotalNotas())
-            ->setCellValue('B7', $this->getTotalImpostos())
-            ->setCellValue('B8', $this->getTotalCustoCliente())
-            ->setCellValue('B9', $this->getTotalSegundosLibreCode() / 60 / 60)
-            ->setCellValue('B10', $this->percentualLibreCode())
-            ->setCellValue('B11', $this->percentualConselhoAdministrativo())
-            ->setCellValue('B12', $this->getPercentualDesconto());
+            ->setCellValue('B7', $this->getTotalCustoCliente())
+            ->setCellValue('B8', $this->getTotalSegundosLibreCode() / 60 / 60)
+            ->setCellValue('B9', $this->percentualLibreCode())
+            ->setCellValue('B10', $this->percentualDispendios())
+            ->setCellValue('B11', $this->getPercentualDesconto());
 
         $spreadsheet->createSheet()
         ->fromArray(['Código cliente', 'Custo', 'Fornecedor'])
