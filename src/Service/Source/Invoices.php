@@ -128,7 +128,7 @@ class Invoices
         } elseif (!empty($row['customer'])) {
             $row['customer_reference'] = $row['customer'];
             if (!empty($row['sector'])) {
-                $row['customer_reference'] = $row['customer_reference'] . '|' . $row['sector'];
+                $row['customer_reference'] = $row['customer_reference'] . '|' . strtolower($row['sector']);
             }
         } else {
             $row['customer_reference'] = null;
