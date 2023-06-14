@@ -486,15 +486,11 @@ class BaseCalculo
         $result = $stmt->executeQuery([
             'ano_mes' => $this->inicioProximoMes->format('Y-m'),
         ]);
-        $errorsSemNfse = [];
         $errorsSemContactReference = [];
         $this->valoresPorProjeto = [];
         while ($row = $result->fetchAssociative()) {
             if (empty($row['customer_reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['customer_reference'])) {
                 $errorsSemContactReference[] = $row;
-            }
-            if (empty($row['nfse'])) {
-                $errorsSemNfse[] = $row;
             }
 
             $valoresPorProjeto = [];
@@ -510,13 +506,6 @@ class BaseCalculo
                 "Cliente da transação não possui referência de contato válida no Akaunting.\n" .
                 "Dados: \n" .
                 json_encode($errorsSemContactReference, JSON_PRETTY_PRINT)
-            );
-        }
-        if (!$this->previsao && count($errorsSemNfse)) {
-            throw new Exception(
-                "Transação de entrada sem número de NFSe na descrição.\n" .
-                "Dados: \n" .
-                json_encode($errorsSemNfse, JSON_PRETTY_PRINT)
             );
         }
 
