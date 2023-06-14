@@ -91,6 +91,7 @@ class Transactions
         array_walk($list, function(&$row) {
             $row = $this->parseDescription($row);
             $row = $this->defineTransactionOfMonth($row);
+            $row = $this->defineCustomerReference($row);
         });
         return $list;
     }
@@ -193,6 +194,7 @@ class Transactions
                     ->set('nfse', $update->createNamedParameter($row['nfse'] ?? null))
                     ->set('contact_id', $update->createNamedParameter($row['contact_id'], ParameterType::INTEGER))
                     ->set('tax_number', $update->createNamedParameter($row['contact']['tax_number']))
+                    ->set('customer_reference', $update->createNamedParameter($row['customer_reference']))
                     ->set('contact_reference', $update->createNamedParameter($row['contact']['reference']))
                     ->set('contact_name', $update->createNamedParameter($row['contact']['name']))
                     ->set('contact_type', $update->createNamedParameter($row['contact']['type']))
@@ -215,6 +217,7 @@ class Transactions
                     'contact_id' => $insert->createNamedParameter($row['contact_id'], ParameterType::INTEGER),
                     'nfse' => $insert->createNamedParameter($row['nfse'] ?? null),
                     'tax_number' => $insert->createNamedParameter($row['contact']['tax_number']),
+                    'customer_reference' => $insert->createNamedParameter($row['customer_reference']),
                     'contact_reference' => $insert->createNamedParameter($row['contact']['reference']),
                     'contact_name' => $insert->createNamedParameter($row['contact']['name']),
                     'contact_type' => $insert->createNamedParameter($row['contact']['type']),
