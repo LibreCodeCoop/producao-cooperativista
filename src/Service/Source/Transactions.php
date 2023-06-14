@@ -42,6 +42,7 @@ class Transactions
         'Transação do mês' => 'transaction_of_month',
         'CNPJ cliente' => 'customer',
         'Setor' => 'sector',
+        'setor' => 'sector',
     ];
 
     public function __construct(
