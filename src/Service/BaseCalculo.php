@@ -525,7 +525,7 @@ class BaseCalculo
             SELECT u.alias,
                 c.name,
                 COALESCE(sum(t.duration), 0) * 100 / total_cliente.total AS percentual_trabalhado,
-                c.vat_id,
+                c.vat_id as cliente_codigo,
                 c.id as customer_id 
             FROM customers c
             JOIN projects p ON p.customer_id = c.id
@@ -577,7 +577,7 @@ class BaseCalculo
         ]);
         $this->percentualTrabalhadoPorCliente = [];
         while ($row = $result->fetchAssociative()) {
-            if (!$row['vat_id']) {
+            if (!$row['cliente_codigo']) {
                 continue;
             }
             // Inicializa o bruto com zero
@@ -621,7 +621,7 @@ class BaseCalculo
         $sobras = $this->getTotalSobras();
         $cnpjClientesInternos = explode(',', $_ENV['CNPJ_CLIENTES_INTERNOS']);
         foreach ($percentualTrabalhadoPorCliente as $row) {
-            if (!in_array($row['vat_id'], $cnpjClientesInternos)) {
+            if (!in_array($row['cliente_codigo'], $cnpjClientesInternos)) {
                 continue;
             }
             $aReceberDasSobras = ($sobras * $row['percentual_trabalhado'] / 100);
@@ -658,14 +658,14 @@ class BaseCalculo
         $errors = [];
         $cnpjClientesInternos = explode(',', $_ENV['CNPJ_CLIENTES_INTERNOS']);
         foreach ($percentualTrabalhadoPorCliente as $row) {
-            if (in_array($row['vat_id'], $cnpjClientesInternos)) {
+            if (in_array($row['cliente_codigo'], $cnpjClientesInternos)) {
                 continue;
             }
-            if (!isset($totalPorCliente[$row['vat_id']])) {
+            if (!isset($totalPorCliente[$row['cliente_codigo']])) {
                 $errors[] = $row;
                 continue;
             }
-            $brutoCliente = $totalPorCliente[$row['vat_id']];
+            $brutoCliente = $totalPorCliente[$row['cliente_codigo']];
             $aReceber = $brutoCliente * $row['percentual_trabalhado'] / 100;
             $this->setBrutoCooperado(
                 $row['alias'],
@@ -674,7 +674,8 @@ class BaseCalculo
         }
         if (count($errors)) {
             throw new Exception(
-                "Cnpj (vat_id) não encontrado, provavelmente sem nota fiscal ou sem transação no mês: \n" .
+                "CNPJ não encontrado em uma transação no mês.\n" .
+                "Dados:\n" .
                 json_encode($errors, JSON_PRETTY_PRINT)
             );
         }
@@ -721,7 +722,7 @@ class BaseCalculo
 
         $spreadsheet->createSheet()
             ->setTitle('Trabalhado por cliente')
-            ->fromArray(['Cooperado', 'Cliente', 'Percentual trabalhado', 'vat_id', 'customer id'])
+            ->fromArray(['Cooperado', 'Cliente', 'Percentual trabalhado', 'cliente codigo', 'customer id'])
             ->fromArray($this->getPercentualTrabalhadoPorCliente(), null, 'A2');
 
         $producao = $spreadsheet->getSheetByName('mês')
