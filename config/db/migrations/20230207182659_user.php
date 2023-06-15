@@ -12,6 +12,8 @@ final class User extends AbstractMigration
             ->addColumn('alias', 'string', ['limit' => 60])
             ->addColumn('title', 'string', ['limit' => 50])
             ->addColumn('username', 'string', ['limit' => 180])
+            ->addColumn('cpf', 'string', ['limit' => 11])
+            ->addColumn('dependents', 'smallinteger')
             ->addColumn('enabled', 'smallinteger')
             ->addColumn('color', 'string', ['limit' => 7])
             ->create();
