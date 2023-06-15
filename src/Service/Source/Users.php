@@ -85,12 +85,14 @@ class Users
             $rowFromCsv = array_filter($csv, fn($i) => $i['Usuário Kimai'] === $value['username']);
             if (!count($rowFromCsv)) {
                 $list[$key]['cpf'] = null;
-                $list[$key]['dependents'] = null;
+                $list[$key]['dependents'] = 0;
+                $list[$key]['health_insurance'] = 0;
                 continue;
             }
             $rowFromCsv = current($rowFromCsv);
             $list[$key]['cpf'] = $rowFromCsv['CPF'];
-            $list[$key]['dependents'] = $rowFromCsv['Dependentes'];
+            $list[$key]['dependents'] = $rowFromCsv['Dependentes'] ?? 0;
+            $list[$key]['health_insurance'] = $rowFromCsv['Plano de saúde'] ?? 0;
         }
 
         return $list;
@@ -136,6 +138,7 @@ class Users
             $row = array_combine($cols, $row);
             $row['CPF'] = (string) preg_replace('/\D/', '', $row['CPF']);
             $row['Dependentes'] = $row['Dependentes'] ? (int) $row['Dependentes'] : null;
+            $row['Plano de saúde'] = $row['Plano de saúde'] ? (float) $row['Plano de saúde'] : null;
             $csv[] = $row;
         }
         fclose($handle);
@@ -165,6 +168,7 @@ class Users
                     ->set('username', $update->createNamedParameter($row['username']))
                     ->set('cpf', $update->createNamedParameter($row['cpf']))
                     ->set('dependents', $update->createNamedParameter($row['dependents']))
+                    ->set('health_insurance', $update->createNamedParameter($row['health_insurance']))
                     ->set('enabled', $update->createNamedParameter($row['enabled'], ParameterType::INTEGER))
                     ->set('color', $update->createNamedParameter($row['color']))
                     ->where($update->expr()->eq('id', $update->createNamedParameter($row['id'])))
@@ -179,6 +183,7 @@ class Users
                     'username' => $insert->createNamedParameter($row['username']),
                     'cpf' => $insert->createNamedParameter($row['cpf']),
                     'dependents' => $insert->createNamedParameter($row['dependents']),
+                    'health_insurance' => $insert->createNamedParameter($row['health_insurance']),
                     'enabled' => $insert->createNamedParameter($row['enabled'], ParameterType::INTEGER),
                     'color' => $insert->createNamedParameter($row['color']),
                 ])

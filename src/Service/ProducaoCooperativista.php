@@ -26,8 +26,6 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Service;
 
 use DateTime;
-use Doctrine\DBAL\ArrayParameterType;
-use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Service\Source\Customers;
@@ -39,12 +37,12 @@ use ProducaoCooperativista\Service\Source\Transactions;
 use ProducaoCooperativista\Service\Source\Users;
 use Psr\Log\LoggerInterface;
 
-class BaseCalculo
+class ProducaoCooperativista
 {
     private array $custosPorCliente = [];
     private array $valoresPorProjeto = [];
     private array $percentualTrabalhadoPorCliente = [];
-    private array $brutoPorCooperado = [];
+    private array $cooperado = [];
     private int $totalCooperados = 0;
     private float $totalNotas = 0;
     private float $totalCustoCliente = 0;
@@ -233,8 +231,9 @@ class BaseCalculo
      * Desconsidera-se:
      * * Produção cooperativista (cliente interno)
      * * Produção externa (pagamento para quem trabalha diretamente para cliente externo)
-     * * Impostos em geral: nota fiscal, IRPF, INSS
+     * * Impostos de pessoa física: IRPF, INSS
      * * Cliente: Todos os custos dos clientes
+     * * Serviços de clientes: É algo que o cliente pagou, isto nem expense deveria ser
      * * Plano de saúde: Este valor é reembolsado pelo cooperado então não entra para ser dividido por todos
      */
     private function getTotalDispendios(): float
@@ -523,10 +522,13 @@ class BaseCalculo
         $stmt = $this->db->getConnection()->prepare(<<<SQL
             -- Percentual trabalhado por cliente
             SELECT u.alias,
+                u.cpf,
+                u.dependents,
+                u.health_insurance,
+                c.id as customer_id,
                 c.name,
-                COALESCE(sum(t.duration), 0) * 100 / total_cliente.total AS percentual_trabalhado,
                 c.vat_id as cliente_codigo,
-                c.id as customer_id 
+                COALESCE(sum(t.duration), 0) * 100 / total_cliente.total AS percentual_trabalhado
             FROM customers c
             JOIN projects p ON p.customer_id = c.id
             JOIN timesheet t ON t.project_id = p.id
@@ -561,11 +563,13 @@ class BaseCalculo
             WHERE t.`begin` >= :data_inicio
             AND t.`end` <= :data_fim
             AND u.enabled = 1
-            GROUP BY c.time_budget,
+            GROUP BY u.alias,
+                    u.cpf,
+                    u.dependents,
+                    u.health_insurance,
                     c.id,
                     c.name,
-                    c.vat_id,
-                    u.alias
+                    c.vat_id
             ORDER BY c.id,
                     u.alias
             SQL
@@ -580,8 +584,18 @@ class BaseCalculo
             if (!$row['cliente_codigo']) {
                 continue;
             }
-            // Inicializa o bruto com zero
-            $this->setBrutoCooperado($row['alias'], 0);
+            $row['bruto'] = 0;
+            $row['percentual_trabalhado'] = (float) $row['percentual_trabalhado'];
+            $this->setCooperado(
+                $row['cpf'],
+                [
+                    'name' => $row['alias'],
+                    'cpf' => $row['cpf'],
+                    'bruto' => 0,
+                    'dependentes' => $row['dependents'],
+                    'health_insurance' => $row['health_insurance'],
+                ],
+            );
             $this->percentualTrabalhadoPorCliente[] = $row;
         }
         $this->logger->debug('Trabalhado por cliente: {json}', ['json' => json_encode($this->percentualTrabalhadoPorCliente)]);
@@ -603,16 +617,17 @@ class BaseCalculo
         $this->previsao = $previsao;
     }
 
-    public function getBrutoPorCooperado(): array
+    public function getProducaoCooprativista(): array
     {
-        if ($this->brutoPorCooperado) {
-            return $this->brutoPorCooperado;
+        if ($this->cooperado) {
+            return $this->cooperado;
         }
 
         $this->distribuiProducaoExterna();
         $this->distribuiSobras();
-        $this->logger->debug('Bruto por cooperado: {json}', ['json' => json_encode($this->brutoPorCooperado)]);
-        return $this->brutoPorCooperado;
+        $this->calculaLiquido();
+        $this->logger->debug('Produção por cooperado ooperado: {json}', ['json' => json_encode($this->cooperado)]);
+        return $this->cooperado;
     }
 
     private function distribuiSobras(): void
@@ -625,27 +640,57 @@ class BaseCalculo
                 continue;
             }
             $aReceberDasSobras = ($sobras * $row['percentual_trabalhado'] / 100);
-            $this->setBrutoCooperado(
-                $row['alias'],
-                $this->getBrutoCooperado($row['alias']) + $aReceberDasSobras
+            $this->setCooperado(
+                $row['cpf'],
+                [
+                    'bruto' => $this->getCooperadoBruto($row['cpf']) + $aReceberDasSobras,
+                ]
             );
         }
     }
 
-    private function setBrutoCooperado(string $cooperado, float $bruto): void
+    private function calculaLiquido(): void
     {
-        $this->brutoPorCooperado[$cooperado] = $bruto;
+        $inss = new INSS();
+        $irpf = new IRPF((int) $this->inicio->format('Y'));
+        foreach ($this->cooperado as $cpf => $cooperado) {
+            $cooperado['auxilio'] = $cooperado['bruto'] * 0.2;
+            $cooperado['frra'] = $cooperado['bruto'] * (1 / 12);
+            $cooperado['base_inss'] = $cooperado['bruto'] - $cooperado['auxilio'] - $cooperado['frra'];
+            $cooperado['inss'] = $inss->calcula($cooperado['base_inss']);
+            $cooperado['base_irpf'] = $irpf->calculaBase(
+                $cooperado['base_inss'],
+                $cooperado['inss'],
+                $cooperado['dependentes']
+            );
+            $cooperado['irpf'] = $irpf->calcula($cooperado['base_irpf'], $cooperado['dependentes']);
+            $cooperado['liquido'] =
+                $cooperado['base_inss']
+                - $cooperado['inss']
+                - $cooperado['irpf']
+                - $cooperado['health_insurance']
+                + $cooperado['auxilio'];
+            $this->cooperado[$cpf] = $cooperado;
+        }
     }
 
-    private function getBrutoCooperado(string $cooperado): float
+    private function setCooperado(string $cpf, $properties): self
     {
-        if (!array_key_exists($cooperado, $this->brutoPorCooperado)) {
+        foreach ($properties as $key => $value) {
+            $this->cooperado[$cpf][$key] = $value;
+        }
+        return $this;
+    }
+
+    private function getCooperadoBruto(string $cpf): float
+    {
+        if (!array_key_exists($cpf, $this->cooperado)) {
             throw new Exception(sprintf(
                 'Cooperado %s não encontrado',
-                [$cooperado]
+                [$cpf]
             ));
         }
-        return $this->brutoPorCooperado[$cooperado];
+        return $this->cooperado[$cpf]['bruto'];
     }
 
     private function distribuiProducaoExterna(): void
@@ -667,9 +712,9 @@ class BaseCalculo
             }
             $brutoCliente = $totalPorCliente[$row['cliente_codigo']];
             $aReceber = $brutoCliente * $row['percentual_trabalhado'] / 100;
-            $this->setBrutoCooperado(
-                $row['alias'],
-                $this->getBrutoCooperado($row['alias']) + $aReceber
+            $this->setCooperado(
+                $row['cpf'],
+                ['bruto' => $this->getCooperadoBruto($row['cpf']) + $aReceber]
             );
         }
         if (count($errors)) {
@@ -684,7 +729,12 @@ class BaseCalculo
 
     private function getTotalDistribuido(): float
     {
-        return array_sum($this->brutoPorCooperado);
+        $bruto = array_reduce(
+            $this->cooperado,
+            fn($carry, $cooperado) => $carry += $cooperado['bruto'],
+            0
+        );
+        return $bruto;
     }
 
     private function getTotalSobras(): float
@@ -727,7 +777,7 @@ class BaseCalculo
 
         $producao = $spreadsheet->getSheetByName('mês')
             ->setTitle($this->inicio->format('Y-m'));
-        $brutoCooperado = $this->getBrutoPorCooperado();
+        $brutoCooperado = $this->getProducaoCooprativista();
         $row = 4;
         foreach ($brutoCooperado as $nome => $bruto) {
             $producao->setCellValue('A' . $row, $nome);

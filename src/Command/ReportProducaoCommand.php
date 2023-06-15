@@ -26,7 +26,8 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Command;
 
 use DateTime;
-use ProducaoCooperativista\Service\BaseCalculo;
+use ProducaoCooperativista\Service\ProducaoCooperativista;
+use SebastiaanLuca\PipeOperator\Pipe;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -34,13 +35,13 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 #[AsCommand(
-    name: 'report:bruto',
-    description: 'Bruto de produção cooperativista por cooperado'
+    name: 'report:producao',
+    description: 'Produção cooperativista por cooperado'
 )]
-class ReportBrutoCommand extends BaseCommand
+class ReportProducaoCommand extends BaseCommand
 {
     public function __construct(
-        private BaseCalculo $baseCalculo
+        private ProducaoCooperativista $producaoCooperativista
     ) {
         parent::__construct();
     }
@@ -101,24 +102,38 @@ class ReportBrutoCommand extends BaseCommand
         $previsao = (bool) $input->getOption('previsao');
         $inicio = DateTime::createFromFormat('Y-m', $input->getOption('ano-mes'));
         if ((bool) $input->getOption('atualizar-dados')) {
-            $this->baseCalculo->loadFromExternalSources($inicio);
+            $this->producaoCooperativista->loadFromExternalSources($inicio);
         }
-        $this->baseCalculo->setInicio($inicio);
-        $this->baseCalculo->setDiasUteis($diasUteis);
-        $this->baseCalculo->setPercentualMaximo($percentualMaximo);
-        $this->baseCalculo->setPrevisao($previsao);
-        $list = $this->baseCalculo->getBrutoPorCooperado();
+        $this->producaoCooperativista->setInicio($inicio);
+        $this->producaoCooperativista->setDiasUteis($diasUteis);
+        $this->producaoCooperativista->setPercentualMaximo($percentualMaximo);
+        $this->producaoCooperativista->setPrevisao($previsao);
+        $list = $this->producaoCooperativista->getProducaoCooprativista();
 
         if ($input->getOption('csv')) {
-            $output->writeLn('cooperado,total');
-            foreach ($list as $cooperado => $total) {
-                $output->writeLn($cooperado . ',' . $total);
+            Pipe::from($list)
+                ->pipe(current(...))
+                ->pipe(array_keys(...))
+                ->pipe($this->csvstr(...))
+                ->pipe($output->writeLn(...));
+            foreach ($list as $cooperado) {
+                $output->writeLn($this->csvstr($cooperado));
             }
         }
 
         if ($input->getOption('ods')) {
-            $this->baseCalculo->saveOds();
+            $this->producaoCooperativista->saveOds();
         }
         return Command::SUCCESS;
+    }
+
+    private function csvstr(array $fields) : string {
+        $f = fopen('php://memory', 'r+');
+        if (fputcsv($f, $fields) === false) {
+            return false;
+        }
+        rewind($f);
+        $csv_line = stream_get_contents($f);
+        return rtrim($csv_line);
     }
 }
