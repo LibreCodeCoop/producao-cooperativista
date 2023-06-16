@@ -37,9 +37,9 @@ use ProducaoCooperativista\Command\GetProjectsCommand;
 use ProducaoCooperativista\Command\GetTimesheetsCommand;
 use ProducaoCooperativista\Command\GetTransactionsCommand;
 use ProducaoCooperativista\Command\GetUsersCommand;
-use ProducaoCooperativista\Command\ReportBrutoCommand;
+use ProducaoCooperativista\Command\ReportProducaoCommand;
 use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\Service\BaseCalculo;
+use ProducaoCooperativista\Service\ProducaoCooperativista;
 use ProducaoCooperativista\Service\Source\Customers;
 use ProducaoCooperativista\Service\Source\Invoices;
 use ProducaoCooperativista\Service\Source\Nfse;
@@ -64,7 +64,7 @@ $projects = new Projects($database, $logger);
 $timesheets = new Timesheets($database, $logger);
 $transactions = new Transactions($database, $logger);
 $users = new Users($database, $logger);
-$baseCalculo = new BaseCalculo(
+$producaoCooperativista = new ProducaoCooperativista(
     $database,
     $logger,
     $customers,
@@ -83,5 +83,5 @@ $application->add(new GetProjectsCommand($projects));
 $application->add(new GetTimesheetsCommand($timesheets));
 $application->add(new GetTransactionsCommand($transactions));
 $application->add(new GetUsersCommand($users));
-$application->add(new ReportBrutoCommand($baseCalculo));
+$application->add(new ReportProducaoCommand($producaoCooperativista));
 $application->run();

@@ -25,12 +25,14 @@ Calcular o bruto da produção cooperativista por cooperado com base em dados co
     * Sempre que for custo reembolsável pelo cliente, adicionar `<cpf/CNPJ>|<setor>` na transação no campo `Referência` para que seja possível identificar qual cliente deverá reembolsar este custo de entrada. Lembrar de acrescentar o setor sempre que necessário.
     * Plano de saúde deve ser categorizado como `Plano de saúde`
     * Customização da tranzação deve ser inserida na descrição. Valores possíveis:
-      | Valor             | Descrição                                  |
-      | ----------------- | ------------------------------------------ |
-      | NFSe              | Número da NFSe                             |
-      | Ttransação do mês | Mês onde esta transação será contabilizada |
+      | Valor             | Descrição                                                  |
+      | ----------------- | ---------------------------------------------------------- |
+      | NFSe              | Número da NFSe                                             |
+      | Ttransação do mês | Mês onde esta transação será contabilizada                 |
+      | CNPJ cliente      | CNPJ do cliente de quem será cobrado o valor               |
+      | Setor             | Setor do cliente, quando é um CNPJ com mais de um contrato |
 
-      Valores customizados devem ser precedidos com `>` e seprarar o nome da propriedade do valor com dois pointos, exemplo:
+      Valores customizados precisam ter o nome da propriedade separado do valor com dois pointos, exemplo:
       ```
       NFSe: 123456789
       Transação do mês: 2023-05
@@ -60,11 +62,26 @@ vendor/bin/phinx migrate
 O principal comando é:
 
 ```bash
-./bin/import report:bruto --ano-mes=2022-12 --csv
+report:producao
+
+Description:
+  Produção cooperativista por cooperado
+
+Usage:
+  report:producao [options]
+
+Options:
+      --csv                                  To output as CSV
+      --database                             Save to default database
+      --previsao                             Previsão de cálculo e não o valor real com base nas NFSe.
+      --ano-mes=ANO-MES                      Ano e mês para gerar a produção cooperativista, formato: YYYY-mm
+      --dias-uteis=DIAS-UTEIS                Total de dias úteis no mês trabalhado [default: 22]
+      --percentual-maximo=PERCENTUAL-MAXIMO  Percentual máximo para pagamento de dispêndios [default: 25]
+      --atualizar-dados=ATUALIZAR-DADOS      Acessa todas as bases externas e atualiza o banco de dados. Valores: 1 = sim, 0 = não. [default: 1]
+      --ods                                  To output as ods
+
 ```
 > OBS: Este comando não salva o cálculo em lugar algum pois estes dados devem ser inseridos no sistema utilizado para gerar a produção de cada mês.
-
-`--csv` Esta opção é importante para ver a saída de dados senão o comando vai executar sem exibir nada.
 
 `--atualizar-dados=0`
 
