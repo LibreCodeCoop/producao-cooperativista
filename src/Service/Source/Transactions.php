@@ -78,7 +78,7 @@ class Transactions
         }
         $search[] = 'paid_at>=' . $begin->format('Y-m-d');
         $search[] = 'paid_at<=' . $end->format('Y-m-d');
-        $transactions = $this->doRequestAkaunting('/api/transactions', [
+        $transactions = $this->getDataList('/api/transactions', [
             'company_id' => $companyId,
             'search' => implode(' ', $search),
         ]);
