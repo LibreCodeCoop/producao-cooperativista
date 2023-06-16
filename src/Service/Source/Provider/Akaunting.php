@@ -29,7 +29,7 @@ use Symfony\Component\HttpClient\HttpClient;
 
 trait Akaunting
 {
-    public function doRequestAkaunting(string $endpoint, array $query = []): array
+    public function getDataList(string $endpoint, array $query = []): array
     {
         $client = HttpClient::create();
         $list = [];

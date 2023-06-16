@@ -76,7 +76,7 @@ class Invoices
         $search[] = 'type:' . $type;
         $search[] = 'invoiced_at>=' . $begin->format('Y-m-d');
         $search[] = 'invoiced_at<=' . $end->format('Y-m-d');
-        $documents = $this->doRequestAkaunting('/api/documents', [
+        $documents = $this->getDataList('/api/documents', [
             'company_id' => $companyId,
             'search' => implode(' ', $search),
         ]);

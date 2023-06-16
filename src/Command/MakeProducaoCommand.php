@@ -77,10 +77,10 @@ class MakeProducaoCommand extends BaseCommand
                 25
             )
             ->addOption(
-                'atualizar-dados',
+                'baixar-dados',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'Acessa todas as bases externas e atualiza o banco de dados. Valores: 1 = sim, 0 = não.',
+                'Acessa todas as bases externas e atualiza o banco de dados local. Valores: 1 = sim, 0 = não.',
                 1
             )
             ->addOption(
