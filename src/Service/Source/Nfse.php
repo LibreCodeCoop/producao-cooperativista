@@ -327,7 +327,7 @@ class Nfse
         );
         $cookieJar = new CookieJar();
         $cookieJar->set($cookie);
-    
+
         $client = new HttpBrowser(HttpClient::create([
             'headers' => [
                 'Host' => $this->prefeituras[$this->prefeitura]['host']
