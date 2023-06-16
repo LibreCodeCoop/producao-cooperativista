@@ -77,13 +77,12 @@ Options:
       --ano-mes=ANO-MES                      Ano e mês para gerar a produção cooperativista, formato: YYYY-mm
       --dias-uteis=DIAS-UTEIS                Total de dias úteis no mês trabalhado [default: 22]
       --percentual-maximo=PERCENTUAL-MAXIMO  Percentual máximo para pagamento de dispêndios [default: 25]
-      --atualizar-dados=ATUALIZAR-DADOS      Acessa todas as bases externas e atualiza o banco de dados. Valores: 1 = sim, 0 = não. [default: 1]
+      --baixar-dados=BAIXAR-DADOS            Acessa todas as bases externas e atualiza o banco de dados local. Valores: 1 = sim, 0 = não. [default: 1]
       --ods                                  To output as ods
-
 ```
 > OBS: Este comando não salva o cálculo em lugar algum pois estes dados devem ser inseridos no sistema utilizado para gerar a produção de cada mês.
 
-`--atualizar-dados=0`
+`--baixar-dados=0`
 
 Após executar uma vez e constatar que baixou todos os dados corretamente, você pode usar esta opção para não ficar baixando os dados de todas as fontes externas o tempo inteiro pois baixar isto tudo é o que hoje faz este comando demorar um pouco. Esta opção só é útil caso você queira ficar executando o mesmo comando mais de uma vez quando for analizar os dados importados ou os logs do sistema ou debugar a aplicação.
 
