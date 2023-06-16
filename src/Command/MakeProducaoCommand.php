@@ -35,10 +35,10 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 #[AsCommand(
-    name: 'report:producao',
+    name: 'make:producao',
     description: 'Produção cooperativista por cooperado'
 )]
-class ReportProducaoCommand extends BaseCommand
+class MakeProducaoCommand extends BaseCommand
 {
     public function __construct(
         private ProducaoCooperativista $producaoCooperativista
