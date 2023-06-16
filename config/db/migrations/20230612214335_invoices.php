@@ -48,7 +48,7 @@ final class Invoices extends AbstractMigration
             ->addColumn('category_id', 'biginteger')
             ->addColumn('category_name', 'string')
             ->addColumn('category_type', 'string')
-            ->addColumn('metadata', 'text')
+            ->addColumn('metadata', 'json')
             ->create();
     }
 }
