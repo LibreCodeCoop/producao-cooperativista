@@ -45,7 +45,7 @@ trait Akaunting
                         'X-AUTH-USER' => $_ENV['AKAUNTING_AUTH_USER'],
                         'X-AUTH-TOKEN' => $_ENV['AKAUNTING_AUTH_TOKEN'],
                     ],
-                ]
+                ],
             );
             $response = $result->toArray();
             $this->logger->debug('Akaunting response: {response}', ['response' => json_encode($response['data'])]);
@@ -56,5 +56,24 @@ trait Akaunting
             $endpoint = $response['links']['next'];
         }
         return $list;
+    }
+
+    public function sendData(string $endpoint, array $body, string $method = 'POST'): void
+    {
+        $client = HttpClient::create([
+            'headers' => [
+                'auth_basic' => [
+                    'X-AUTH-USER' => $_ENV['AKAUNTING_AUTH_USER'],
+                    'X-AUTH-TOKEN' => $_ENV['AKAUNTING_AUTH_TOKEN'],
+                ]
+            ]
+        ]);
+        $client->request(
+            $method,
+            rtrim($_ENV['AKAUNTING_API_BASE_URL'], '/') . $endpoint,
+            [
+                'json' => $body,
+            ],
+        );
     }
 }
