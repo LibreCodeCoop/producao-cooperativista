@@ -17,6 +17,8 @@ RUN chmod uga+x /usr/local/bin/install-php-extensions && sync \
     mysqli \
     pdo \
     pdo_mysql \
+    pdo_pgsql \
+    pgsql \
     xdebug \
     zip \
     @composer \
