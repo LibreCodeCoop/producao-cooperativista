@@ -93,6 +93,41 @@ class Transactions
             $row = $this->defineTransactionOfMonth($row);
             $row = $this->defineCustomerReference($row);
         });
+        $list = $this->mergeWithInvoice($list);
+        return $list;
+    }
+
+    private function mergeWithInvoice(array $list): array
+    {
+        $filtered = array_filter($list, fn($r) => $r['document_id'] && !$r['customer_reference']);
+        $documentIdList = array_column($filtered, 'document_id');
+        if (!$documentIdList) {
+            return $list;
+        }
+        $select = new QueryBuilder($this->db->getConnection());
+        $select->select('id')
+            ->addSelect('customer_reference')
+            ->from('invoices')
+            ->where(
+                $select->expr()->in(
+                    'id',
+                    $select->createNamedParameter(
+                        $documentIdList,
+                        ArrayParameterType::INTEGER
+                    )
+                )
+            )
+            ->andWhere('customer_reference IS NOT NULL');
+        $result = $select->executeQuery();
+        while ($row = $result->fetchAssociative()) {
+            $exists[] = $row['id'];
+            foreach ($list as $key => $transaction) {
+                if ($transaction['document_id'] === $row['id']) {
+                    $list[$key]['customer_reference'] = $row['customer_reference'];
+                    break;
+                }
+            }
+        }
         return $list;
     }
 
