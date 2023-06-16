@@ -62,13 +62,13 @@ vendor/bin/phinx migrate
 O principal comando é:
 
 ```bash
-report:producao
+make:producao
 
 Description:
   Produção cooperativista por cooperado
 
 Usage:
-  report:producao [options]
+  make:producao [options]
 
 Options:
       --csv                                  To output as CSV
