@@ -66,8 +66,7 @@ class MakeProducaoCommand extends BaseCommand
                 'dias-uteis',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'Total de dias úteis no mês trabalhado',
-                22
+                'Total de dias úteis no mês trabalhado'
             )
             ->addOption(
                 'percentual-maximo',

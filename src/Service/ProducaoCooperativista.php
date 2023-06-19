@@ -25,6 +25,8 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service;
 
+use Carbon\Carbon;
+use Cmixin\BusinessDay;
 use DateTime;
 use Exception;
 use ProducaoCooperativista\DB\Database;
@@ -51,7 +53,7 @@ class ProducaoCooperativista
     private float $baseCalculoDispendios = 0;
     private int $percentualMaximo = 0;
     private float $percentualDispendios = 0;
-    private int $diasUteis;
+    private int $diasUteis = 0;
     private bool $sobrasDistribuidas = false;
     private bool $previsao = false;
     private ?DateTime $inicio = null;
@@ -71,6 +73,7 @@ class ProducaoCooperativista
         private Users $users
     )
     {
+        BusinessDay::enable('Carbon\Carbon');
     }
 
     private function getBaseCalculoDispendios(): float
@@ -135,7 +138,7 @@ class ProducaoCooperativista
      */
     private function percentualLibreCode(): float
     {
-        $totalPossivelDeHoras = $this->getTotalCooperados() * 8 * $this->diasUteis;
+        $totalPossivelDeHoras = $this->getTotalCooperados() * 8 * $this->getDiasUteisNoMes();
 
         $totalHorasLibreCode = $this->getTotalSegundosLibreCode() / 60 / 60;
         $percentualLibreCode = $totalHorasLibreCode * 100 / $totalPossivelDeHoras;
@@ -605,6 +608,15 @@ class ProducaoCooperativista
     public function setDiasUteis(int $diasUteis): void
     {
         $this->diasUteis = $diasUteis;
+    }
+
+    private function getDiasUteisNoMes(): int
+    {
+        if ($this->diasUteis === 0) {
+            $date = Carbon::getMonthBusinessDays($this->inicio);
+            $this->diasUteis = count($date);
+        }
+        return $this->diasUteis;
     }
 
     public function setPercentualMaximo(int $percentualMaximo): void

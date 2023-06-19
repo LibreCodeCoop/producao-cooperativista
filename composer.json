@@ -14,7 +14,8 @@
         "robmorgan/phinx": "^0.13.4",
         "phpoffice/phpspreadsheet": "^1.28",
         "league/flysystem-webdav": "^3.15",
-        "sebastiaanluca/php-pipe-operator": "^6.0"
+        "sebastiaanluca/php-pipe-operator": "^6.0",
+        "cmixin/business-day": "^1.16"
     },
     "autoload": {
         "psr-4": {
