@@ -184,11 +184,6 @@ class Users
         while ($row = $result->fetchAssociative()) {
             $exists[] = $row['id'];
         }
-        $result = $select->executeQuery();
-        $exists = [];
-        while ($row = $result->fetchAssociative()) {
-            $exists[] = $row['id'];
-        }
         $insert = new QueryBuilder($this->db->getConnection());
         foreach ($list as $row) {
             if (in_array($row['id'], $exists)) {
