@@ -11,7 +11,8 @@ final class User extends AbstractMigration
         $users
             ->addColumn('alias', 'string', ['limit' => 60])
             ->addColumn('title', 'string', ['limit' => 50])
-            ->addColumn('username', 'string', ['limit' => 180])
+            ->addColumn('kimai_username', 'string', ['limit' => 180])
+            ->addColumn('akaunting_contact_id', 'biginteger', ['null' => true])
             ->addColumn('cpf', 'string', ['limit' => 11])
             ->addColumn('dependents', 'smallinteger')
             ->addColumn('health_insurance', 'double')

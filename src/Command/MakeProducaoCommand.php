@@ -101,7 +101,7 @@ class MakeProducaoCommand extends BaseCommand
         $percentualMaximo = (int) $input->getOption('percentual-maximo');
         $previsao = (bool) $input->getOption('previsao');
         $inicio = DateTime::createFromFormat('Y-m', $input->getOption('ano-mes'));
-        if ((bool) $input->getOption('atualizar-dados')) {
+        if ((bool) $input->getOption('baixar-dados')) {
             $this->producaoCooperativista->loadFromExternalSources($inicio);
         }
         $this->producaoCooperativista->setInicio($inicio);

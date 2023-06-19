@@ -25,7 +25,7 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service\Source;
 
-use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use League\Flysystem\Filesystem;
@@ -35,6 +35,7 @@ use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Service\Source\Provider\Kimai;
 use Psr\Log\LoggerInterface;
 use Sabre\DAV\Client;
+use SebastiaanLuca\PipeOperator\Pipe;
 
 class Users
 {
@@ -73,16 +74,41 @@ class Users
         $list = $this->doRequestKimai('/api/users', [
             'visible' => $visible,
         ]);
-        $list = $this->updateWithExtraValues($list);
+        $list = $this->updateWithDataFromSpreadsheet($list);
+        $list = $this->updateWithAkauntingData($list);
         $this->logger->debug('Dados baixados: {json}', ['json' => json_encode($list)]);
         return $list;
     }
 
-    public function updateWithExtraValues(array $list): array
+    private function updateWithAkauntingData(array $list): array
+    {
+        $cpf = Pipe::from($list)
+            ->pipe(array_column(...), PIPED_VALUE, 'cpf')
+            ->pipe(array_filter(...), PIPED_VALUE, fn($i) => !empty($i))
+            ->get();
+
+        $select = new QueryBuilder($this->db->getConnection(Database::DB_AKAUNTING));
+        $select->select('c.*')
+            ->from('contacts', 'c')
+            ->where($select->expr()->in('tax_number', ':tax_number'))
+            ->setParameter('tax_number', $cpf, ArrayParameterType::STRING);
+        $result = $select->executeQuery();
+
+        $index = array_flip($cpf);
+        while ($row = $result->fetchAssociative()) {
+            $list[$index[$row['tax_number']]]['akaunting_contact_id'] = $row['tax_number'];
+        }
+        return $list;
+    }
+
+    private function updateWithDataFromSpreadsheet(array $list): array
     {
         $csv = $this->getSpreadsheet();
         foreach ($list as $key => $value) {
-            $rowFromCsv = array_filter($csv, fn($i) => $i['Usuário Kimai'] === $value['username']);
+            $username = $value['username'];
+            $list[$key]['kimai_username'] = $username;
+            unset($list[$key]['username']);
+            $rowFromCsv = array_filter($csv, fn($i) => $i['Usuário Kimai'] === $username);
             if (!count($rowFromCsv)) {
                 $list[$key]['cpf'] = null;
                 $list[$key]['dependents'] = 0;
@@ -152,7 +178,12 @@ class Users
         $select->select('id')
             ->from('users')
             ->where($select->expr()->in('id', ':id'))
-            ->setParameter('id', array_column($list, 'id'), Connection::PARAM_STR_ARRAY);
+            ->setParameter('id', array_column($list, 'id'), ArrayParameterType::STRING);
+        $result = $select->executeQuery();
+        $exists = [];
+        while ($row = $result->fetchAssociative()) {
+            $exists[] = $row['id'];
+        }
         $result = $select->executeQuery();
         $exists = [];
         while ($row = $result->fetchAssociative()) {
@@ -165,7 +196,8 @@ class Users
                 $update->update('users')
                     ->set('alias', $update->createNamedParameter($row['alias']))
                     ->set('title', $update->createNamedParameter($row['title']))
-                    ->set('username', $update->createNamedParameter($row['username']))
+                    ->set('kimai_username', $update->createNamedParameter($row['kimai_username']))
+                    ->set('akaunting_contact_id', $update->createNamedParameter($row['akaunting_contact_id'] ?? null))
                     ->set('cpf', $update->createNamedParameter($row['cpf']))
                     ->set('dependents', $update->createNamedParameter($row['dependents']))
                     ->set('health_insurance', $update->createNamedParameter($row['health_insurance']))
@@ -180,7 +212,8 @@ class Users
                     'id' => $insert->createNamedParameter($row['id']),
                     'alias' => $insert->createNamedParameter($row['alias']),
                     'title' => $insert->createNamedParameter($row['title']),
-                    'username' => $insert->createNamedParameter($row['username']),
+                    'kimai_username' => $insert->createNamedParameter($row['kimai_username']),
+                    'akaunting_contact_id' => $insert->createNamedParameter($row['akaunting_contact_id'] ?? null),
                     'cpf' => $insert->createNamedParameter($row['cpf']),
                     'dependents' => $insert->createNamedParameter($row['dependents']),
                     'health_insurance' => $insert->createNamedParameter($row['health_insurance']),
