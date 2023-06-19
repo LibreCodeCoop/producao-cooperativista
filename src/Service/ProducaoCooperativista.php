@@ -542,6 +542,7 @@ class ProducaoCooperativista
             SELECT u.alias,
                 u.tax_number,
                 u.dependents,
+                u.akaunting_contact_id,
                 u.health_insurance,
                 c.id as customer_id,
                 c.name,
@@ -584,6 +585,7 @@ class ProducaoCooperativista
             GROUP BY u.alias,
                     u.tax_number,
                     u.dependents,
+                    u.akaunting_contact_id,
                     u.health_insurance,
                     c.id,
                     c.name,
@@ -609,6 +611,7 @@ class ProducaoCooperativista
                 [
                     'name' => $row['alias'],
                     'tax_number' => $row['tax_number'],
+                    'akaunting_contact_id' => $row['akaunting_contact_id'],
                     'bruto' => 0,
                     'dependentes' => $row['dependents'],
                     'health_insurance' => $row['health_insurance'],
