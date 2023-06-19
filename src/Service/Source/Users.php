@@ -82,8 +82,8 @@ class Users
 
     private function updateWithAkauntingData(array $list): array
     {
-        $cpf = Pipe::from($list)
-            ->pipe(array_column(...), PIPED_VALUE, 'cpf')
+        $taxNumber = Pipe::from($list)
+            ->pipe(array_column(...), PIPED_VALUE, 'tax_number')
             ->pipe(array_filter(...), PIPED_VALUE, fn($i) => !empty($i))
             ->get();
 
@@ -91,10 +91,10 @@ class Users
         $select->select('c.*')
             ->from('contacts', 'c')
             ->where($select->expr()->in('tax_number', ':tax_number'))
-            ->setParameter('tax_number', $cpf, ArrayParameterType::STRING);
+            ->setParameter('tax_number', $taxNumber, ArrayParameterType::STRING);
         $result = $select->executeQuery();
 
-        $index = array_flip($cpf);
+        $index = array_flip($taxNumber);
         while ($row = $result->fetchAssociative()) {
             $list[$index[$row['tax_number']]]['akaunting_contact_id'] = $row['id'];
         }
@@ -110,13 +110,13 @@ class Users
             unset($list[$key]['username']);
             $rowFromCsv = array_filter($csv, fn($i) => $i['Usuário Kimai'] === $username);
             if (!count($rowFromCsv)) {
-                $list[$key]['cpf'] = null;
+                $list[$key]['tax_number'] = null;
                 $list[$key]['dependents'] = 0;
                 $list[$key]['health_insurance'] = 0;
                 continue;
             }
             $rowFromCsv = current($rowFromCsv);
-            $list[$key]['cpf'] = $rowFromCsv['CPF'];
+            $list[$key]['tax_number'] = $rowFromCsv['CPF'];
             $list[$key]['dependents'] = $rowFromCsv['Dependentes'] ?? 0;
             $list[$key]['health_insurance'] = $rowFromCsv['Plano de saúde'] ?? 0;
         }
@@ -193,7 +193,7 @@ class Users
                     ->set('title', $update->createNamedParameter($row['title']))
                     ->set('kimai_username', $update->createNamedParameter($row['kimai_username']))
                     ->set('akaunting_contact_id', $update->createNamedParameter($row['akaunting_contact_id'] ?? null))
-                    ->set('cpf', $update->createNamedParameter($row['cpf']))
+                    ->set('tax_number', $update->createNamedParameter($row['tax_number'] ?? null))
                     ->set('dependents', $update->createNamedParameter($row['dependents']))
                     ->set('health_insurance', $update->createNamedParameter($row['health_insurance']))
                     ->set('enabled', $update->createNamedParameter($row['enabled'], ParameterType::INTEGER))
@@ -209,7 +209,7 @@ class Users
                     'title' => $insert->createNamedParameter($row['title']),
                     'kimai_username' => $insert->createNamedParameter($row['kimai_username']),
                     'akaunting_contact_id' => $insert->createNamedParameter($row['akaunting_contact_id'] ?? null),
-                    'cpf' => $insert->createNamedParameter($row['cpf']),
+                    'tax_number' => $insert->createNamedParameter($row['tax_number'] ?? null),
                     'dependents' => $insert->createNamedParameter($row['dependents']),
                     'health_insurance' => $insert->createNamedParameter($row['health_insurance']),
                     'enabled' => $insert->createNamedParameter($row['enabled'], ParameterType::INTEGER),

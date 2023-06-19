@@ -13,7 +13,7 @@ final class User extends AbstractMigration
             ->addColumn('title', 'string', ['limit' => 50])
             ->addColumn('kimai_username', 'string', ['limit' => 180])
             ->addColumn('akaunting_contact_id', 'biginteger', ['null' => true])
-            ->addColumn('cpf', 'string', ['limit' => 11])
+            ->addColumn('tax_number', 'string', ['limit' => 20])
             ->addColumn('dependents', 'smallinteger')
             ->addColumn('health_insurance', 'double')
             ->addColumn('enabled', 'smallinteger')

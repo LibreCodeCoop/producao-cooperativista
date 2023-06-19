@@ -540,7 +540,7 @@ class ProducaoCooperativista
         $stmt = $this->db->getConnection()->prepare(<<<SQL
             -- Percentual trabalhado por cliente
             SELECT u.alias,
-                u.cpf,
+                u.tax_number,
                 u.dependents,
                 u.health_insurance,
                 c.id as customer_id,
@@ -582,7 +582,7 @@ class ProducaoCooperativista
             AND t.`end` <= :data_fim
             AND u.enabled = 1
             GROUP BY u.alias,
-                    u.cpf,
+                    u.tax_number,
                     u.dependents,
                     u.health_insurance,
                     c.id,
@@ -605,10 +605,10 @@ class ProducaoCooperativista
             $row['bruto'] = 0;
             $row['percentual_trabalhado'] = (float) $row['percentual_trabalhado'];
             $this->setCooperado(
-                $row['cpf'],
+                $row['tax_number'],
                 [
                     'name' => $row['alias'],
-                    'cpf' => $row['cpf'],
+                    'tax_number' => $row['tax_number'],
                     'bruto' => 0,
                     'dependentes' => $row['dependents'],
                     'health_insurance' => $row['health_insurance'],
@@ -668,9 +668,9 @@ class ProducaoCooperativista
             }
             $aReceberDasSobras = ($sobras * $row['percentual_trabalhado'] / 100);
             $this->setCooperado(
-                $row['cpf'],
+                $row['tax_number'],
                 [
-                    'bruto' => $this->getCooperadoBruto($row['cpf']) + $aReceberDasSobras,
+                    'bruto' => $this->getCooperadoBruto($row['tax_number']) + $aReceberDasSobras,
                 ]
             );
         }
@@ -680,7 +680,7 @@ class ProducaoCooperativista
     {
         $inss = new INSS();
         $irpf = new IRPF((int) $this->inicio->format('Y'));
-        foreach ($this->cooperado as $cpf => $cooperado) {
+        foreach ($this->cooperado as $taxNumber => $cooperado) {
             $cooperado['auxilio'] = $cooperado['bruto'] * 0.2;
             $cooperado['frra'] = $cooperado['bruto'] * (1 / 12);
             $cooperado['base_inss'] = $cooperado['bruto'] - $cooperado['auxilio'] - $cooperado['frra'];
@@ -697,27 +697,27 @@ class ProducaoCooperativista
                 - $cooperado['irpf']
                 - $cooperado['health_insurance']
                 + $cooperado['auxilio'];
-            $this->cooperado[$cpf] = $cooperado;
+            $this->cooperado[$taxNumber] = $cooperado;
         }
     }
 
-    private function setCooperado(string $cpf, $properties): self
+    private function setCooperado(string $taxNumber, $properties): self
     {
         foreach ($properties as $key => $value) {
-            $this->cooperado[$cpf][$key] = $value;
+            $this->cooperado[$taxNumber][$key] = $value;
         }
         return $this;
     }
 
-    private function getCooperadoBruto(string $cpf): float
+    private function getCooperadoBruto(string $taxNumber): float
     {
-        if (!array_key_exists($cpf, $this->cooperado)) {
+        if (!array_key_exists($taxNumber, $this->cooperado)) {
             throw new Exception(sprintf(
                 'Cooperado %s não encontrado',
-                [$cpf]
+                [$taxNumber]
             ));
         }
-        return $this->cooperado[$cpf]['bruto'];
+        return $this->cooperado[$taxNumber]['bruto'];
     }
 
     private function distribuiProducaoExterna(): void
@@ -740,8 +740,8 @@ class ProducaoCooperativista
             $brutoCliente = $totalPorCliente[$row['cliente_codigo']];
             $aReceber = $brutoCliente * $row['percentual_trabalhado'] / 100;
             $this->setCooperado(
-                $row['cpf'],
-                ['bruto' => $this->getCooperadoBruto($row['cpf']) + $aReceber]
+                $row['tax_number'],
+                ['bruto' => $this->getCooperadoBruto($row['tax_number']) + $aReceber]
             );
         }
         if (count($errors)) {
