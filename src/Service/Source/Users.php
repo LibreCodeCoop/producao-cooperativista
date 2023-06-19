@@ -96,7 +96,7 @@ class Users
 
         $index = array_flip($cpf);
         while ($row = $result->fetchAssociative()) {
-            $list[$index[$row['tax_number']]]['akaunting_contact_id'] = $row['tax_number'];
+            $list[$index[$row['tax_number']]]['akaunting_contact_id'] = $row['id'];
         }
         return $list;
     }
