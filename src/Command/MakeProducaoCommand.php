@@ -69,6 +69,13 @@ class MakeProducaoCommand extends BaseCommand
                 'Total de dias úteis no mês trabalhado'
             )
             ->addOption(
+                'dia-util-pagamento',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Número ordinal do dia útil quando o pagamento será feito',
+                5
+            )
+            ->addOption(
                 'percentual-maximo',
                 null,
                 InputOption::VALUE_REQUIRED,
@@ -99,10 +106,12 @@ class MakeProducaoCommand extends BaseCommand
         $diasUteis = (int) $input->getOption('dias-uteis');
         $percentualMaximo = (int) $input->getOption('percentual-maximo');
         $previsao = (bool) $input->getOption('previsao');
+        $diaUtilPagamento = (int) $input->getOption('dia-util-pagamento');
         $inicio = DateTime::createFromFormat('Y-m', $input->getOption('ano-mes'));
         if ((bool) $input->getOption('baixar-dados')) {
             $this->producaoCooperativista->loadFromExternalSources($inicio);
         }
+        $this->producaoCooperativista->setDiaUtilPagamento($diaUtilPagamento);
         $this->producaoCooperativista->setInicio($inicio);
         $this->producaoCooperativista->setDiasUteis($diasUteis);
         $this->producaoCooperativista->setPercentualMaximo($percentualMaximo);

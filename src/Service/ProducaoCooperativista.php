@@ -60,6 +60,8 @@ class ProducaoCooperativista
     private DateTime $fim;
     private DateTime $inicioProximoMes;
     private DateTime $fimProximoMes;
+    private int $pagamentoNoDiaUtil = 5;
+    private DateTime $dataPagamento;
 
     public function __construct(
         private Database $db,
@@ -99,6 +101,19 @@ class ProducaoCooperativista
 
         $this->inicioProximoMes = (clone $inicio)->modify('first day of next month');
         $this->fimProximoMes = (clone $fim)->modify('last day of next month');
+        $this->dataPagamento = $this->dataPagamento();
+    }
+
+    public function setDiaUtilPagamento(int $dia): void
+    {
+        $this->pagamentoNoDiaUtil = $dia;
+    }
+
+    private function dataPagamento(): DateTime
+    {
+        $date = Carbon::parse($this->inicioProximoMes);
+        $next = $date->addBusinessDays($this->pagamentoNoDiaUtil);
+        return new DateTime($next->format('Y-m-d'));
     }
 
     /**
