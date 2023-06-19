@@ -230,7 +230,7 @@ class Invoices
         if (!$date) {
             return null;
         }
-        $date = preg_replace('/-\d{2}:\d{2}$/', '', $date);
+        $date = preg_replace('/[+-]\d{2}:\d{2}$/', '', $date);
         $date = str_replace('T', ' ', $date);
         $date = DateTime::createFromFormat('Y-m-d H:i:s', $date);
         return $date;
