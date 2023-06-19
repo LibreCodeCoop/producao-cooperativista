@@ -29,37 +29,42 @@ use Doctrine\DBAL\Configuration;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Logging\Middleware;
-use Monolog\Handler\StreamHandler;
-use Monolog\Handler\SyslogHandler;
-use Monolog\Logger;
 use Psr\Log\LoggerInterface;
 
 class Database
 {
-    private Connection $connection;
+    /**
+     * @var Connection[]
+     */
+    private array $connection;
+    public const DB_LOCAL = 'local';
+    public const DB_AKAUNTING = 'akaunting';
 
-    public function __construct(?Connection $connection = null, ?LoggerInterface $logger = null)
+    public function __construct(LoggerInterface $logger = null)
     {
-        if (!$connection) {
-            if ($logger) {
-                $config = new Configuration();
-                $logMiddleware = new Middleware($logger);
-                $config->setMiddlewares([$logMiddleware]);
-            }
+        $config = new Configuration();
+        $logMiddleware = new Middleware($logger);
+        $config->setMiddlewares([$logMiddleware]);
 
-            $connection = DriverManager::getConnection([
-                'dbname' => $_ENV['DB_NAME'],
-                'user' => $_ENV['DB_USER'],
-                'password' => $_ENV['DB_PASSWORD'],
-                'host' => $_ENV['DB_HOST'],
-                'driver' => $_ENV['DB_ADAPTER'],
-            ], $config);
-        }
-        $this->connection = $connection;
+        $this->connection[self::DB_LOCAL] = DriverManager::getConnection([
+            'dbname' => $_ENV['DB_NAME'],
+            'user' => $_ENV['DB_USER'],
+            'password' => $_ENV['DB_PASSWORD'],
+            'host' => $_ENV['DB_HOST'],
+            'driver' => $_ENV['DB_ADAPTER'],
+        ], $config);
+
+        $this->connection[self::DB_AKAUNTING] = DriverManager::getConnection([
+            'dbname' => $_ENV['DB_AKAUNTING_NAME'],
+            'user' => $_ENV['DB_AKAUNTING_USER'],
+            'password' => $_ENV['DB_AKAUNTING_PASSWORD'],
+            'host' => $_ENV['DB_AKAUNTING_HOST'],
+            'driver' => $_ENV['DB_AKAUNTING_ADAPTER'],
+        ], $config);
     }
 
-    public function getConnection(): Connection
+    public function getConnection(string $place = self::DB_LOCAL): Connection
     {
-        return $this->connection;
+        return $this->connection[$place];
     }
 }

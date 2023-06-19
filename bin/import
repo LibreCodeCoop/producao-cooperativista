@@ -56,7 +56,7 @@ $application = new Application();
 $logger = new Logger('PRODUCAO_COOPERATIVISTA');
 $logger->pushHandler(new StreamHandler('logs/system.log'));
 
-$database = new Database(null, $logger);
+$database = new Database($logger);
 $customers = new Customers($database, $logger);
 $invoices = new Invoices($database, $logger);
 $nfse = new Nfse($database, $logger);
