@@ -73,7 +73,7 @@ class ProducaoCooperativista
         private Users $users
     )
     {
-        BusinessDay::enable('Carbon\Carbon');
+        BusinessDay::enable('Carbon\Carbon', $_ENV['HOLYDAYS_LIST'] ?? 'br-national');
     }
 
     private function getBaseCalculoDispendios(): float
