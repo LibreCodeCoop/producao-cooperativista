@@ -680,6 +680,7 @@ class ProducaoCooperativista
         $this->coletaDadosParaAtualizarProducao();
         $producao = $this->getProducaoCooprativista();
         $items = json_decode($_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS'], true);
+        $haveNewProduction = false;
         foreach ($producao as $cooperado) {
             $notes = sprintf(<<<NOTES
                 Data geração: %s
@@ -771,12 +772,19 @@ class ProducaoCooperativista
                     $this->invoices->sendData('/api/documents/' . $cooperado['bill_id'], $query, 'PATCH');
                 } else {
                     $this->invoices->sendData('/api/documents', $query);
+                    $haveNewProduction = true;
                 }
             } catch (ClientException $e) {
                 $response = $e->getResponse();
                 $content = $response->toArray(false);
                 throw new Exception(json_encode($content));
             }
+        }
+        if ($haveNewProduction) {
+            $begin = (clone $this->getDataPagamento())
+                ->modify('first day of this month')
+                ->setTime(00, 00, 00);
+            $this->invoices->updateDatabase($begin, 'bill');
         }
     }
 
