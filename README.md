@@ -78,6 +78,7 @@ Options:
       --dias-uteis=DIAS-UTEIS                Total de dias úteis no mês trabalhado [default: 22]
       --percentual-maximo=PERCENTUAL-MAXIMO  Percentual máximo para pagamento de dispêndios [default: 25]
       --baixar-dados=BAIXAR-DADOS            Acessa todas as bases externas e atualiza o banco de dados local. Valores: 1 = sim, 0 = não. [default: 1]
+      --cadastrar-producao                   Cadastra a produção cooperativista
       --ods                                  To output as ods
 ```
 > OBS: Este comando não salva o cálculo em lugar algum pois estes dados devem ser inseridos no sistema utilizado para gerar a produção de cada mês.
