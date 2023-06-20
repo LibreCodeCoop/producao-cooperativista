@@ -70,6 +70,10 @@ class Invoices
         $begin = $date
             ->modify('first day of this month');
         $end = clone $begin;
+        /**
+         * Is necessary to get from next month because the payment of invoices will be registered at the next month of
+         * payment and this data is used to register the "produção cooperativista"
+         */
         $end = $end->modify('last day of next month');
 
         $search = [];
