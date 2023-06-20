@@ -70,7 +70,7 @@ class Invoices
         $begin = $date
             ->modify('first day of this month');
         $end = clone $begin;
-        $end = $end->modify('last day of this month');
+        $end = $end->modify('last day of next month');
 
         $search = [];
         $search[] = 'type:' . $type;
