@@ -62,6 +62,7 @@ class ProducaoCooperativista
     private DateTime $fimProximoMes;
     private int $pagamentoNoDiaUtil = 5;
     private DateTime $dataPagamento;
+    private DateTime $dataProcessamento;
 
     public function __construct(
         private Database $db,
@@ -108,7 +109,7 @@ class ProducaoCooperativista
         $this->pagamentoNoDiaUtil = $dia;
     }
 
-    private function dataPagamento(): DateTime
+    private function getDataPagamento(): DateTime
     {
         try {
             return $this->dataPagamento;
@@ -117,14 +118,20 @@ class ProducaoCooperativista
             $carbon = Carbon::parse($inicoMes);
             $dataPagamento = $carbon->addBusinessDays($this->pagamentoNoDiaUtil);
             $string = $dataPagamento->format('Y-m-d');
-            $today = new DateTime();
-            if ($string >= $today->format('Y-m-d')) {
+            $this->dataProcessamento = new DateTime();
+            if ($string >= $this->dataProcessamento->format('Y-m-d')) {
                 $this->dataPagamento = new DateTime($string);
             } else {
-                $this->dataPagamento = $today;
+                $this->dataPagamento = $this->dataProcessamento;
             }
         }
         return $this->dataPagamento;
+    }
+
+    private function getDataProcessamento(): DateTime
+    {
+        $this->getDataPagamento();
+        return $this->dataProcessamento;
     }
 
     /**
