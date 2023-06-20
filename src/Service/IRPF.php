@@ -33,17 +33,17 @@ class IRPF
             'ano_inicio' => 2023,
             'ano_fim' => null,
             'min' => 0,
-            'max' => 1903.98,
+            'max' => 2112,
             'aliquota' => 0,
             'deducao' => 0,
         ],
         [
             'ano_inicio' => 2023,
             'ano_fim' => null,
-            'min' => 1903.99,
+            'min' => 2112.01,
             'max' => 2826.65,
             'aliquota' => 0.075,
-            'deducao' => 142.8,
+            'deducao' => 158.40,
         ],
         [
             'ano_inicio' => 2023,
@@ -51,7 +51,7 @@ class IRPF
             'min' => 2826.66,
             'max' => 3751.05,
             'aliquota' => 0.15,
-            'deducao' => 354.8,
+            'deducao' => 370.40,
         ],
         [
             'ano_inicio' => 2023,
@@ -59,7 +59,7 @@ class IRPF
             'min' => 3751.06,
             'max' => 4664.68,
             'aliquota' => 0.225,
-            'deducao' => 636.13,
+            'deducao' => 651.73,
         ],
         [
             'ano_inicio' => 2023,
@@ -67,7 +67,7 @@ class IRPF
             'min' => 4664.69,
             'max' => null,
             'aliquota' => 0.275,
-            'deducao' => 869.36,
+            'deducao' => 884.96,
         ],
     ];
     private array $tabela;
