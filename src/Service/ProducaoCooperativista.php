@@ -531,7 +531,7 @@ class ProducaoCooperativista
             $valoresPorProjeto = [];
             $base = $row['amount'] - ($custosPorCliente[$row['customer_reference']] ?? 0);
             $valoresPorProjeto = [
-                'bruto' => $base - ($base * $percentualDesconto / 100),
+                'base_producao' => $base - ($base * $percentualDesconto / 100),
                 'customer_reference' => $row['customer_reference'],
             ];
             $this->valoresPorProjeto[] = $valoresPorProjeto;
@@ -622,7 +622,7 @@ class ProducaoCooperativista
             if (!$row['cliente_codigo']) {
                 continue;
             }
-            $row['bruto'] = 0;
+            $row['base_producao'] = 0;
             $row['percentual_trabalhado'] = (float) $row['percentual_trabalhado'];
             $this->setCooperado(
                 $row['tax_number'],
@@ -630,7 +630,7 @@ class ProducaoCooperativista
                     'name' => $row['alias'],
                     'tax_number' => $row['tax_number'],
                     'akaunting_contact_id' => $row['akaunting_contact_id'],
-                    'bruto' => 0,
+                    'base_producao' => 0,
                     'dependentes' => $row['dependents'],
                     'health_insurance' => $row['health_insurance'],
                 ],
@@ -691,7 +691,7 @@ class ProducaoCooperativista
             $this->setCooperado(
                 $row['tax_number'],
                 [
-                    'bruto' => $this->getCooperadoBruto($row['tax_number']) + $aReceberDasSobras,
+                    'base_producao' => $this->getCooperadoBaseProducao($row['tax_number']) + $aReceberDasSobras,
                 ]
             );
         }
@@ -702,18 +702,18 @@ class ProducaoCooperativista
         $inss = new INSS();
         $irpf = new IRPF((int) $this->inicio->format('Y'));
         foreach ($this->cooperado as $taxNumber => $cooperado) {
-            $cooperado['auxilio'] = $cooperado['bruto'] * 0.2;
-            $cooperado['frra'] = $cooperado['bruto'] * (1 / 12);
-            $cooperado['base_inss'] = $cooperado['bruto'] - $cooperado['auxilio'] - $cooperado['frra'];
-            $cooperado['inss'] = $inss->calcula($cooperado['base_inss']);
+            $cooperado['frra'] = $cooperado['base_producao'] * (1 / 12);
+            $cooperado['auxilio'] = $cooperado['base_producao'] * 0.2;
+            $cooperado['bruto'] = $cooperado['base_producao'] - $cooperado['auxilio'] - $cooperado['frra'];
+            $cooperado['inss'] = $inss->calcula($cooperado['bruto']);
             $cooperado['base_irpf'] = $irpf->calculaBase(
-                $cooperado['base_inss'],
+                $cooperado['bruto'],
                 $cooperado['inss'],
                 $cooperado['dependentes']
             );
             $cooperado['irpf'] = $irpf->calcula($cooperado['base_irpf'], $cooperado['dependentes']);
             $cooperado['liquido'] =
-                $cooperado['base_inss']
+                $cooperado['bruto']
                 - $cooperado['inss']
                 - $cooperado['irpf']
                 - $cooperado['health_insurance']
@@ -730,7 +730,7 @@ class ProducaoCooperativista
         return $this;
     }
 
-    private function getCooperadoBruto(string $taxNumber): float
+    private function getCooperadoBaseProducao(string $taxNumber): float
     {
         if (!array_key_exists($taxNumber, $this->cooperado)) {
             throw new Exception(sprintf(
@@ -738,7 +738,7 @@ class ProducaoCooperativista
                 [$taxNumber]
             ));
         }
-        return $this->cooperado[$taxNumber]['bruto'];
+        return $this->cooperado[$taxNumber]['base_producao'];
     }
 
     private function distribuiProducaoExterna(): void
@@ -747,7 +747,7 @@ class ProducaoCooperativista
             return;
         }
         $percentualTrabalhadoPorCliente = $this->getPercentualTrabalhadoPorCliente();
-        $totalPorCliente = array_column($this->getValoresPorProjeto(), 'bruto', 'customer_reference');
+        $totalPorCliente = array_column($this->getValoresPorProjeto(), 'base_producao', 'customer_reference');
         $errors = [];
         $cnpjClientesInternos = explode(',', $_ENV['CNPJ_CLIENTES_INTERNOS']);
         foreach ($percentualTrabalhadoPorCliente as $row) {
@@ -762,7 +762,7 @@ class ProducaoCooperativista
             $aReceber = $brutoCliente * $row['percentual_trabalhado'] / 100;
             $this->setCooperado(
                 $row['tax_number'],
-                ['bruto' => $this->getCooperadoBruto($row['tax_number']) + $aReceber]
+                ['base_producao' => $this->getCooperadoBaseProducao($row['tax_number']) + $aReceber]
             );
         }
         if (count($errors)) {
@@ -777,12 +777,12 @@ class ProducaoCooperativista
 
     private function getTotalDistribuido(): float
     {
-        $bruto = array_reduce(
+        $baseProducao = array_reduce(
             $this->cooperado,
-            fn($carry, $cooperado) => $carry += $cooperado['bruto'],
+            fn($carry, $cooperado) => $carry += $cooperado['base_producao'],
             0
         );
-        return $bruto;
+        return $baseProducao;
     }
 
     private function getTotalSobras(): float
@@ -815,7 +815,7 @@ class ProducaoCooperativista
 
         $spreadsheet->createSheet()
             ->setTitle('Valores por projeto')
-            ->fromArray(['Cliente', 'referência', 'valor do serviço', 'impostos', 'total dos custos', 'bruto'])
+            ->fromArray(['Cliente', 'referência', 'valor do serviço', 'impostos', 'total dos custos', 'base producao'])
             ->fromArray($this->getValoresPorProjeto(), null, 'A2');
 
         $spreadsheet->createSheet()
@@ -825,13 +825,13 @@ class ProducaoCooperativista
 
         $producao = $spreadsheet->getSheetByName('mês')
             ->setTitle($this->inicio->format('Y-m'));
-        $brutoCooperado = $this->getProducaoCooprativista();
+        $cooperados = $this->getProducaoCooprativista();
         $row = 4;
-        foreach ($brutoCooperado as $nome => $bruto) {
+        foreach ($cooperados as $nome => $baseProducao) {
             $producao->setCellValue('A' . $row, $nome);
             $producao->setCellValue('N' . $row, $nome);
             $producao->setCellValue('O' . $row, 'Produção cooperativista');
-            $producao->setCellValue('P' . $row, $bruto);
+            $producao->setCellValue('P' . $row, $baseProducao);
             $producao->setCellValue('Q' . $row, 1);
             $row++;
         }
