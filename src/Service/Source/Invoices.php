@@ -86,7 +86,6 @@ class Invoices
         ]);
         $documents = $this->parseDocuments($documents);
         return $documents;
-
     }
 
     private function parseDocuments(array $list): array
