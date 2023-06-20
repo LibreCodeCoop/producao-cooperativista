@@ -9,6 +9,8 @@ services:
     environment:
       - XDEBUG_CONFIG
       - TZ
+    extra_hosts:
+      - host.docker.internal:host-gateway
   pgsql:
     image: postgres:15-alpine
     restart: unless-stopped
