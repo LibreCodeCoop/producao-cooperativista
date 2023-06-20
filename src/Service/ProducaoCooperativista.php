@@ -28,7 +28,11 @@ namespace ProducaoCooperativista\Service;
 use Carbon\Carbon;
 use Cmixin\BusinessDay;
 use DateTime;
+use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\ParameterType;
+use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
+use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Service\Source\Customers;
 use ProducaoCooperativista\Service\Source\Invoices;
@@ -38,6 +42,7 @@ use ProducaoCooperativista\Service\Source\Timesheets;
 use ProducaoCooperativista\Service\Source\Transactions;
 use ProducaoCooperativista\Service\Source\Users;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpClient\Exception\ClientException;
 
 class ProducaoCooperativista
 {
@@ -63,6 +68,7 @@ class ProducaoCooperativista
     private int $pagamentoNoDiaUtil = 5;
     private DateTime $dataPagamento;
     private DateTime $dataProcessamento;
+    private NumberFormatter $numberFormatter;
 
     public function __construct(
         private Database $db,
@@ -77,6 +83,10 @@ class ProducaoCooperativista
     )
     {
         BusinessDay::enable('Carbon\Carbon', $_ENV['HOLYDAYS_LIST'] ?? 'br-national');
+        $this->numberFormatter = new NumberFormatter(
+            $_ENV['LOCALE'] ?? 'pt_BR',
+            NumberFormatter:: CURRENCY
+        );
     }
 
     private function getBaseCalculoDispendios(): float
@@ -663,6 +673,145 @@ class ProducaoCooperativista
     public function setPrevisao(bool $previsao): void
     {
         $this->previsao = $previsao;
+    }
+
+    public function updateProducao(): void
+    {
+        $this->coletaDadosParaAtualizarProducao();
+        $producao = $this->getProducaoCooprativista();
+        $items = json_decode($_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS'], true);
+        foreach ($producao as $cooperado) {
+            if ($cooperado['tax_number'] !== '09914477780') {
+                continue;
+            }
+            $notes = sprintf(<<<NOTES
+                Data geração: %s
+                Produção realizada no mês: %s
+                Notas dos clientes pagas no mês: %s
+                Previsão de pagamento: %sº dia útil
+                Previsão de pagamento no dia: %s
+                Base de cálculo: %s
+                FRRA: %s
+                NOTES,
+                $this->getDataProcessamento()->format('Y-m-d'),
+                $this->inicio->format('Y-m'),
+                $this->inicioProximoMes->format('Y-m'),
+                $this->diasUteis,
+                $this->getDataPagamento()->format('Y-m-d'),
+                $this->numberFormatter->format($cooperado['base_producao']),
+                $this->numberFormatter->format($cooperado['frra'])
+            );
+
+            $query = [
+                'type' => 'bill',
+                'category_id' => $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'],
+                'document_number' =>
+                    'PRODCOOP-' .
+                    $cooperado['tax_number'] .
+                    '-' .
+                    $this->getDataPagamento()->format('Y-m-d'),
+                'search' => 'type:bill',
+                'status' => 'draft',
+                'issued_at' => $this->getDataProcessamento()->format('Y-m-d H:i:s'),
+                'due_at' => $this->getDataPagamento()->format('Y-m-d H:i:s'),
+                'account_id' => 1,
+                'currency_code' => 'BRL',
+                'currency_rate' => 1,
+                'notes' => $notes,
+                'contact_id' => $cooperado['akaunting_contact_id'],
+                'contact_name' => $cooperado['name'],
+                'contact_tax_number' => $cooperado['tax_number'],
+                'amount' => 0,
+                'items' => [],
+            ];
+            $query['items'][] = [
+                'item_id' => $items['Auxílio'],
+                'name' => 'Ajuda de custo',
+                'description' => '',
+                'quantity' => 1,
+                'price' => $cooperado['auxilio'],
+                'total' => $cooperado['auxilio'],
+                'discount' => 0,
+            ];
+            $query['items'][] = [
+                'item_id' => $items['bruto'],
+                'name' => 'Bruto produção',
+                'description' => '',
+                'quantity' => 1,
+                'price' => $cooperado['bruto'],
+                'total' => $cooperado['bruto'],
+                'discount' => 0,
+            ];
+            $query['items'][] = [
+                'item_id' => $items['INSS'],
+                'name' => 'INSS',
+                'description' => '',
+                'quantity' => -1,
+                'price' => $cooperado['inss'],
+                'total' => $cooperado['inss'] * -1,
+                'discount' => 0,
+            ];
+            $query['items'][] = [
+                'item_id' => $items['IRPF'],
+                'name' => 'IRPF',
+                'description' => '',
+                'quantity' => -1,
+                'price' => $cooperado['irpf'],
+                'total' => $cooperado['irpf'] * -1,
+                'discount' => 0,
+            ];
+            $query['items'][] = [
+                'item_id' => $items['Plano'],
+                'name' => 'Plano de saúde',
+                'description' => '',
+                'quantity' => -1,
+                'price' => $cooperado['health_insurance'],
+                'total' => $cooperado['health_insurance'] * -1,
+                'discount' => 0,
+            ];
+            try {
+                if (!empty($cooperado['bill_id']) && $cooperado['document_number'] === $query['document_number']) {
+                    $this->invoices->sendData('/api/documents/' . $cooperado['bill_id'], $query, 'PATCH');
+                } else {
+                    $this->invoices->sendData('/api/documents', $query);
+                }
+            } catch (ClientException $e) {
+                $response = $e->getResponse();
+                $content = $response->toArray(false);
+                throw new Exception(json_encode($content));
+            }
+        }
+    }
+
+    private function coletaDadosParaAtualizarProducao(): void
+    {
+        $producao = $this->getProducaoCooprativista();
+
+        $select = new QueryBuilder($this->db->getConnection());
+        $select->select('id')
+            ->addSelect('tax_number')
+            ->addSelect('document_number')
+            ->from('invoices')
+            ->where("type = 'bill'")
+            ->andWhere("category_type = 'expense'")
+            ->andWhere("category_name = 'Produção cooperativista'")
+            ->andWhere($select->expr()->in('tax_number', ':tax_number'))
+            ->setParameter('tax_number', array_keys($producao), ArrayParameterType::STRING)
+            ->andWhere($select->expr()->eq('transaction_of_month', ':transaction_of_month'))
+            ->setParameter('transaction_of_month', $this->getDataPagamento()->format('Y-m'), ParameterType::STRING);
+
+        $result = $select->executeQuery([
+            'ano_mes' => $this->getDataPagamento()->format('Y-m'),
+        ]);
+        while ($row = $result->fetchAssociative()) {
+            $this->setCooperado(
+                $row['tax_number'],
+                [
+                    'bill_id' => $row['id'],
+                    'document_number' => $row['document_number'],
+                ],
+            );
+        }
     }
 
     public function getProducaoCooprativista(): array

@@ -90,6 +90,12 @@ class MakeProducaoCommand extends BaseCommand
                 1
             )
             ->addOption(
+                'atualiza-producao',
+                null,
+                InputOption::VALUE_NONE,
+                'Atualiza a produção cooperativista'
+            )
+            ->addOption(
                 'ods',
                 null,
                 InputOption::VALUE_NONE,
@@ -117,6 +123,10 @@ class MakeProducaoCommand extends BaseCommand
         $this->producaoCooperativista->setPercentualMaximo($percentualMaximo);
         $this->producaoCooperativista->setPrevisao($previsao);
         $list = $this->producaoCooperativista->getProducaoCooprativista();
+
+        if ($input->getOption('atualiza-producao')) {
+            $this->producaoCooperativista->updateProducao();
+        }
 
         if ($input->getOption('csv')) {
             Pipe::from($list)
