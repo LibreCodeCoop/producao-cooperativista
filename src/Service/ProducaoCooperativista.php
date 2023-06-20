@@ -101,7 +101,6 @@ class ProducaoCooperativista
 
         $this->inicioProximoMes = (clone $inicio)->modify('first day of next month');
         $this->fimProximoMes = (clone $fim)->modify('last day of next month');
-        $this->dataPagamento = $this->dataPagamento();
     }
 
     public function setDiaUtilPagamento(int $dia): void
@@ -111,9 +110,21 @@ class ProducaoCooperativista
 
     private function dataPagamento(): DateTime
     {
-        $date = Carbon::parse($this->inicioProximoMes);
-        $next = $date->addBusinessDays($this->pagamentoNoDiaUtil);
-        return new DateTime($next->format('Y-m-d'));
+        try {
+            return $this->dataPagamento;
+        } catch (\Throwable $th) {
+            $inicoMes = (clone $this->inicioProximoMes)->modify('first day of next month');
+            $carbon = Carbon::parse($inicoMes);
+            $dataPagamento = $carbon->addBusinessDays($this->pagamentoNoDiaUtil);
+            $string = $dataPagamento->format('Y-m-d');
+            $today = new DateTime();
+            if ($string >= $today->format('Y-m-d')) {
+                $this->dataPagamento = new DateTime($string);
+            } else {
+                $this->dataPagamento = $today;
+            }
+        }
+        return $this->dataPagamento;
     }
 
     /**
