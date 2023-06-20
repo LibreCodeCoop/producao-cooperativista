@@ -58,7 +58,7 @@ trait Akaunting
         return $list;
     }
 
-    public function sendData(string $endpoint, array $body, string $method = 'POST'): void
+    public function sendData(string $endpoint, array $body = [], string $method = 'POST'): void
     {
         $client = HttpClient::create();
         $client->request(
