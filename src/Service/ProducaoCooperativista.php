@@ -711,8 +711,6 @@ class ProducaoCooperativista
                 ->setContactTaxNumber($cooperado['tax_number']);
             $this->insereHealthInsurance($invoice);
             $this->aplciaAdiantamentos($invoice);
-            // $producao = $this->getProducaoCooprativista();
-            // $cooperado = $producao[$cooperado['tax_number']];
             $invoice->setItem(
                 itemId: $this->itemsIds['Auxílio'],
                 name: 'Ajuda de custo',

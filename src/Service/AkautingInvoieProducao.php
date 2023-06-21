@@ -28,52 +28,53 @@ namespace ProducaoCooperativista\Service;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 
 /**
- * @method AkautingInvoieProducao setType(string $value)
- * @method string getType()
- * @method AkautingInvoieProducao setCategoryId(int $value)
- * @method int getCategoryId()
- * @method AkautingInvoieProducao setDocumentNumber(string $value)
- * @method string getDocumentNumber()
- * @method AkautingInvoieProducao setSearch(string $value)
- * @method string getSearch()
- * @method AkautingInvoieProducao setStatus(string $value)
- * @method string getStatus()
- * @method AkautingInvoieProducao setIssuedAt(string $value)
- * @method string getIssuedAt()
- * @method AkautingInvoieProducao setDueAt(string $value)
- * @method string getDueAt()
  * @method AkautingInvoieProducao setAccountId(int $value)
  * @method int getAccountId()
- * @method AkautingInvoieProducao setCurrencyCode(string $value)
- * @method string getCurrencyCode()
- * @method AkautingInvoieProducao setCurrencyRate(int $value)
- * @method int getCurrencyRate()
+ * @method AkautingInvoieProducao setAmount(float $value)
+ * @method float getAmount()
+ * @method AkautingInvoieProducao setCategoryId(int $value)
+ * @method int getCategoryId()
  * @method AkautingInvoieProducao setContactId(int $value)
  * @method int getContactId()
  * @method AkautingInvoieProducao setContactName(string $value)
  * @method string getContactName()
  * @method AkautingInvoieProducao setContactTaxNumber(string $value)
  * @method string getContactTaxNumber()
- * @method AkautingInvoieProducao setAmount(float $value)
- * @method float getAmount()
+ * @method AkautingInvoieProducao setCurrencyCode(string $value)
+ * @method string getCurrencyCode()
+ * @method AkautingInvoieProducao setCurrencyRate(int $value)
+ * @method int getCurrencyRate()
+ * @method AkautingInvoieProducao setDocumentNumber(string $value)
+ * @method string getDocumentNumber()
+ * @method AkautingInvoieProducao setDueAt(string $value)
+ * @method string getDueAt()
+ * @method AkautingInvoieProducao setIssuedAt(string $value)
+ * @method string getIssuedAt()
+ * @method AkautingInvoieProducao setSearch(string $value)
+ * @method string getSearch()
+ * @method AkautingInvoieProducao setStatus(string $value)
+ * @method string getStatus()
+ * @method AkautingInvoieProducao setType(string $value)
+ * @method string getType()
  */
 class AkautingInvoieProducao
 {
     use MagicGetterSetterTrait;
-    private string $type = '';
-    private int $categoryId = 0;
-    private string $documentNumber = '';
-    private string $search = '';
-    private string $status = '';
-    private string $issuedAt = '';
-    private string $dueAt = '';
     private int $accountId = 0;
-    private string $currencyCode = '';
-    private int $currencyRate = 1;
+    private float $amount = 0;
+    private int $categoryId = 0;
     private int $contactId = 0;
     private string $contactName = '';
     private string $contactTaxNumber = '';
-    private float $amount = 0;
+    private string $currencyCode = '';
+    private int $currencyRate = 1;
+    private string $documentNumber = '';
+    private string $dueAt = '';
+    private string $issuedAt = '';
+    private string $search = '';
+    private string $status = '';
+    private string $type = '';
+
     private array $notes = [];
     private array $items = [];
 
