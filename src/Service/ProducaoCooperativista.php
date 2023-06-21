@@ -69,6 +69,7 @@ class ProducaoCooperativista
     private DateTime $dataPagamento;
     private DateTime $dataProcessamento;
     private NumberFormatter $numberFormatter;
+    private array $itemsIds;
 
     public function __construct(
         private Database $db,
@@ -87,6 +88,7 @@ class ProducaoCooperativista
             $_ENV['LOCALE'] ?? 'pt_BR',
             NumberFormatter:: CURRENCY
         );
+        $this->itemsIds = json_decode($_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS'], true);
     }
 
     private function getBaseCalculoDispendios(): float
@@ -679,99 +681,85 @@ class ProducaoCooperativista
     {
         $this->coletaDadosParaAtualizarProducao();
         $producao = $this->getProducaoCooprativista();
-        $items = json_decode($_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS'], true);
         $haveNewProduction = false;
         foreach ($producao as $cooperado) {
-            $notes = sprintf(<<<NOTES
-                Data geração: %s
-                Produção realizada no mês: %s
-                Notas dos clientes pagas no mês: %s
-                Previsão de pagamento: %sº dia útil
-                Previsão de pagamento no dia: %s
-                Base de cálculo: %s
-                FRRA: %s
-                NOTES,
-                $this->getDataProcessamento()->format('Y-m-d'),
-                $this->inicio->format('Y-m'),
-                $this->inicioProximoMes->format('Y-m'),
-                $this->diasUteis,
-                $this->getDataPagamento()->format('Y-m-d'),
-                $this->numberFormatter->format($cooperado['base_producao']),
-                $this->numberFormatter->format($cooperado['frra'])
-            );
+            $invoice = new AkautingInvoieProducao();
 
-            $query = [
-                'type' => 'bill',
-                'category_id' => $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'],
-                'document_number' =>
-                    'PRODCOOP-' .
+            $invoice->setType('bill')
+                ->setCategoryId((int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'])
+                ->setDocumentNumber(
+                    'PDC_' .
                     $cooperado['tax_number'] .
                     '-' .
-                    $this->getDataPagamento()->format('Y-m-d'),
-                'search' => 'type:bill',
-                'status' => 'draft',
-                'issued_at' => $this->getDataProcessamento()->format('Y-m-d H:i:s'),
-                'due_at' => $this->getDataPagamento()->format('Y-m-d H:i:s'),
-                'account_id' => 1,
-                'currency_code' => 'BRL',
-                'currency_rate' => 1,
-                'notes' => $notes,
-                'contact_id' => $cooperado['akaunting_contact_id'],
-                'contact_name' => $cooperado['name'],
-                'contact_tax_number' => $cooperado['tax_number'],
-                'amount' => 0,
-                'items' => [],
-            ];
-            $query['items'][] = [
-                'item_id' => $items['Auxílio'],
-                'name' => 'Ajuda de custo',
-                'description' => '',
-                'quantity' => 1,
-                'price' => $cooperado['auxilio'],
-                'total' => $cooperado['auxilio'],
-                'discount' => 0,
-            ];
-            $query['items'][] = [
-                'item_id' => $items['bruto'],
-                'name' => 'Bruto produção',
-                'description' => '',
-                'quantity' => 1,
-                'price' => $cooperado['bruto'],
-                'total' => $cooperado['bruto'],
-                'discount' => 0,
-            ];
-            $query['items'][] = [
-                'item_id' => $items['INSS'],
-                'name' => 'INSS',
-                'description' => '',
-                'quantity' => -1,
-                'price' => $cooperado['inss'],
-                'total' => $cooperado['inss'] * -1,
-                'discount' => 0,
-            ];
-            $query['items'][] = [
-                'item_id' => $items['IRPF'],
-                'name' => 'IRPF',
-                'description' => '',
-                'quantity' => -1,
-                'price' => $cooperado['irpf'],
-                'total' => $cooperado['irpf'] * -1,
-                'discount' => 0,
-            ];
-            $query['items'][] = [
-                'item_id' => $items['Plano'],
-                'name' => 'Plano de saúde',
-                'description' => '',
-                'quantity' => -1,
-                'price' => $cooperado['health_insurance'],
-                'total' => $cooperado['health_insurance'] * -1,
-                'discount' => 0,
-            ];
+                    $this->inicio->format('Y-m')
+                )
+                ->setSearch('type:bill')
+                ->setStatus('draft')
+                ->setIssuedAt($this->getDataProcessamento()->format('Y-m-d H:i:s'))
+                ->setDueAt($this->getDataPagamento()->format('Y-m-d H:i:s'))
+                ->setAccountId(1)
+                ->setCurrencyCode('BRL')
+                ->setNote('Data geração', $this->getDataProcessamento()->format('Y-m-d'))
+                ->setNote('Produção realizada no mês', $this->inicio->format('Y-m'))
+                ->setNote('Notas dos clientes pagas no mês', $this->inicioProximoMes->format('Y-m'))
+                ->setNote('Previsão de pagamento', sprintf('%sº dia útil', $this->diasUteis))
+                ->setNote('Previsão de pagamento no dia', $this->getDataPagamento()->format('Y-m-d'))
+                ->setNote('Base de cálculo', $this->numberFormatter->format($cooperado['base_producao']))
+                ->setNote('FRRA', $this->numberFormatter->format($cooperado['frra']))
+                ->setContactId($cooperado['akaunting_contact_id'])
+                ->setContactName($cooperado['name'])
+                ->setContactTaxNumber($cooperado['tax_number']);
+            $this->insereHealthInsurance($invoice);
+            $this->aplciaAdiantamentos($invoice);
+            // $producao = $this->getProducaoCooprativista();
+            // $cooperado = $producao[$cooperado['tax_number']];
+            $invoice->setItem(
+                itemId: $this->itemsIds['Auxílio'],
+                name: 'Ajuda de custo',
+                price: $cooperado['auxilio']
+            );
+            $invoice->setItem(
+                itemId: $this->itemsIds['bruto'],
+                name: 'Bruto produção',
+                price: $cooperado['bruto']
+            );
+            $invoice->setItem(
+                itemId: $this->itemsIds['INSS'],
+                name: 'INSS',
+                price: $cooperado['inss'] * -1
+            );
+            $invoice->setItem(
+                itemId: $this->itemsIds['IRPF'],
+                name: 'IRPF',
+                price: $cooperado['irpf'] * -1
+            );
             try {
-                if (!empty($cooperado['bill_id']) && $cooperado['document_number'] === $query['document_number']) {
-                    $this->invoices->sendData('/api/documents/' . $cooperado['bill_id'], $query, 'PATCH');
+                if (!empty($cooperado['bill_id'])) {
+                    try {
+                        $bill = $this->invoices->sendData(
+                            endpoint: '/api/documents/' . $cooperado['bill_id'],
+                            query: [
+                                'search' => implode(' ', [
+                                    'type:bill',
+                                    'status:draft',
+                                ]),
+                            ],
+                            method: 'GET'
+                        );
+                    } catch (\Throwable $th) {
+                        // status != draft
+                        continue;
+                    }
+                    $this->invoices->sendData(
+                        endpoint: '/api/documents/' . $cooperado['bill_id'],
+                        body: $invoice->toArray(),
+                        method: 'PATCH'
+                    );
                 } else {
-                    $this->invoices->sendData('/api/documents', $query);
+                    $this->invoices->sendData(
+                        endpoint: '/api/documents',
+                        body: $invoice->toArray()
+                    );
                     $haveNewProduction = true;
                 }
             } catch (ClientException $e) {
@@ -788,6 +776,51 @@ class ProducaoCooperativista
         }
     }
 
+    private function insereHealthInsurance(AkautingInvoieProducao $invoice): void
+    {
+        $taxNumber = $invoice->getContactTaxNumber();
+
+        $producao = $this->getProducaoCooprativista();
+        $cooperado = $producao[$taxNumber];
+
+        if ($cooperado['health_insurance']) {
+            $invoice->setItem(
+                itemId: $this->itemsIds['Plano'],
+                name: 'Plano de saúde',
+                price: -$cooperado['health_insurance'],
+                order: 10
+            );
+        }
+    }
+
+    private function aplciaAdiantamentos(AkautingInvoieProducao $invoice): void
+    {
+        $taxNumber = $invoice->getContactTaxNumber();
+
+        $select = new QueryBuilder($this->db->getConnection());
+        $select->select('amount')
+            ->addSelect('document_number')
+            ->addSelect('due_at')
+            ->from('invoices')
+            ->where("type = 'bill'")
+            ->andWhere("category_type = 'expense'")
+            ->andWhere("metadata->>'$.status' = 'paid'")
+            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_ADIANTAMENTO_CATEGORY_ID'], ParameterType::INTEGER)))
+            ->andWhere($select->expr()->eq('tax_number', $select->createNamedParameter($taxNumber)))
+            ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->inicioProximoMes->format('Y-m'))));
+
+        $result = $select->executeQuery();
+        while ($row = $result->fetchAssociative()) {
+            $invoice->setItem(
+                itemId: $this->itemsIds['desconto'],
+                name: 'Adiantamento',
+                description: sprintf('Número: %s, data: %s', $row['document_number'], $row['due_at']),
+                price: -$row['amount'],
+                order: 20
+            );
+        }
+    }
+
     private function coletaDadosParaAtualizarProducao(): void
     {
         $producao = $this->getProducaoCooprativista();
@@ -799,15 +832,14 @@ class ProducaoCooperativista
             ->from('invoices')
             ->where("type = 'bill'")
             ->andWhere("category_type = 'expense'")
-            ->andWhere("category_name = 'Produção cooperativista'")
+            ->andWhere($select->expr()->eq('category_id', ':category_id'))
+            ->setParameter('category_id', (int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'], ParameterType::INTEGER)
             ->andWhere($select->expr()->in('tax_number', ':tax_number'))
             ->setParameter('tax_number', array_keys($producao), ArrayParameterType::STRING)
             ->andWhere($select->expr()->eq('transaction_of_month', ':transaction_of_month'))
             ->setParameter('transaction_of_month', $this->getDataPagamento()->format('Y-m'), ParameterType::STRING);
 
-        $result = $select->executeQuery([
-            'ano_mes' => $this->getDataPagamento()->format('Y-m'),
-        ]);
+        $result = $select->executeQuery();
         while ($row = $result->fetchAssociative()) {
             $this->setCooperado(
                 $row['tax_number'],
@@ -853,27 +885,36 @@ class ProducaoCooperativista
 
     private function calculaLiquido(): void
     {
+        foreach ($this->cooperado as $taxNumber => $cooperado) {
+            $this->calculaLiquidoCooperado((string) $taxNumber);
+        }
+    }
+
+    private function calculaLiquidoCooperado(string $taxNumber): void
+    {
         $inss = new INSS();
         $irpf = new IRPF((int) $this->inicio->format('Y'));
-        foreach ($this->cooperado as $taxNumber => $cooperado) {
-            $cooperado['frra'] = $cooperado['base_producao'] * (1 / 12);
-            $cooperado['auxilio'] = $cooperado['base_producao'] * 0.2;
-            $cooperado['bruto'] = $cooperado['base_producao'] - $cooperado['auxilio'] - $cooperado['frra'];
-            $cooperado['inss'] = $inss->calcula($cooperado['bruto']);
-            $cooperado['base_irpf'] = $irpf->calculaBase(
-                $cooperado['bruto'],
-                $cooperado['inss'],
-                $cooperado['dependentes']
-            );
-            $cooperado['irpf'] = $irpf->calcula($cooperado['base_irpf'], $cooperado['dependentes']);
-            $cooperado['liquido'] =
-                $cooperado['bruto']
-                - $cooperado['inss']
-                - $cooperado['irpf']
-                - $cooperado['health_insurance']
-                + $cooperado['auxilio'];
-            $this->cooperado[$taxNumber] = $cooperado;
-        }
+
+        $cooperado = $this->cooperado[$taxNumber];
+
+        $cooperado['frra'] = $cooperado['base_producao'] * (1 / 12);
+        $cooperado['auxilio'] = $cooperado['base_producao'] * 0.2;
+        $cooperado['bruto'] = $cooperado['base_producao'] - $cooperado['auxilio'] - $cooperado['frra'];
+        $cooperado['inss'] = $inss->calcula($cooperado['bruto']);
+        $cooperado['base_irpf'] = $irpf->calculaBase(
+            $cooperado['bruto'],
+            $cooperado['inss'],
+            $cooperado['dependentes']
+        );
+        $cooperado['irpf'] = $irpf->calcula($cooperado['base_irpf'], $cooperado['dependentes']);
+        $cooperado['liquido'] =
+            $cooperado['bruto']
+            - $cooperado['inss']
+            - $cooperado['irpf']
+            - $cooperado['health_insurance']
+            + $cooperado['auxilio'];
+
+        $this->cooperado[$taxNumber] = $cooperado;
     }
 
     private function setCooperado(string $taxNumber, $properties): self
