@@ -158,18 +158,6 @@ class Invoices
                     )
                 )
             );
-        $select->andWhere(
-            $select->expr()->gte(
-                'issued_at',
-                $select->createNamedParameter($begin, Types::DATE_MUTABLE)
-            )
-        );
-        $select->andWhere(
-            $select->expr()->lte(
-                'issued_at',
-                $select->createNamedParameter($end, Types::DATE_MUTABLE)
-            )
-        );
         $result = $select->executeQuery();
         $exists = [];
         while ($row = $result->fetchAssociative()) {
