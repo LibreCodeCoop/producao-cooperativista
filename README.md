@@ -38,6 +38,10 @@ Calcular o bruto da produção cooperativista por cooperado com base em dados co
       Transação do mês: 2023-05
       ```
 
+## TO-DO para prod
+* Todo contact do tipo vendor referente a um cooperado precisa ter tax_number
+* Cadastrar tudo o que está no `.env` no Akaunting e atualizar o `.env` com os id's
+
 ## Setup
 Primeiro clone o repositório e entre nele.
 
