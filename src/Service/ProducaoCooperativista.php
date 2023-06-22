@@ -562,13 +562,25 @@ class ProducaoCooperativista
         return $this->valoresPorProjeto;
     }
 
+    private function clientesContabilizaveis(): array
+    {
+        $cnpjClientesInternos = explode(',', $_ENV['CNPJ_CLIENTES_INTERNOS']);
+        $clientes = $this->getValoresPorProjeto();
+        $clientesContabilizaveis = array_column($clientes, 'customer_reference');
+        $clientesContabilizaveis = array_merge(
+            array_values($clientesContabilizaveis),
+            $cnpjClientesInternos
+        );
+        return $clientesContabilizaveis;
+    }
+
     private function getPercentualTrabalhadoPorCliente(): array
     {
         if (count($this->percentualTrabalhadoPorCliente)) {
             return $this->percentualTrabalhadoPorCliente;
         }
-        $cnpjClientesInternos = explode(',', $_ENV['CNPJ_CLIENTES_INTERNOS']);
-        $cnpjClientesInternos = '"' . implode('","', $cnpjClientesInternos) . '"';
+        $contabilizaveis = $this->clientesContabilizaveis();
+        $cnpjClientesInternos = "'" . implode("','", $contabilizaveis) . "'";
         $stmt = $this->db->getConnection()->prepare(<<<SQL
             -- Percentual trabalhado por cliente
             SELECT u.alias,
@@ -596,17 +608,8 @@ class ProducaoCooperativista
                 JOIN projects p ON p.customer_id = c.id
                 JOIN timesheet t ON t.project_id = p.id AND t.`begin` >= :data_inicio AND t.`end` <= :data_fim
                 JOIN users u2 ON u2.id = t.user_id
-                LEFT JOIN (
-                    SELECT customer_reference as codigo,
-                        contact_name
-                    FROM invoices
-                    WHERE category_type = 'income'
-                    AND transaction_of_month = :ano_mes
-                    GROUP BY customer_reference,
-                    contact_name
-                    ) faturados_mes ON faturados_mes.codigo = c.vat_id
                 WHERE u2.enabled = 1
-                AND (faturados_mes.codigo IS NOT NULL OR c.vat_id IN ($cnpjClientesInternos))
+                AND c.vat_id IN ($cnpjClientesInternos)
                 GROUP BY c.id,
                         c.name,
                         c.vat_id
@@ -626,19 +629,14 @@ class ProducaoCooperativista
                     u.alias
             SQL
         );
-        $result = $stmt->executeQuery([
-            'data_inicio' => $this->inicio->format('Y-m-d'),
-            'data_fim' => $this->fim->format('Y-m-d H:i:s'),
-            'ano_mes' => $this->inicioProximoMes->format('Y-m'),
-        ]);
+        $stmt->bindValue('data_inicio', $this->inicio->format('Y-m-d'));
+        $stmt->bindValue('data_fim', $this->fim->format('Y-m-d H:i:s'));
+        $stmt->bindValue('ano_mes', $this->inicioProximoMes->format('Y-m'));
+        $result = $stmt->executeQuery();
         $this->percentualTrabalhadoPorCliente = [];
-        $errors = [];
         while ($row = $result->fetchAssociative()) {
             if (!$row['cliente_codigo']) {
                 continue;
-            }
-            if (empty($row['akaunting_contact_id'])) {
-                $errors[] = $row;
             }
             $row['base_producao'] = 0;
             $row['percentual_trabalhado'] = (float) $row['percentual_trabalhado'];
@@ -650,13 +648,6 @@ class ProducaoCooperativista
                 ->setDependentes($row['dependents'])
                 ->setHealthInsurance($row['health_insurance']);
             $this->percentualTrabalhadoPorCliente[] = $row;
-        }
-        if (count($errors)) {
-            throw new Exception(
-                "CPF/CNPJ não encontrado em uma transação no mês.\n" .
-                "Dados:\n" .
-                json_encode($errors, JSON_PRETTY_PRINT)
-            );
         }
         $this->logger->debug('Trabalhado por cliente: {json}', ['json' => json_encode($this->percentualTrabalhadoPorCliente)]);
         return $this->percentualTrabalhadoPorCliente;
@@ -917,7 +908,7 @@ class ProducaoCooperativista
         }
         if (count($errorSemCodigoCliente)) {
             throw new Exception(
-                "Encontrado cooperado sem tax_number (CPF ou CNPJ) no Akaunting.\n" .
+                "O cliente_codigo trabalhado no Kimai não possui faturamento no mês " . $this->inicioProximoMes->format('Y-m-d'). ".\n" .
                 "Dados:\n" .
                 json_encode($errorSemCodigoCliente, JSON_PRETTY_PRINT)
             );
@@ -929,7 +920,7 @@ class ProducaoCooperativista
     {
         $baseProducao = array_reduce(
             $this->cooperado,
-            fn($carry, CooperadoProducao $cooperado) => $carry += $cooperado->getBaseProducao(),
+            fn($carry, $cooperado) => $carry += $cooperado->getBaseProducao(),
             0
         );
         return $baseProducao;
