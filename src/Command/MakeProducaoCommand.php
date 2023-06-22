@@ -122,36 +122,19 @@ class MakeProducaoCommand extends BaseCommand
         $this->producaoCooperativista->setDiasUteis($diasUteis);
         $this->producaoCooperativista->setPercentualMaximo($percentualMaximo);
         $this->producaoCooperativista->setPrevisao($previsao);
-        $list = $this->producaoCooperativista->getProducaoCooprativista();
 
         if ($input->getOption('atualiza-producao')) {
             $this->producaoCooperativista->updateProducao();
         }
 
         if ($input->getOption('csv')) {
-            Pipe::from($list)
-                ->pipe(current(...))
-                ->pipe(array_keys(...))
-                ->pipe($this->csvstr(...))
-                ->pipe($output->writeLn(...));
-            foreach ($list as $cooperado) {
-                $output->writeLn($this->csvstr($cooperado));
-            }
+            $output->writeLn(
+                $this->producaoCooperativista->exportToCsv()
+            );
         }
-
         if ($input->getOption('ods')) {
-            $this->producaoCooperativista->saveOds();
+            $this->producaoCooperativista->exportToOds();
         }
         return Command::SUCCESS;
-    }
-
-    private function csvstr(array $fields) : string {
-        $f = fopen('php://memory', 'r+');
-        if (fputcsv($f, $fields) === false) {
-            return false;
-        }
-        rewind($f);
-        $csv_line = stream_get_contents($f);
-        return rtrim($csv_line);
     }
 }
