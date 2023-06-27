@@ -62,7 +62,6 @@ use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 class CooperadoProducao
 {
     private ?int $akauntingContactId = 0;
-    private ?int $anoFiscal = 0;
     private ?float $auxilio = 0;
     private ?float $baseIrpf = 0;
     private ?float $baseProducao = 0;
