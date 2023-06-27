@@ -82,7 +82,10 @@ class CooperadoProducao
     private const STATUS_UPDATED = 2;
     private int $updated = self::STATUS_UPDATED;
 
-    public function __construct(int $anoFiscal)
+    public function __construct(
+        private ?int $anoFiscal,
+        private AkautingDocument $invoice
+    )
     {
         $this->anoFiscal = $anoFiscal;
     }

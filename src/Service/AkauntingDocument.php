@@ -81,6 +81,12 @@ class AkautingDocument
     private array $notes = [];
     private array $items = [];
 
+    public function __construct(
+        private Invoices $invoices
+    )
+    {
+    }
+
     public function setNote(string $label, $value): self
     {
         $this->notes[$label] = $value;

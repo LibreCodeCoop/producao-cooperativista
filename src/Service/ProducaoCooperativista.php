@@ -719,12 +719,13 @@ class ProducaoCooperativista
     public function updateProducao(): void
     {
         $this->coletaDadosDaProducaoDoMes();
+        $this->coletaFrraNaoPago();
         $producao = $this->getProducaoCooprativista();
-        $haveNewProduction = false;
         foreach ($producao as $cooperado) {
-            $invoice = new AkautingInvoieProducao();
+            $invoice = $cooperado->getInvoice();
 
             $invoice->setType('bill')
+                ->setId($cooperado->getBillId())
                 ->setCategoryId((int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'])
                 ->setDocumentNumber(
                     'PDC_' .
@@ -917,7 +918,10 @@ class ProducaoCooperativista
     {
         if (!isset($this->cooperado[$taxNumber])) {
             $this->cooperado[$taxNumber] = new CooperadoProducao(
-                anoFiscal: (int) $this->inicio->format('Y')
+                anoFiscal: (int) $this->inicio->format('Y'),
+                invoice: new AkautingDocument(
+                    $this->invoices
+                )
             );
         }
         return $this->cooperado[$taxNumber];
