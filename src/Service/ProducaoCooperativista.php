@@ -813,7 +813,7 @@ class ProducaoCooperativista
         }
     }
 
-    private function insereHealthInsurance(AkautingInvoieProducao $invoice): void
+    private function insereHealthInsurance(AkautingDocument $invoice): void
     {
         $taxNumber = $invoice->getContactTaxNumber();
 
@@ -829,7 +829,7 @@ class ProducaoCooperativista
         }
     }
 
-    private function aplicaAdiantamentos(AkautingInvoieProducao $invoice): void
+    private function aplicaAdiantamentos(AkautingDocument $invoice): void
     {
         $taxNumber = $invoice->getContactTaxNumber();
 

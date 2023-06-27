@@ -25,39 +25,42 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service;
 
+use Exception;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
+use ProducaoCooperativista\Service\Source\Invoices;
+use Symfony\Component\HttpClient\Exception\ClientException;
 
 /**
- * @method AkautingInvoieProducao setAccountId(int $value)
+ * @method AkautingDocument setAccountId(int $value)
  * @method int getAccountId()
- * @method AkautingInvoieProducao setAmount(float $value)
+ * @method AkautingDocument setAmount(float $value)
  * @method float getAmount()
- * @method AkautingInvoieProducao setCategoryId(int $value)
+ * @method AkautingDocument setCategoryId(int $value)
  * @method int getCategoryId()
- * @method AkautingInvoieProducao setContactId(int $value)
+ * @method AkautingDocument setContactId(int $value)
  * @method int getContactId()
- * @method AkautingInvoieProducao setContactName(string $value)
+ * @method AkautingDocument setContactName(string $value)
  * @method string getContactName()
- * @method AkautingInvoieProducao setContactTaxNumber(string $value)
+ * @method AkautingDocument setContactTaxNumber(string $value)
  * @method string getContactTaxNumber()
- * @method AkautingInvoieProducao setCurrencyCode(string $value)
+ * @method AkautingDocument setCurrencyCode(string $value)
  * @method string getCurrencyCode()
- * @method AkautingInvoieProducao setCurrencyRate(int $value)
+ * @method AkautingDocument setCurrencyRate(int $value)
  * @method int getCurrencyRate()
- * @method AkautingInvoieProducao setDocumentNumber(string $value)
+ * @method AkautingDocument setDocumentNumber(string $value)
  * @method string getDocumentNumber()
- * @method AkautingInvoieProducao setDueAt(string $value)
+ * @method AkautingDocument setDueAt(string $value)
  * @method string getDueAt()
- * @method AkautingInvoieProducao setIssuedAt(string $value)
+ * @method AkautingDocument setIssuedAt(string $value)
  * @method string getIssuedAt()
- * @method AkautingInvoieProducao setSearch(string $value)
+ * @method AkautingDocument setSearch(string $value)
  * @method string getSearch()
- * @method AkautingInvoieProducao setStatus(string $value)
+ * @method AkautingDocument setStatus(string $value)
  * @method string getStatus()
- * @method AkautingInvoieProducao setType(string $value)
+ * @method AkautingDocument setType(string $value)
  * @method string getType()
  */
-class AkautingInvoieProducao
+class AkautingDocument
 {
     use MagicGetterSetterTrait;
     private int $accountId = 0;
