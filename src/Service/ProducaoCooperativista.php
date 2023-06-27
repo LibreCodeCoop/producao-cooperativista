@@ -731,7 +731,7 @@ class ProducaoCooperativista
                     'PDC_' .
                     $cooperado->getTaxNumber() .
                     '-' .
-                    $this->inicio->format('Y-m')
+                    $this->getDataPagamento()->format('Y-m')
                 )
                 ->setSearch('type:bill')
                 ->setStatus('draft')
