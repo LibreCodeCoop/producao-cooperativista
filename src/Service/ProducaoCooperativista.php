@@ -772,7 +772,13 @@ class ProducaoCooperativista
                 price: $cooperado->getIrpf() * -1
             );
             try {
-                if (!empty($cooperado->getBillId())) {
+                if (empty($cooperado->getBillId())) {
+                    $this->invoices->sendData(
+                        endpoint: '/api/documents',
+                        body: $invoice->toArray()
+                    );
+                    $haveNewProduction = true;
+                } else {
                     try {
                         $bill = $this->invoices->sendData(
                             endpoint: '/api/documents/' . $cooperado->getBillId(),
@@ -793,12 +799,6 @@ class ProducaoCooperativista
                         body: $invoice->toArray(),
                         method: 'PATCH'
                     );
-                } else {
-                    $this->invoices->sendData(
-                        endpoint: '/api/documents',
-                        body: $invoice->toArray()
-                    );
-                    $haveNewProduction = true;
                 }
             } catch (ClientException $e) {
                 $response = $e->getResponse();
