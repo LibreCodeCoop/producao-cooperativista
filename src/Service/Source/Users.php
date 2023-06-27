@@ -57,7 +57,7 @@ class Users
     {
         $this->logger->debug('Baixando dados de users');
         $list = $this->getFromApi();
-        $this->saveToDatabase($list);
+        $this->saveList($list);
     }
 
     /**
@@ -187,7 +187,7 @@ class Users
         return $csv;
     }
 
-    public function saveToDatabase(array $list): void
+    public function saveList(array $list): void
     {
         $select = new QueryBuilder($this->db->getConnection());
         $select->select('id')

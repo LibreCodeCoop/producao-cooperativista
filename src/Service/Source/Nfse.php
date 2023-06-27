@@ -93,7 +93,7 @@ class Nfse
     {
         $this->logger->debug('Baixando dados de nfse');
         $list = $this->getFromApi($data);
-        $this->saveToDatabase($list);
+        $this->saveList($list);
     }
 
     public function getFromApi(
@@ -154,7 +154,7 @@ class Nfse
         return $this->nfseFromDatabase;
     }
 
-    public function saveToDatabase(array $list): void
+    public function saveList(array $list): void
     {
         $select = new QueryBuilder($this->db->getConnection());
         $select->select('numero')

@@ -56,7 +56,7 @@ class Invoices
     {
         $this->logger->debug('Baixando dados de invoices');
         $list = $this->getFromApi($data, type: $type, companyId: (int) $_ENV['AKAUNTING_COMPANY_ID']);
-        $this->saveToDatabase($list, $data);
+        $this->saveList($list, $data);
     }
 
     public function getFromApi(DateTime $date, int $companyId, string $type = 'invoice'): array
@@ -139,7 +139,7 @@ class Invoices
         return $row;
     }
 
-    public function saveToDatabase(array $list, DateTime $date): void
+    public function saveList(array $list, DateTime $date): void
     {
         $begin = $date
             ->modify('first day of this month');

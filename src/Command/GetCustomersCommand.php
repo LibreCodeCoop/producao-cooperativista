@@ -55,7 +55,7 @@ class GetCustomersCommand extends BaseCommand
             );
         }
         if ($input->getOption('database')) {
-            $this->customers->saveToDatabase($list);
+            $this->customers->saveList($list);
         }
         return Command::SUCCESS;
     }

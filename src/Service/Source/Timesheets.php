@@ -48,7 +48,7 @@ class Timesheets
     {
         $this->logger->debug('Baixando dados de timesheets');
         $list = $this->getFromApi($data);
-        $this->saveToDatabase($list);
+        $this->saveList($list);
     }
 
     public function getFromApi(DateTime $date, $user = 'all', $exported = 'all'): array
@@ -79,7 +79,7 @@ class Timesheets
         return $list;
     }
 
-    public function saveToDatabase(array $list): void
+    public function saveList(array $list): void
     {
         $select = new QueryBuilder($this->db->getConnection());
         $select->select('id')

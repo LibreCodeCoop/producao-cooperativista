@@ -93,7 +93,7 @@ class GetNfseCommand extends BaseCommand
         }
 
         if ($input->getOption('database')) {
-            $this->nfse->saveToDatabase($list);
+            $this->nfse->saveList($list);
         }
         return Command::SUCCESS;
     }

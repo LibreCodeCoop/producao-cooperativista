@@ -87,7 +87,7 @@ class GetInvoicesCommand extends BaseCommand
             $output->write($this->toCsv($list));
         }
         if ($input->getOption('database')) {
-            $this->invoices->saveToDatabase($list, $date);
+            $this->invoices->saveList($list, $date);
         }
         return Command::SUCCESS;
     }

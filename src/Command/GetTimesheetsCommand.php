@@ -92,7 +92,7 @@ class GetTimesheetsCommand extends BaseCommand
             );
         }
         if ($input->getOption('database')) {
-            $this->timesheets->saveToDatabase($list);
+            $this->timesheets->saveList($list);
         }
         return Command::SUCCESS;
     }

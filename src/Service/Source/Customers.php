@@ -47,7 +47,7 @@ class Customers
     {
         $this->logger->debug('Baixando dados de customers');
         $list = $this->getFromApi();
-        $this->saveToDatabase($list);
+        $this->saveList($list);
     }
 
     public function getFromApi(): array
@@ -57,7 +57,7 @@ class Customers
         return $list;
     }
 
-    public function saveToDatabase(array $list): void
+    public function saveList(array $list): void
     {
         $select = new QueryBuilder($this->db->getConnection());
         $select->select('id')
