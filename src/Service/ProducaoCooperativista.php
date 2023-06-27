@@ -42,7 +42,6 @@ use ProducaoCooperativista\Service\Source\Timesheets;
 use ProducaoCooperativista\Service\Source\Transactions;
 use ProducaoCooperativista\Service\Source\Users;
 use Psr\Log\LoggerInterface;
-use SebastiaanLuca\PipeOperator\Pipe;
 use Symfony\Component\HttpClient\Exception\ClientException;
 
 class ProducaoCooperativista
@@ -976,11 +975,8 @@ class ProducaoCooperativista
     {
         $list = $this->getProducaoCooprativista();
         // header
-        $output[] = Pipe::from($list)
-            ->pipe(current(...))
-            ->pipe(array_keys(...))
-            ->pipe($this->csvstr(...))
-            ->get();
+        $cooperado = current($list);
+        $output[] = $this->csvstr(array_keys($cooperado->toArray()));
         // body
         foreach ($list as $cooperado) {
             $output[] = $this->csvstr($cooperado->toArray());
