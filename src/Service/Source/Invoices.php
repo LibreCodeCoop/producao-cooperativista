@@ -176,7 +176,7 @@ class Invoices
                     ->set('currency_code', $update->createNamedParameter($row['currency_code']))
                     ->set('nfse', $update->createNamedParameter($row['nfse'] ?? null))
                     ->set('document_number', $update->createNamedParameter($row['document_number']))
-                    ->set('tax_number', $update->createNamedParameter($row['contact']['tax_number']))
+                    ->set('tax_number', $update->createNamedParameter($row['contact']['tax_number'] ?? $row['contact_tax_number']))
                     ->set('customer_reference', $update->createNamedParameter($row['customer_reference']))
                     ->set('contact_id', $update->createNamedParameter($row['contact_id'], ParameterType::INTEGER))
                     ->set('contact_reference', $update->createNamedParameter($row['contact']['reference']))
@@ -201,7 +201,7 @@ class Invoices
                     'currency_code' => $insert->createNamedParameter($row['currency_code']),
                     'nfse' => $insert->createNamedParameter($row['nfse'] ?? null),
                     'document_number' => $insert->createNamedParameter($row['document_number']),
-                    'tax_number' => $insert->createNamedParameter($row['contact']['tax_number']),
+                    'tax_number' => $insert->createNamedParameter($row['contact']['tax_number'] ?? $row['contact_tax_number']),
                     'customer_reference' => $insert->createNamedParameter($row['customer_reference']),
                     'contact_id' => $insert->createNamedParameter($row['contact_id'], ParameterType::INTEGER),
                     'contact_reference' => $insert->createNamedParameter($row['contact']['reference']),

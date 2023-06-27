@@ -806,7 +806,7 @@ class ProducaoCooperativista
             }
         }
         if ($haveNewProduction) {
-            $begin = (clone $this->getDataPagamento())
+            $begin = (clone $this->getDataProcessamento())
                 ->modify('first day of this month')
                 ->setTime(00, 00, 00);
             $this->invoices->updateDatabase($begin, 'bill');
