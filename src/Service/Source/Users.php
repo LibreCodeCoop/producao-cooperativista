@@ -81,19 +81,30 @@ class Users
 
     private function updateWithAkauntingData(array $list): array
     {
-        // get tax_number preserving the keys of array
-        $taxNumber = array_combine(array_keys($list), array_column($list, 'tax_number'));
+        $taxNumber = array_column($list, 'tax_number');
+        $email = array_column($list, 'corporate_mail');
 
         $select = new QueryBuilder($this->db->getConnection(Database::DB_AKAUNTING));
         $select->select('c.*')
             ->from('contacts', 'c')
-            ->where($select->expr()->in('tax_number', $select->createNamedParameter($taxNumber, ArrayParameterType::STRING)))
-            ->andWhere("type IN ('customer', 'employee')");
+            ->where($select->expr()->or(
+                $select->expr()->in('tax_number', $select->createNamedParameter($taxNumber, ArrayParameterType::STRING)),
+                $select->expr()->in('email', $select->createNamedParameter($email, ArrayParameterType::STRING)),
+            ))
+            ->andWhere($select->expr()->in('type', $select->createNamedParameter(['vendor', 'employee'], ArrayParameterType::STRING)))
+            ->orderBy('c.type');
         $result = $select->executeQuery();
 
-        $index = array_flip($taxNumber);
         while ($row = $result->fetchAssociative()) {
-            $list[$index[$row['tax_number']]]['akaunting_contact_id'] = $row['id'];
+            foreach ($list as $key => $value) {
+                if ($value['corporate_mail'] === $row['email']
+                    || ($value['tax_number'] === $row['tax_number'])
+                    || ($value['kimai_username'] === $row['email'])
+                ) {
+                    $list[$key]['akaunting_contact_id'] = $row['id'];
+                    break;
+                }
+            }
         }
         return $list;
     }
@@ -118,6 +129,7 @@ class Users
             }
             $list[$key]['dependents'] = $rowFromCsv['Dependentes'] ?? 0;
             $list[$key]['health_insurance'] = $rowFromCsv['Plano de saúde'] ?? 0;
+            $list[$key]['corporate_mail'] = $rowFromCsv['Email corporativo'] ?? 0;
         }
         $list = array_filter($list, fn($r) => !empty($r['tax_number']));
 
@@ -165,6 +177,7 @@ class Users
             $row['CPF'] = (string) preg_replace('/\D/', '', $row['CPF']);
             $row['Dependentes'] = $row['Dependentes'] ? (int) $row['Dependentes'] : null;
             $row['Plano de saúde'] = $row['Plano de saúde'] ? (float) $row['Plano de saúde'] : null;
+            $row['Email corporativo'] = $row['Email corporativo'];
             $csv[] = $row;
         }
         fclose($handle);

@@ -55,11 +55,11 @@ class Invoices
     public function updateDatabase(DateTime $data, string $type = 'invoice'): void
     {
         $this->logger->debug('Baixando dados de invoices');
-        $list = $this->getFromApi($data, type: $type);
+        $list = $this->getFromApi($data, type: $type, companyId: $_ENV['AKAUNTING_COMPANY_ID']);
         $this->saveToDatabase($list, $data);
     }
 
-    public function getFromApi(DateTime $date, int $companyId = 1, string $type = 'invoice'): array
+    public function getFromApi(DateTime $date, int $companyId, string $type = 'invoice'): array
     {
         $invoices = $this->getInvoices($date, $companyId, $type);
         return $invoices;

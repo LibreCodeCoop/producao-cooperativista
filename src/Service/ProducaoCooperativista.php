@@ -638,8 +638,6 @@ class ProducaoCooperativista
             if (!$row['cliente_codigo']) {
                 continue;
             }
-            $row['base_producao'] = 0;
-            $row['percentual_trabalhado'] = (float) $row['percentual_trabalhado'];
             $this->getCooperado($row['tax_number'])
                 ->setName($row['alias'])
                 ->setTaxNumber($row['tax_number'])
@@ -647,10 +645,52 @@ class ProducaoCooperativista
                 ->setBaseProducao(0)
                 ->setDependentes($row['dependents'])
                 ->setHealthInsurance($row['health_insurance']);
+            $row['base_producao'] = 0;
+            $row['percentual_trabalhado'] = (float) $row['percentual_trabalhado'];
             $this->percentualTrabalhadoPorCliente[] = $row;
         }
         $this->logger->debug('Trabalhado por cliente: {json}', ['json' => json_encode($this->percentualTrabalhadoPorCliente)]);
         return $this->percentualTrabalhadoPorCliente;
+    }
+
+    private function cadastraCooperadoQueProduziuNoAkaunting(): void
+    {
+        $produzidoNoMes = $this->getPercentualTrabalhadoPorCliente();
+        $exists = [];
+        foreach ($produzidoNoMes as $row) {
+            if (empty($row['akaunting_contact_id'])) {
+                if (in_array($row['tax_number'], $exists)) {
+                    continue;
+                }
+                $akauntingContactId = $this->cadastraCooperadoNoAkaunting(
+                    name: $row['alias'],
+                    taxNumber: $row['tax_number']
+                );
+                $this->getCooperado($row['tax_number'])
+                    ->setAkauntingContactId($akauntingContactId);
+                $exists[] = $row['tax_number'];
+            }
+        }
+    }
+
+    private function cadastraCooperadoNoAkaunting(string $name, string $taxNumber): int {
+        $connection = $this->db->getConnection(Database::DB_AKAUNTING);
+        $insert = new QueryBuilder($connection);
+        $insert->insert('contacts')
+            ->values([
+                'company_id' => $insert->createNamedParameter($_ENV['AKAUNTING_COMPANY_ID'], ParameterType::INTEGER),
+                'type' => $insert->createNamedParameter('vendor'),
+                'name' => $insert->createNamedParameter($name),
+                'tax_number' => $insert->createNamedParameter($taxNumber),
+                'country' => 'BR',
+                'currency_code' => 'BRL',
+                'enabled' => 1,
+                'created_at' => $insert->createNamedParameter((new DateTime())->format('Y-m-d H:i:s')),
+                'updated_at' => $insert->createNamedParameter((new DateTime())->format('Y-m-d H:i:s'))
+            ]);
+        $insert->executeStatement();
+        $id = $connection->lastInsertId();
+        return (int) $id;
     }
 
     public function setDiasUteis(int $diasUteis): void
@@ -833,8 +873,7 @@ class ProducaoCooperativista
             ->setParameter('category_id', (int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'], ParameterType::INTEGER)
             ->andWhere($select->expr()->in('tax_number', ':tax_number'))
             ->setParameter('tax_number', array_keys($producao), ArrayParameterType::STRING)
-            ->andWhere($select->expr()->eq('transaction_of_month', ':transaction_of_month'))
-            ->setParameter('transaction_of_month', $this->getDataPagamento()->format('Y-m'), ParameterType::STRING);
+            ->andWhere($select->expr()->eq('transaction_of_month', $select->createNamedParameter($this->getDataPagamento()->format('Y-m'))));
 
         $result = $select->executeQuery();
         while ($row = $result->fetchAssociative()) {
@@ -853,6 +892,7 @@ class ProducaoCooperativista
             return $this->cooperado;
         }
 
+        $this->cadastraCooperadoQueProduziuNoAkaunting();
         $this->distribuiProducaoExterna();
         $this->distribuiSobras();
         $this->logger->debug('Produção por cooperado ooperado: {json}', ['json' => json_encode($this->cooperado)]);

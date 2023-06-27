@@ -54,7 +54,7 @@ class GetInvoicesCommand extends BaseCommand
                 null,
                 InputOption::VALUE_REQUIRED,
                 'Company id',
-                1
+                $_ENV['AKAUNTING_COMPANY_ID']
             )
             ->addOption(
                 'type',
@@ -79,9 +79,9 @@ class GetInvoicesCommand extends BaseCommand
         }
         $date = DateTime::createFromFormat('Y-m', $input->getOption('year-month'));
         $list = $this->invoices->getFromApi(
-            $date,
-            (int) $input->getOption('company'),
-            (string) $input->getOption('type')
+            date: $date,
+            companyId: (int) $input->getOption('company'),
+            type: (string) $input->getOption('type')
         );
         if ($input->getOption('csv')) {
             $output->write($this->toCsv($list));
