@@ -55,11 +55,11 @@ class Transactions
     public function updateDatabase(DateTime $data): void
     {
         $this->logger->debug('Baixando dados de transactions');
-        $list = $this->getFromApi($data);
+        $list = $this->getFromApi($data, companyId: (int) $_ENV['AKAUNTING_COMPANY_ID']);
         $this->saveToDatabase($list, $data);
     }
 
-    public function getFromApi(DateTime $date, int $companyId = 1, ?int $categoryId = null): array
+    public function getFromApi(DateTime $date, int $companyId, ?int $categoryId = null): array
     {
         $transactions = $this->getTransactions($date, $companyId, $categoryId);
         return $transactions;

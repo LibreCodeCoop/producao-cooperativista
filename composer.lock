@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a9b580a40ebce835848458c7da280a57",
+    "content-hash": "1281fabf67027839a464a4521d430d41",
     "packages": [
         {
             "name": "bamarni/composer-bin-plugin",
@@ -2681,63 +2681,6 @@
                 "source": "https://github.com/fruux/sabre-xml"
             },
             "time": "2021-11-04T06:37:27+00:00"
-        },
-        {
-            "name": "sebastiaanluca/php-pipe-operator",
-            "version": "6.0.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/sebastiaanluca/php-pipe-operator.git",
-                "reference": "85d277127489ba97e2284b5c895597ae8b4ecd32"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/sebastiaanluca/php-pipe-operator/zipball/85d277127489ba97e2284b5c895597ae8b4ecd32",
-                "reference": "85d277127489ba97e2284b5c895597ae8b4ecd32",
-                "shasum": ""
-            },
-            "require": {
-                "php": "~8.1|~8.2"
-            },
-            "require-dev": {
-                "ext-mbstring": "~8.1|~8.2",
-                "friendsofphp/php-cs-fixer": "^3.14",
-                "phpunit/phpunit": "^9.6"
-            },
-            "type": "library",
-            "autoload": {
-                "files": [
-                    "src/functions.php"
-                ],
-                "psr-4": {
-                    "SebastiaanLuca\\PipeOperator\\": "src"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Sebastiaan Luca",
-                    "email": "hello@sebastiaanluca.com",
-                    "homepage": "https://sebastiaanluca.com",
-                    "role": "Author"
-                }
-            ],
-            "description": "Method chaining (or fluent expressions) for any value using any method.",
-            "homepage": "https://github.com/sebastiaanluca/php-pipe-operator",
-            "keywords": [
-                "operator",
-                "php",
-                "pipe",
-                "take"
-            ],
-            "support": {
-                "issues": "https://github.com/sebastiaanluca/php-pipe-operator/issues",
-                "source": "https://github.com/sebastiaanluca/php-pipe-operator/tree/6.0.0"
-            },
-            "time": "2023-02-06T02:54:48+00:00"
         },
         {
             "name": "symfony/browser-kit",

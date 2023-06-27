@@ -55,7 +55,7 @@ class GetTransactionsCommand extends BaseCommand
                 null,
                 InputOption::VALUE_REQUIRED,
                 'Company id',
-                1
+                $_ENV['AKAUNTING_COMPANY_ID']
             )
             ->addOption(
                 'category',
@@ -79,9 +79,9 @@ class GetTransactionsCommand extends BaseCommand
         }
         $date = DateTime::createFromFormat('Y-m', $input->getOption('year-month'));
         $list = $this->transactions->getFromApi(
-            $date,
-            (int) $input->getOption('company'),
-            (int) $input->getOption('category')
+            date: $date,
+            companyId: (int) $input->getOption('company'),
+            categoryId: (int) $input->getOption('category')
         );
         if ($input->getOption('csv')) {
             $output->write($this->toCsv($list));

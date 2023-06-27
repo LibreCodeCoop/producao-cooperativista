@@ -35,7 +35,6 @@ use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Service\Source\Provider\Kimai;
 use Psr\Log\LoggerInterface;
 use Sabre\DAV\Client;
-use SebastiaanLuca\PipeOperator\Pipe;
 
 class Users
 {
@@ -82,21 +81,30 @@ class Users
 
     private function updateWithAkauntingData(array $list): array
     {
-        $taxNumber = Pipe::from($list)
-            ->pipe(array_column(...), PIPED_VALUE, 'tax_number')
-            ->pipe(array_filter(...), PIPED_VALUE, fn($i) => !empty($i))
-            ->get();
+        $taxNumber = array_column($list, 'tax_number');
+        $email = array_column($list, 'corporate_mail');
 
         $select = new QueryBuilder($this->db->getConnection(Database::DB_AKAUNTING));
         $select->select('c.*')
             ->from('contacts', 'c')
-            ->where($select->expr()->in('tax_number', ':tax_number'))
-            ->setParameter('tax_number', $taxNumber, ArrayParameterType::STRING);
+            ->where($select->expr()->or(
+                $select->expr()->in('tax_number', $select->createNamedParameter($taxNumber, ArrayParameterType::STRING)),
+                $select->expr()->in('email', $select->createNamedParameter($email, ArrayParameterType::STRING)),
+            ))
+            ->andWhere($select->expr()->in('type', $select->createNamedParameter(['vendor', 'employee'], ArrayParameterType::STRING)))
+            ->orderBy('c.type');
         $result = $select->executeQuery();
 
-        $index = array_flip($taxNumber);
         while ($row = $result->fetchAssociative()) {
-            $list[$index[$row['tax_number']]]['akaunting_contact_id'] = $row['id'];
+            foreach ($list as $key => $value) {
+                if ($value['corporate_mail'] === $row['email']
+                    || ($value['tax_number'] === $row['tax_number'])
+                    || ($value['kimai_username'] === $row['email'])
+                ) {
+                    $list[$key]['akaunting_contact_id'] = $row['id'];
+                    break;
+                }
+            }
         }
         return $list;
     }
@@ -106,20 +114,24 @@ class Users
         $csv = $this->getSpreadsheet();
         foreach ($list as $key => $value) {
             $username = $value['username'];
-            $list[$key]['kimai_username'] = $username;
-            unset($list[$key]['username']);
             $rowFromCsv = array_filter($csv, fn($i) => $i['Usuário Kimai'] === $username);
             if (!count($rowFromCsv)) {
-                $list[$key]['tax_number'] = null;
-                $list[$key]['dependents'] = 0;
-                $list[$key]['health_insurance'] = 0;
+                unset($list[$key]);
                 continue;
             }
             $rowFromCsv = current($rowFromCsv);
+            $list[$key]['kimai_username'] = $username;
+            unset($list[$key]['username']);
             $list[$key]['tax_number'] = $rowFromCsv['CPF'];
+            if (empty($list[$key]['tax_number'])) {
+                unset($list[$key]);
+                continue;
+            }
             $list[$key]['dependents'] = $rowFromCsv['Dependentes'] ?? 0;
             $list[$key]['health_insurance'] = $rowFromCsv['Plano de saúde'] ?? 0;
+            $list[$key]['corporate_mail'] = $rowFromCsv['Email corporativo'] ?? 0;
         }
+        $list = array_filter($list, fn($r) => !empty($r['tax_number']));
 
         return $list;
     }
@@ -165,6 +177,7 @@ class Users
             $row['CPF'] = (string) preg_replace('/\D/', '', $row['CPF']);
             $row['Dependentes'] = $row['Dependentes'] ? (int) $row['Dependentes'] : null;
             $row['Plano de saúde'] = $row['Plano de saúde'] ? (float) $row['Plano de saúde'] : null;
+            $row['Email corporativo'] = $row['Email corporativo'];
             $csv[] = $row;
         }
         fclose($handle);
@@ -190,14 +203,13 @@ class Users
                 $update = new QueryBuilder($this->db->getConnection());
                 $update->update('users')
                     ->set('alias', $update->createNamedParameter($row['alias']))
-                    ->set('title', $update->createNamedParameter($row['title']))
                     ->set('kimai_username', $update->createNamedParameter($row['kimai_username']))
                     ->set('akaunting_contact_id', $update->createNamedParameter($row['akaunting_contact_id'] ?? null))
-                    ->set('tax_number', $update->createNamedParameter($row['tax_number'] ?? null))
+                    ->set('tax_number', $update->createNamedParameter($row['tax_number']))
                     ->set('dependents', $update->createNamedParameter($row['dependents']))
                     ->set('health_insurance', $update->createNamedParameter($row['health_insurance']))
                     ->set('enabled', $update->createNamedParameter($row['enabled'], ParameterType::INTEGER))
-                    ->set('color', $update->createNamedParameter($row['color']))
+                    ->set('metadata', $update->createNamedParameter(json_encode($row)))
                     ->where($update->expr()->eq('id', $update->createNamedParameter($row['id'])))
                     ->executeStatement();
                 continue;
@@ -206,14 +218,13 @@ class Users
                 ->values([
                     'id' => $insert->createNamedParameter($row['id']),
                     'alias' => $insert->createNamedParameter($row['alias']),
-                    'title' => $insert->createNamedParameter($row['title']),
                     'kimai_username' => $insert->createNamedParameter($row['kimai_username']),
                     'akaunting_contact_id' => $insert->createNamedParameter($row['akaunting_contact_id'] ?? null),
-                    'tax_number' => $insert->createNamedParameter($row['tax_number'] ?? null),
+                    'tax_number' => $insert->createNamedParameter($row['tax_number']),
                     'dependents' => $insert->createNamedParameter($row['dependents']),
                     'health_insurance' => $insert->createNamedParameter($row['health_insurance']),
                     'enabled' => $insert->createNamedParameter($row['enabled'], ParameterType::INTEGER),
-                    'color' => $insert->createNamedParameter($row['color']),
+                    'metadata' => $insert->createNamedParameter(json_encode($row)),
                 ])
                 ->executeStatement();
         }
