@@ -155,7 +155,7 @@ class Transactions
         return $row;
     }
 
-    public function defineCustomerReference(array $row): array
+    private function defineCustomerReference(array $row): array
     {
         if (!empty($row['contact']['reference'])) {
             $row['customer_reference'] = $row['contact']['reference'];

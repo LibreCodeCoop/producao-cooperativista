@@ -36,6 +36,7 @@ use Symfony\Component\HttpClient\HttpClient;
 class Customers
 {
     use Kimai;
+    private array $customers;
     public function __construct(
         private Database $db,
         private LoggerInterface $logger
@@ -43,34 +44,38 @@ class Customers
     {
     }
 
-    public function updateDatabase(): void
+    public function updateDatabase(): self
     {
         $this->logger->debug('Baixando dados de customers');
-        $list = $this->getFromApi();
-        $this->saveList($list);
+        $this->getFromApi();
+        $this->saveList();
+        return $this;
     }
 
     public function getFromApi(): array
     {
-        $list = $this->doRequestKimai('/api/customers');
-        $list = $this->getExtraFields($list);
-        return $list;
+        if ($this->customers) {
+            return $this->customers;
+        }
+        $this->customers = $this->doRequestKimai('/api/customers');
+        $this->populateWithExtraFields();
+        return $this->customers;
     }
 
-    public function saveList(array $list): void
+    public function saveList(): self
     {
         $select = new QueryBuilder($this->db->getConnection());
         $select->select('id')
             ->from('customers')
             ->where($select->expr()->in('id', ':id'))
-            ->setParameter('id', array_column($list, 'id'), ArrayParameterType::INTEGER);
+            ->setParameter('id', array_column($this->customers, 'id'), ArrayParameterType::INTEGER);
         $result = $select->executeQuery();
         $exists = [];
         while ($row = $result->fetchAssociative()) {
             $exists[] = $row['id'];
         }
         $insert = new QueryBuilder($this->db->getConnection());
-        foreach ($list as $row) {
+        foreach ($this->customers as $row) {
             if (in_array($row['id'], $exists)) {
                 $update = new QueryBuilder($this->db->getConnection());
                 $update->update('customers')
@@ -102,12 +107,13 @@ class Customers
                 ])
                 ->executeStatement();
         }
+        return $this;
     }
 
-    private function getExtraFields(array $list): array
+    private function populateWithExtraFields(): void
     {
         $client = HttpClient::create();
-        foreach ($list as $key => $customer) {
+        foreach ($this->customers as $key => $customer) {
             $this->logger->debug('Dados extras do customer: {name}', ['name' => $customer['name']]);
             $result = $client->request(
                 'GET',
@@ -121,9 +127,8 @@ class Customers
             );
             $allFields = $result->toArray();
             $this->logger->debug('{json}', ['json' => $allFields]);
-            $list[$key]['time_budget'] = $allFields['timeBudget'];
-            $list[$key]['vat_id'] = $allFields['vatId'];
+            $this->customers[$key]['time_budget'] = $allFields['timeBudget'];
+            $this->customers[$key]['vat_id'] = $allFields['vatId'];
         }
-        return $list;
     }
 }

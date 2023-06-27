@@ -46,10 +46,16 @@ use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
  * @method string getDocumentNumber()
  * @method CooperadoProducao setFrra(float $value)
  * @method float getFrra()
+ * @method CooperadoProducao setFrraBillId(float $value)
+ * @method float getFrraBillId()
+ * @method CooperadoProducao setFrraDocumentNumber(float $value)
+ * @method float getFrraDocumentNumber()
  * @method CooperadoProducao setHealthInsurance(float $value)
  * @method float getHealthInsurance()
  * @method CooperadoProducao setInss(float $value)
  * @method float getInss()
+ * @method CooperadoProducao setInvoice(AkauntingDocument $value)
+ * @method AkauntingDocument getInvoice()
  * @method CooperadoProducao setIrpf(float $value)
  * @method float getIrpf()
  * @method CooperadoProducao setLiquido(float $value)
@@ -70,6 +76,8 @@ class CooperadoProducao
     private ?int $dependentes = 0;
     private ?string $documentNumber = '';
     private ?float $frra = 0;
+    private ?int $frraBillId = 0;
+    private ?string $frraDocumentNumber = '';
     private ?float $healthInsurance = 0;
     private ?float $inss = 0;
     private ?float $irpf = 0;
@@ -83,7 +91,7 @@ class CooperadoProducao
 
     public function __construct(
         private ?int $anoFiscal,
-        private AkautingDocument $invoice
+        private AkauntingDocument $invoice
     )
     {
         $this->anoFiscal = $anoFiscal;

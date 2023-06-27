@@ -42,7 +42,6 @@ use ProducaoCooperativista\Service\Source\Timesheets;
 use ProducaoCooperativista\Service\Source\Transactions;
 use ProducaoCooperativista\Service\Source\Users;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\HttpClient\Exception\ClientException;
 
 class ProducaoCooperativista
 {
@@ -199,8 +198,12 @@ class ProducaoCooperativista
         $this->customers->updateDatabase();
         $this->nfse->updateDatabase($this->inicioProximoMes);
         $this->projects->updateDatabase();
-        $this->invoices->updateDatabase($this->inicioProximoMes, 'invoice');
-        $this->invoices->updateDatabase($this->inicioProximoMes, 'bill');
+        $this->invoices
+            ->setDate($this->inicioProximoMes)
+            ->setType('invoice')
+            ->saveList()
+            ->setType('bill')
+            ->saveList();
         $this->timesheets->updateDatabase($this->inicio);
         $this->transactions->updateDatabase($this->inicioProximoMes);
         $this->users->updateDatabase();
@@ -771,50 +774,11 @@ class ProducaoCooperativista
                 name: 'IRPF',
                 price: $cooperado->getIrpf() * -1
             );
-            try {
-                if (empty($cooperado->getBillId())) {
-                    $this->invoices->sendData(
-                        endpoint: '/api/documents',
-                        body: $invoice->toArray()
-                    );
-                    $haveNewProduction = true;
-                } else {
-                    try {
-                        $bill = $this->invoices->sendData(
-                            endpoint: '/api/documents/' . $cooperado->getBillId(),
-                            query: [
-                                'search' => implode(' ', [
-                                    'type:bill',
-                                    'status:draft',
-                                ]),
-                            ],
-                            method: 'GET'
-                        );
-                    } catch (\Throwable $th) {
-                        // status != draft
-                        continue;
-                    }
-                    $this->invoices->sendData(
-                        endpoint: '/api/documents/' . $cooperado->getBillId(),
-                        body: $invoice->toArray(),
-                        method: 'PATCH'
-                    );
-                }
-            } catch (ClientException $e) {
-                $response = $e->getResponse();
-                $content = $response->toArray(false);
-                throw new Exception(json_encode($content));
-            }
-        }
-        if ($haveNewProduction) {
-            $begin = (clone $this->getDataProcessamento())
-                ->modify('first day of this month')
-                ->setTime(00, 00, 00);
-            $this->invoices->updateDatabase($begin, 'bill');
+            $invoice->save();
         }
     }
 
-    private function insereHealthInsurance(AkautingDocument $invoice): void
+    private function insereHealthInsurance(AkauntingDocument $invoice): void
     {
         $taxNumber = $invoice->getContactTaxNumber();
 
@@ -830,7 +794,7 @@ class ProducaoCooperativista
         }
     }
 
-    private function aplicaAdiantamentos(AkautingDocument $invoice): void
+    private function aplicaAdiantamentos(AkauntingDocument $invoice): void
     {
         $taxNumber = $invoice->getContactTaxNumber();
 
@@ -883,6 +847,28 @@ class ProducaoCooperativista
         }
     }
 
+    private function coletaFrraNaoPago(): void
+    {
+        $producao = $this->getProducaoCooprativista();
+
+        $select = new QueryBuilder($this->db->getConnection());
+        $select->select('id')
+            ->addSelect('tax_number')
+            ->addSelect('document_number')
+            ->from('invoices')
+            ->where("type = 'bill'")
+            ->andWhere("category_type = 'expense'")
+            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_FRRA_CATEGORY_ID'], ParameterType::INTEGER)))
+            ->andWhere($select->expr()->in('tax_number', $select->createNamedParameter(array_keys($producao), ArrayParameterType::STRING)));
+
+        $result = $select->executeQuery();
+        while ($row = $result->fetchAssociative()) {
+            $this->getCooperado($row['tax_number'])
+                ->setFrraBillId($row['id'])
+                ->setFrraDocumentNumber($row['document_number']);
+        }
+    }
+
     /**
      * @return CooperadoProducao[]
      */
@@ -919,7 +905,7 @@ class ProducaoCooperativista
         if (!isset($this->cooperado[$taxNumber])) {
             $this->cooperado[$taxNumber] = new CooperadoProducao(
                 anoFiscal: (int) $this->inicio->format('Y'),
-                invoice: new AkautingDocument(
+                invoice: new AkauntingDocument(
                     $this->invoices
                 )
             );

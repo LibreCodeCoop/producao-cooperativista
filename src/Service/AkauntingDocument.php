@@ -31,36 +31,36 @@ use ProducaoCooperativista\Service\Source\Invoices;
 use Symfony\Component\HttpClient\Exception\ClientException;
 
 /**
- * @method AkautingDocument setAccountId(int $value)
+ * @method AkauntingDocument setAccountId(int $value)
  * @method int getAccountId()
- * @method AkautingDocument setAmount(float $value)
+ * @method AkauntingDocument setAmount(float $value)
  * @method float getAmount()
- * @method AkautingDocument setCategoryId(int $value)
+ * @method AkauntingDocument setCategoryId(int $value)
  * @method int getCategoryId()
- * @method AkautingDocument setContactId(int $value)
+ * @method AkauntingDocument setContactId(int $value)
  * @method int getContactId()
- * @method AkautingDocument setContactName(string $value)
+ * @method AkauntingDocument setContactName(string $value)
  * @method string getContactName()
- * @method AkautingDocument setContactTaxNumber(string $value)
+ * @method AkauntingDocument setContactTaxNumber(string $value)
  * @method string getContactTaxNumber()
- * @method AkautingDocument setCurrencyCode(string $value)
+ * @method AkauntingDocument setCurrencyCode(string $value)
  * @method string getCurrencyCode()
- * @method AkautingDocument setCurrencyRate(int $value)
+ * @method AkauntingDocument setCurrencyRate(int $value)
  * @method int getCurrencyRate()
- * @method AkautingDocument setDocumentNumber(string $value)
+ * @method AkauntingDocument setDocumentNumber(string $value)
  * @method string getDocumentNumber()
- * @method AkautingDocument setDueAt(string $value)
+ * @method AkauntingDocument setDueAt(string $value)
  * @method string getDueAt()
- * @method AkautingDocument setIssuedAt(string $value)
+ * @method AkauntingDocument setIssuedAt(string $value)
  * @method string getIssuedAt()
- * @method AkautingDocument setSearch(string $value)
+ * @method AkauntingDocument setSearch(string $value)
  * @method string getSearch()
- * @method AkautingDocument setStatus(string $value)
+ * @method AkauntingDocument setStatus(string $value)
  * @method string getStatus()
- * @method AkautingDocument setType(string $value)
+ * @method AkauntingDocument setType(string $value)
  * @method string getType()
  */
-class AkautingDocument
+class AkauntingDocument
 {
     use MagicGetterSetterTrait;
     private int $accountId = 0;
@@ -73,6 +73,7 @@ class AkautingDocument
     private int $currencyRate = 1;
     private string $documentNumber = '';
     private string $dueAt = '';
+    private int $id = 0;
     private string $issuedAt = '';
     private string $search = '';
     private string $status = '';
@@ -148,5 +149,48 @@ class AkautingDocument
             'amount' => $this->getAmount(),
             'items' => array_values($items),
         ];
+    }
+
+    public function save(): void
+    {
+        try {
+            if ($this->getId()) {
+                try {
+                    // Check if exists with draft status
+                    $this->invoices->sendData(
+                        endpoint: '/api/documents/' . $this->getId(),
+                        query: [
+                            'search' => implode(' ', [
+                                'type:bill',
+                                'status:draft',
+                            ]),
+                        ],
+                        method: 'GET'
+                    );
+                    // Update if exists
+                    $updated = $this->invoices->sendData(
+                        endpoint: '/api/documents/' . $this->getId(),
+                        body: $this->toArray(),
+                        method: 'PATCH'
+                    );
+                    // Update local database
+                    $this->invoices->saveRow($updated['data']);
+                } catch (\Throwable $th) {
+                    // status != draft
+                    // Do nothing if not exists
+                }
+            } else {
+                $bill = $this->invoices->sendData(
+                    endpoint: '/api/documents',
+                    body: $this->toArray()
+                );
+                // Update local database
+                $this->invoices->saveRow($bill['data']);
+            }
+        } catch (ClientException $e) {
+            $response = $e->getResponse();
+            $content = $response->toArray(false);
+            throw new Exception(json_encode($content));
+        }
     }
 }
