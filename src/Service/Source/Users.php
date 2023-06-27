@@ -31,6 +31,7 @@ use Doctrine\DBAL\Query\QueryBuilder;
 use League\Flysystem\Filesystem;
 use League\Flysystem\WebDAV\WebDAVAdapter;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Service\Source\Provider\Kimai;
 use Psr\Log\LoggerInterface;
@@ -159,6 +160,7 @@ class Users
         $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
         $spreadsheet = $reader->load($fileXlsx);
 
+        /** @var Csv */
         $writer = IOFactory::createWriter($spreadsheet, "Csv");
         $writer->setSheetIndex(0); // Select which sheet to export.
         $writer->setDelimiter(',');
