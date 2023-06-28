@@ -63,7 +63,7 @@ class Database
         ], $config);
 
         $configOrm = ORMSetup::createAttributeMetadataConfiguration(['ProducaoCooperativista/DB/Entity']);
-        $driverImpl = new DatabaseDriver($this->connection[self::DB_LOCAL]->getSchemaManager());
+        $driverImpl = new DatabaseDriver($this->connection[self::DB_LOCAL]->createSchemaManager());
         $driverImpl->setNamespace('ProducaoCooperativista\\DB\\Entity\\');
         $configOrm->setMetadataDriverImpl($driverImpl);
         $this->entityManager[self::DB_LOCAL] = new EntityManager(
