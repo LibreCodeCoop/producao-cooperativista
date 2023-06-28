@@ -40,7 +40,7 @@ final class Version20230627233147 extends AbstractMigration
         $table = $schema->createTable('nfse');
         $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => true]);
         $table->addColumn('numero', 'bigint', ['unsigned' => true]);
-        $table->addColumn('numero_substituta', 'bigint');
+        $table->addColumn('numero_substituta', 'bigint', ['notnull' => false]);
         $table->addColumn('cnpj', 'string', ['length' => 14]);
         $table->addColumn('razao_social', 'string', ['length' => 255]);
         $table->addColumn('data_emissao', 'date');
@@ -50,7 +50,7 @@ final class Version20230627233147 extends AbstractMigration
         $table->addColumn('valor_pis', 'float');
         $table->addColumn('valor_iss', 'float');
         $table->addColumn('discriminacao_normalizada', 'text');
-        $table->addColumn('setor', 'string');
+        $table->addColumn('setor', 'string', ['notnull' => false]);
         $table->addColumn('codigo_cliente', 'string');
         $table->addColumn('metadata', 'json');
         $table->setPrimaryKey(['id']);

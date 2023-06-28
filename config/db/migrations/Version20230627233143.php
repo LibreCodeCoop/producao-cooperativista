@@ -42,12 +42,12 @@ final class Version20230627233143 extends AbstractMigration
         $table->addColumn('parent_title', 'string', ['length' => 150]);
         $table->addColumn('customer_id', 'bigint');
         $table->addColumn('name', 'string', ['length' => 150]);
-        $table->addColumn('start', 'date');
-        $table->addColumn('end', 'date');
-        $table->addColumn('comment', 'text');
+        $table->addColumn('start', 'date', ['notnull' => false]);
+        $table->addColumn('end', 'date', ['notnull' => false]);
+        $table->addColumn('comment', 'text', ['notnull' => false]);
         $table->addColumn('visible', 'smallint');
         $table->addColumn('billable', 'smallint');
-        $table->addColumn('color', 'string', ['length' => 7]);
+        $table->addColumn('color', 'string', ['length' => 7, 'notnull' => false]);
         $table->addColumn('global_activities', 'smallint');
         $table->setPrimaryKey(['id']);
     }

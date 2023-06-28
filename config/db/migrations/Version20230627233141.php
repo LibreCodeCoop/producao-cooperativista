@@ -40,13 +40,13 @@ final class Version20230627233141 extends AbstractMigration
         $table = $schema->createTable('customers');
         $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => true]);
         $table->addColumn('name', 'string', ['length' => 150]);
-        $table->addColumn('number', 'string', ['length' => 50]);
-        $table->addColumn('comment', 'text');
+        $table->addColumn('number', 'string', ['length' => 50, 'notnull' => false]);
+        $table->addColumn('comment', 'text', ['notnull' => false]);
         $table->addColumn('visible', 'smallint');
         $table->addColumn('billable', 'smallint');
         $table->addColumn('currency', 'string', ['length' => 3]);
-        $table->addColumn('color', 'string', ['length' => 7]);
-        $table->addColumn('vat_id', 'string');
+        $table->addColumn('color', 'string', ['length' => 7, 'notnull' => false]);
+        $table->addColumn('vat_id', 'string', ['notnull' => false]);
         $table->addColumn('time_budget', 'bigint');
         $table->setPrimaryKey(['id']);
     }
