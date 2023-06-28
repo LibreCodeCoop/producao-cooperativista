@@ -65,14 +65,6 @@ class Invoices
         $this->companyId = (int) $_ENV['AKAUNTING_COMPANY_ID'];
     }
 
-    private function getDate(): DateTime
-    {
-        if (!$this->date instanceof DateTime) {
-            throw new Exception('You need to set the start date of month that you want to get invoices');
-        }
-        return $this->date;
-    }
-
     public function updateDatabase(): void
     {
         $this->logger->debug('Baixando dados de invoices');
@@ -113,6 +105,33 @@ class Invoices
             $this->invoices[$this->getType()][] = $invoice;
         }
         return $this->invoices[$this->getType()];
+    }
+
+    public function saveList(): self
+    {
+        $this->getList();
+        foreach ($this->invoices as $type => $list) {
+            foreach ($list as $row) {
+                $this->saveRow($row);
+            }
+        }
+        return $this;
+    }
+
+    public function saveRow(InvoicesEntity $invoice): self
+    {
+        $em = $this->db->getEntityManager();
+        $em->persist($invoice);
+        $em->flush();
+        return $this;
+    }
+
+    private function getDate(): DateTime
+    {
+        if (!$this->date instanceof DateTime) {
+            throw new Exception('You need to set the start date of month that you want to get invoices');
+        }
+        return $this->date;
     }
 
     private function parseNotes(array $row): array {
@@ -167,25 +186,6 @@ class Invoices
         $row['tax_number'] = $row['contact']['tax_number'] ?? $row['contact_tax_number'];
         $row['metadata'] = $row;
         return $row;
-    }
-
-    public function saveList(): self
-    {
-        $this->getList();
-        foreach ($this->invoices as $type => $list) {
-            foreach ($list as $row) {
-                $this->saveRow($row);
-            }
-        }
-        return $this;
-    }
-
-    public function saveRow(InvoicesEntity $invoice): self
-    {
-        $em = $this->db->getEntityManager();
-        $em->persist($invoice);
-        $em->flush();
-        return $this;
     }
 
     private function convertDate($date): ?DateTime
