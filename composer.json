@@ -2,22 +2,22 @@
     "type": "project",
     "license": "AGPL-3.0-or-later",
     "require": {
-        "symfony/http-client": "^6.2",
-        "vlucas/phpdotenv": "^5.5",
-        "symfony/console": "^6.2",
         "bamarni/composer-bin-plugin": "^1.8",
+        "cmixin/business-day": "^1.16",
         "doctrine/dbal": "^3.5",
-        "symfony/browser-kit": "^6.2",
-        "symfony/css-selector": "^6.2",
-        "symfony/mime": "^6.2",
+        "doctrine/migrations": "^3.6",
+        "doctrine/orm": "^2.15",
+        "doctrine/sql-formatter": "^1.1",
+        "league/flysystem-webdav": "^3.15",
         "monolog/monolog": "^3.3",
         "phpoffice/phpspreadsheet": "^1.28",
-        "league/flysystem-webdav": "^3.15",
-        "cmixin/business-day": "^1.16",
-        "doctrine/orm": "^2.15",
+        "symfony/browser-kit": "^6.2",
         "symfony/cache": "^6.3",
-        "doctrine/migrations": "^3.6",
-        "doctrine/sql-formatter": "^1.1"
+        "symfony/console": "^6.2",
+        "symfony/css-selector": "^6.2",
+        "symfony/http-client": "^6.2",
+        "symfony/mime": "^6.2",
+        "vlucas/phpdotenv": "^5.5"
     },
     "autoload": {
         "psr-4": {
