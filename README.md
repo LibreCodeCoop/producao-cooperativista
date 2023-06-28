@@ -57,7 +57,7 @@ Em outro terminal:
 ```bash
 docker compose exec php bash
 composer install
-vendor/bin/phinx migrate
+php ./bin/import migrations:migrate -n
 ```
 
 ## Comandos

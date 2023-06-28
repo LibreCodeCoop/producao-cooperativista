@@ -11,10 +11,13 @@
         "symfony/css-selector": "^6.2",
         "symfony/mime": "^6.2",
         "monolog/monolog": "^3.3",
-        "robmorgan/phinx": "^0.13.4",
         "phpoffice/phpspreadsheet": "^1.28",
         "league/flysystem-webdav": "^3.15",
-        "cmixin/business-day": "^1.16"
+        "cmixin/business-day": "^1.16",
+        "doctrine/orm": "^2.15",
+        "symfony/cache": "^6.3",
+        "doctrine/migrations": "^3.6",
+        "doctrine/sql-formatter": "^1.1"
     },
     "autoload": {
         "psr-4": {
