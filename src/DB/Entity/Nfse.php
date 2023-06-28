@@ -21,6 +21,8 @@
  *
  */
 
+declare(strict_types=1);
+
 namespace ProducaoCooperativista\DB\Entity;
 
 class Nfse
