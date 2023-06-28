@@ -25,6 +25,10 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\DB;
 
+use DateTime;
+use Doctrine\Inflector\InflectorFactory;
+use ReflectionClass;
+
 class Entity
 {
     /**
@@ -35,35 +39,19 @@ class Entity
      */
     public function fromArray(array $attributes)
     {
+        $inflector = InflectorFactory::create()->build();
         foreach ($attributes as $name => $value) {
-            if (property_exists($this, $name)) {
-                $methodName = $this->_getSetterName($name);
-                if ($methodName) {
-                    $this->{$methodName}($value);
-                } else {
-                    $this->$name = $value;
+            $property = $inflector->camelize($name);
+            if (property_exists($this, $property)) {
+                $class = new ReflectionClass($this);
+                $reflectionProperty = $class->getProperty($property);
+                $type = $reflectionProperty->getType();
+                if (str_contains((string) $type, 'DateTime') && is_string($value)) {
+                    $value = new DateTime($value);
                 }
+                $methodName = sprintf('%s%s', 'set', $property);
+                $this->{$methodName}($value);
             }
         }
-    }
-
-    /**
-     * Get property setter method name (if exists)
-     * 
-     * @param string $propertyName entity property name
-     * @return false|string 
-     */
-    protected function _getSetterName($propertyName)
-    {
-        $prefixes = array('add', 'set');
-
-        foreach ($prefixes as $prefix) {
-            $methodName = sprintf('%s%s', $prefix, ucfirst(strtolower($propertyName)));
-
-            if (method_exists($this, $methodName)) {
-                return $methodName;
-            }
-        }
-        return false;
     }
 }

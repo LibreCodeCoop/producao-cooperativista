@@ -16,6 +16,7 @@ final class Version20230627233144 extends AbstractMigration
     public function up(Schema $schema): void
     {
         $table = $schema->createTable('transactions');
+        $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => true]);
         $table->addColumn('type', 'string', ['length' => 50]);
         $table->addColumn('paid_at', 'date');
         $table->addColumn('transaction_of_month', 'string');
@@ -33,6 +34,7 @@ final class Version20230627233144 extends AbstractMigration
         $table->addColumn('category_name', 'string');
         $table->addColumn('category_type', 'string');
         $table->addColumn('metadata', 'json');
+        $table->setPrimaryKey(['id']);
     }
 
     public function down(Schema $schema): void

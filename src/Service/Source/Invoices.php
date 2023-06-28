@@ -26,12 +26,9 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Service\Source;
 
 use DateTime;
-use Doctrine\DBAL\ArrayParameterType;
-use Doctrine\DBAL\ParameterType;
-use Doctrine\DBAL\Query\QueryBuilder;
-use Doctrine\DBAL\Types\Types;
 use Exception;
 use ProducaoCooperativista\DB\Database;
+use ProducaoCooperativista\DB\Entity\Invoices as InvoicesEntity;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Service\Source\Provider\Akaunting;
 use Psr\Log\LoggerInterface;
@@ -102,21 +99,20 @@ class Invoices
         $search[] = 'type:' . $this->getType();
         $search[] = 'invoiced_at>=' . $begin->format('Y-m-d');
         $search[] = 'invoiced_at<=' . $end->format('Y-m-d');
-        $this->invoices[$this->getType()] = $this->getDataList('/api/documents', [
+        $list = $this->getDataList('/api/documents', [
             'company_id' => $this->getCompanyId(),
             'search' => implode(' ', $search),
         ]);
-        $this->parseDocuments();
-        return $this->invoices[$this->getType()];
-    }
-
-    private function parseDocuments(): void
-    {
-        array_walk($this->invoices[$this->getType()], function(&$row) {
+        foreach ($list as $row) {
             $row = $this->parseNotes($row);
             $row = $this->defineTransactionOfMonth($row);
             $row = $this->defineCustomerReference($row);
-        });
+            $row = $this->convertFields($row);
+            $invoice = new InvoicesEntity();
+            $invoice->fromArray($row);
+            $this->invoices[$this->getType()][] = $invoice;
+        }
+        return $this->invoices[$this->getType()];
     }
 
     private function parseNotes(array $row): array {
@@ -160,6 +156,19 @@ class Invoices
         return $row;
     }
 
+    private function convertFields(array $row): array
+    {
+        $row['akaunting_id'] = $row['id'];
+        $row['category_name'] = $row['category']['name'];
+        $row['category_type'] = $row['category']['type'];
+        $row['contact_name'] = $row['contact']['name'];
+        $row['contact_reference'] = $row['contact']['reference'];
+        $row['contact_type'] = $row['contact']['type'];
+        $row['tax_number'] = $row['contact']['tax_number'] ?? $row['contact_tax_number'];
+        $row['metadata'] = $row;
+        return $row;
+    }
+
     public function saveList(): self
     {
         $this->getList();
@@ -171,60 +180,11 @@ class Invoices
         return $this;
     }
 
-    public function saveRow(array $row): self
+    public function saveRow(InvoicesEntity $invoice): self
     {
-        $row = $this->parseNotes($row);
-        $row = $this->defineTransactionOfMonth($row);
-        $row = $this->defineCustomerReference($row);
-        try {
-            $insert = new QueryBuilder($this->db->getConnection());
-            $insert->insert('invoices')
-                ->values([
-                    'id' => $insert->createNamedParameter($row['id'], ParameterType::INTEGER),
-                    'type' => $insert->createNamedParameter($row['type']),
-                    'issued_at' => $insert->createNamedParameter($this->convertDate($row['issued_at']), Types::DATE_MUTABLE),
-                    'due_at' => $insert->createNamedParameter($this->convertDate($row['due_at']), Types::DATE_MUTABLE),
-                    'transaction_of_month' => $insert->createNamedParameter($row['transaction_of_month']),
-                    'amount' => $insert->createNamedParameter($row['amount'], Types::FLOAT),
-                    'currency_code' => $insert->createNamedParameter($row['currency_code']),
-                    'nfse' => $insert->createNamedParameter($row['nfse'] ?? null),
-                    'document_number' => $insert->createNamedParameter($row['document_number']),
-                    'tax_number' => $insert->createNamedParameter($row['contact']['tax_number'] ?? $row['contact_tax_number']),
-                    'customer_reference' => $insert->createNamedParameter($row['customer_reference']),
-                    'contact_id' => $insert->createNamedParameter($row['contact_id'], ParameterType::INTEGER),
-                    'contact_reference' => $insert->createNamedParameter($row['contact']['reference']),
-                    'contact_name' => $insert->createNamedParameter($row['contact']['name']),
-                    'contact_type' => $insert->createNamedParameter($row['contact']['type']),
-                    'category_id' => $insert->createNamedParameter($row['category_id'], ParameterType::INTEGER),
-                    'category_name' => $insert->createNamedParameter($row['category']['name']),
-                    'category_type' => $insert->createNamedParameter($row['category']['type']),
-                    'metadata' => $insert->createNamedParameter(json_encode($row)),
-                ])
-                ->executeStatement();
-        } catch (\Throwable $th) {
-            $update = new QueryBuilder($this->db->getConnection());
-            $update->update('invoices')
-                ->set('type', $update->createNamedParameter($row['type']))
-                ->set('issued_at', $update->createNamedParameter($this->convertDate($row['issued_at']), Types::DATE_MUTABLE))
-                ->set('due_at', $update->createNamedParameter($this->convertDate($row['due_at']), Types::DATE_MUTABLE))
-                ->set('transaction_of_month', $update->createNamedParameter($row['transaction_of_month']))
-                ->set('amount', $update->createNamedParameter($row['amount'], Types::FLOAT))
-                ->set('currency_code', $update->createNamedParameter($row['currency_code']))
-                ->set('nfse', $update->createNamedParameter($row['nfse'] ?? null))
-                ->set('document_number', $update->createNamedParameter($row['document_number']))
-                ->set('tax_number', $update->createNamedParameter($row['contact']['tax_number'] ?? $row['contact_tax_number']))
-                ->set('customer_reference', $update->createNamedParameter($row['customer_reference']))
-                ->set('contact_id', $update->createNamedParameter($row['contact_id'], ParameterType::INTEGER))
-                ->set('contact_reference', $update->createNamedParameter($row['contact']['reference']))
-                ->set('contact_name', $update->createNamedParameter($row['contact']['name']))
-                ->set('contact_type', $update->createNamedParameter($row['contact']['type']))
-                ->set('category_id', $update->createNamedParameter($row['category_id'], ParameterType::INTEGER))
-                ->set('category_name', $update->createNamedParameter($row['category']['name']))
-                ->set('category_type', $update->createNamedParameter($row['category']['type']))
-                ->set('metadata', $update->createNamedParameter(json_encode($row)))
-                ->where($update->expr()->eq('id', $update->createNamedParameter($row['id'], ParameterType::INTEGER)))
-                ->executeStatement();
-        }
+        $em = $this->db->getEntityManager();
+        $em->persist($invoice);
+        $em->flush();
         return $this;
     }
 

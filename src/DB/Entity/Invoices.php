@@ -2,9 +2,18 @@
 
 namespace ProducaoCooperativista\DB\Entity;
 
-class Invoices
+use Doctrine\ORM\Mapping\Entity;
+use Doctrine\ORM\Mapping\Table;
+use ProducaoCooperativista\DB\Entity as DBEntity;
+use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
+
+#[Entity]
+#[Table(name: 'invoices')]
+class Invoices extends DBEntity
 {
+    use MagicGetterSetterTrait;
     private int $id;
+    private int $akauntingId;
     private ?string $type;
     private ?\DateTime $issuedAt;
     private ?\DateTime $dueAt;
