@@ -36,7 +36,7 @@ use Symfony\Component\HttpClient\HttpClient;
 class Customers
 {
     use Kimai;
-    private array $customers;
+    private array $customers = [];
     public function __construct(
         private Database $db,
         private LoggerInterface $logger
