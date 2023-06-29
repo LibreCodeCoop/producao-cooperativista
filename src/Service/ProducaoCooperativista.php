@@ -748,8 +748,8 @@ class ProducaoCooperativista
                 ->setContactId($cooperado->getAkauntingContactId())
                 ->setContactName($cooperado->getName())
                 ->setContactTaxNumber($cooperado->getTaxNumber())
-                ->insereHealthInsurance($akauntingDocument)
-                ->aplicaAdiantamentos($akauntingDocument)
+                ->insereHealthInsurance()
+                ->aplicaAdiantamentos()
                 ->setItem(
                     code: 'Auxílio',
                     name: 'Ajuda de custo',
