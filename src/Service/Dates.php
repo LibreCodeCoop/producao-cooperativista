@@ -106,7 +106,7 @@ class Dates
     public function getDiasUteisNoMes(): int
     {
         if ($this->diasUteis === 0) {
-            $date = Carbon::getMonthBusinessDays($this->dates->getInicio());
+            $date = Carbon::getMonthBusinessDays($this->getInicio());
             $this->diasUteis = count($date);
         }
         return $this->diasUteis;

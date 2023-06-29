@@ -170,7 +170,7 @@ class AkauntingDocument
             ->andWhere("metadata->>'$.status' = 'paid'")
             ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_ADIANTAMENTO_CATEGORY_ID'], ParameterType::INTEGER)))
             ->andWhere($select->expr()->eq('tax_number', $select->createNamedParameter($taxNumber)))
-            ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->inicioProximoMes->format('Y-m'))));
+            ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
 
         $result = $select->executeQuery();
         while ($row = $result->fetchAssociative()) {
