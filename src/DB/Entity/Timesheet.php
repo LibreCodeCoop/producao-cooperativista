@@ -25,18 +25,34 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\DB\Entity;
 
+use Doctrine\ORM\Mapping\Column;
+use Doctrine\ORM\Mapping\Entity;
+use Doctrine\ORM\Mapping\Id;
+
+#[Entity()]
 class Timesheet
 {
-    private int $id;
+    #[Id]
+    #[Column(insertable: true, type: 'bigint', options: ['unsigned' => true])]
     private ?int $activityId;
+    #[Column(type: 'bigint')]
     private ?int $projectId;
+    #[Column(type: 'bigint')]
     private ?int $userId;
+    #[Column]
     private ?\DateTime $begin;
+    #[Column]
     private ?\DateTime $end;
+    #[Column(type: 'bigint')]
     private ?int $duration;
+    #[Column(type: 'text')]
     private ?string $description;
+    #[Column]
     private ?float $rate;
+    #[Column]
     private ?float $internalrate;
+    #[Column(type: 'smallint')]
     private ?int $exported;
+    #[Column(type: 'smallint')]
     private ?int $billable;
 }
