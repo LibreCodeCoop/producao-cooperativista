@@ -25,17 +25,36 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\DB\Entity;
 
+use Doctrine\ORM\Mapping\Column;
+use Doctrine\ORM\Mapping\Entity;
+use Doctrine\ORM\Mapping\GeneratedValue;
+use Doctrine\ORM\Mapping\Id;
+
+#[Entity]
 class Projects
 {
+    #[Id]
+    #[Column(insertable: true, options: ['unsigned' => true])]
+    #[GeneratedValue(strategy: 'AUTO')]
     private int $id;
-    private ?string $parentTitle;
-    private ?int $customerId;
-    private ?string $name;
-    private ?\DateTime $start;
-    private ?\DateTime $end;
-    private ?string $comment;
-    private ?int $visible;
-    private ?int $billable;
-    private ?string $color;
-    private ?int $globalActivities;
+    #[Column(length: 150)]
+    private string $parentTitle;
+    #[Column(type: 'bigint')]
+    private int $customerId;
+    #[Column(length: 150)]
+    private string $name;
+    #[Column(nullable: true)]
+    private \DateTime $start;
+    #[Column(nullable: true)]
+    private \DateTime $end;
+    #[Column(type: 'text', nullable: true)]
+    private string $comment;
+    #[Column(type: 'smallint')]
+    private int $visible;
+    #[Column(type: 'smallint')]
+    private int $billable;
+    #[Column(nullable: true, length: 7)]
+    private string $color;
+    #[Column(type: 'smallint')]
+    private int $globalActivities;
 }

@@ -42,8 +42,8 @@ final class Version20230627233143 extends AbstractMigration
         $table->addColumn('parent_title', 'string', ['length' => 150]);
         $table->addColumn('customer_id', 'bigint');
         $table->addColumn('name', 'string', ['length' => 150]);
-        $table->addColumn('start', 'date', ['notnull' => false]);
-        $table->addColumn('end', 'date', ['notnull' => false]);
+        $table->addColumn('start', 'datetime', ['notnull' => false]);
+        $table->addColumn('end', 'datetime', ['notnull' => false]);
         $table->addColumn('comment', 'text', ['notnull' => false]);
         $table->addColumn('visible', 'smallint');
         $table->addColumn('billable', 'smallint');
