@@ -216,6 +216,58 @@ class AkauntingDocument
         ];
     }
 
+    public function populateProducaoCooperativistaWithDefault(): self
+    {
+        $cooperado = $this->getCooperado();
+        $this
+            ->setType('bill')
+            ->setCategoryId((int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'])
+            ->setDocumentNumber(
+                'PDC_' .
+                $cooperado->getTaxNumber() .
+                '-' .
+                $this->dates->getDataPagamento()->format('Y-m')
+            )
+            ->setSearch('type:bill')
+            ->setStatus('draft')
+            ->setIssuedAt($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'))
+            ->setDueAt($this->dates->getDataPagamento()->format('Y-m-d H:i:s'))
+            ->setCurrencyCode('BRL')
+            ->setNote('Data geração', $this->dates->getDataProcessamento()->format('Y-m-d'))
+            ->setNote('Produção realizada no mês', $this->dates->getInicio()->format('Y-m'))
+            ->setNote('Notas dos clientes pagas no mês', $this->dates->getInicioProximoMes()->format('Y-m'))
+            ->setNote('Previsão de pagamento', sprintf('%sº dia útil', $this->dates->getDiasUteis()))
+            ->setNote('Previsão de pagamento no dia', $this->dates->getDataPagamento()->format('Y-m-d'))
+            ->setNote('Base de cálculo', $this->numberFormatter->format($cooperado->getBaseProducao()))
+            ->setNote('FRRA', $this->numberFormatter->format($cooperado->getFrra()))
+            ->setContactId($cooperado->getAkauntingContactId())
+            ->setContactName($cooperado->getName())
+            ->setContactTaxNumber($cooperado->getTaxNumber())
+            ->insereHealthInsurance()
+            ->aplicaAdiantamentos()
+            ->setItem(
+                code: 'Auxílio',
+                name: 'Ajuda de custo',
+                price: $cooperado->getAuxilio()
+            )
+            ->setItem(
+                code: 'bruto',
+                name: 'Bruto produção',
+                price: $cooperado->getBruto()
+            )
+            ->setItem(
+                code: 'INSS',
+                name: 'INSS',
+                price: $cooperado->getInss() * -1
+            )
+            ->setItem(
+                code: 'IRPF',
+                name: 'IRPF',
+                price: $cooperado->getIrpf() * -1
+            );
+        return $this;
+    }
+
     public function save(): void
     {
         try {
