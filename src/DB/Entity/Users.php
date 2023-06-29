@@ -25,15 +25,28 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\DB\Entity;
 
+use Doctrine\ORM\Mapping\Column;
+use Doctrine\ORM\Mapping\Entity;
+use Doctrine\ORM\Mapping\Id;
+
+#[Entity]
 class Users
 {
-    private int $id;
-    private ?string $alias;
-    private ?string $kimaiUsername;
+    #[Column(length: 60)]
+    private string $alias;
+    #[Id]
+    #[Column(insertable: true, length: 180, unique: true)]
+    private string $kimaiUsername;
+    #[Column(nullable: true, type: 'bigint')]
     private ?int $akauntingContactId;
-    private ?string $taxNumber;
-    private ?int $dependents;
-    private ?float $healthInsurance;
-    private ?int $enabled;
-    private ?array $metadata;
+    #[Column(length: 20)]
+    private string $taxNumber;
+    #[Column(type: 'smallint')]
+    private int $dependents;
+    #[Column]
+    private float $healthInsurance;
+    #[Column(type: 'smallint')]
+    private int $enabled;
+    #[Column]
+    private array $metadata;
 }
