@@ -53,7 +53,6 @@ final class Version20230627233147 extends AbstractMigration
         $table->addColumn('codigo_cliente', 'string');
         $table->addColumn('metadata', 'json');
         $table->setPrimaryKey(['numero']);
-        $table->addUniqueIndex(['numero']);
     }
 
     public function down(Schema $schema): void

@@ -33,7 +33,8 @@ use Doctrine\ORM\Mapping\Id;
 class Nfse
 {
     private int $id;
-    #[Id, Column(unique:true, type: 'bigint', options: ['unsigned' => true])]
+    #[Id]
+    #[Column(type: 'bigint', options: ['unsigned' => true])]
     private int $numero;
     #[Column(type: 'bigint', nullable: true)]
     private ?int $numeroSubstituta;
