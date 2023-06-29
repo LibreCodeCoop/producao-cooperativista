@@ -25,15 +25,12 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Helper;
 
-use Doctrine\Inflector\InflectorFactory;
-
 trait MagicGetterSetterTrait {
 	public function __call($name, $arguments) {
 		if (!preg_match('/^(?<type>get|set)(?<property>.+)/', $name, $matches)) {
 			throw new \LogicException(sprintf('Cannot set non existing property %s->%s = %s.', \get_class($this), $name, var_export($arguments, true)));
 		}
-		$inflector = InflectorFactory::create()->build();
-		$property = $inflector->camelize($matches['property']);
+		$property = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $matches['property']))));
 		if (!property_exists($this, $property)) {
 			throw new \LogicException(sprintf('Cannot set non existing property %s->%s = %s.', \get_class($this), $name, var_export($arguments, true)));
 		}

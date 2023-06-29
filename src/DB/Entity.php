@@ -26,7 +26,6 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\DB;
 
 use DateTime;
-use Doctrine\Inflector\InflectorFactory;
 use ReflectionClass;
 
 class Entity
@@ -39,9 +38,8 @@ class Entity
      */
     public function fromArray(array $attributes)
     {
-        $inflector = InflectorFactory::create()->build();
         foreach ($attributes as $name => $value) {
-            $property = $inflector->camelize($name);
+            $property = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $name))));
             if (property_exists($this, $property)) {
                 $class = new ReflectionClass($this);
                 $reflectionProperty = $class->getProperty($property);
@@ -49,7 +47,7 @@ class Entity
                 if (str_contains((string) $type, 'DateTime') && is_string($value)) {
                     $value = new DateTime($value);
                 }
-                $methodName = sprintf('%s%s', 'set', $property);
+                $methodName = sprintf('%s%s', 'set', ucfirst($property));
                 $this->{$methodName}($value);
             }
         }

@@ -78,26 +78,21 @@ class Transactions
         }
         $search[] = 'paid_at>=' . $begin->format('Y-m-d');
         $search[] = 'paid_at<=' . $end->format('Y-m-d');
-        $transactions = $this->getDataList('/api/transactions', [
+        $list = $this->getDataList('/api/transactions', [
             'company_id' => $companyId,
             'search' => implode(' ', $search),
         ]);
-        $transactions = $this->parseTransactions($transactions);
-        return $transactions;
-    }
-
-    private function parseTransactions(array $list): array
-    {
-        array_walk($list, function(&$row) {
+        foreach ($list as $key => $row) {
             $row = $this->parseDescription($row);
             $row = $this->defineTransactionOfMonth($row);
             $row = $this->defineCustomerReference($row);
-        });
-        $list = $this->mergeWithInvoice($list);
+            $list[$key] = $row;
+        }
+        $list = $this->getCustomerReferenceFromInvoice($list);
         return $list;
     }
 
-    private function mergeWithInvoice(array $list): array
+    private function getCustomerReferenceFromInvoice(array $list): array
     {
         $filtered = array_filter($list, fn($r) => $r['document_id'] && !$r['customer_reference']);
         $documentIdList = array_column($filtered, 'document_id');

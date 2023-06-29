@@ -38,7 +38,7 @@ final class Version20230627233146 extends AbstractMigration
     public function up(Schema $schema): void
     {
         $table = $schema->createTable('invoices');
-        $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => true]);
+        $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => false]);
         $table->addColumn('type', 'string', ['length' => 50]);
         $table->addColumn('issued_at', 'datetime');
         $table->addColumn('due_at', 'datetime');
@@ -57,6 +57,7 @@ final class Version20230627233146 extends AbstractMigration
         $table->addColumn('category_name', 'string');
         $table->addColumn('category_type', 'string');
         $table->addColumn('metadata', 'json');
+        $table->addUniqueIndex(['id']);
         $table->setPrimaryKey(['id']);
     }
 

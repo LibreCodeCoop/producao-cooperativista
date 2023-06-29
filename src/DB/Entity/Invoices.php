@@ -37,8 +37,7 @@ class Invoices extends DBEntity
 {
     use MagicGetterSetterTrait;
     #[Id]
-    #[Column(insertable: true, options: ['unsigned' => true])]
-    #[GeneratedValue(strategy: 'AUTO')]
+    #[Column(unique: true, insertable: true, options: ['unsigned' => true])]
     private int $id;
     #[Column(length: 50)]
     private string $type;

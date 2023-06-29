@@ -63,6 +63,7 @@ class Database
 
         $configOrm = ORMSetup::createAttributeMetadataConfiguration(['src/DB/Entity']);
         $configOrm->setNamingStrategy(new UnderscoreNamingStrategy(CASE_LOWER));
+        $configOrm->setMiddlewares([$logMiddleware]);
         $this->entityManager[self::DB_LOCAL] = new EntityManager(
             $this->connection[self::DB_LOCAL],
             $configOrm

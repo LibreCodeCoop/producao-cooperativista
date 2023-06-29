@@ -99,7 +99,10 @@ class Invoices
             $row = $this->defineTransactionOfMonth($row);
             $row = $this->defineCustomerReference($row);
             $row = $this->convertFields($row);
-            $invoice = new InvoicesEntity();
+            $invoice = $this->db->getEntityManager()->find('ProducaoCooperativista\DB\Entity\Invoices', $row['id']);
+            if (!$invoice) {
+                $invoice = new InvoicesEntity();
+            }
             $invoice->fromArray($row);
             $this->invoices[$this->getType()][] = $invoice;
         }
@@ -176,7 +179,6 @@ class Invoices
 
     private function convertFields(array $row): array
     {
-        $row['akaunting_id'] = $row['id'];
         $row['nfse'] = !empty($row['nfse']) ? (int) $row['nfse'] : null;
         $row['category_name'] = $row['category']['name'];
         $row['category_type'] = $row['category']['type'];
