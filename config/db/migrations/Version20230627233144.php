@@ -40,12 +40,12 @@ final class Version20230627233144 extends AbstractMigration
         $table = $schema->createTable('transactions');
         $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => true]);
         $table->addColumn('type', 'string', ['length' => 50]);
-        $table->addColumn('paid_at', 'date');
+        $table->addColumn('paid_at', 'datetime');
         $table->addColumn('transaction_of_month', 'string');
         $table->addColumn('amount', 'float');
         $table->addColumn('currency_code', 'string', ['length' => 14]);
         $table->addColumn('reference', 'string');
-        $table->addColumn('nfse', 'text');
+        $table->addColumn('nfse', 'bigint', ['unsigned' => true, 'notnull' => false]);
         $table->addColumn('tax_number', 'string');
         $table->addColumn('customer_reference', 'string');
         $table->addColumn('contact_id', 'bigint');

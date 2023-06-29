@@ -25,24 +25,50 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\DB\Entity;
 
+use Doctrine\ORM\Mapping\Column;
+use Doctrine\ORM\Mapping\Entity;
+use Doctrine\ORM\Mapping\GeneratedValue;
+use Doctrine\ORM\Mapping\Id;
+
+#[Entity]
 class Transactions
 {
+    #[Id]
+    #[Column(unique: true, insertable: true, options: ['unsigned' => true])]
+    #[GeneratedValue(strategy: 'AUTO')]
     private int $id;
-    private ?string $type;
-    private ?\DateTime $paidAt;
-    private ?string $transactionOfMonth;
-    private ?float $amount;
-    private ?string $currencyCode;
-    private ?string $reference;
+    #[Column(length: 50)]
+    private string $type;
+    #[Column]
+    private \DateTime $paidAt;
+    #[Column]
+    private string $transactionOfMonth;
+    #[Column]
+    private float $amount;
+    #[Column(length: 14)]
+    private string $currencyCode;
+    #[Column]
+    private string $reference;
+    #[Column(nullable: true, type: 'bigint', options: ['unsigned' => true])]
     private ?string $nfse;
-    private ?string $taxNumber;
-    private ?string $customerReference;
-    private ?int $contactId;
-    private ?string $contactReference;
-    private ?string $contactName;
-    private ?string $contactType;
-    private ?int $categoryId;
-    private ?string $categoryName;
-    private ?string $categoryType;
-    private ?array $metadata;
+    #[Column]
+    private string $taxNumber;
+    #[Column]
+    private string $customerReference;
+    #[Column(type: 'bigint')]
+    private int $contactId;
+    #[Column]
+    private string $contactReference;
+    #[Column]
+    private string $contactName;
+    #[Column]
+    private string $contactType;
+    #[Column(type: 'bigint')]
+    private int $categoryId;
+    #[Column]
+    private string $categoryName;
+    #[Column]
+    private string $categoryType;
+    #[Column]
+    private array $metadata;
 }
