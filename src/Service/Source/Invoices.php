@@ -99,14 +99,20 @@ class Invoices
             $row = $this->defineTransactionOfMonth($row);
             $row = $this->defineCustomerReference($row);
             $row = $this->convertFields($row);
-            $invoice = $this->db->getEntityManager()->find('ProducaoCooperativista\DB\Entity\Invoices', $row['id']);
-            if (!$invoice) {
-                $invoice = new InvoicesEntity();
-            }
-            $invoice->fromArray($row);
+            $invoice = $this->fromArray($row);
             $this->invoices[$this->getType()][] = $invoice;
         }
         return $this->invoices[$this->getType()];
+    }
+
+    public function fromArray(array $array): InvoicesEntity
+    {
+        $invoice = $this->db->getEntityManager()->find('ProducaoCooperativista\DB\Entity\Invoices', $array['id']);
+        if (!$invoice) {
+            $invoice = new InvoicesEntity();
+        }
+        $invoice->fromArray($array);
+        return $invoice;
     }
 
     public function saveList(): self

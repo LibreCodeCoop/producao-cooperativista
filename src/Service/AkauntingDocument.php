@@ -174,7 +174,8 @@ class AkauntingDocument
                         method: 'PATCH'
                     );
                     // Update local database
-                    $this->invoices->saveRow($updated['data']);
+                    $invoice = $this->invoices->fromArray($updated['data']);
+                    $this->invoices->saveRow($invoice);
                 } catch (\Throwable $th) {
                     // status != draft
                     // Do nothing if not exists
@@ -185,7 +186,8 @@ class AkauntingDocument
                     body: $this->toArray()
                 );
                 // Update local database
-                $this->invoices->saveRow($bill['data']);
+                $invoice = $this->invoices->fromArray($bill['data']);
+                $this->invoices->saveRow($invoice);
             }
         } catch (ClientException $e) {
             $response = $e->getResponse();
