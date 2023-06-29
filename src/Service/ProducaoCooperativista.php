@@ -833,10 +833,8 @@ class ProducaoCooperativista
             ->from('invoices')
             ->where("type = 'bill'")
             ->andWhere("category_type = 'expense'")
-            ->andWhere($select->expr()->eq('category_id', ':category_id'))
-            ->setParameter('category_id', (int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'], ParameterType::INTEGER)
-            ->andWhere($select->expr()->in('tax_number', ':tax_number'))
-            ->setParameter('tax_number', array_keys($producao), ArrayParameterType::STRING)
+            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'], ParameterType::INTEGER)))
+            ->andWhere($select->expr()->in('tax_number', $select->createNamedParameter(array_keys($producao), ArrayParameterType::STRING)))
             ->andWhere($select->expr()->eq('transaction_of_month', $select->createNamedParameter($this->getDataPagamento()->format('Y-m'))));
 
         $result = $select->executeQuery();
