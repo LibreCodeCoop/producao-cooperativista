@@ -719,7 +719,6 @@ class ProducaoCooperativista
 
     public function updateProducao(): void
     {
-        $this->coletaDadosDaProducaoDoMes();
         $producao = $this->getProducaoCooprativista();
         foreach ($producao as $cooperado) {
             $cooperado->getInvoice()
@@ -772,7 +771,7 @@ class ProducaoCooperativista
         }
     }
 
-    private function coletaDadosDaProducaoDoMes(): void
+    private function getAkauntingBillIdDaProducao(): void
     {
         $producao = $this->getProducaoCooprativista();
 
@@ -807,6 +806,7 @@ class ProducaoCooperativista
         $this->cadastraCooperadoQueProduziuNoAkaunting();
         $this->distribuiProducaoExterna();
         $this->distribuiSobras();
+        $this->getAkauntingBillIdDaProducao();
         $this->logger->debug('Produção por cooperado ooperado: {json}', ['json' => json_encode($this->cooperado)]);
         return $this->cooperado;
     }
