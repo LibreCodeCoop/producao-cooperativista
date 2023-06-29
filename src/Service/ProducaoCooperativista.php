@@ -25,7 +25,6 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service;
 
-use Carbon\Carbon;
 use Cmixin\BusinessDay;
 use DateTime;
 use Doctrine\DBAL\ArrayParameterType;
@@ -58,16 +57,9 @@ class ProducaoCooperativista
     private float $baseCalculoDispendios = 0;
     private int $percentualMaximo = 0;
     private float $percentualDispendios = 0;
-    private int $diasUteis = 0;
     private bool $sobrasDistribuidas = false;
     private bool $previsao = false;
-    private ?DateTime $inicio = null;
-    private DateTime $fim;
-    private DateTime $inicioProximoMes;
-    private DateTime $fimProximoMes;
-    private int $pagamentoNoDiaUtil = 5;
-    private DateTime $dataPagamento;
-    private DateTime $dataProcessamento;
+    private Dates $dates;
     private NumberFormatter $numberFormatter;
 
     public function __construct(
@@ -96,52 +88,6 @@ class ProducaoCooperativista
         }
         $this->baseCalculoDispendios = $this->getTotalNotas() - $this->getTotalCustoCliente();
         return $this->baseCalculoDispendios;
-    }
-
-    public function setInicio(DateTime $inicio): void
-    {
-        if ($this->inicio) {
-            return;
-        }
-        $this->inicio = $inicio
-            ->modify('first day of this month')
-            ->setTime(00, 00, 00);
-        $fim = clone $inicio;
-        $this->fim = $fim->modify('last day of this month')
-            ->setTime(23, 59, 59);
-
-        $this->inicioProximoMes = (clone $inicio)->modify('first day of next month');
-        $this->fimProximoMes = (clone $fim)->modify('last day of next month');
-    }
-
-    public function setDiaUtilPagamento(int $dia): void
-    {
-        $this->pagamentoNoDiaUtil = $dia;
-    }
-
-    private function getDataPagamento(): DateTime
-    {
-        try {
-            return $this->dataPagamento;
-        } catch (\Throwable $th) {
-            $inicoMes = (clone $this->inicioProximoMes)->modify('first day of next month');
-            $carbon = Carbon::parse($inicoMes);
-            $dataPagamento = $carbon->addBusinessDays($this->pagamentoNoDiaUtil);
-            $string = $dataPagamento->format('Y-m-d');
-            $this->dataProcessamento = new DateTime();
-            if ($string >= $this->dataProcessamento->format('Y-m-d')) {
-                $this->dataPagamento = new DateTime($string);
-            } else {
-                $this->dataPagamento = $this->dataProcessamento;
-            }
-        }
-        return $this->dataPagamento;
-    }
-
-    private function getDataProcessamento(): DateTime
-    {
-        $this->getDataPagamento();
-        return $this->dataProcessamento;
     }
 
     /**
@@ -181,7 +127,7 @@ class ProducaoCooperativista
      */
     private function percentualLibreCode(): float
     {
-        $totalPossivelDeHoras = $this->getTotalCooperados() * 8 * $this->getDiasUteisNoMes();
+        $totalPossivelDeHoras = $this->getTotalCooperados() * 8 * $this->dates->getDiasUteisNoMes();
 
         $totalHorasLibreCode = $this->getTotalSegundosLibreCode() / 60 / 60;
         $percentualLibreCode = $totalHorasLibreCode * 100 / $totalPossivelDeHoras;
@@ -191,19 +137,19 @@ class ProducaoCooperativista
 
     public function loadFromExternalSources(DateTime $inicio): void
     {
-        $this->setInicio($inicio);
+        $this->dates->setInicio($inicio);
         $this->logger->debug('Baixando dados externos');
         $this->customers->updateDatabase();
-        $this->nfse->updateDatabase($this->inicioProximoMes);
+        $this->nfse->updateDatabase($this->dates->getInicioProximoMes());
         $this->projects->updateDatabase();
         $this->invoices
-            ->setDate($this->inicioProximoMes)
+            ->setDate($this->dates->getInicioProximoMes())
             ->setType('invoice')
             ->saveList()
             ->setType('bill')
             ->saveList();
-        $this->timesheets->updateDatabase($this->inicio);
-        $this->transactions->updateDatabase($this->inicioProximoMes);
+        $this->timesheets->updateDatabase($this->dates->getInicio());
+        $this->transactions->updateDatabase($this->dates->getInicioProximoMes());
         $this->users->updateDatabase();
     }
 
@@ -227,8 +173,8 @@ class ProducaoCooperativista
             SQL
         );
         $result = $stmt->executeQuery([
-            'inicio' => $this->inicio->format('Y-m-d'),
-            'fim' => $this->fim->format('Y-m-d H:i:s'),
+            'inicio' => $this->dates->getInicio()->format('Y-m-d'),
+            'fim' => $this->dates->getFim()->format('Y-m-d H:i:s'),
         ]);
         $this->totalSegundosLibreCode = (int) $result->fetchOne();
         $this->logger->debug('Total segundos LibreCode: {total}', ['total' => $this->totalSegundosLibreCode]);
@@ -257,16 +203,16 @@ class ProducaoCooperativista
             SQL
         );
         $result = $stmt->executeQuery([
-            'inicio' => $this->inicio->format('Y-m-d'),
-            'fim' => $this->fim->format('Y-m-d'),
+            'inicio' => $this->dates->getInicio()->format('Y-m-d'),
+            'fim' => $this->dates->getFim()->format('Y-m-d'),
         ]);
         $result = $result->fetchOne();
 
         if (!$result) {
             $messagem = sprintf(
                 'Sem registro de horas no Kimai entre os dias %s e %s.',
-                $this->inicio->format(('Y-m-d')),
-                $this->fim->format(('Y-m-d'))
+                $this->dates->getInicio()->format(('Y-m-d')),
+                $this->dates->getFim()->format(('Y-m-d'))
             );
             throw new Exception($messagem);
         }
@@ -328,7 +274,7 @@ class ProducaoCooperativista
             );
         }
         $result = $stmt->executeQuery([
-            'ano_mes' => $this->inicioProximoMes->format('Y-m'),
+            'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m'),
         ]);
         $this->totalDispendios = (float) $result->fetchOne();
         $this->logger->debug('Total dispêndios: {total}', ['total' => $this->totalDispendios]);
@@ -360,14 +306,14 @@ class ProducaoCooperativista
             SQL
         );
         $result = $stmt->executeQuery([
-            'ano_mes' => $this->inicioProximoMes->format('Y-m'),
+            'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m'),
         ]);
         $this->totalNotas = (float) $result->fetchOne();
         if (!$this->totalNotas) {
             $messagem = sprintf(
                 'Sem notas entre os dias %s e %s.',
-                $this->inicioProximoMes->format(('Y-m-d')),
-                $this->fimProximoMes->format(('Y-m-d'))
+                $this->dates->getInicioProximoMes()->format(('Y-m-d')),
+                $this->dates->getFimProximoMes()->format(('Y-m-d'))
             );
             throw new Exception($messagem);
         }
@@ -445,7 +391,7 @@ class ProducaoCooperativista
             );
         }
         $result = $stmt->executeQuery([
-            'ano_mes' => $this->inicioProximoMes->format('Y-m'),
+            'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m'),
         ]);
         $this->custosPorCliente = [];
         $errors = [];
@@ -460,8 +406,8 @@ class ProducaoCooperativista
                 "Código de cliente inválido no Akaunting para calcular custos por cliente.\n" .
                 "Intervalo: %s a %s\n" .
                 "Dados:\n%s",
-                $this->inicioProximoMes->format('Y-m-d'),
-                $this->fimProximoMes->format('Y-m-d'),
+                $this->dates->getInicioProximoMes()->format('Y-m-d'),
+                $this->dates->getFimProximoMes()->format('Y-m-d'),
                 json_encode($errors, JSON_PRETTY_PRINT)
             ));
         }
@@ -533,7 +479,7 @@ class ProducaoCooperativista
             );
         }
         $result = $stmt->executeQuery([
-            'ano_mes' => $this->inicioProximoMes->format('Y-m'),
+            'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m'),
         ]);
         $errorsSemContactReference = [];
         $this->valoresPorProjeto = [];
@@ -629,9 +575,9 @@ class ProducaoCooperativista
                     u.alias
             SQL
         );
-        $stmt->bindValue('data_inicio', $this->inicio->format('Y-m-d'));
-        $stmt->bindValue('data_fim', $this->fim->format('Y-m-d H:i:s'));
-        $stmt->bindValue('ano_mes', $this->inicioProximoMes->format('Y-m'));
+        $stmt->bindValue('data_inicio', $this->dates->getInicio()->format('Y-m-d'));
+        $stmt->bindValue('data_fim', $this->dates->getFim()->format('Y-m-d H:i:s'));
+        $stmt->bindValue('ano_mes', $this->dates->getInicioProximoMes()->format('Y-m'));
         $result = $stmt->executeQuery();
         $this->percentualTrabalhadoPorCliente = [];
         while ($row = $result->fetchAssociative()) {
@@ -685,8 +631,8 @@ class ProducaoCooperativista
                 'country' => 'BR',
                 'currency_code' => 'BRL',
                 'enabled' => 1,
-                'created_at' => $insert->createNamedParameter((new DateTime())->format('Y-m-d H:i:s')),
-                'updated_at' => $insert->createNamedParameter((new DateTime())->format('Y-m-d H:i:s'))
+                'created_at' => $insert->createNamedParameter($this->dates->getDataProcessamento()->format('Y-m-d H:i:s')),
+                'updated_at' => $insert->createNamedParameter($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'))
             ]);
         $insert->executeStatement();
         $id = $connection->lastInsertId();
@@ -695,16 +641,7 @@ class ProducaoCooperativista
 
     public function setDiasUteis(int $diasUteis): void
     {
-        $this->diasUteis = $diasUteis;
-    }
-
-    private function getDiasUteisNoMes(): int
-    {
-        if ($this->diasUteis === 0) {
-            $date = Carbon::getMonthBusinessDays($this->inicio);
-            $this->diasUteis = count($date);
-        }
-        return $this->diasUteis;
+        $this->dates->setDiasUteis($diasUteis);
     }
 
     public function setPercentualMaximo(int $percentualMaximo): void
@@ -728,18 +665,18 @@ class ProducaoCooperativista
                     'PDC_' .
                     $cooperado->getTaxNumber() .
                     '-' .
-                    $this->getDataPagamento()->format('Y-m')
+                    $this->dates->getDataPagamento()->format('Y-m')
                 )
                 ->setSearch('type:bill')
                 ->setStatus('draft')
-                ->setIssuedAt($this->getDataProcessamento()->format('Y-m-d H:i:s'))
-                ->setDueAt($this->getDataPagamento()->format('Y-m-d H:i:s'))
+                ->setIssuedAt($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'))
+                ->setDueAt($this->dates->getDataPagamento()->format('Y-m-d H:i:s'))
                 ->setCurrencyCode('BRL')
-                ->setNote('Data geração', $this->getDataProcessamento()->format('Y-m-d'))
-                ->setNote('Produção realizada no mês', $this->inicio->format('Y-m'))
-                ->setNote('Notas dos clientes pagas no mês', $this->inicioProximoMes->format('Y-m'))
-                ->setNote('Previsão de pagamento', sprintf('%sº dia útil', $this->diasUteis))
-                ->setNote('Previsão de pagamento no dia', $this->getDataPagamento()->format('Y-m-d'))
+                ->setNote('Data geração', $this->dates->getDataProcessamento()->format('Y-m-d'))
+                ->setNote('Produção realizada no mês', $this->dates->getInicio()->format('Y-m'))
+                ->setNote('Notas dos clientes pagas no mês', $this->dates->getInicioProximoMes()->format('Y-m'))
+                ->setNote('Previsão de pagamento', sprintf('%sº dia útil', $this->dates->getDiasUteis()))
+                ->setNote('Previsão de pagamento no dia', $this->dates->getDataPagamento()->format('Y-m-d'))
                 ->setNote('Base de cálculo', $this->numberFormatter->format($cooperado->getBaseProducao()))
                 ->setNote('FRRA', $this->numberFormatter->format($cooperado->getFrra()))
                 ->setContactId($cooperado->getAkauntingContactId())
@@ -784,7 +721,7 @@ class ProducaoCooperativista
             ->andWhere("category_type = 'expense'")
             ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'], ParameterType::INTEGER)))
             ->andWhere($select->expr()->in('tax_number', $select->createNamedParameter(array_keys($producao), ArrayParameterType::STRING)))
-            ->andWhere($select->expr()->eq('transaction_of_month', $select->createNamedParameter($this->getDataPagamento()->format('Y-m'))));
+            ->andWhere($select->expr()->eq('transaction_of_month', $select->createNamedParameter($this->dates->getDataPagamento()->format('Y-m'))));
 
         $result = $select->executeQuery();
         while ($row = $result->fetchAssociative()) {
@@ -863,7 +800,7 @@ class ProducaoCooperativista
         }
         if (count($errorSemCodigoCliente)) {
             throw new Exception(
-                "O cliente_codigo trabalhado no Kimai não possui faturamento no mês " . $this->inicioProximoMes->format('Y-m-d'). ".\n" .
+                "O cliente_codigo trabalhado no Kimai não possui faturamento no mês " . $this->dates->getInicioProximoMes()->format('Y-m-d'). ".\n" .
                 "Dados:\n" .
                 json_encode($errorSemCodigoCliente, JSON_PRETTY_PRINT)
             );
@@ -916,10 +853,10 @@ class ProducaoCooperativista
         $reader = new \PhpOffice\PhpSpreadsheet\Reader\Ods();
         $spreadsheet = $reader->load(__DIR__ . '/../assets/base.ods');
         $spreadsheet->getSheetByName('valores calculados')
-            ->setCellValue('B1', $this->inicio->format('Y-m-d H:i:s'))
-            ->setCellValue('B2', $this->fim->format('Y-m-d H:i:s'))
-            ->setCellValue('B3', $this->inicioProximoMes->format('Y-m-d H:i:s'))
-            ->setCellValue('B4', $this->fimProximoMes->format('Y-m-d H:i:s'))
+            ->setCellValue('B1', $this->dates->getInicio()->format('Y-m-d H:i:s'))
+            ->setCellValue('B2', $this->dates->getFim()->format('Y-m-d H:i:s'))
+            ->setCellValue('B3', $this->dates->getInicioProximoMes()->format('Y-m-d H:i:s'))
+            ->setCellValue('B4', $this->dates->getFimProximoMes()->format('Y-m-d H:i:s'))
             ->setCellValue('B5', $this->getTotalCooperados())
             ->setCellValue('B6', $this->getTotalNotas())
             ->setCellValue('B7', $this->getTotalCustoCliente())
@@ -944,7 +881,7 @@ class ProducaoCooperativista
             ->fromArray($this->getPercentualTrabalhadoPorCliente(), null, 'A2');
 
         $producao = $spreadsheet->getSheetByName('mês')
-            ->setTitle($this->inicio->format('Y-m'));
+            ->setTitle($this->dates->getInicio()->format('Y-m'));
         $cooperados = $this->getProducaoCooprativista();
         $row = 4;
         foreach ($cooperados as $cooperado) {
@@ -966,6 +903,6 @@ class ProducaoCooperativista
         }
 
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Ods($spreadsheet);
-        $writer->save($this->inicio->format('Y-m-d') . '.ods');
+        $writer->save($this->dates->getInicio()->format('Y-m-d') . '.ods');
     }
 }

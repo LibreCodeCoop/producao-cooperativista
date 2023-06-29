@@ -26,7 +26,6 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Service;
 
 use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Service\Source\Invoices;
 
 /**
