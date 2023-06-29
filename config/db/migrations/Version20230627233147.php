@@ -38,12 +38,11 @@ final class Version20230627233147 extends AbstractMigration
     public function up(Schema $schema): void
     {
         $table = $schema->createTable('nfse');
-        $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => true]);
         $table->addColumn('numero', 'bigint', ['unsigned' => true]);
         $table->addColumn('numero_substituta', 'bigint', ['notnull' => false]);
         $table->addColumn('cnpj', 'string', ['length' => 14]);
-        $table->addColumn('razao_social', 'string', ['length' => 255]);
-        $table->addColumn('data_emissao', 'date');
+        $table->addColumn('razao_social', 'string');
+        $table->addColumn('data_emissao', 'datetime');
         $table->addColumn('valor_servico', 'float');
         $table->addColumn('valor_cofins', 'float');
         $table->addColumn('valor_ir', 'float');
@@ -53,7 +52,7 @@ final class Version20230627233147 extends AbstractMigration
         $table->addColumn('setor', 'string', ['notnull' => false]);
         $table->addColumn('codigo_cliente', 'string');
         $table->addColumn('metadata', 'json');
-        $table->setPrimaryKey(['id']);
+        $table->setPrimaryKey(['numero']);
         $table->addUniqueIndex(['numero']);
     }
 

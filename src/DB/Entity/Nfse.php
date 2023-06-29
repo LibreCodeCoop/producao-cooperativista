@@ -25,21 +25,40 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\DB\Entity;
 
+use Doctrine\ORM\Mapping\Column;
+use Doctrine\ORM\Mapping\Entity;
+use Doctrine\ORM\Mapping\Id;
+
+#[Entity]
 class Nfse
 {
     private int $id;
-    private ?int $numero;
+    #[Id, Column(unique:true, type: 'bigint', options: ['unsigned' => true])]
+    private int $numero;
+    #[Column(type: 'bigint', nullable: true)]
     private ?int $numeroSubstituta;
-    private ?string $cnpj;
-    private ?string $razaoSocial;
-    private ?\DateTime $dataEmissao;
-    private ?float $valorServico;
-    private ?float $valorCofins;
-    private ?float $valorIr;
-    private ?float $valorPis;
-    private ?float $valorIss;
-    private ?string $discriminacaoNormalizada;
+    #[Column(length: 14)]
+    private string $cnpj;
+    #[Column]
+    private string $razaoSocial;
+    #[Column]
+    private \DateTime $dataEmissao;
+    #[Column]
+    private float $valorServico;
+    #[Column]
+    private float $valorCofins;
+    #[Column]
+    private float $valorIr;
+    #[Column]
+    private float $valorPis;
+    #[Column]
+    private float $valorIss;
+    #[Column(type: 'text')]
+    private string $discriminacaoNormalizada;
+    #[Column(nullable: true)]
     private ?string $setor;
-    private ?string $codigoCliente;
-    private ?array $metadata;
+    #[Column]
+    private string $codigoCliente;
+    #[Column]
+    private array $metadata;
 }
