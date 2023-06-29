@@ -27,15 +27,19 @@ namespace ProducaoCooperativista\DB\Entity;
 
 use Doctrine\ORM\Mapping\Column;
 use Doctrine\ORM\Mapping\Entity;
+use Doctrine\ORM\Mapping\GeneratedValue;
 use Doctrine\ORM\Mapping\Id;
 
 #[Entity]
 class Users
 {
+    #[Id]
+    #[Column(insertable: true, options: ['unsigned' => true])]
+    #[GeneratedValue(strategy: 'AUTO')]
+    private int $id;
     #[Column(length: 60)]
     private string $alias;
-    #[Id]
-    #[Column(insertable: true, length: 180, unique: true)]
+    #[Column(length: 180, unique: true)]
     private string $kimaiUsername;
     #[Column(nullable: true, type: 'bigint')]
     private ?int $akauntingContactId;

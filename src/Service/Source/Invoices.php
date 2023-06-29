@@ -178,6 +178,7 @@ class Invoices
     private function convertFields(array $row): array
     {
         $row['akaunting_id'] = $row['id'];
+        $row['nfse'] = !empty($row['nfse']) ? (int) $row['nfse'] : null;
         $row['category_name'] = $row['category']['name'];
         $row['category_type'] = $row['category']['type'];
         $row['contact_name'] = $row['contact']['name'];

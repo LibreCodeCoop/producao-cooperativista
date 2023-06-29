@@ -27,6 +27,7 @@ namespace ProducaoCooperativista\DB\Entity;
 
 use Doctrine\ORM\Mapping\Column;
 use Doctrine\ORM\Mapping\Entity;
+use Doctrine\ORM\Mapping\GeneratedValue;
 use Doctrine\ORM\Mapping\Id;
 
 #[Entity()]
@@ -34,6 +35,9 @@ class Timesheet
 {
     #[Id]
     #[Column(insertable: true, type: 'bigint', options: ['unsigned' => true])]
+    #[GeneratedValue(strategy: 'AUTO')]
+    private int $id;
+    #[Column(type: 'bigint', options: ['unsigned' => true])]
     private ?int $activityId;
     #[Column(type: 'bigint')]
     private ?int $projectId;

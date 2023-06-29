@@ -38,6 +38,7 @@ final class Version20230627233140 extends AbstractMigration
     public function up(Schema $schema): void
     {
         $table = $schema->createTable('users');
+        $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => true]);
         $table->addColumn('alias', 'string', ['length' => 60]);
         $table->addColumn('kimai_username', 'string', ['length' => 180]);
         $table->addColumn('akaunting_contact_id', 'bigint', ['notnull' => false]);
@@ -46,7 +47,8 @@ final class Version20230627233140 extends AbstractMigration
         $table->addColumn('health_insurance', 'float');
         $table->addColumn('enabled', 'smallint');
         $table->addColumn('metadata', 'json');
-        $table->setPrimaryKey(['kimai_username']);
+        $table->addUniqueConstraint(['kimai_username']);
+        $table->setPrimaryKey(['id']);
     }
 
     public function down(Schema $schema): void

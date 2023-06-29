@@ -30,7 +30,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Logging\Middleware;
 use Doctrine\ORM\EntityManager;
-use Doctrine\ORM\Mapping\Driver\DatabaseDriver;
+use Doctrine\ORM\Mapping\UnderscoreNamingStrategy;
 use Doctrine\ORM\ORMSetup;
 use Psr\Log\LoggerInterface;
 
@@ -61,10 +61,8 @@ class Database
             'driver' => $_ENV['DB_ADAPTER'],
         ], $config);
 
-        $configOrm = ORMSetup::createAttributeMetadataConfiguration(['ProducaoCooperativista/DB/Entity']);
-        $driverImpl = new DatabaseDriver($this->connection[self::DB_LOCAL]->createSchemaManager());
-        $driverImpl->setNamespace('ProducaoCooperativista\\DB\\Entity\\');
-        $configOrm->setMetadataDriverImpl($driverImpl);
+        $configOrm = ORMSetup::createAttributeMetadataConfiguration(['src/DB/Entity']);
+        $configOrm->setNamingStrategy(new UnderscoreNamingStrategy(CASE_LOWER));
         $this->entityManager[self::DB_LOCAL] = new EntityManager(
             $this->connection[self::DB_LOCAL],
             $configOrm

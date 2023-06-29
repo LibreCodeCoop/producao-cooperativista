@@ -47,18 +47,18 @@ class Transactions
     private float $amount;
     #[Column(length: 14)]
     private string $currencyCode;
-    #[Column]
-    private string $reference;
+    #[Column(nullable: true)]
+    private ?string $reference;
     #[Column(nullable: true, type: 'bigint', options: ['unsigned' => true])]
     private ?string $nfse;
-    #[Column]
-    private string $taxNumber;
-    #[Column]
-    private string $customerReference;
+    #[Column(nullable: true)]
+    private ?string $taxNumber;
+    #[Column(nullable: true)]
+    private ?string $customerReference;
     #[Column(type: 'bigint')]
     private int $contactId;
-    #[Column]
-    private string $contactReference;
+    #[Column(nullable: true)]
+    private ?string $contactReference;
     #[Column]
     private string $contactName;
     #[Column]
