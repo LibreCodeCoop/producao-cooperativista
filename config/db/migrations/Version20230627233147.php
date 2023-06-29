@@ -32,7 +32,7 @@ final class Version20230627233147 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return 'Create Invoices';
+        return 'Create Nfse';
     }
 
     public function up(Schema $schema): void
