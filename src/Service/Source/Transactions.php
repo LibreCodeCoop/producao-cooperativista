@@ -54,7 +54,6 @@ class Transactions
 
     public function updateDatabase(DateTime $data): void
     {
-        $this->logger->debug('Baixando dados de transactions');
         $list = $this->getFromApi($data, companyId: (int) $_ENV['AKAUNTING_COMPANY_ID']);
         $this->saveList($list, $data);
     }
@@ -67,6 +66,7 @@ class Transactions
 
     private function getTransactions(DateTime $date, int $companyId, ?int $categoryId): array
     {
+        $this->logger->debug('Baixando dados de transactions');
         $begin = $date
             ->modify('first day of this month');
         $end = clone $begin;
