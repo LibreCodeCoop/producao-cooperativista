@@ -25,7 +25,10 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service;
 
+use Doctrine\DBAL\ParameterType;
+use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
+use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Service\Source\Invoices;
 use Symfony\Component\HttpClient\Exception\ClientException;
@@ -36,6 +39,8 @@ use Symfony\Component\HttpClient\Exception\ClientException;
  * @method AkauntingDocument setCategoryId(int $value)
  * @method int getCategoryId()
  * @method AkauntingDocument setContactId(int $value)
+ * @method AkauntingDocument setCooperado(CooperadoProducao $value)
+ * @method CooperadoProducao getCooperado()
  * @method int getContactId()
  * @method AkauntingDocument setContactName(string $value)
  * @method string getContactName()
@@ -78,13 +83,21 @@ class AkauntingDocument
     private string $status = '';
     private string $type = '';
 
+    private CooperadoProducao $cooperado;
+
     private array $notes = [];
     private array $items = [];
 
+    /** @var int[] */
+    private array $itemsIds;
+
     public function __construct(
+        private Database $db,
+        private \DateTime $inicioProximoMes,
         private Invoices $invoices
     )
     {
+        $this->itemsIds = json_decode($_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS'], true);
     }
 
     public function setNote(string $label, $value): self
@@ -94,7 +107,8 @@ class AkauntingDocument
     }
 
     public function setItem(
-        int $itemId,
+        ?int $itemId = null,
+        ?string $code = null,
         string $name = '',
         string $description = '',
         ?int $quantity = null,
@@ -104,7 +118,11 @@ class AkauntingDocument
         int $order = 0
     ): self
     {
-        $item['item_id'] = $itemId;
+        if ($itemId) {
+            $item['item_id'] = $itemId;
+        } elseif ($code) {
+            $item['item_id'] = $this->itemsIds[$code];
+        }
         $item['name'] = $name;
         $item['description'] = $description;
         $item['quantity'] = $quantity ? $quantity : ($price > 0 ? 1 : -1);
@@ -116,6 +134,52 @@ class AkauntingDocument
         $item['discount'] = $discount;
         $item['order'] = $order;
         $this->items[] = $item;
+        return $this;
+    }
+
+    public function insereHealthInsurance(): self
+    {
+        $taxNumber = $this->getContactTaxNumber();
+
+        $cooperado = $this->getCooperado($taxNumber);
+
+        if ($cooperado->getHealthInsurance()) {
+            $this->setItem(
+                itemId: $this->itemsIds['Plano'],
+                name: 'Plano de saúde',
+                price: -$cooperado->getHealthInsurance(),
+                order: 10
+            );
+        }
+        return $this;
+    }
+
+    public function aplicaAdiantamentos(): self
+    {
+        $taxNumber = $this->getContactTaxNumber();
+
+        $select = new QueryBuilder($this->db->getConnection());
+        $select->select('amount')
+            ->addSelect('document_number')
+            ->addSelect('due_at')
+            ->from('invoices')
+            ->where("type = 'bill'")
+            ->andWhere("category_type = 'expense'")
+            ->andWhere("metadata->>'$.status' = 'paid'")
+            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_ADIANTAMENTO_CATEGORY_ID'], ParameterType::INTEGER)))
+            ->andWhere($select->expr()->eq('tax_number', $select->createNamedParameter($taxNumber)))
+            ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->inicioProximoMes->format('Y-m'))));
+
+        $result = $select->executeQuery();
+        while ($row = $result->fetchAssociative()) {
+            $this->setItem(
+                itemId: $this->itemsIds['desconto'],
+                name: 'Adiantamento',
+                description: sprintf('Número: %s, data: %s', $row['document_number'], $row['due_at']),
+                price: -$row['amount'],
+                order: 20
+            );
+        }
         return $this;
     }
 

@@ -69,7 +69,6 @@ class ProducaoCooperativista
     private DateTime $dataPagamento;
     private DateTime $dataProcessamento;
     private NumberFormatter $numberFormatter;
-    private array $itemsIds;
 
     public function __construct(
         private Database $db,
@@ -88,7 +87,6 @@ class ProducaoCooperativista
             $_ENV['LOCALE'] ?? 'pt_BR',
             NumberFormatter:: CURRENCY
         );
-        $this->itemsIds = json_decode($_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS'], true);
     }
 
     private function getBaseCalculoDispendios(): float
@@ -749,74 +747,30 @@ class ProducaoCooperativista
                 ->setNote('FRRA', $this->numberFormatter->format($cooperado->getFrra()))
                 ->setContactId($cooperado->getAkauntingContactId())
                 ->setContactName($cooperado->getName())
-                ->setContactTaxNumber($cooperado->getTaxNumber());
-            $this->insereHealthInsurance($akauntingDocument);
-            $this->aplicaAdiantamentos($akauntingDocument);
-            $akauntingDocument->setItem(
-                itemId: $this->itemsIds['Auxílio'],
-                name: 'Ajuda de custo',
-                price: $cooperado->getAuxilio()
-            );
-            $akauntingDocument->setItem(
-                itemId: $this->itemsIds['bruto'],
-                name: 'Bruto produção',
-                price: $cooperado->getBruto()
-            );
-            $akauntingDocument->setItem(
-                itemId: $this->itemsIds['INSS'],
-                name: 'INSS',
-                price: $cooperado->getInss() * -1
-            );
-            $akauntingDocument->setItem(
-                itemId: $this->itemsIds['IRPF'],
-                name: 'IRPF',
-                price: $cooperado->getIrpf() * -1
-            );
-            $akauntingDocument->save();
-        }
-    }
-
-    private function insereHealthInsurance(AkauntingDocument $invoice): void
-    {
-        $taxNumber = $invoice->getContactTaxNumber();
-
-        $cooperado = $this->getCooperado($taxNumber);
-
-        if ($cooperado->getHealthInsurance()) {
-            $invoice->setItem(
-                itemId: $this->itemsIds['Plano'],
-                name: 'Plano de saúde',
-                price: -$cooperado->getHealthInsurance(),
-                order: 10
-            );
-        }
-    }
-
-    private function aplicaAdiantamentos(AkauntingDocument $invoice): void
-    {
-        $taxNumber = $invoice->getContactTaxNumber();
-
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('amount')
-            ->addSelect('document_number')
-            ->addSelect('due_at')
-            ->from('invoices')
-            ->where("type = 'bill'")
-            ->andWhere("category_type = 'expense'")
-            ->andWhere("metadata->>'$.status' = 'paid'")
-            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_ADIANTAMENTO_CATEGORY_ID'], ParameterType::INTEGER)))
-            ->andWhere($select->expr()->eq('tax_number', $select->createNamedParameter($taxNumber)))
-            ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->inicioProximoMes->format('Y-m'))));
-
-        $result = $select->executeQuery();
-        while ($row = $result->fetchAssociative()) {
-            $invoice->setItem(
-                itemId: $this->itemsIds['desconto'],
-                name: 'Adiantamento',
-                description: sprintf('Número: %s, data: %s', $row['document_number'], $row['due_at']),
-                price: -$row['amount'],
-                order: 20
-            );
+                ->setContactTaxNumber($cooperado->getTaxNumber())
+                ->insereHealthInsurance($akauntingDocument)
+                ->aplicaAdiantamentos($akauntingDocument)
+                ->setItem(
+                    code: 'Auxílio',
+                    name: 'Ajuda de custo',
+                    price: $cooperado->getAuxilio()
+                )
+                ->setItem(
+                    code: 'bruto',
+                    name: 'Bruto produção',
+                    price: $cooperado->getBruto()
+                )
+                ->setItem(
+                    code: 'INSS',
+                    name: 'INSS',
+                    price: $cooperado->getInss() * -1
+                )
+                ->setItem(
+                    code: 'IRPF',
+                    name: 'IRPF',
+                    price: $cooperado->getIrpf() * -1
+                )
+            ->save();
         }
     }
 
@@ -902,9 +856,14 @@ class ProducaoCooperativista
             $this->cooperado[$taxNumber] = new CooperadoProducao(
                 anoFiscal: (int) $this->inicio->format('Y'),
                 invoice: new AkauntingDocument(
-                    $this->invoices
+                    db: $this->db,
+                    inicioProximoMes: $this->inicioProximoMes,
+                    invoices: $this->invoices
                 )
             );
+            $this->cooperado[$taxNumber]
+                ->getInvoice()
+                ->setCooperado($this->cooperado[$taxNumber]);
         }
         return $this->cooperado[$taxNumber];
     }

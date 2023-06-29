@@ -36,8 +36,6 @@ use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
  * @method float getBaseIrpf()
  * @method CooperadoProducao setBaseProducao(float $value)
  * @method float getBaseProducao()
- * @method CooperadoProducao setBillId(int $value)
- * @method int getBillId()
  * @method CooperadoProducao setBruto(float $value)
  * @method float getBruto()
  * @method CooperadoProducao setDependentes(int $value)
