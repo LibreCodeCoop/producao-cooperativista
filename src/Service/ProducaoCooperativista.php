@@ -725,9 +725,9 @@ class ProducaoCooperativista
         $this->coletaFrraNaoPago();
         $producao = $this->getProducaoCooprativista();
         foreach ($producao as $cooperado) {
-            $invoice = $cooperado->getInvoice();
+            $akauntingDocument = $cooperado->getInvoice();
 
-            $invoice->setType('bill')
+            $akauntingDocument->setType('bill')
                 ->setId($cooperado->getBillId())
                 ->setCategoryId((int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'])
                 ->setDocumentNumber(
@@ -752,29 +752,29 @@ class ProducaoCooperativista
                 ->setContactId($cooperado->getAkauntingContactId())
                 ->setContactName($cooperado->getName())
                 ->setContactTaxNumber($cooperado->getTaxNumber());
-            $this->insereHealthInsurance($invoice);
-            $this->aplicaAdiantamentos($invoice);
-            $invoice->setItem(
+            $this->insereHealthInsurance($akauntingDocument);
+            $this->aplicaAdiantamentos($akauntingDocument);
+            $akauntingDocument->setItem(
                 itemId: $this->itemsIds['Auxílio'],
                 name: 'Ajuda de custo',
                 price: $cooperado->getAuxilio()
             );
-            $invoice->setItem(
+            $akauntingDocument->setItem(
                 itemId: $this->itemsIds['bruto'],
                 name: 'Bruto produção',
                 price: $cooperado->getBruto()
             );
-            $invoice->setItem(
+            $akauntingDocument->setItem(
                 itemId: $this->itemsIds['INSS'],
                 name: 'INSS',
                 price: $cooperado->getInss() * -1
             );
-            $invoice->setItem(
+            $akauntingDocument->setItem(
                 itemId: $this->itemsIds['IRPF'],
                 name: 'IRPF',
                 price: $cooperado->getIrpf() * -1
             );
-            $invoice->save();
+            $akauntingDocument->save();
         }
     }
 
