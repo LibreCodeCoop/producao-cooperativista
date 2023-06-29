@@ -722,9 +722,8 @@ class ProducaoCooperativista
         $this->coletaDadosDaProducaoDoMes();
         $producao = $this->getProducaoCooprativista();
         foreach ($producao as $cooperado) {
-            $akauntingDocument = $cooperado->getInvoice();
-
-            $akauntingDocument->setType('bill')
+            $cooperado->getInvoice()
+                ->setType('bill')
                 ->setCategoryId((int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'])
                 ->setDocumentNumber(
                     'PDC_' .
