@@ -767,7 +767,7 @@ class ProducaoCooperativista
                     name: 'IRPF',
                     price: $cooperado->getIrpf() * -1
                 )
-            ->save();
+                ->save();
         }
     }
 
