@@ -67,7 +67,6 @@ class Invoices
 
     public function updateDatabase(): void
     {
-        $this->logger->debug('Baixando dados de invoices');
         $this->saveList();
     }
 
