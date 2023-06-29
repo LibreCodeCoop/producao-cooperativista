@@ -25,16 +25,34 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\DB\Entity;
 
+use Doctrine\ORM\Mapping\Column;
+use Doctrine\ORM\Mapping\Entity;
+use Doctrine\ORM\Mapping\GeneratedValue;
+use Doctrine\ORM\Mapping\Id;
+
+#[Entity]
 class Customers
 {
+    #[Id]
+    #[Column(insertable: true, options: ['unsigned' => true])]
+    #[GeneratedValue(strategy: 'AUTO')]
     private int $id;
-    private ?string $name;
+    #[Column(length: 150)]
+    private string $name;
+    #[Column(length: 50, nullable: true)]
     private ?string $number;
+    #[Column(type: 'text', nullable: true)]
     private ?string $comment;
-    private ?int $visible;
-    private ?int $billable;
-    private ?string $currency;
+    #[Column(type: 'smallint')]
+    private int $visible;
+    #[Column(type: 'smallint')]
+    private int $billable;
+    #[Column(length: 3)]
+    private string $currency;
+    #[Column(length: 7, nullable: true)]
     private ?string $color;
+    #[Column(unique: true, nullable: true)]
     private ?string $vatId;
+    #[Column(type: 'bigint')]
     private ?int $timeBudget;
 }

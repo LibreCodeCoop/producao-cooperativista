@@ -49,6 +49,7 @@ final class Version20230627233141 extends AbstractMigration
         $table->addColumn('vat_id', 'string', ['notnull' => false]);
         $table->addColumn('time_budget', 'bigint');
         $table->setPrimaryKey(['id']);
+        $table->addUniqueIndex(['vat_id']);
     }
 
     public function down(Schema $schema): void
