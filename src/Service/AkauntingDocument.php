@@ -218,44 +218,38 @@ class AkauntingDocument
     {
         try {
             if ($this->getId()) {
-                try {
-                    // Check if exists with draft status
-                    $this->invoices->sendData(
-                        endpoint: '/api/documents/' . $this->getId(),
-                        query: [
-                            'search' => implode(' ', [
-                                'type:bill',
-                                'status:draft',
-                            ]),
-                        ],
-                        method: 'GET'
-                    );
-                    // Update if exists
-                    $updated = $this->invoices->sendData(
-                        endpoint: '/api/documents/' . $this->getId(),
-                        body: $this->toArray(),
-                        method: 'PATCH'
-                    );
-                    // Update local database
-                    $invoice = $this->invoices->fromArray($updated['data']);
-                    $this->invoices->saveRow($invoice);
-                } catch (\Throwable $th) {
-                    // status != draft
-                    // Do nothing if not exists
+                $response = $this->invoices->sendData(
+                    endpoint: '/api/documents/' . $this->getId(),
+                    query: [
+                        'search' => implode(' ', [
+                            'type:bill',
+                        ]),
+                    ],
+                    method: 'GET'
+                );
+                if ($response['data']['status'] !== 'draft') {
+                    // Only is possible to update billing when is draft
+                    return;
                 }
+                // Update if exists
+                $response = $this->invoices->sendData(
+                    endpoint: '/api/documents/' . $this->getId(),
+                    body: $this->toArray(),
+                    method: 'PATCH'
+                );
             } else {
-                $bill = $this->invoices->sendData(
+                $response = $this->invoices->sendData(
                     endpoint: '/api/documents',
                     body: $this->toArray()
                 );
-                // Update local database
-                $invoice = $this->invoices->fromArray($bill['data']);
-                $this->invoices->saveRow($invoice);
             }
         } catch (ClientException $e) {
             $response = $e->getResponse();
             $content = $response->toArray(false);
             throw new Exception(json_encode($content));
         }
+        // Update local database
+        $invoice = $this->invoices->fromArray($response['data']);
+        $this->invoices->saveRow($invoice);
     }
 }
