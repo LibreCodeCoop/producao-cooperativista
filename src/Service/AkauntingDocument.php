@@ -31,8 +31,6 @@ use ProducaoCooperativista\Service\Source\Invoices;
 use Symfony\Component\HttpClient\Exception\ClientException;
 
 /**
- * @method AkauntingDocument setAccountId(int $value)
- * @method int getAccountId()
  * @method AkauntingDocument setAmount(float $value)
  * @method float getAmount()
  * @method AkauntingDocument setCategoryId(int $value)
@@ -51,6 +49,8 @@ use Symfony\Component\HttpClient\Exception\ClientException;
  * @method string getDocumentNumber()
  * @method AkauntingDocument setDueAt(string $value)
  * @method string getDueAt()
+ * @method AkauntingDocument setId(int $value)
+ * @method int getId()
  * @method AkauntingDocument setIssuedAt(string $value)
  * @method string getIssuedAt()
  * @method AkauntingDocument setSearch(string $value)
@@ -63,7 +63,6 @@ use Symfony\Component\HttpClient\Exception\ClientException;
 class AkauntingDocument
 {
     use MagicGetterSetterTrait;
-    private int $accountId = 0;
     private float $amount = 0;
     private int $categoryId = 0;
     private int $contactId = 0;
@@ -139,7 +138,7 @@ class AkauntingDocument
             'status' => $this->getStatus(),
             'issued_at' => $this->getIssuedAt(),
             'due_at' => $this->getDueAt(),
-            'account_id' => $this->getAccountId(),
+            'id' => $this->getId(),
             'currency_code' => $this->getCurrencyCode(),
             'currency_rate' => $this->getCurrencyRate(),
             'notes' => implode("\n", $notes),

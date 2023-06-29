@@ -728,7 +728,6 @@ class ProducaoCooperativista
             $akauntingDocument = $cooperado->getInvoice();
 
             $akauntingDocument->setType('bill')
-                ->setId($cooperado->getBillId())
                 ->setCategoryId((int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'])
                 ->setDocumentNumber(
                     'PDC_' .
@@ -740,7 +739,6 @@ class ProducaoCooperativista
                 ->setStatus('draft')
                 ->setIssuedAt($this->getDataProcessamento()->format('Y-m-d H:i:s'))
                 ->setDueAt($this->getDataPagamento()->format('Y-m-d H:i:s'))
-                ->setAccountId(1)
                 ->setCurrencyCode('BRL')
                 ->setNote('Data geração', $this->getDataProcessamento()->format('Y-m-d'))
                 ->setNote('Produção realizada no mês', $this->inicio->format('Y-m'))
@@ -840,8 +838,8 @@ class ProducaoCooperativista
         $result = $select->executeQuery();
         while ($row = $result->fetchAssociative()) {
             $this->getCooperado($row['tax_number'])
-                ->setBillId($row['id'])
-                ->setDocumentNumber($row['document_number']);
+                ->getInvoice()
+                ->setId($row['id']);
         }
     }
 

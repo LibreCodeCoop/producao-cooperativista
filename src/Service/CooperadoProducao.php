@@ -71,7 +71,6 @@ class CooperadoProducao
     private ?float $auxilio = 0;
     private ?float $baseIrpf = 0;
     private ?float $baseProducao = 0;
-    private ?int $billId = 0;
     private ?float $bruto = 0;
     private ?int $dependentes = 0;
     private ?string $documentNumber = '';
