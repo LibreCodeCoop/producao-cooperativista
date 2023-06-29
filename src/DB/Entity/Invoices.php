@@ -25,34 +25,55 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\DB\Entity;
 
+use Doctrine\ORM\Mapping\Column;
 use Doctrine\ORM\Mapping\Entity;
-use Doctrine\ORM\Mapping\Table;
+use Doctrine\ORM\Mapping\GeneratedValue;
+use Doctrine\ORM\Mapping\Id;
 use ProducaoCooperativista\DB\Entity as DBEntity;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 
 #[Entity]
-#[Table(name: 'invoices')]
 class Invoices extends DBEntity
 {
     use MagicGetterSetterTrait;
+    #[Id]
+    #[Column(insertable: true, options: ['unsigned' => true])]
+    #[GeneratedValue(strategy: 'AUTO')]
     private int $id;
-    private int $akauntingId;
-    private ?string $type;
-    private ?\DateTime $issuedAt;
-    private ?\DateTime $dueAt;
-    private ?string $transactionOfMonth;
-    private ?float $amount;
-    private ?string $currencyCode;
-    private ?string $documentNumber;
-    private ?string $nfse;
+    #[Column(length: 50)]
+    private string $type;
+    #[Column]
+    private \DateTime $issuedAt;
+    #[Column]
+    private \DateTime $dueAt;
+    #[Column]
+    private string $transactionOfMonth;
+    #[Column]
+    private float $amount;
+    #[Column(length: 14)]
+    private string $currencyCode;
+    #[Column]
+    private string $documentNumber;
+    #[Column(nullable: true, type: 'bigint', options: ['unsigned' => true])]
+    private ?int $nfse;
+    #[Column(nullable: true)]
     private ?string $taxNumber;
+    #[Column(nullable: true)]
     private ?string $customerReference;
-    private ?int $contactId;
+    #[Column(type: 'bigint')]
+    private int $contactId;
+    #[Column(length: 191, nullable: true)]
     private ?string $contactReference;
-    private ?string $contactName;
+    #[Column]
+    private string $contactName;
+    #[Column(length: 191, nullable: true)]
     private ?string $contactType;
-    private ?int $categoryId;
-    private ?string $categoryName;
-    private ?string $categoryType;
-    private ?array $metadata;
+    #[Column(type: 'bigint')]
+    private int $categoryId;
+    #[Column]
+    private string $categoryName;
+    #[Column]
+    private string $categoryType;
+    #[Column]
+    private array $metadata;
 }
