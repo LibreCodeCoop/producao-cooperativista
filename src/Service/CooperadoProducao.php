@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service;
 
+use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Service\Source\Invoices;
 
@@ -94,19 +95,22 @@ class CooperadoProducao
     public function __construct(
         private ?int $anoFiscal,
         private Database $db,
-        private \DateTime $inicioProximoMes,
+        private Dates $dates,
+        private NumberFormatter $numberFormatter,
         private Invoices $invoices
     )
     {
         $this->anoFiscal = $anoFiscal;
         $this->setInvoice(new AkauntingDocument(
             db: $this->db,
-            inicioProximoMes: $this->inicioProximoMes,
+            dates: $this->dates,
+            numberFormatter: $this->numberFormatter,
             invoices: $this->invoices
         ));
         $this->setFrraInstance(new AkauntingDocument(
             db: $this->db,
-            inicioProximoMes: $this->inicioProximoMes,
+            dates: $this->dates,
+            numberFormatter: $this->numberFormatter,
             invoices: $this->invoices
         ));
 

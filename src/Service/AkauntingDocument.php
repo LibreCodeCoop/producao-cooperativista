@@ -28,6 +28,7 @@ namespace ProducaoCooperativista\Service;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
+use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Service\Source\Invoices;
@@ -93,7 +94,8 @@ class AkauntingDocument
 
     public function __construct(
         private Database $db,
-        private \DateTime $inicioProximoMes,
+        private Dates $dates,
+        private NumberFormatter $numberFormatter,
         private Invoices $invoices
     )
     {

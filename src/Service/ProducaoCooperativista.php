@@ -765,9 +765,10 @@ class ProducaoCooperativista
     {
         if (!isset($this->cooperado[$taxNumber])) {
             $this->cooperado[$taxNumber] = new CooperadoProducao(
-                anoFiscal: (int) $this->inicio->format('Y'),
+                anoFiscal: (int) $this->dates->getInicio()->format('Y'),
                 db: $this->db,
-                inicioProximoMes: $this->inicioProximoMes,
+                dates: $this->dates,
+                numberFormatter: $this->numberFormatter,
                 invoices: $this->invoices
             );
         }
