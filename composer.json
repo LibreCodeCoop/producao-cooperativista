@@ -21,7 +21,8 @@
     },
     "autoload": {
         "psr-4": {
-            "ProducaoCooperativista\\": "src/"
+            "ProducaoCooperativista\\": "src/",
+            "ProducaoCooperativista\\Migrations": "config/db/migrations"
         }
     },
     "bin" : [
