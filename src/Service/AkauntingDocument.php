@@ -251,5 +251,31 @@ class AkauntingDocument
         // Update local database
         $invoice = $this->invoices->fromArray($response['data']);
         $this->invoices->saveRow($invoice);
+        $this->updateFrra();
+    }
+
+    private function coletaFrraNaoPago(): void
+    {
+        $select = new QueryBuilder($this->db->getConnection());
+        $select->select('id')
+            ->addSelect('tax_number')
+            ->addSelect('document_number')
+            ->from('invoices')
+            ->where("type = 'bill'")
+            ->andWhere("category_type = 'expense'")
+            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_FRRA_CATEGORY_ID'], ParameterType::INTEGER)))
+            ->andWhere($select->expr()->eq('tax_number', $select->createNamedParameter($this->getContactTaxNumber(), ParameterType::INTEGER)));
+
+        $result = $select->executeQuery();
+        while ($row = $result->fetchAllAssociative()) {
+            $this->getCooperado()
+                ->getFrraInstance()
+                ->setId($row['id']);
+        }
+    }
+
+    private function updateFrra(): void
+    {
+        $this->coletaFrraNaoPago();
     }
 }

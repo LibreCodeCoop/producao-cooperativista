@@ -25,7 +25,9 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service;
 
+use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
+use ProducaoCooperativista\Service\Source\Invoices;
 
 /**
  * @method CooperadoProducao setAkauntingContactId(int $value)
@@ -48,6 +50,8 @@ use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
  * @method float getFrraBillId()
  * @method CooperadoProducao setFrraDocumentNumber(float $value)
  * @method float getFrraDocumentNumber()
+ * @method CooperadoProducao setFrraInstance(AkauntingDocument $value)
+ * @method AkauntingDocument getFrraInstance()
  * @method CooperadoProducao setHealthInsurance(float $value)
  * @method float getHealthInsurance()
  * @method CooperadoProducao setInss(float $value)
@@ -85,13 +89,30 @@ class CooperadoProducao
     private const STATUS_UPDATING = 1;
     private const STATUS_UPDATED = 2;
     private int $updated = self::STATUS_UPDATED;
+    private AkauntingDocument $invoice;
+    private AkauntingDocument $frraInstance;
 
     public function __construct(
         private ?int $anoFiscal,
-        private AkauntingDocument $invoice
+        private Database $db,
+        private \DateTime $inicioProximoMes,
+        private Invoices $invoices
     )
     {
         $this->anoFiscal = $anoFiscal;
+        $this->setInvoice(new AkauntingDocument(
+            db: $this->db,
+            inicioProximoMes: $this->inicioProximoMes,
+            invoices: $this->invoices
+        ));
+        $this->setFrraInstance(new AkauntingDocument(
+            db: $this->db,
+            inicioProximoMes: $this->inicioProximoMes,
+            invoices: $this->invoices
+        ));
+
+        $this->getInvoice()->setCooperado($this);
+        $this->getFrraInstance()->setCooperado($this);
     }
 
     public function __call($name, $arguments) {

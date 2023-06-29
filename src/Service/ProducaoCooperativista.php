@@ -720,7 +720,6 @@ class ProducaoCooperativista
     public function updateProducao(): void
     {
         $this->coletaDadosDaProducaoDoMes();
-        $this->coletaFrraNaoPago();
         $producao = $this->getProducaoCooprativista();
         foreach ($producao as $cooperado) {
             $akauntingDocument = $cooperado->getInvoice();
@@ -797,28 +796,6 @@ class ProducaoCooperativista
         }
     }
 
-    private function coletaFrraNaoPago(): void
-    {
-        $producao = $this->getProducaoCooprativista();
-
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('id')
-            ->addSelect('tax_number')
-            ->addSelect('document_number')
-            ->from('invoices')
-            ->where("type = 'bill'")
-            ->andWhere("category_type = 'expense'")
-            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_FRRA_CATEGORY_ID'], ParameterType::INTEGER)))
-            ->andWhere($select->expr()->in('tax_number', $select->createNamedParameter(array_keys($producao), ArrayParameterType::STRING)));
-
-        $result = $select->executeQuery();
-        while ($row = $result->fetchAssociative()) {
-            $this->getCooperado($row['tax_number'])
-                ->setFrraBillId($row['id'])
-                ->setFrraDocumentNumber($row['document_number']);
-        }
-    }
-
     /**
      * @return CooperadoProducao[]
      */
@@ -855,15 +832,10 @@ class ProducaoCooperativista
         if (!isset($this->cooperado[$taxNumber])) {
             $this->cooperado[$taxNumber] = new CooperadoProducao(
                 anoFiscal: (int) $this->inicio->format('Y'),
-                invoice: new AkauntingDocument(
-                    db: $this->db,
-                    inicioProximoMes: $this->inicioProximoMes,
-                    invoices: $this->invoices
-                )
+                db: $this->db,
+                inicioProximoMes: $this->inicioProximoMes,
+                invoices: $this->invoices
             );
-            $this->cooperado[$taxNumber]
-                ->getInvoice()
-                ->setCooperado($this->cooperado[$taxNumber]);
         }
         return $this->cooperado[$taxNumber];
     }
