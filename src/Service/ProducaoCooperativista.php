@@ -25,7 +25,6 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service;
 
-use Cmixin\BusinessDay;
 use DateTime;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
@@ -74,7 +73,6 @@ class ProducaoCooperativista
         private Users $users
     )
     {
-        BusinessDay::enable('Carbon\Carbon', $_ENV['HOLYDAYS_LIST'] ?? 'br-national');
         $this->numberFormatter = new NumberFormatter(
             $_ENV['LOCALE'] ?? 'pt_BR',
             NumberFormatter:: CURRENCY

@@ -26,6 +26,7 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Service;
 
 use Carbon\Carbon;
+use Cmixin\BusinessDay;
 use DateTime;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 
@@ -48,6 +49,11 @@ class Dates
     private DateTime $dataProcessamento;
     private DateTime $inicioProximoMes;
     private DateTime $fimProximoMes;
+
+    public function __construct()
+    {
+        BusinessDay::enable('Carbon\Carbon', $_ENV['HOLYDAYS_LIST'] ?? 'br-national');
+    }
 
     public function setInicio(DateTime $inicio): void
     {
