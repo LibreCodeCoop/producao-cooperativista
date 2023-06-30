@@ -140,6 +140,11 @@ class AkauntingDocument
         $item['total'] = ($total > 0 ? $total : $item['price']) * $item['quantity'];
         $item['discount'] = $discount;
         $item['order'] = $order;
+        $found = array_filter($this->items, fn($i) => $i['name'] === $item['name']);
+        if ($found) {
+            $this->items[key($found)] = $item;
+            return $this;
+        }
         $this->items[] = $item;
         return $this;
     }
@@ -455,8 +460,15 @@ class AkauntingDocument
 
     private function updateFrra(): self
     {
-        $frra = $this->getCooperado()->getFrraInstance();
-        $frra->save();
+        $cooperado = $this->getCooperado();
+        $frra = $cooperado->getFrraInstance();
+        $frra
+            ->setItem(
+                code: 'frra',
+                name: sprintf('Referente ao ano/mês: %s', $this->dates->getInicio()->format('Y-m')),
+                price: $cooperado->getFrra()
+            )
+            ->save();
         return $this;
     }
 
