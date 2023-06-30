@@ -110,6 +110,7 @@ class AkauntingDocument
 
     public function setItem(
         ?int $itemId = null,
+        ?int $id = null,
         ?string $code = null,
         string $name = '',
         string $description = '',
@@ -124,6 +125,9 @@ class AkauntingDocument
             $item['item_id'] = $itemId;
         } elseif ($code) {
             $item['item_id'] = $this->itemsIds[$code];
+        }
+        if ($id) {
+            $item['id'] = $id;
         }
         $item['name'] = $name;
         $item['description'] = $description;
@@ -236,7 +240,7 @@ class AkauntingDocument
             ->setNote('Data geração', $this->dates->getDataProcessamento()->format('Y-m-d'))
             ->setNote('Produção realizada no mês', $this->dates->getInicio()->format('Y-m'))
             ->setNote('Notas dos clientes pagas no mês', $this->dates->getInicioProximoMes()->format('Y-m'))
-            ->setNote('Previsão de pagamento', sprintf('%sº dia útil', $this->dates->getDiasUteis()))
+            ->setNote('Dia útil padrão de pagamento', sprintf('%sº', $this->dates->getPagamentoNoDiaUtil()))
             ->setNote('Previsão de pagamento no dia', $this->dates->getDataPagamento()->format('Y-m-d'))
             ->setNote('Base de cálculo', $this->numberFormatter->format($cooperado->getBaseProducao()))
             ->setNote('FRRA', $this->numberFormatter->format($cooperado->getFrra()))
@@ -271,7 +275,28 @@ class AkauntingDocument
     public function save(): void
     {
         try {
-            if ($this->getId()) {
+            if (!$this->getId()) {
+                $response = $this->invoices->sendData(
+                    endpoint: '/api/documents',
+                    body: $this->toArray()
+                );
+                if (isset($response['errors']['document_number'])) {
+                    $response = $this->invoices->sendData(
+                        endpoint: '/api/documents',
+                        query: [
+                            'search' => implode(' ', [
+                                'type:bill',
+                                $this->getDocumentNumber()
+                            ]),
+                        ],
+                        method: 'GET'
+                    );
+                    if (isset($response['data']) && count($response['data']) === 1) {
+                        $this->setId($response['data'][0]['id']);
+                        $this->save();
+                    }
+                }
+            } else {
                 $response = $this->invoices->sendData(
                     endpoint: '/api/documents/' . $this->getId(),
                     query: [
@@ -291,21 +316,78 @@ class AkauntingDocument
                     body: $this->toArray(),
                     method: 'PATCH'
                 );
-            } else {
-                $response = $this->invoices->sendData(
-                    endpoint: '/api/documents',
-                    body: $this->toArray()
-                );
             }
         } catch (ClientException $e) {
             $response = $e->getResponse();
             $content = $response->toArray(false);
             throw new Exception(json_encode($content));
         }
+        if (isset($response['message'])) {
+            throw new Exception(json_encode($response));
+        }
         // Update local database
         $invoice = $this->invoices->fromArray($response['data']);
         $this->invoices->saveRow($invoice);
-        $this->updateFrra();
+        $this->saveFrra();
+    }
+
+    public function loadFromAkaunting(): void
+    {
+        $response = $this->invoices->sendData(
+            endpoint: '/api/documents/' . $this->getId(),
+            query: [
+                'search' => implode(' ', [
+                    'type:bill',
+                ]),
+            ],
+            method: 'GET'
+        );
+        if ($response['data']['category_id'] === (int) $_ENV['AKAUNTING_FRRA_CATEGORY_ID']) {
+            $invoice = $this->getCooperado()->getFrraInstance();
+        } else {
+            $invoice = $this->getCooperado()->getInvoice();
+        }
+        foreach ($response['data'] as $property => $value) {
+            switch ($property) {
+                case 'notes':
+                    $invoice->setNotesFromString($value);
+                    continue 2;
+                case 'items':
+                    $invoice->setItemsFromAkaunting($value['data']);
+                    continue 2;
+            }
+            $property = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $property))));
+            if (!property_exists($invoice, $property)) {
+                continue;
+            }
+            $invoice->{'set' . ucfirst($property)}($value);
+        }
+    }
+
+    private function setItemsFromAkaunting(array $items): self
+    {
+        foreach ($items as $item) {
+            if ($item['item_id'] !== $this->itemsIds['frra']) {
+                continue;
+            }
+            $this->setItem(
+                id: $item['id'],
+                itemId: $item['item_id'],
+                name: $item['name'],
+                description: $item['description'] ?? '',
+                price: $item['price']
+            );
+        }
+        return $this;
+    }
+
+    private function setNotesFromString(string $notes): self
+    {
+        foreach (explode("\n", $notes) as $note) {
+            list($label, $value) = explode(': ', $note);
+            $this->setNote($label, $value);
+        }
+        return $this;
     }
 
     private function coletaFrraNaoPago(): void
@@ -321,15 +403,63 @@ class AkauntingDocument
             ->andWhere($select->expr()->eq('tax_number', $select->createNamedParameter($this->getContactTaxNumber(), ParameterType::INTEGER)));
 
         $result = $select->executeQuery();
-        while ($row = $result->fetchAllAssociative()) {
-            $this->getCooperado()
-                ->getFrraInstance()
-                ->setId($row['id']);
+        $row = $result->fetchAssociative();
+        if (!$row) {
+            return;
         }
+        $this->getCooperado()
+            ->getFrraInstance()
+            ->setId($row['id'])
+            ->loadFromAkaunting($row['id']);
     }
 
-    private function updateFrra(): void
+    private function saveFrra(): self
     {
         $this->coletaFrraNaoPago();
+        $frra = $this->getCooperado()->getFrraInstance();
+        if ($frra->getId()) {
+            $frra->updateFrra();
+            return $this;
+        }
+        $frra->insertFrra();
+        return $this;
+    }
+
+    private function updateFrra(): self
+    {
+        $frra = $this->getCooperado()->getFrraInstance();
+        $frra->save();
+        return $this;
+    }
+
+    private function insertFrra(): self
+    {
+        $cooperado = $this->getCooperado();
+        $this
+            ->setType('bill')
+            ->setCategoryId((int) $_ENV['AKAUNTING_FRRA_CATEGORY_ID'])
+            ->setDocumentNumber(
+                'FRRA_' .
+                $cooperado->getTaxNumber() .
+                '-' .
+                $this->dates->getDataPagamento()->format('Y-m')
+            )
+            ->setSearch('type:bill')
+            ->setStatus('draft')
+            ->setIssuedAt($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'))
+            ->setDueAt($this->dates->getPrevisaoPagamentoFrra()->format('Y-m-d H:i:s'))
+            ->setCurrencyCode('BRL')
+            ->setNote('Dia útil padrão de pagamento', sprintf('%sº', $this->dates->getPagamentoNoDiaUtil()))
+            ->setNote('Previsão de pagamento no dia', $this->dates->getPrevisaoPagamentoFrra()->format('Y-m-d'))
+            ->setContactId($cooperado->getAkauntingContactId())
+            ->setContactName($cooperado->getName())
+            ->setContactTaxNumber($cooperado->getTaxNumber())
+            ->setItem(
+                code: 'frra',
+                name: sprintf('Referente ao ano/mês: %s', $this->dates->getInicio()->format('Y-m')),
+                price: $cooperado->getFrra()
+            )
+            ->save();
+        return $this;
     }
 }

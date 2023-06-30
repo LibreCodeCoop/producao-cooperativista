@@ -36,6 +36,7 @@ use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
  * @method DateTime getDataPagamento()
  * @method DateTime getDataProcessamento()
  * @method DateTime getFimProximoMes()
+ * @method DateTime getPrevisaoPagamentoFrra()
  * @method int getPagamentoNoDiaUtil()
  */
 class Dates
@@ -49,10 +50,21 @@ class Dates
     private DateTime $dataProcessamento;
     private DateTime $inicioProximoMes;
     private DateTime $fimProximoMes;
+    private DateTime $previsaoPagamentoFrra;
 
     public function __construct()
     {
         BusinessDay::enable('Carbon\Carbon', $_ENV['HOLYDAYS_LIST'] ?? 'br-national');
+        $this->calculaPrevisaoPagamentoFrra();
+    }
+
+    private function calculaPrevisaoPagamentoFrra(): void
+    {
+        $this->previsaoPagamentoFrra = \DateTime::createFromFormat('m', $_ENV['AKAUNTING_FRRA_MES_PADRAO'])
+            ->modify('first day of this month')
+            ->setTime(00, 00, 00);
+        $carbon = Carbon::parse($this->previsaoPagamentoFrra);
+        $this->previsaoPagamentoFrra = $carbon->addBusinessDays($this->pagamentoNoDiaUtil);
     }
 
     public function setInicio(DateTime $inicio): void
