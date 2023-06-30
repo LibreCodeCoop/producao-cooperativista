@@ -277,11 +277,14 @@ class AkauntingDocument
     {
         try {
             if (!$this->getId()) {
+                // Save new
                 $response = $this->invoices->sendData(
                     endpoint: '/api/documents',
                     body: $this->toArray()
                 );
+                // If already exists a document with the same documentNumber...
                 if (isset($response['errors']['document_number'])) {
+                    // Search the item that have the same documentNumber to get the ID
                     $response = $this->invoices->sendData(
                         endpoint: '/api/documents',
                         query: [
@@ -292,12 +295,25 @@ class AkauntingDocument
                         ],
                         method: 'GET'
                     );
-                    if (isset($response['data']) && count($response['data']) === 1) {
-                        $this->setId($response['data'][0]['id']);
-                        $this->save();
+                    // If found the document....
+                    if (!isset($response['data']) || count($response['data']) !== 1) {
+                        throw new Exception(
+                            "Impossible to save the document.\n" .
+                            "Got an error when get the document from Akaunting OR the total of documents is different of 1.\n" .
+                            "Response from API:\n" .
+                            json_encode($this->toArray()) . "\n" .
+                            "#############################\n" .
+                            "Data to save:\n" .
+                            json_encode($this->toArray())
+                        );
                     }
+                    // Set the ID of existing document and request again this method to handle the update
+                    $this->setId($response['data'][0]['id']);
+                    $this->save();
+                    return;
                 }
             } else {
+                // Get the existing document to check if the current values is ok
                 $response = $this->invoices->sendData(
                     endpoint: '/api/documents/' . $this->getId(),
                     query: [
@@ -323,6 +339,7 @@ class AkauntingDocument
             $content = $response->toArray(false);
             throw new Exception(json_encode($content));
         }
+        // When the response have a message key is an error and we can't go ahead
         if (isset($response['message'])) {
             throw new Exception(json_encode($response));
         }
