@@ -265,6 +265,14 @@ class AkauntingDocument
                 name: 'Bruto produção',
                 price: $cooperado->getBruto()
             )
+            ->setTaxes();
+        return $this;
+    }
+
+    public function setTaxes(): self
+    {
+        $cooperado = $this->getCooperado();
+        $this
             ->setItem(
                 code: 'INSS',
                 name: 'INSS',
@@ -460,7 +468,17 @@ class AkauntingDocument
 
     private function updateFrra(): self
     {
+        $total = array_reduce($this->items, function (int $total, array $item) {
+            if ($item['item_id'] === $this->itemsIds['frra']) {
+                $total += $item['price'];
+            }
+            return $total;
+        }, 0);
+
         $cooperado = $this->getCooperado();
+        $cooperado->setIsFrra(true);
+        $cooperado->setBaseProducao($total);
+
         $frra = $cooperado->getFrraInstance();
         $frra
             ->setItem(
@@ -468,6 +486,7 @@ class AkauntingDocument
                 name: sprintf('Referente ao ano/mês: %s', $this->dates->getInicio()->format('Y-m')),
                 price: $cooperado->getFrra()
             )
+            ->setTaxes()
             ->save();
         return $this;
     }
@@ -475,6 +494,8 @@ class AkauntingDocument
     private function insertFrra(): self
     {
         $cooperado = $this->getCooperado();
+        $cooperado->setIsFrra(true);
+        $cooperado->setBaseProducao($cooperado->getFrra());
         $this
             ->setType('bill')
             ->setCategoryId((int) $_ENV['AKAUNTING_FRRA_CATEGORY_ID'])
@@ -499,6 +520,7 @@ class AkauntingDocument
                 name: sprintf('Referente ao ano/mês: %s', $this->dates->getInicio()->format('Y-m')),
                 price: $cooperado->getFrra()
             )
+            ->setTaxes()
             ->save();
         return $this;
     }

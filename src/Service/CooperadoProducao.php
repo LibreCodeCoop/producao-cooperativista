@@ -58,6 +58,8 @@ use ProducaoCooperativista\Service\Source\Invoices;
  * @method AkauntingDocument getInvoice()
  * @method CooperadoProducao setIrpf(float $value)
  * @method float getIrpf()
+ * @method CooperadoProducao setIsFrra(bool $value)
+ * @method bool getIsFrra()
  * @method CooperadoProducao setLiquido(float $value)
  * @method float getLiquido()
  * @method CooperadoProducao setName(string $value)
@@ -82,6 +84,7 @@ class CooperadoProducao
     private ?float $liquido = 0;
     private ?string $name = '';
     private ?string $taxNumber = '';
+    private bool $isFrra = false;
     private const STATUS_NEED_TO_UPDATE = 0;
     private const STATUS_UPDATING = 1;
     private const STATUS_UPDATED = 2;
@@ -140,19 +143,11 @@ class CooperadoProducao
     {
         $this->updated = self::STATUS_UPDATING;
 
-        $inss = new INSS();
-        $irpf = new IRPF($this->anoFiscal);
-
-        $this->setFrra($this->getBaseProducao() * (1 / 12));
+        if (!$this->isFrra) {
+            $this->setFrra($this->getBaseProducao() * (1 / 12));
+        }
         $this->setAuxilio($this->getBaseProducao() * 0.2);
         $this->setBruto($this->getBaseProducao() - $this->getAuxilio() - $this->getFrra());
-        $this->setInss($inss->calcula($this->getBruto()));
-        $this->setBaseIrpf($irpf->calculaBase(
-            $this->getBruto(),
-            $this->getInss(),
-            $this->getDependentes()
-        ));
-        $this->setIrpf($irpf->calcula($this->getBaseIrpf(), $this->getDependentes()));
         $this->setLiquido(
             $this->getBruto()
             - $this->getInss()
@@ -161,6 +156,43 @@ class CooperadoProducao
             + $this->getAuxilio()
         );
         $this->updated = self::STATUS_UPDATED;
+    }
+
+    /**
+     * When change the base all values will be set to zero
+     */
+    public function setBaseProducao(float $baseProducao): self
+    {
+        if ($baseProducao !== $this->baseProducao) {
+            $this->updated = self::STATUS_NEED_TO_UPDATE;
+        }
+        $this->baseProducao = $baseProducao;
+
+        $this->auxilio = 0;
+        $this->baseIrpf = 0;
+        $this->bruto = 0;
+        $this->frra = 0;
+        $this->healthInsurance = 0;
+        $this->inss = 0;
+        $this->irpf = 0;
+        $this->liquido = 0;
+
+        $this->calculaImpostos();
+        return $this;
+    }
+
+    public function calculaImpostos(): void
+    {
+        $inss = new INSS();
+        $irpf = new IRPF($this->anoFiscal);
+
+        $this->setInss($inss->calcula($this->getBruto()));
+        $this->setBaseIrpf($irpf->calculaBase(
+            $this->getBruto(),
+            $this->getInss(),
+            $this->getDependentes()
+        ));
+        $this->setIrpf($irpf->calcula($this->getBaseIrpf(), $this->getDependentes()));
     }
 
     public function toArray(): array
