@@ -196,11 +196,8 @@ class Invoices
         return $row;
     }
 
-    private function convertDate($date): ?DateTime
+    private function convertDate(string $date): DateTime
     {
-        if (!$date) {
-            return null;
-        }
         $date = preg_replace('/[+-]\d{2}:\d{2}$/', '', $date);
         $date = str_replace('T', ' ', $date);
         $date = DateTime::createFromFormat('Y-m-d H:i:s', $date);
