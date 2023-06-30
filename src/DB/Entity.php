@@ -41,15 +41,31 @@ class Entity
         foreach ($attributes as $name => $value) {
             $property = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $name))));
             if (property_exists($this, $property)) {
-                $class = new ReflectionClass($this);
-                $reflectionProperty = $class->getProperty($property);
-                $type = $reflectionProperty->getType();
-                if (str_contains((string) $type, 'DateTime') && is_string($value)) {
+                list($nullable, $propertyType) = $this->getTypeOfProperty($property);
+                if (str_contains($propertyType, 'DateTime') && is_string($value)) {
                     $value = new DateTime($value);
+                }
+                $varType = get_debug_type($value);
+                if ($varType !== $propertyType) {
+                    if ($varType !== 'null') {
+                        settype($value, $propertyType);
+                    }
                 }
                 $methodName = sprintf('%s%s', 'set', ucfirst($property));
                 $this->{$methodName}($value);
             }
         }
+    }
+
+    private function getTypeOfProperty($property): array
+    {
+        $class = new ReflectionClass($this);
+        $reflectionProperty = $class->getProperty($property);
+        $type = (string) $reflectionProperty->getType();
+        $nullable = str_contains($type, '?');
+        if ($nullable) {
+            $type = ltrim($type, '?');
+        }
+        return [$nullable, $type];
     }
 }
