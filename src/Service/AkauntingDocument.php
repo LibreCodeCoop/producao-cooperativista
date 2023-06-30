@@ -350,6 +350,10 @@ class AkauntingDocument
         }
         foreach ($response['data'] as $property => $value) {
             switch ($property) {
+                case 'amount':
+                    // The amount need to be calculated by items every time
+                    $this->setAmount(0);
+                    continue 2;
                 case 'notes':
                     $invoice->setNotesFromString($value);
                     continue 2;
