@@ -427,6 +427,7 @@ class AkauntingDocument
         $frra = $this->getCooperado()->getFrraInstance();
         $frra->savingFrra = true;
         if ($frra->getId()) {
+            $frra->setSearch('type:bill');
             $frra->updateFrra();
             $frra->savingFrra = false;
             return $this;
