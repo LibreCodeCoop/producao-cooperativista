@@ -95,10 +95,6 @@ class Invoices
             'search' => implode(' ', $search),
         ]);
         foreach ($list as $row) {
-            $row = $this->parseNotes($row);
-            $row = $this->defineTransactionOfMonth($row);
-            $row = $this->defineCustomerReference($row);
-            $row = $this->convertFields($row);
             $invoice = $this->fromArray($row);
             $this->invoices[$this->getType()][] = $invoice;
         }
@@ -107,6 +103,10 @@ class Invoices
 
     public function fromArray(array $array): InvoicesEntity
     {
+        $array = $this->parseNotes($array);
+        $array = $this->defineTransactionOfMonth($array);
+        $array = $this->defineCustomerReference($array);
+        $array = $this->convertFields($array);
         $invoice = $this->db->getEntityManager()->find('ProducaoCooperativista\DB\Entity\Invoices', $array['id']);
         if (!$invoice) {
             $invoice = new InvoicesEntity();
