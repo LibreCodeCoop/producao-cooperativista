@@ -83,6 +83,7 @@ class AkauntingDocument
     private string $search = '';
     private string $status = '';
     private string $type = '';
+    private bool $savingFrra = false;
 
     private CooperadoProducao $cooperado;
 
@@ -415,13 +416,19 @@ class AkauntingDocument
 
     private function saveFrra(): self
     {
+        if ($this->savingFrra) {
+            return $this;
+        }
         $this->coletaFrraNaoPago();
         $frra = $this->getCooperado()->getFrraInstance();
+        $frra->savingFrra = true;
         if ($frra->getId()) {
             $frra->updateFrra();
+            $frra->savingFrra = false;
             return $this;
         }
         $frra->insertFrra();
+        $frra->savingFrra = false;
         return $this;
     }
 
