@@ -379,7 +379,6 @@ class AkauntingDocument
                 id: $item['id'],
                 itemId: $item['item_id'],
                 name: $item['name'],
-                description: $item['description'] ?? '',
                 price: $item['price']
             );
         }
