@@ -454,7 +454,7 @@ class AkauntingDocument
                 'FRRA_' .
                 $cooperado->getTaxNumber() .
                 '-' .
-                $this->dates->getDataPagamento()->format('Y-m')
+                $this->dates->getPrevisaoPagamentoFrra()->format('Y-m')
             )
             ->setSearch('type:bill')
             ->setStatus('draft')
