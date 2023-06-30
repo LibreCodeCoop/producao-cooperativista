@@ -46,8 +46,6 @@ use ProducaoCooperativista\Service\Source\Invoices;
  * @method string getDocumentNumber()
  * @method CooperadoProducao setFrra(float $value)
  * @method float getFrra()
- * @method CooperadoProducao setFrraBillId(float $value)
- * @method float getFrraBillId()
  * @method CooperadoProducao setFrraDocumentNumber(float $value)
  * @method float getFrraDocumentNumber()
  * @method CooperadoProducao setFrraInstance(AkauntingDocument $value)
@@ -77,7 +75,6 @@ class CooperadoProducao
     private ?int $dependentes = 0;
     private ?string $documentNumber = '';
     private ?float $frra = 0;
-    private ?int $frraBillId = 0;
     private ?string $frraDocumentNumber = '';
     private ?float $healthInsurance = 0;
     private ?float $inss = 0;
