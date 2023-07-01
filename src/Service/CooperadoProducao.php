@@ -132,7 +132,7 @@ class CooperadoProducao
             }
             return $this->$property;
         }
-        if ($this->$property === $arguments[0]) {
+        if (isset($this->$property) && $this->$property === $arguments[0]) {
             return $this;
         }
         if ($this->updated !== self::STATUS_UPDATING) {
