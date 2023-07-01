@@ -663,29 +663,6 @@ class ProducaoCooperativista
         }
     }
 
-    private function getAkauntingBillIdDaProducao(): void
-    {
-        $producao = $this->getProducaoCooprativista();
-
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('id')
-            ->addSelect('tax_number')
-            ->addSelect('document_number')
-            ->from('invoices')
-            ->where("type = 'bill'")
-            ->andWhere("category_type = 'expense'")
-            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'], ParameterType::INTEGER)))
-            ->andWhere($select->expr()->in('tax_number', $select->createNamedParameter(array_keys($producao), ArrayParameterType::STRING)))
-            ->andWhere($select->expr()->eq('transaction_of_month', $select->createNamedParameter($this->dates->getDataPagamento()->format('Y-m'))));
-
-        $result = $select->executeQuery();
-        while ($row = $result->fetchAssociative()) {
-            $this->getCooperado($row['tax_number'])
-                ->getInvoice()
-                ->setId($row['id']);
-        }
-    }
-
     /**
      * @return CooperadoProducao[]
      */
@@ -698,7 +675,6 @@ class ProducaoCooperativista
         $this->cadastraCooperadoQueProduziuNoAkaunting();
         $this->distribuiProducaoExterna();
         $this->distribuiSobras();
-        $this->getAkauntingBillIdDaProducao();
         $this->logger->debug('Produção por cooperado ooperado: {json}', ['json' => json_encode($this->cooperado)]);
         return $this->cooperado;
     }

@@ -265,7 +265,8 @@ class AkauntingDocument
                 name: 'Bruto produção',
                 price: $cooperado->getBruto()
             )
-            ->setTaxes();
+            ->setTaxes()
+            ->coletaProducaoNaoPaga();
         return $this;
     }
 
@@ -424,7 +425,30 @@ class AkauntingDocument
         return $this;
     }
 
-    private function coletaFrraNaoPago(): void
+    private function coletaProducaoNaoPaga(): void
+    {
+        $select = new QueryBuilder($this->db->getConnection());
+        $select->select('id')
+            ->addSelect('tax_number')
+            ->addSelect('document_number')
+            ->from('invoices')
+            ->where("type = 'bill'")
+            ->andWhere("category_type = 'expense'")
+            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'], ParameterType::INTEGER)))
+            ->andWhere($select->expr()->in('tax_number', $select->createNamedParameter($this->getContactTaxNumber(), ParameterType::INTEGER)))
+            ->andWhere($select->expr()->eq('transaction_of_month', $select->createNamedParameter($this->dates->getDataPagamento()->format('Y-m'))));
+
+        $result = $select->executeQuery();
+        $row = $result->fetchAssociative();
+        if (!$row) {
+            return;
+        }
+        $this->getCooperado($row['tax_number'])
+            ->getInvoice()
+            ->setId($row['id']);
+    }
+
+    private function coletaFrraNaoPago(): self
     {
         $select = new QueryBuilder($this->db->getConnection());
         $select->select('id')
@@ -434,17 +458,18 @@ class AkauntingDocument
             ->where("type = 'bill'")
             ->andWhere("category_type = 'expense'")
             ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_FRRA_CATEGORY_ID'], ParameterType::INTEGER)))
-            ->andWhere($select->expr()->eq('tax_number', $select->createNamedParameter($this->getContactTaxNumber(), ParameterType::INTEGER)));
+            ->andWhere($select->expr()->eq('tax_number', $select->createNamedParameter($this->getCooperado()->getTaxNumber(), ParameterType::INTEGER)));
 
         $result = $select->executeQuery();
         $row = $result->fetchAssociative();
         if (!$row) {
-            return;
+            return $this;
         }
         $this->getCooperado()
             ->getFrraInstance()
             ->setId($row['id'])
             ->loadFromAkaunting($row['id']);
+        return $this;
     }
 
     private function saveFrra(): self
@@ -452,8 +477,9 @@ class AkauntingDocument
         if ($this->savingFrra) {
             return $this;
         }
-        $this->coletaFrraNaoPago();
-        $frra = $this->getCooperado()->getFrraInstance();
+        $frra = $this->getCooperado()
+            ->getFrraInstance()
+            ->coletaFrraNaoPago();
         $frra->savingFrra = true;
         if ($frra->getId()) {
             $frra->setSearch('type:bill');
@@ -484,7 +510,7 @@ class AkauntingDocument
             ->setItem(
                 code: 'frra',
                 name: sprintf('Referente ao ano/mês: %s', $this->dates->getInicio()->format('Y-m')),
-                price: $cooperado->getFrra()
+                price: $cooperado->getBaseProducao()
             )
             ->setTaxes()
             ->save();
@@ -518,7 +544,7 @@ class AkauntingDocument
             ->setItem(
                 code: 'frra',
                 name: sprintf('Referente ao ano/mês: %s', $this->dates->getInicio()->format('Y-m')),
-                price: $cooperado->getFrra()
+                price: $cooperado->getBaseProducao()
             )
             ->setTaxes()
             ->save();
