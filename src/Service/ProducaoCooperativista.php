@@ -625,8 +625,8 @@ class ProducaoCooperativista
                 'type' => $insert->createNamedParameter('vendor'),
                 'name' => $insert->createNamedParameter($name),
                 'tax_number' => $insert->createNamedParameter($taxNumber),
-                'country' => 'BR',
-                'currency_code' => 'BRL',
+                'country' => $insert->createNamedParameter('BR'),
+                'currency_code' => $insert->createNamedParameter('BRL'),
                 'enabled' => 1,
                 'created_at' => $insert->createNamedParameter($this->dates->getDataProcessamento()->format('Y-m-d H:i:s')),
                 'updated_at' => $insert->createNamedParameter($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'))
