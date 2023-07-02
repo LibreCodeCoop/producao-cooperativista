@@ -280,8 +280,8 @@ class AkauntingDocument
                 price: $cooperado->getInss() * -1
             )
             ->setItem(
-                code: 'IRPF',
-                name: 'IRPF',
+                code: 'IRRF',
+                name: 'IRRF',
                 price: $cooperado->getIrpf() * -1
             );
         return $this;
