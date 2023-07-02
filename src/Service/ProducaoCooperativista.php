@@ -448,8 +448,7 @@ class ProducaoCooperativista
                 AND category_name IN (
                     'Cliente',
                     'Serviços de clientes',
-                    'Recorrência',
-                    'Serviço'
+                    'Recorrência'
                 )
                 SQL
             );
@@ -471,8 +470,7 @@ class ProducaoCooperativista
                 AND category_name IN (
                     'Cliente',
                     'Serviços de clientes',
-                    'Recorrência',
-                    'Serviço'
+                    'Recorrência'
                 )
                 SQL
             );
