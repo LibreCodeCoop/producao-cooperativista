@@ -38,25 +38,25 @@ class Timesheet
     #[GeneratedValue(strategy: 'AUTO')]
     private int $id;
     #[Column(type: 'bigint', options: ['unsigned' => true])]
-    private ?int $activityId;
+    private int $activityId;
     #[Column(type: 'bigint')]
-    private ?int $projectId;
+    private int $projectId;
     #[Column(type: 'bigint')]
-    private ?int $userId;
+    private int $userId;
     #[Column]
-    private ?\DateTime $begin;
+    private \DateTime $begin;
     #[Column]
-    private ?\DateTime $end;
-    #[Column(type: 'bigint')]
+    private \DateTime $end;
+    #[Column(type: 'bigint', nullable: true)]
     private ?int $duration;
-    #[Column(type: 'text')]
+    #[Column(type: 'text', nullable: true)]
     private ?string $description;
     #[Column]
-    private ?float $rate;
+    private float $rate;
     #[Column]
-    private ?float $internalrate;
+    private float $internalrate;
     #[Column(type: 'smallint')]
-    private ?int $exported;
+    private int $exported;
     #[Column(type: 'smallint')]
-    private ?int $billable;
+    private int $billable;
 }

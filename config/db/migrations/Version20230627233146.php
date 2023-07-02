@@ -57,7 +57,6 @@ final class Version20230627233146 extends AbstractMigration
         $table->addColumn('category_name', 'string');
         $table->addColumn('category_type', 'string');
         $table->addColumn('metadata', 'json');
-        $table->addUniqueIndex(['id']);
         $table->setPrimaryKey(['id']);
     }
 

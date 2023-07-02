@@ -27,7 +27,6 @@ namespace ProducaoCooperativista\DB\Entity;
 
 use Doctrine\ORM\Mapping\Column;
 use Doctrine\ORM\Mapping\Entity;
-use Doctrine\ORM\Mapping\GeneratedValue;
 use Doctrine\ORM\Mapping\Id;
 use ProducaoCooperativista\DB\Entity as DBEntity;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
@@ -37,7 +36,7 @@ class Invoices extends DBEntity
 {
     use MagicGetterSetterTrait;
     #[Id]
-    #[Column(unique: true, insertable: true, options: ['unsigned' => true])]
+    #[Column(insertable: true, options: ['unsigned' => true])]
     private int $id;
     #[Column(length: 50)]
     private string $type;

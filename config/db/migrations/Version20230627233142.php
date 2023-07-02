@@ -44,8 +44,8 @@ final class Version20230627233142 extends AbstractMigration
         $table->addColumn('user_id', 'bigint');
         $table->addColumn('begin', 'datetime');
         $table->addColumn('end', 'datetime');
-        $table->addColumn('duration', 'bigint');
-        $table->addColumn('description', 'text');
+        $table->addColumn('duration', 'bigint', ['notnull' => false]);
+        $table->addColumn('description', 'text', ['notnull' => false]);
         $table->addColumn('rate', 'float');
         $table->addColumn('internalRate', 'float');
         $table->addColumn('exported', 'smallint');
