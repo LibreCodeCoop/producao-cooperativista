@@ -236,7 +236,7 @@ class AkauntingDocument
                 'PDC_' .
                 $cooperado->getTaxNumber() .
                 '-' .
-                $this->dates->getDataPagamento()->format('Y-m')
+                $this->dates->getInicio()->format('Y-m')
             )
             ->setSearch('type:bill')
             ->setStatus('draft')
