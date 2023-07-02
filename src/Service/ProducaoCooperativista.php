@@ -680,7 +680,7 @@ class ProducaoCooperativista
     private function distribuiSobras(): void
     {
         $percentualTrabalhadoPorCliente = $this->getPercentualTrabalhadoPorCliente();
-        $sobras = $this->getTotalSobras();
+        $sobras = $this->getTotalSobrasDoMes();
         $cnpjClientesInternos = explode(',', $_ENV['CNPJ_CLIENTES_INTERNOS']);
         foreach ($percentualTrabalhadoPorCliente as $row) {
             if (!in_array($row['cliente_codigo'], $cnpjClientesInternos)) {
@@ -748,10 +748,31 @@ class ProducaoCooperativista
         return $baseProducao;
     }
 
-    private function getTotalSobras(): float
+    private function getTotalSobrasDoMes(): float
     {
         $this->distribuiProducaoExterna();
-        return $this->getBaseCalculoDispendios() - $this->getTotalDispendios() - $this->getTotalDistribuido();
+        return $this->getBaseCalculoDispendios()
+            + $this->getTotalSobrasDistribuidasNoMes()
+            - $this->getTotalDispendios()
+            - $this->getTotalDistribuido();
+    }
+
+    private function getTotalSobrasDistribuidasNoMes(): float
+    {
+        $select = new QueryBuilder($this->db->getConnection());
+        $select->select('SUM(amount) as total')
+            ->from('invoices')
+            ->where("type = 'bill'")
+            ->andWhere("category_type = 'expense'")
+            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID'], ParameterType::INTEGER)))
+            ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
+
+        $result = $select->executeQuery();
+        $total = 0;
+        while ($item = $result->fetchOne()) {
+            $total +=$item;
+        }
+        return $total;
     }
 
     public function exportToCsv(): string
