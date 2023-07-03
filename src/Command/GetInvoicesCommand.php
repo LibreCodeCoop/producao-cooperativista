@@ -78,16 +78,16 @@ class GetInvoicesCommand extends BaseCommand
             return Command::INVALID;
         }
         $date = DateTime::createFromFormat('Y-m', $input->getOption('year-month'));
-        $list = $this->invoices->getFromApi(
-            date: $date,
-            companyId: (int) $input->getOption('company'),
-            type: (string) $input->getOption('type')
-        );
+        $list = $this->invoices
+            ->setDate($date)
+            ->setCompanyId((int) $input->getOption('company'))
+            ->setType((string) $input->getOption('type'))
+            ->getList();
         if ($input->getOption('csv')) {
             $output->write($this->toCsv($list));
         }
         if ($input->getOption('database')) {
-            $this->invoices->saveToDatabase($list, $date);
+            $this->invoices->saveList();
         }
         return Command::SUCCESS;
     }

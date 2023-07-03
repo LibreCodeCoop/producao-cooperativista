@@ -73,7 +73,7 @@ trait Akaunting
                 ]
             ],
         );
-        $response = $result->toArray();
+        $response = $result->toArray(false);
         return $response;
     }
 }

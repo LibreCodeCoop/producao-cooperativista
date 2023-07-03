@@ -23,21 +23,34 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Helper;
+namespace ProducaoCooperativista\DB\Entity;
 
-trait MagicGetterSetterTrait {
-    public function __call($name, $arguments) {
-        if (!preg_match('/^(?<type>get|set)(?<property>.+)/', $name, $matches)) {
-            throw new \LogicException(sprintf('Cannot set non existing property %s->%s = %s.', \get_class($this), $name, var_export($arguments, true)));
-        }
-        $property = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $matches['property']))));
-        if (!property_exists($this, $property)) {
-            throw new \LogicException(sprintf('Cannot set non existing property %s->%s = %s.', \get_class($this), $name, var_export($arguments, true)));
-        }
-        if ($matches['type'] === 'get') {
-            return $this->$property;
-        }
-        $this->$property = $arguments[0] ?? null;
-        return $this;
-    }
+use Doctrine\ORM\Mapping\Column;
+use Doctrine\ORM\Mapping\Entity;
+use Doctrine\ORM\Mapping\GeneratedValue;
+use Doctrine\ORM\Mapping\Id;
+
+#[Entity]
+class Users
+{
+    #[Id]
+    #[Column(insertable: true, options: ['unsigned' => true])]
+    #[GeneratedValue(strategy: 'AUTO')]
+    private int $id;
+    #[Column(length: 60)]
+    private string $alias;
+    #[Column(length: 180, unique: true)]
+    private string $kimaiUsername;
+    #[Column(nullable: true, type: 'bigint')]
+    private ?int $akauntingContactId;
+    #[Column(length: 20)]
+    private string $taxNumber;
+    #[Column(type: 'smallint')]
+    private int $dependents;
+    #[Column]
+    private float $healthInsurance;
+    #[Column(type: 'smallint')]
+    private int $enabled;
+    #[Column]
+    private array $metadata;
 }

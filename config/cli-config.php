@@ -23,21 +23,21 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Helper;
+use Doctrine\ORM\Tools\Console\ConsoleRunner;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
+use ProducaoCooperativista\DB\Database;
 
-trait MagicGetterSetterTrait {
-    public function __call($name, $arguments) {
-        if (!preg_match('/^(?<type>get|set)(?<property>.+)/', $name, $matches)) {
-            throw new \LogicException(sprintf('Cannot set non existing property %s->%s = %s.', \get_class($this), $name, var_export($arguments, true)));
-        }
-        $property = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $matches['property']))));
-        if (!property_exists($this, $property)) {
-            throw new \LogicException(sprintf('Cannot set non existing property %s->%s = %s.', \get_class($this), $name, var_export($arguments, true)));
-        }
-        if ($matches['type'] === 'get') {
-            return $this->$property;
-        }
-        $this->$property = $arguments[0] ?? null;
-        return $this;
-    }
-}
+// replace with file to your own project bootstrap
+require_once 'src/bootstrap.php';
+
+
+$logger = new Logger('PRODUCAO_COOPERATIVISTA');
+$logger->pushHandler(new StreamHandler('logs/system.log'));
+
+$database = new Database($logger);
+
+// replace with mechanism to retrieve EntityManager in your app
+$entityManager = $database->getEntityManager();
+
+return ConsoleRunner::createHelperSet($entityManager);

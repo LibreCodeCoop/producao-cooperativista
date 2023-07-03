@@ -116,9 +116,9 @@ class MakeProducaoCommand extends BaseCommand
         if ((bool) $input->getOption('baixar-dados')) {
             $this->producaoCooperativista->loadFromExternalSources($inicio);
         }
-        $this->producaoCooperativista->setDiaUtilPagamento($diaUtilPagamento);
-        $this->producaoCooperativista->setInicio($inicio);
-        $this->producaoCooperativista->setDiasUteis($diasUteis);
+        $this->producaoCooperativista->dates->setDiaUtilPagamento($diaUtilPagamento);
+        $this->producaoCooperativista->dates->setInicio($inicio);
+        $this->producaoCooperativista->dates->setDiasUteis($diasUteis);
         $this->producaoCooperativista->setPercentualMaximo($percentualMaximo);
         $this->producaoCooperativista->setPrevisao($previsao);
 

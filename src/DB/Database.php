@@ -29,6 +29,9 @@ use Doctrine\DBAL\Configuration;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Logging\Middleware;
+use Doctrine\ORM\EntityManager;
+use Doctrine\ORM\Mapping\UnderscoreNamingStrategy;
+use Doctrine\ORM\ORMSetup;
 use Psr\Log\LoggerInterface;
 
 class Database
@@ -37,6 +40,10 @@ class Database
      * @var Connection[]
      */
     private array $connection;
+    /**
+     * @var EntityManager[]
+     */
+    private array $entityManager;
     public const DB_LOCAL = 'local';
     public const DB_AKAUNTING = 'akaunting';
 
@@ -54,6 +61,14 @@ class Database
             'driver' => $_ENV['DB_ADAPTER'],
         ], $config);
 
+        $configOrm = ORMSetup::createAttributeMetadataConfiguration(['src/DB/Entity']);
+        $configOrm->setNamingStrategy(new UnderscoreNamingStrategy(CASE_LOWER));
+        $configOrm->setMiddlewares([$logMiddleware]);
+        $this->entityManager[self::DB_LOCAL] = new EntityManager(
+            $this->connection[self::DB_LOCAL],
+            $configOrm
+        );
+
         $this->connection[self::DB_AKAUNTING] = DriverManager::getConnection([
             'dbname' => $_ENV['DB_AKAUNTING_NAME'],
             'user' => $_ENV['DB_AKAUNTING_USER'],
@@ -66,5 +81,10 @@ class Database
     public function getConnection(string $place = self::DB_LOCAL): Connection
     {
         return $this->connection[$place];
+    }
+
+    public function getEntityManager(): EntityManager
+    {
+        return $this->entityManager[self::DB_LOCAL];
     }
 }

@@ -25,15 +25,13 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service;
 
-use Carbon\Carbon;
-use Cmixin\BusinessDay;
 use DateTime;
-use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
 use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
+use ProducaoCooperativista\Helper\Dates;
 use ProducaoCooperativista\Service\Source\Customers;
 use ProducaoCooperativista\Service\Source\Invoices;
 use ProducaoCooperativista\Service\Source\Nfse;
@@ -42,15 +40,16 @@ use ProducaoCooperativista\Service\Source\Timesheets;
 use ProducaoCooperativista\Service\Source\Transactions;
 use ProducaoCooperativista\Service\Source\Users;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\HttpClient\Exception\ClientException;
 
 class ProducaoCooperativista
 {
     private array $custosPorCliente = [];
     private array $valoresPorProjeto = [];
     private array $percentualTrabalhadoPorCliente = [];
-    /** @var CooperadoProducao[] */
+    /** @var Cooperado[] */
     private array $cooperado = [];
+    /** @var Producao[] */
+    private array $producao = [];
     private int $totalCooperados = 0;
     private float $totalNotas = 0;
     private float $totalCustoCliente = 0;
@@ -59,18 +58,10 @@ class ProducaoCooperativista
     private float $baseCalculoDispendios = 0;
     private int $percentualMaximo = 0;
     private float $percentualDispendios = 0;
-    private int $diasUteis = 0;
     private bool $sobrasDistribuidas = false;
     private bool $previsao = false;
-    private ?DateTime $inicio = null;
-    private DateTime $fim;
-    private DateTime $inicioProximoMes;
-    private DateTime $fimProximoMes;
-    private int $pagamentoNoDiaUtil = 5;
-    private DateTime $dataPagamento;
-    private DateTime $dataProcessamento;
+    public Dates $dates;
     private NumberFormatter $numberFormatter;
-    private array $itemsIds;
 
     public function __construct(
         private Database $db,
@@ -84,12 +75,11 @@ class ProducaoCooperativista
         private Users $users
     )
     {
-        BusinessDay::enable('Carbon\Carbon', $_ENV['HOLYDAYS_LIST'] ?? 'br-national');
         $this->numberFormatter = new NumberFormatter(
             $_ENV['LOCALE'] ?? 'pt_BR',
             NumberFormatter:: CURRENCY
         );
-        $this->itemsIds = json_decode($_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS'], true);
+        $this->dates = new Dates();
     }
 
     private function getBaseCalculoDispendios(): float
@@ -99,52 +89,6 @@ class ProducaoCooperativista
         }
         $this->baseCalculoDispendios = $this->getTotalNotas() - $this->getTotalCustoCliente();
         return $this->baseCalculoDispendios;
-    }
-
-    public function setInicio(DateTime $inicio): void
-    {
-        if ($this->inicio) {
-            return;
-        }
-        $this->inicio = $inicio
-            ->modify('first day of this month')
-            ->setTime(00, 00, 00);
-        $fim = clone $inicio;
-        $this->fim = $fim->modify('last day of this month')
-            ->setTime(23, 59, 59);
-
-        $this->inicioProximoMes = (clone $inicio)->modify('first day of next month');
-        $this->fimProximoMes = (clone $fim)->modify('last day of next month');
-    }
-
-    public function setDiaUtilPagamento(int $dia): void
-    {
-        $this->pagamentoNoDiaUtil = $dia;
-    }
-
-    private function getDataPagamento(): DateTime
-    {
-        try {
-            return $this->dataPagamento;
-        } catch (\Throwable $th) {
-            $inicoMes = (clone $this->inicioProximoMes)->modify('first day of next month');
-            $carbon = Carbon::parse($inicoMes);
-            $dataPagamento = $carbon->addBusinessDays($this->pagamentoNoDiaUtil);
-            $string = $dataPagamento->format('Y-m-d');
-            $this->dataProcessamento = new DateTime();
-            if ($string >= $this->dataProcessamento->format('Y-m-d')) {
-                $this->dataPagamento = new DateTime($string);
-            } else {
-                $this->dataPagamento = $this->dataProcessamento;
-            }
-        }
-        return $this->dataPagamento;
-    }
-
-    private function getDataProcessamento(): DateTime
-    {
-        $this->getDataPagamento();
-        return $this->dataProcessamento;
     }
 
     /**
@@ -184,7 +128,7 @@ class ProducaoCooperativista
      */
     private function percentualLibreCode(): float
     {
-        $totalPossivelDeHoras = $this->getTotalCooperados() * 8 * $this->getDiasUteisNoMes();
+        $totalPossivelDeHoras = $this->getTotalCooperados() * 8 * $this->dates->getDiasUteisNoMes();
 
         $totalHorasLibreCode = $this->getTotalSegundosLibreCode() / 60 / 60;
         $percentualLibreCode = $totalHorasLibreCode * 100 / $totalPossivelDeHoras;
@@ -194,15 +138,19 @@ class ProducaoCooperativista
 
     public function loadFromExternalSources(DateTime $inicio): void
     {
-        $this->setInicio($inicio);
+        $this->dates->setInicio($inicio);
         $this->logger->debug('Baixando dados externos');
         $this->customers->updateDatabase();
-        $this->nfse->updateDatabase($this->inicioProximoMes);
+        $this->nfse->updateDatabase($this->dates->getInicioProximoMes());
         $this->projects->updateDatabase();
-        $this->invoices->updateDatabase($this->inicioProximoMes, 'invoice');
-        $this->invoices->updateDatabase($this->inicioProximoMes, 'bill');
-        $this->timesheets->updateDatabase($this->inicio);
-        $this->transactions->updateDatabase($this->inicioProximoMes);
+        $this->invoices
+            ->setDate($this->dates->getInicioProximoMes())
+            ->setType('invoice')
+            ->saveList()
+            ->setType('bill')
+            ->saveList();
+        $this->timesheets->updateDatabase($this->dates->getInicio());
+        $this->transactions->updateDatabase($this->dates->getInicioProximoMes());
         $this->users->updateDatabase();
     }
 
@@ -226,8 +174,8 @@ class ProducaoCooperativista
             SQL
         );
         $result = $stmt->executeQuery([
-            'inicio' => $this->inicio->format('Y-m-d'),
-            'fim' => $this->fim->format('Y-m-d H:i:s'),
+            'inicio' => $this->dates->getInicio()->format('Y-m-d'),
+            'fim' => $this->dates->getFim()->format('Y-m-d H:i:s'),
         ]);
         $this->totalSegundosLibreCode = (int) $result->fetchOne();
         $this->logger->debug('Total segundos LibreCode: {total}', ['total' => $this->totalSegundosLibreCode]);
@@ -256,16 +204,16 @@ class ProducaoCooperativista
             SQL
         );
         $result = $stmt->executeQuery([
-            'inicio' => $this->inicio->format('Y-m-d'),
-            'fim' => $this->fim->format('Y-m-d'),
+            'inicio' => $this->dates->getInicio()->format('Y-m-d'),
+            'fim' => $this->dates->getFim()->format('Y-m-d'),
         ]);
         $result = $result->fetchOne();
 
         if (!$result) {
             $messagem = sprintf(
                 'Sem registro de horas no Kimai entre os dias %s e %s.',
-                $this->inicio->format(('Y-m-d')),
-                $this->fim->format(('Y-m-d'))
+                $this->dates->getInicio()->format(('Y-m-d')),
+                $this->dates->getFim()->format(('Y-m-d'))
             );
             throw new Exception($messagem);
         }
@@ -327,7 +275,7 @@ class ProducaoCooperativista
             );
         }
         $result = $stmt->executeQuery([
-            'ano_mes' => $this->inicioProximoMes->format('Y-m'),
+            'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m'),
         ]);
         $this->totalDispendios = (float) $result->fetchOne();
         $this->logger->debug('Total dispêndios: {total}', ['total' => $this->totalDispendios]);
@@ -359,14 +307,14 @@ class ProducaoCooperativista
             SQL
         );
         $result = $stmt->executeQuery([
-            'ano_mes' => $this->inicioProximoMes->format('Y-m'),
+            'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m'),
         ]);
         $this->totalNotas = (float) $result->fetchOne();
         if (!$this->totalNotas) {
             $messagem = sprintf(
-                'Sem notas entre os dias %s e %s.',
-                $this->inicioProximoMes->format(('Y-m-d')),
-                $this->fimProximoMes->format(('Y-m-d'))
+                'Sem faturas de vendas entre os dias %s e %s.',
+                $this->dates->getInicioProximoMes()->format(('Y-m-d')),
+                $this->dates->getFimProximoMes()->format(('Y-m-d'))
             );
             throw new Exception($messagem);
         }
@@ -444,7 +392,7 @@ class ProducaoCooperativista
             );
         }
         $result = $stmt->executeQuery([
-            'ano_mes' => $this->inicioProximoMes->format('Y-m'),
+            'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m'),
         ]);
         $this->custosPorCliente = [];
         $errors = [];
@@ -459,8 +407,8 @@ class ProducaoCooperativista
                 "Código de cliente inválido no Akaunting para calcular custos por cliente.\n" .
                 "Intervalo: %s a %s\n" .
                 "Dados:\n%s",
-                $this->inicioProximoMes->format('Y-m-d'),
-                $this->fimProximoMes->format('Y-m-d'),
+                $this->dates->getInicioProximoMes()->format('Y-m-d'),
+                $this->dates->getFimProximoMes()->format('Y-m-d'),
                 json_encode($errors, JSON_PRETTY_PRINT)
             ));
         }
@@ -499,11 +447,11 @@ class ProducaoCooperativista
                 FROM invoices i
                 WHERE transaction_of_month = :ano_mes
                 AND i.type = 'invoice'
+                AND archive = 0
                 AND category_name IN (
                     'Cliente',
                     'Serviços de clientes',
-                    'Recorrência',
-                    'Serviço'
+                    'Recorrência'
                 )
                 SQL
             );
@@ -522,17 +470,17 @@ class ProducaoCooperativista
                 FROM transactions ti
                 WHERE transaction_of_month = :ano_mes
                 AND ti.category_type = 'income'
+                AND archive = 0
                 AND category_name IN (
                     'Cliente',
                     'Serviços de clientes',
-                    'Recorrência',
-                    'Serviço'
+                    'Recorrência'
                 )
                 SQL
             );
         }
         $result = $stmt->executeQuery([
-            'ano_mes' => $this->inicioProximoMes->format('Y-m'),
+            'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m'),
         ]);
         $errorsSemContactReference = [];
         $this->valoresPorProjeto = [];
@@ -628,21 +576,23 @@ class ProducaoCooperativista
                     u.alias
             SQL
         );
-        $stmt->bindValue('data_inicio', $this->inicio->format('Y-m-d'));
-        $stmt->bindValue('data_fim', $this->fim->format('Y-m-d H:i:s'));
-        $stmt->bindValue('ano_mes', $this->inicioProximoMes->format('Y-m'));
+        $stmt->bindValue('data_inicio', $this->dates->getInicio()->format('Y-m-d'));
+        $stmt->bindValue('data_fim', $this->dates->getFim()->format('Y-m-d H:i:s'));
+        $stmt->bindValue('ano_mes', $this->dates->getInicioProximoMes()->format('Y-m'));
         $result = $stmt->executeQuery();
         $this->percentualTrabalhadoPorCliente = [];
         while ($row = $result->fetchAssociative()) {
             if (!$row['cliente_codigo']) {
                 continue;
             }
-            $this->getCooperado($row['tax_number'])
+            $cooperado = $this->getCooperado($row['tax_number'])
                 ->setName($row['alias'])
-                ->setTaxNumber($row['tax_number'])
-                ->setAkauntingContactId($row['akaunting_contact_id'])
-                ->setBaseProducao(0)
                 ->setDependentes($row['dependents'])
+                ->setTaxNumber($row['tax_number'])
+                ->setAkauntingContactId($row['akaunting_contact_id']);
+            $cooperado->getProducaoCooperativista()
+                ->getValues()
+                ->setBaseProducao(0)
                 ->setHealthInsurance($row['health_insurance']);
             $row['base_producao'] = 0;
             $row['percentual_trabalhado'] = (float) $row['percentual_trabalhado'];
@@ -681,11 +631,11 @@ class ProducaoCooperativista
                 'type' => $insert->createNamedParameter('vendor'),
                 'name' => $insert->createNamedParameter($name),
                 'tax_number' => $insert->createNamedParameter($taxNumber),
-                'country' => 'BR',
-                'currency_code' => 'BRL',
+                'country' => $insert->createNamedParameter('BR'),
+                'currency_code' => $insert->createNamedParameter('BRL'),
                 'enabled' => 1,
-                'created_at' => $insert->createNamedParameter((new DateTime())->format('Y-m-d H:i:s')),
-                'updated_at' => $insert->createNamedParameter((new DateTime())->format('Y-m-d H:i:s'))
+                'created_at' => $insert->createNamedParameter($this->dates->getDataProcessamento()->format('Y-m-d H:i:s')),
+                'updated_at' => $insert->createNamedParameter($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'))
             ]);
         $insert->executeStatement();
         $id = $connection->lastInsertId();
@@ -694,16 +644,7 @@ class ProducaoCooperativista
 
     public function setDiasUteis(int $diasUteis): void
     {
-        $this->diasUteis = $diasUteis;
-    }
-
-    private function getDiasUteisNoMes(): int
-    {
-        if ($this->diasUteis === 0) {
-            $date = Carbon::getMonthBusinessDays($this->inicio);
-            $this->diasUteis = count($date);
-        }
-        return $this->diasUteis;
+        $this->dates->setDiasUteis($diasUteis);
     }
 
     public function setPercentualMaximo(int $percentualMaximo): void
@@ -718,174 +659,26 @@ class ProducaoCooperativista
 
     public function updateProducao(): void
     {
-        $this->coletaDadosDaProducaoDoMes();
-        $producao = $this->getProducaoCooprativista();
-        $haveNewProduction = false;
+        $producao = $this->getProducaoCooperativista();
         foreach ($producao as $cooperado) {
-            $invoice = new AkautingInvoieProducao();
+            $cooperado
+                ->getProducaoCooperativista()
+                ->save();
 
-            $invoice->setType('bill')
-                ->setCategoryId((int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'])
-                ->setDocumentNumber(
-                    'PDC_' .
-                    $cooperado->getTaxNumber() .
-                    '-' .
-                    $this->getDataPagamento()->format('Y-m')
-                )
-                ->setSearch('type:bill')
-                ->setStatus('draft')
-                ->setIssuedAt($this->getDataProcessamento()->format('Y-m-d H:i:s'))
-                ->setDueAt($this->getDataPagamento()->format('Y-m-d H:i:s'))
-                ->setAccountId(1)
-                ->setCurrencyCode('BRL')
-                ->setNote('Data geração', $this->getDataProcessamento()->format('Y-m-d'))
-                ->setNote('Produção realizada no mês', $this->inicio->format('Y-m'))
-                ->setNote('Notas dos clientes pagas no mês', $this->inicioProximoMes->format('Y-m'))
-                ->setNote('Previsão de pagamento', sprintf('%sº dia útil', $this->diasUteis))
-                ->setNote('Previsão de pagamento no dia', $this->getDataPagamento()->format('Y-m-d'))
-                ->setNote('Base de cálculo', $this->numberFormatter->format($cooperado->getBaseProducao()))
-                ->setNote('FRRA', $this->numberFormatter->format($cooperado->getFrra()))
-                ->setContactId($cooperado->getAkauntingContactId())
-                ->setContactName($cooperado->getName())
-                ->setContactTaxNumber($cooperado->getTaxNumber());
-            $this->insereHealthInsurance($invoice);
-            $this->aplicaAdiantamentos($invoice);
-            $invoice->setItem(
-                itemId: $this->itemsIds['Auxílio'],
-                name: 'Ajuda de custo',
-                price: $cooperado->getAuxilio()
-            );
-            $invoice->setItem(
-                itemId: $this->itemsIds['bruto'],
-                name: 'Bruto produção',
-                price: $cooperado->getBruto()
-            );
-            $invoice->setItem(
-                itemId: $this->itemsIds['INSS'],
-                name: 'INSS',
-                price: $cooperado->getInss() * -1
-            );
-            $invoice->setItem(
-                itemId: $this->itemsIds['IRPF'],
-                name: 'IRPF',
-                price: $cooperado->getIrpf() * -1
-            );
-            try {
-                if (empty($cooperado->getBillId())) {
-                    $this->invoices->sendData(
-                        endpoint: '/api/documents',
-                        body: $invoice->toArray()
-                    );
-                    $haveNewProduction = true;
-                } else {
-                    try {
-                        $bill = $this->invoices->sendData(
-                            endpoint: '/api/documents/' . $cooperado->getBillId(),
-                            query: [
-                                'search' => implode(' ', [
-                                    'type:bill',
-                                    'status:draft',
-                                ]),
-                            ],
-                            method: 'GET'
-                        );
-                    } catch (\Throwable $th) {
-                        // status != draft
-                        continue;
-                    }
-                    $this->invoices->sendData(
-                        endpoint: '/api/documents/' . $cooperado->getBillId(),
-                        body: $invoice->toArray(),
-                        method: 'PATCH'
-                    );
-                }
-            } catch (ClientException $e) {
-                $response = $e->getResponse();
-                $content = $response->toArray(false);
-                throw new Exception(json_encode($content));
-            }
-        }
-        if ($haveNewProduction) {
-            $begin = (clone $this->getDataProcessamento())
-                ->modify('first day of this month')
-                ->setTime(00, 00, 00);
-            $this->invoices->updateDatabase($begin, 'bill');
-        }
-    }
+            $valueFrra = $cooperado->getProducaoCooperativista()
+                ->getValues()
+                ->getFrra();
 
-    private function insereHealthInsurance(AkautingInvoieProducao $invoice): void
-    {
-        $taxNumber = $invoice->getContactTaxNumber();
-
-        $cooperado = $this->getCooperado($taxNumber);
-
-        if ($cooperado->getHealthInsurance()) {
-            $invoice->setItem(
-                itemId: $this->itemsIds['Plano'],
-                name: 'Plano de saúde',
-                price: -$cooperado->getHealthInsurance(),
-                order: 10
-            );
-        }
-    }
-
-    private function aplicaAdiantamentos(AkautingInvoieProducao $invoice): void
-    {
-        $taxNumber = $invoice->getContactTaxNumber();
-
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('amount')
-            ->addSelect('document_number')
-            ->addSelect('due_at')
-            ->from('invoices')
-            ->where("type = 'bill'")
-            ->andWhere("category_type = 'expense'")
-            ->andWhere("metadata->>'$.status' = 'paid'")
-            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_ADIANTAMENTO_CATEGORY_ID'], ParameterType::INTEGER)))
-            ->andWhere($select->expr()->eq('tax_number', $select->createNamedParameter($taxNumber)))
-            ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->inicioProximoMes->format('Y-m'))));
-
-        $result = $select->executeQuery();
-        while ($row = $result->fetchAssociative()) {
-            $invoice->setItem(
-                itemId: $this->itemsIds['desconto'],
-                name: 'Adiantamento',
-                description: sprintf('Número: %s, data: %s', $row['document_number'], $row['due_at']),
-                price: -$row['amount'],
-                order: 20
-            );
-        }
-    }
-
-    private function coletaDadosDaProducaoDoMes(): void
-    {
-        $producao = $this->getProducaoCooprativista();
-
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('id')
-            ->addSelect('tax_number')
-            ->addSelect('document_number')
-            ->from('invoices')
-            ->where("type = 'bill'")
-            ->andWhere("category_type = 'expense'")
-            ->andWhere($select->expr()->eq('category_id', ':category_id'))
-            ->setParameter('category_id', (int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'], ParameterType::INTEGER)
-            ->andWhere($select->expr()->in('tax_number', ':tax_number'))
-            ->setParameter('tax_number', array_keys($producao), ArrayParameterType::STRING)
-            ->andWhere($select->expr()->eq('transaction_of_month', $select->createNamedParameter($this->getDataPagamento()->format('Y-m'))));
-
-        $result = $select->executeQuery();
-        while ($row = $result->fetchAssociative()) {
-            $this->getCooperado($row['tax_number'])
-                ->setBillId($row['id'])
-                ->setDocumentNumber($row['document_number']);
+            $frra = $cooperado->getFrra();
+            $frra->getValues()->setBaseProducao($valueFrra);
+            $frra->save();
         }
     }
 
     /**
-     * @return CooperadoProducao[]
+     * @return Cooperado[]
      */
-    public function getProducaoCooprativista(): array
+    public function getProducaoCooperativista(): array
     {
         if ($this->cooperado) {
             return $this->cooperado;
@@ -901,23 +694,27 @@ class ProducaoCooperativista
     private function distribuiSobras(): void
     {
         $percentualTrabalhadoPorCliente = $this->getPercentualTrabalhadoPorCliente();
-        $sobras = $this->getTotalSobras();
+        $sobras = $this->getTotalSobrasDoMes();
         $cnpjClientesInternos = explode(',', $_ENV['CNPJ_CLIENTES_INTERNOS']);
         foreach ($percentualTrabalhadoPorCliente as $row) {
             if (!in_array($row['cliente_codigo'], $cnpjClientesInternos)) {
                 continue;
             }
             $aReceberDasSobras = ($sobras * $row['percentual_trabalhado'] / 100);
-            $cooperado = $this->getCooperado($row['tax_number']);
-            $cooperado->setBaseProducao($cooperado->getBaseProducao() + $aReceberDasSobras);
+            $values = $this->getCooperado($row['tax_number'])->getProducaoCooperativista()->getValues();
+            $values->setBaseProducao($values->getBaseProducao() + $aReceberDasSobras);
         }
     }
 
-    private function getCooperado(string $taxNumber): CooperadoProducao
+    private function getCooperado(string $taxNumber): Cooperado
     {
         if (!isset($this->cooperado[$taxNumber])) {
-            $this->cooperado[$taxNumber] = new CooperadoProducao(
-                anoFiscal: (int) $this->inicio->format('Y')
+            $this->cooperado[$taxNumber] = new Cooperado(
+                anoFiscal: (int) $this->dates->getInicio()->format('Y'),
+                db: $this->db,
+                dates: $this->dates,
+                numberFormatter: $this->numberFormatter,
+                invoices: $this->invoices
             );
         }
         return $this->cooperado[$taxNumber];
@@ -942,12 +739,12 @@ class ProducaoCooperativista
             }
             $brutoCliente = $totalPorCliente[$row['cliente_codigo']];
             $aReceber = $brutoCliente * $row['percentual_trabalhado'] / 100;
-            $cooperado = $this->getCooperado($row['tax_number']);
-            $cooperado->setBaseProducao($cooperado->getBaseProducao() + $aReceber);
+            $values = $this->getCooperado($row['tax_number'])->getProducaoCooperativista()->getValues();
+            $values->setBaseProducao($values->getBaseProducao() + $aReceber);
         }
         if (count($errorSemCodigoCliente)) {
             throw new Exception(
-                "O cliente_codigo trabalhado no Kimai não possui faturamento no mês " . $this->inicioProximoMes->format('Y-m-d'). ".\n" .
+                "O cliente_codigo trabalhado no Kimai não possui faturamento no mês " . $this->dates->getInicioProximoMes()->format('Y-m-d'). ".\n" .
                 "Dados:\n" .
                 json_encode($errorSemCodigoCliente, JSON_PRETTY_PRINT)
             );
@@ -959,27 +756,46 @@ class ProducaoCooperativista
     {
         $baseProducao = array_reduce(
             $this->cooperado,
-            fn($carry, $cooperado) => $carry += $cooperado->getBaseProducao(),
+            fn($carry, $cooperado) => $carry += $cooperado->getProducaoCooperativista()->getValues()->getBaseProducao(),
             0
         );
         return $baseProducao;
     }
 
-    private function getTotalSobras(): float
+    private function getTotalSobrasDoMes(): float
     {
         $this->distribuiProducaoExterna();
-        return $this->getBaseCalculoDispendios() - $this->getTotalDispendios() - $this->getTotalDistribuido();
+        return $this->getBaseCalculoDispendios()
+            + $this->getTotalSobrasDistribuidasNoMes()
+            - $this->getTotalDispendios()
+            - $this->getTotalDistribuido();
+    }
+
+    private function getTotalSobrasDistribuidasNoMes(): float
+    {
+        $select = new QueryBuilder($this->db->getConnection());
+        $select->select('SUM(amount) as total')
+            ->from('invoices')
+            ->where($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID'], ParameterType::INTEGER)))
+            ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
+
+        $result = $select->executeQuery();
+        $total = 0;
+        while ($item = $result->fetchOne()) {
+            $total +=$item;
+        }
+        return $total;
     }
 
     public function exportToCsv(): string
     {
-        $list = $this->getProducaoCooprativista();
+        $list = $this->getProducaoCooperativista();
         // header
         $cooperado = current($list);
-        $output[] = $this->csvstr(array_keys($cooperado->toArray()));
+        $output[] = $this->csvstr(array_keys($cooperado->getProducaoCooperativista()->getValues()->toArray()));
         // body
         foreach ($list as $cooperado) {
-            $output[] = $this->csvstr($cooperado->toArray());
+            $output[] = $this->csvstr($cooperado->getProducaoCooperativista()->getValues()->toArray());
         }
         $output = implode("\n", $output);
         return $output;
@@ -1000,10 +816,10 @@ class ProducaoCooperativista
         $reader = new \PhpOffice\PhpSpreadsheet\Reader\Ods();
         $spreadsheet = $reader->load(__DIR__ . '/../assets/base.ods');
         $spreadsheet->getSheetByName('valores calculados')
-            ->setCellValue('B1', $this->inicio->format('Y-m-d H:i:s'))
-            ->setCellValue('B2', $this->fim->format('Y-m-d H:i:s'))
-            ->setCellValue('B3', $this->inicioProximoMes->format('Y-m-d H:i:s'))
-            ->setCellValue('B4', $this->fimProximoMes->format('Y-m-d H:i:s'))
+            ->setCellValue('B1', $this->dates->getInicio()->format('Y-m-d H:i:s'))
+            ->setCellValue('B2', $this->dates->getFim()->format('Y-m-d H:i:s'))
+            ->setCellValue('B3', $this->dates->getInicioProximoMes()->format('Y-m-d H:i:s'))
+            ->setCellValue('B4', $this->dates->getFimProximoMes()->format('Y-m-d H:i:s'))
             ->setCellValue('B5', $this->getTotalCooperados())
             ->setCellValue('B6', $this->getTotalNotas())
             ->setCellValue('B7', $this->getTotalCustoCliente())
@@ -1028,8 +844,8 @@ class ProducaoCooperativista
             ->fromArray($this->getPercentualTrabalhadoPorCliente(), null, 'A2');
 
         $producao = $spreadsheet->getSheetByName('mês')
-            ->setTitle($this->inicio->format('Y-m'));
-        $cooperados = $this->getProducaoCooprativista();
+            ->setTitle($this->dates->getInicio()->format('Y-m'));
+        $cooperados = $this->getProducaoCooperativista();
         $row = 4;
         foreach ($cooperados as $cooperado) {
             $producao->setCellValue('A' . $row, $cooperado->getName());
@@ -1050,6 +866,6 @@ class ProducaoCooperativista
         }
 
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Ods($spreadsheet);
-        $writer->save($this->inicio->format('Y-m-d') . '.ods');
+        $writer->save($this->dates->getInicio()->format('Y-m-d') . '.ods');
     }
 }

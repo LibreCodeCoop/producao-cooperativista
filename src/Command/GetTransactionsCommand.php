@@ -87,7 +87,7 @@ class GetTransactionsCommand extends BaseCommand
             $output->write($this->toCsv($list));
         }
         if ($input->getOption('database')) {
-            $this->transactions->saveToDatabase($list, $date, $input->getOption('category'));
+            $this->transactions->saveList($list, $date, $input->getOption('category'));
         }
         return Command::SUCCESS;
     }

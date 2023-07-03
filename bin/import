@@ -28,6 +28,9 @@ if (PHP_SAPI !== 'cli') {
 
 require __DIR__.'/../src/bootstrap.php';
 
+use Doctrine\Migrations\Tools\Console\ConsoleRunner as DoctrineMigrationsConsoleRunner;
+use Doctrine\ORM\Tools\Console\ConsoleRunner as DoctrineOrmConsoleRunner;
+use Doctrine\ORM\Tools\Console\EntityManagerProvider\SingleManagerProvider;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 use ProducaoCooperativista\Command\GetCustomersCommand;
@@ -76,12 +79,24 @@ $producaoCooperativista = new ProducaoCooperativista(
     $users
 );
 
-$application->add(new GetCustomersCommand($customers));
-$application->add(new GetInvoicesCommand($invoices));
-$application->add(new GetNfseCommand($nfse));
-$application->add(new GetProjectsCommand($projects));
-$application->add(new GetTimesheetsCommand($timesheets));
-$application->add(new GetTransactionsCommand($transactions));
-$application->add(new GetUsersCommand($users));
-$application->add(new MakeProducaoCommand($producaoCooperativista));
+$application->addCommands([
+    new GetCustomersCommand($customers),
+    new GetInvoicesCommand($invoices),
+    new GetNfseCommand($nfse),
+    new GetProjectsCommand($projects),
+    new GetTimesheetsCommand($timesheets),
+    new GetTransactionsCommand($transactions),
+    new GetUsersCommand($users),
+    new MakeProducaoCommand($producaoCooperativista),
+]);
+
+// Doctrine ORM
+$entityManager = $database->getEntityManager();
+$singleManagerProvider = new SingleManagerProvider($entityManager);
+DoctrineOrmConsoleRunner::addCommands($application, $singleManagerProvider);
+
+// Doctrine Migrations
+$dependencyFactory = DoctrineMigrationsConsoleRunner::findDependencyFactory();
+DoctrineMigrationsConsoleRunner::addCommands($application, $dependencyFactory);
+
 $application->run();

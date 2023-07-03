@@ -56,7 +56,7 @@ class GetProjectsCommand extends BaseCommand
             );
         }
         if ($input->getOption('database')) {
-            $this->projects->saveToDatabase($list);
+            $this->projects->saveList($list);
         }
         return Command::SUCCESS;
     }

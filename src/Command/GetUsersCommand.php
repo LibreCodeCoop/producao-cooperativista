@@ -64,7 +64,7 @@ class GetUsersCommand extends BaseCommand
             $output->write($this->toCsv($list));
         }
         if ($input->getOption('database')) {
-            $this->users->saveToDatabase($list);
+            $this->users->saveList($list);
         }
         return Command::SUCCESS;
     }

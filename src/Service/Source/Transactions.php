@@ -43,6 +43,7 @@ class Transactions
         'CNPJ cliente' => 'customer',
         'Setor' => 'sector',
         'setor' => 'sector',
+        'Arquivar' => 'archive',
     ];
 
     public function __construct(
@@ -54,9 +55,8 @@ class Transactions
 
     public function updateDatabase(DateTime $data): void
     {
-        $this->logger->debug('Baixando dados de transactions');
         $list = $this->getFromApi($data, companyId: (int) $_ENV['AKAUNTING_COMPANY_ID']);
-        $this->saveToDatabase($list, $data);
+        $this->saveList($list, $data);
     }
 
     public function getFromApi(DateTime $date, int $companyId, ?int $categoryId = null): array
@@ -67,6 +67,7 @@ class Transactions
 
     private function getTransactions(DateTime $date, int $companyId, ?int $categoryId): array
     {
+        $this->logger->debug('Baixando dados de transactions');
         $begin = $date
             ->modify('first day of this month');
         $end = clone $begin;
@@ -78,26 +79,22 @@ class Transactions
         }
         $search[] = 'paid_at>=' . $begin->format('Y-m-d');
         $search[] = 'paid_at<=' . $end->format('Y-m-d');
-        $transactions = $this->getDataList('/api/transactions', [
+        $list = $this->getDataList('/api/transactions', [
             'company_id' => $companyId,
             'search' => implode(' ', $search),
         ]);
-        $transactions = $this->parseTransactions($transactions);
-        return $transactions;
-    }
-
-    private function parseTransactions(array $list): array
-    {
-        array_walk($list, function(&$row) {
+        foreach ($list as $key => $row) {
             $row = $this->parseDescription($row);
             $row = $this->defineTransactionOfMonth($row);
             $row = $this->defineCustomerReference($row);
-        });
-        $list = $this->mergeWithInvoice($list);
+            $row['archive'] = strtolower($row['archive'] ?? 'não') === 'sim' ? 1 : 0;
+            $list[$key] = $row;
+        }
+        $list = $this->getCustomerReferenceFromInvoice($list);
         return $list;
     }
 
-    private function mergeWithInvoice(array $list): array
+    private function getCustomerReferenceFromInvoice(array $list): array
     {
         $filtered = array_filter($list, fn($r) => $r['document_id'] && !$r['customer_reference']);
         $documentIdList = array_column($filtered, 'document_id');
@@ -155,7 +152,7 @@ class Transactions
         return $row;
     }
 
-    public function defineCustomerReference(array $row): array
+    private function defineCustomerReference(array $row): array
     {
         if (!empty($row['contact']['reference'])) {
             $row['customer_reference'] = $row['contact']['reference'];
@@ -172,7 +169,7 @@ class Transactions
         return $row;
     }
 
-    public function saveToDatabase(array $list, DateTime $date, ?string $category = null): void
+    public function saveList(array $list, DateTime $date, ?string $category = null): void
     {
         $begin = $date
             ->modify('first day of this month');
