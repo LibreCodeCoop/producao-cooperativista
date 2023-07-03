@@ -74,10 +74,6 @@ class Cooperado
             invoices: $this->invoices,
             cooperado: $this
         ));
-        $this->getProducaoCooperativista()->setValues(new Values(
-            anoFiscal: $anoFiscal,
-            cooperado: $this
-        ));
 
         $this->setFrra(new FRRA(
             anoFiscal: $anoFiscal,
@@ -85,10 +81,6 @@ class Cooperado
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
             invoices: $this->invoices,
-            cooperado: $this
-        ));
-        $this->getFrra()->setValues(new Values(
-            anoFiscal: $anoFiscal,
             cooperado: $this
         ));
     }

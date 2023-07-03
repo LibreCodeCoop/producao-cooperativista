@@ -104,6 +104,10 @@ class AAkauntingDocument
     )
     {
         $this->itemsIds = json_decode($_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS'], true);
+        $this->setValues(new Values(
+            anoFiscal: $anoFiscal,
+            cooperado: $cooperado
+        ));
     }
 
     public function setNote(string $label, $value): self
