@@ -92,6 +92,7 @@ class Users
                 $select->expr()->in('tax_number', $select->createNamedParameter($taxNumber, ArrayParameterType::STRING)),
                 $select->expr()->in('email', $select->createNamedParameter($email, ArrayParameterType::STRING)),
             ))
+            ->andWhere('deleted_at IS NULL')
             ->andWhere($select->expr()->in('type', $select->createNamedParameter(['vendor', 'employee'], ArrayParameterType::STRING)))
             ->orderBy('c.type');
         $result = $select->executeQuery();
