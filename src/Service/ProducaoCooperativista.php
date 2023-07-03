@@ -658,7 +658,8 @@ class ProducaoCooperativista
         $producao = $this->getProducaoCooprativista();
         foreach ($producao as $cooperado) {
             $cooperado->getInvoice()
-                ->populateProducaoCooperativistaWithDefault()
+                ->save();
+            $cooperado->getFrraInstance()
                 ->save();
         }
     }

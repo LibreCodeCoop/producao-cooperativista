@@ -27,6 +27,9 @@ namespace ProducaoCooperativista\Service;
 
 use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
+use ProducaoCooperativista\Service\AkauntingDocument\AkauntingDocument;
+use ProducaoCooperativista\Service\AkauntingDocument\FRRA;
+use ProducaoCooperativista\Service\AkauntingDocument\ProducaoCooperativista;
 use ProducaoCooperativista\Service\Source\Invoices;
 
 /**
@@ -48,14 +51,14 @@ use ProducaoCooperativista\Service\Source\Invoices;
  * @method float getFrra()
  * @method CooperadoProducao setFrraDocumentNumber(float $value)
  * @method float getFrraDocumentNumber()
- * @method CooperadoProducao setFrraInstance(AkauntingDocument $value)
- * @method AkauntingDocument getFrraInstance()
+ * @method CooperadoProducao setFrraInstance(FRRA $value)
+ * @method FRRA getFrraInstance()
  * @method CooperadoProducao setHealthInsurance(float $value)
  * @method float getHealthInsurance()
  * @method CooperadoProducao setInss(float $value)
  * @method float getInss()
- * @method CooperadoProducao setInvoice(AkauntingDocument $value)
- * @method AkauntingDocument getInvoice()
+ * @method CooperadoProducao setInvoice(ProducaoCooperativista $value)
+ * @method ProducaoCooperativista getInvoice()
  * @method CooperadoProducao setIrpf(float $value)
  * @method float getIrpf()
  * @method CooperadoProducao setIsFrra(bool $value)
@@ -89,8 +92,8 @@ class CooperadoProducao
     private const STATUS_UPDATING = 1;
     private const STATUS_UPDATED = 2;
     private int $updated = self::STATUS_UPDATED;
-    private AkauntingDocument $invoice;
-    private AkauntingDocument $frraInstance;
+    private ProducaoCooperativista $invoice;
+    private FRRA $frraInstance;
 
     public function __construct(
         private ?int $anoFiscal,
@@ -101,21 +104,20 @@ class CooperadoProducao
     )
     {
         $this->anoFiscal = $anoFiscal;
-        $this->setInvoice(new AkauntingDocument(
+        $this->setInvoice(new ProducaoCooperativista(
             db: $this->db,
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
-            invoices: $this->invoices
+            invoices: $this->invoices,
+            cooperadoProducao: $this
         ));
-        $this->setFrraInstance(new AkauntingDocument(
+        $this->setFrraInstance(new FRRA(
             db: $this->db,
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
-            invoices: $this->invoices
+            invoices: $this->invoices,
+            cooperadoProducao: $this
         ));
-
-        $this->getInvoice()->setCooperado($this);
-        $this->getFrraInstance()->setCooperado($this);
     }
 
     public function __call($name, $arguments) {
