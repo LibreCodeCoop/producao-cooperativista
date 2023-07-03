@@ -439,7 +439,12 @@ class AkauntingDocument
             ->andWhere("category_type = 'expense'")
             ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'], ParameterType::INTEGER)))
             ->andWhere($select->expr()->in('tax_number', $select->createNamedParameter($this->getContactTaxNumber(), ParameterType::INTEGER)))
-            ->andWhere($select->expr()->eq('transaction_of_month', $select->createNamedParameter($this->dates->getDataPagamento()->format('Y-m'))));
+            ->andWhere($select->expr()->eq('document_number', $select->createNamedParameter(
+                'PDC_' .
+                $this->getCooperado()->getTaxNumber() .
+                '-' .
+                $this->dates->getInicio()->format('Y-m')
+            )));
 
         $result = $select->executeQuery();
         $row = $result->fetchAssociative();
