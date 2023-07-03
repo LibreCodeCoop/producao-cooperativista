@@ -60,8 +60,7 @@ class Invoices
     public function __construct(
         private Database $db,
         private LoggerInterface $logger
-    )
-    {
+    ) {
         $this->type = 'invoice';
         $this->companyId = (int) $_ENV['AKAUNTING_COMPANY_ID'];
     }
@@ -143,7 +142,8 @@ class Invoices
         return $this->date;
     }
 
-    private function parseNotes(array $row): array {
+    private function parseNotes(array $row): array
+    {
         if (empty($row['notes'])) {
             return $row;
         }

@@ -100,8 +100,7 @@ class AAkauntingDocument
         protected NumberFormatter $numberFormatter,
         protected Invoices $invoices,
         protected Cooperado $cooperado,
-    )
-    {
+    ) {
         $this->itemsIds = json_decode($_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS'], true);
         $this->setValues(new Values(
             anoFiscal: $anoFiscal,
@@ -126,8 +125,7 @@ class AAkauntingDocument
         float $total = 0,
         float $discount = 0,
         int $order = 0
-    ): self
-    {
+    ): self {
         if ($itemId) {
             $item['item_id'] = $itemId;
         } elseif ($code) {

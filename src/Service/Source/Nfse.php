@@ -85,8 +85,7 @@ class Nfse
     public function __construct(
         private Database $db,
         private LoggerInterface $logger
-    )
-    {
+    ) {
     }
 
     public function updateDatabase(DateTime $data): void
@@ -101,8 +100,7 @@ class Nfse
         ?string $login = null,
         ?string $senha = null,
         ?string $prefeitura = null
-    ): array
-    {
+    ): array {
         $inicio = $data
             ->modify('first day of this month');
         $fim = clone $inicio;
@@ -221,9 +219,12 @@ class Nfse
                     ->set('metadata', $update->createNamedParameter(
                         json_encode($row)
                     ))
-                    ->where($update->expr()->eq('numero', $update->createNamedParameter(
-                        $row[$this->columnInternalToExternal('numero')],
-                        ParameterType::INTEGER)
+                    ->where($update->expr()->eq(
+                        'numero',
+                        $update->createNamedParameter(
+                            $row[$this->columnInternalToExternal('numero')],
+                            ParameterType::INTEGER
+                        )
                     ))
                     ->executeStatement();
                 continue;
@@ -391,7 +392,8 @@ class Nfse
                 ])
             ]);
         $crawler = $client->request('POST', $urlNotasEmitidas);
-        $crawler = $client->request('POST',
+        $crawler = $client->request(
+            'POST',
             $urlNotasEmitidas,
             [
                 '__EVENTTARGET' => 'ctl00$cphCabMenu$btExportar$btGerar',
@@ -434,7 +436,7 @@ class Nfse
 
         $fp = fopen('data://text/plain,' . $text, 'r');
         $rows = [];
-        while (($data = fgetcsv($fp, 10000, ';')) !== FALSE) {
+        while (($data = fgetcsv($fp, 10000, ';')) !== false) {
             $rows[] = $data;
         }
         $header = array_shift($rows);
@@ -442,7 +444,7 @@ class Nfse
         foreach ($rows as $row) {
             $csv[] = array_combine($header, $row);
         }
-        array_walk($csv, function(&$row) {
+        array_walk($csv, function (&$row) {
             $row[$this->columnInternalToExternal('cnpj')] = preg_replace('/[^0-9]/', '', $row[$this->columnInternalToExternal('cnpj')]);
             $discriminacao = explode('|', $row[$this->columnInternalToExternal('discriminacao')]);
             $normalized = [];

@@ -34,8 +34,7 @@ class INSS
     public const PRODUCAO_EXTERNA = 2;
     public function __construct(
         private int $tipoProducao = self::PRODUCAO_EXTERNA
-    )
-    {
+    ) {
     }
 
     public function calcula(float $base): float

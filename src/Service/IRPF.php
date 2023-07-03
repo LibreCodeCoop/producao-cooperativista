@@ -81,11 +81,12 @@ class IRPF
     {
         return array_filter(
             $this->tabelaProgressiva,
-            fn($r) => $this->isOnBaseYearInterval($r)
+            fn ($r) => $this->isOnBaseYearInterval($r)
         );
     }
 
-    private function isOnBaseYearInterval(array $row): bool {
+    private function isOnBaseYearInterval(array $row): bool
+    {
         if ($this->anoBase >= $row['ano_inicio']) {
             if ($this->anoBase <= $row['ano_fim'] || is_null($row['ano_fim'])) {
                 return true;
