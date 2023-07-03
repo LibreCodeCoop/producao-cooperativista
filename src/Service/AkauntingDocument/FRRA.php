@@ -77,7 +77,7 @@ class FRRA extends AAkauntingDocument
             return false;
         });
         $current = current($current);
-        // Sum all items that isn't taxes and isn't current FRRA
+        // Sum all items that isn't taxes and isn't current FRRA because the current FRRA could be a different value
         $total = array_reduce($this->items, function (float $total, array $item)  use ($current) {
             $taxesIds = [
                 $this->itemsIds['INSS'],
