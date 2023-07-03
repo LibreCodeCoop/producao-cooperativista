@@ -99,7 +99,7 @@ class Invoices
             $invoice = $this->fromArray($row);
             $this->invoices[$this->getType()][] = $invoice;
         }
-        return $this->invoices[$this->getType()];
+        return $this->invoices[$this->getType()] ?? [];
     }
 
     public function fromArray(array $array): InvoicesEntity
