@@ -40,8 +40,7 @@ class Timesheets
     public function __construct(
         private Database $db,
         private LoggerInterface $logger
-    )
-    {
+    ) {
     }
 
     public function updateDatabase(DateTime $data): void
@@ -63,12 +62,8 @@ class Timesheets
         $query = [
             'order' => 'ASC',
         ];
-        if ($begin) {
-            $query['begin'] = $begin->format('Y-m-d\TH:i:s');
-        }
-        if ($end) {
-            $query['end'] = $end->format('Y-m-d\TH:i:s');
-        }
+        $query['begin'] = $begin->format('Y-m-d\TH:i:s');
+        $query['end'] = $end->format('Y-m-d\TH:i:s');
         if ($user) {
             $query['user'] = $user;
         }

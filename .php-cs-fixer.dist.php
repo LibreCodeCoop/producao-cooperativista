@@ -23,23 +23,14 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Helper;
+require_once './vendor/autoload.php';
 
-trait MagicGetterSetterTrait
-{
-    public function __call($name, $arguments)
-    {
-        if (!preg_match('/^(?<type>get|set)(?<property>.+)/', $name, $matches)) {
-            throw new \LogicException(sprintf('Cannot set non existing property %s->%s = %s.', \get_class($this), $name, var_export($arguments, true)));
-        }
-        $property = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $matches['property']))));
-        if (!property_exists($this, $property)) {
-            throw new \LogicException(sprintf('Cannot set non existing property %s->%s = %s.', \get_class($this), $name, var_export($arguments, true)));
-        }
-        if ($matches['type'] === 'get') {
-            return $this->$property;
-        }
-        $this->$property = $arguments[0] ?? null;
-        return $this;
-    }
-}
+$config = new PhpCsFixer\Config();
+$config
+	->getFinder()
+	->ignoreVCSIgnored(true)
+	->notPath('logs')
+	->notPath('vendor')
+	->notPath('vendor-bin')
+	->in(__DIR__);
+return $config;

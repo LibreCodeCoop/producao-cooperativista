@@ -49,8 +49,7 @@ class Users
     public function __construct(
         private Database $db,
         private LoggerInterface $logger
-    )
-    {
+    ) {
     }
 
     public function updateDatabase(): void
@@ -116,7 +115,7 @@ class Users
         $csv = $this->getSpreadsheet();
         foreach ($list as $key => $value) {
             $username = $value['username'];
-            $rowFromCsv = array_filter($csv, fn($i) => $i['Usuário Kimai'] === $username);
+            $rowFromCsv = array_filter($csv, fn ($i) => $i['Usuário Kimai'] === $username);
             if (!count($rowFromCsv)) {
                 unset($list[$key]);
                 continue;
@@ -133,7 +132,7 @@ class Users
             $list[$key]['health_insurance'] = $rowFromCsv['Plano de saúde'] ?? 0;
             $list[$key]['corporate_mail'] = $rowFromCsv['Email corporativo'] ?? 0;
         }
-        $list = array_filter($list, fn($r) => !empty($r['tax_number']));
+        $list = array_filter($list, fn ($r) => !empty($r['tax_number']));
 
         return $list;
     }
@@ -170,14 +169,15 @@ class Users
         $writer->save($fileCsv);
         $handle = fopen($fileCsv, 'r');
         $cols = fgetcsv($handle, 10000, ',');
-        $cols = array_filter($cols, fn($i) => !empty($i));
-        while (($row = fgetcsv($handle, 10000, ',')) !== FALSE) {
+        $cols = array_filter($cols, fn ($i) => !empty($i));
+        $csv = [];
+        while (($row = fgetcsv($handle, 10000, ',')) !== false) {
             if (empty($row[0])) {
                 break;
             }
             $row = array_slice($row, 0, count($cols));
             $row = array_combine($cols, $row);
-            $row['CPF'] = (string) preg_replace('/\D/', '', $row['CPF']);
+            $row['CPF'] = (string) preg_replace('/\D/', '', (string) $row['CPF']);
             $row['Dependentes'] = $row['Dependentes'] ? (int) $row['Dependentes'] : null;
             $row['Plano de saúde'] = $row['Plano de saúde'] ? (float) $row['Plano de saúde'] : null;
             $row['Email corporativo'] = $row['Email corporativo'];

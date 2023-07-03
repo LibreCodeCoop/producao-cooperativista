@@ -48,8 +48,6 @@ class ProducaoCooperativista
     private array $percentualTrabalhadoPorCliente = [];
     /** @var Cooperado[] */
     private array $cooperado = [];
-    /** @var Producao[] */
-    private array $producao = [];
     private int $totalCooperados = 0;
     private float $totalNotas = 0;
     private float $totalCustoCliente = 0;
@@ -73,11 +71,10 @@ class ProducaoCooperativista
         private Timesheets $timesheets,
         private Transactions $transactions,
         private Users $users
-    )
-    {
+    ) {
         $this->numberFormatter = new NumberFormatter(
             $_ENV['LOCALE'] ?? 'pt_BR',
-            NumberFormatter:: CURRENCY
+            NumberFormatter::CURRENCY
         );
         $this->dates = new Dates();
     }
@@ -159,7 +156,8 @@ class ProducaoCooperativista
         if ($this->totalSegundosLibreCode) {
             return $this->totalSegundosLibreCode;
         }
-        $stmt = $this->db->getConnection()->prepare(<<<SQL
+        $stmt = $this->db->getConnection()->prepare(
+            <<<SQL
             -- Total horas LibreCode
             SELECT sum(t.duration) as total_segundos_librecode
                 FROM timesheet t
@@ -193,7 +191,8 @@ class ProducaoCooperativista
         if ($this->totalCooperados) {
             return $this->totalCooperados;
         }
-        $stmt = $this->db->getConnection()->prepare(<<<SQL
+        $stmt = $this->db->getConnection()->prepare(
+            <<<SQL
             -- Total pessoas que registraram horas no mês
             SELECT count(distinct t.user_id) as total_cooperados
                 FROM timesheet t
@@ -224,7 +223,7 @@ class ProducaoCooperativista
 
     /**
      * Dispêndios da LibreCode
-     * 
+     *
      * Desconsidera-se:
      * * Produção cooperativista (cliente interno)
      * * Produção externa (pagamento para quem trabalha diretamente para cliente externo)
@@ -239,7 +238,8 @@ class ProducaoCooperativista
             return $this->totalDispendios;
         }
         if ($this->previsao) {
-            $stmt = $this->db->getConnection()->prepare(<<<SQL
+            $stmt = $this->db->getConnection()->prepare(
+                <<<SQL
                 -- Total dispêndios
                 SELECT sum(amount) AS total_dispendios
                     FROM invoices i
@@ -257,7 +257,8 @@ class ProducaoCooperativista
                 SQL
             );
         } else {
-            $stmt = $this->db->getConnection()->prepare(<<<SQL
+            $stmt = $this->db->getConnection()->prepare(
+                <<<SQL
                 -- Total dispêndios
                 SELECT sum(amount) AS total_dispendios
                     FROM transactions t
@@ -293,7 +294,8 @@ class ProducaoCooperativista
             return $this->totalNotas;
         }
 
-        $stmt = $this->db->getConnection()->prepare(<<<SQL
+        $stmt = $this->db->getConnection()->prepare(
+            <<<SQL
             SELECT SUM(amount) AS notas
             FROM invoices i
             WHERE type = 'invoice'
@@ -334,7 +336,7 @@ class ProducaoCooperativista
             return $this->totalCustoCliente;
         }
         $rows = $this->getCustosPorCliente();
-        $this->totalCustoCliente = array_reduce($rows, function($total, $row): float {
+        $this->totalCustoCliente = array_reduce($rows, function ($total, $row): float {
             $total += $row['total_custos'];
             return $total;
         }, 0);
@@ -354,7 +356,8 @@ class ProducaoCooperativista
             return $this->custosPorCliente;
         }
         if ($this->previsao) {
-            $stmt = $this->db->getConnection()->prepare(<<<SQL
+            $stmt = $this->db->getConnection()->prepare(
+                <<<SQL
                 -- Custos clientes
                 SELECT customer_reference as cliente_codigo,
                     SUM(amount) AS total_custos,
@@ -373,7 +376,8 @@ class ProducaoCooperativista
                 SQL
             );
         } else {
-            $stmt = $this->db->getConnection()->prepare(<<<SQL
+            $stmt = $this->db->getConnection()->prepare(
+                <<<SQL
                 -- Custos clientes
                 SELECT customer_reference as cliente_codigo,
                     SUM(amount) AS total_custos,
@@ -433,7 +437,8 @@ class ProducaoCooperativista
         $custosPorCliente = array_column($custosPorCliente, 'total_custos', 'cliente_codigo');
 
         if ($this->previsao) {
-            $stmt = $this->db->getConnection()->prepare(<<<SQL
+            $stmt = $this->db->getConnection()->prepare(
+                <<<SQL
                 SELECT i.id,
                     i.amount,
                     i.type,
@@ -456,7 +461,8 @@ class ProducaoCooperativista
                 SQL
             );
         } else {
-            $stmt = $this->db->getConnection()->prepare(<<<SQL
+            $stmt = $this->db->getConnection()->prepare(
+                <<<SQL
                 SELECT ti.id,
                     ti.amount,
                     ti.type,
@@ -489,7 +495,6 @@ class ProducaoCooperativista
                 $errorsSemContactReference[] = $row;
             }
 
-            $valoresPorProjeto = [];
             $base = $row['amount'] - ($custosPorCliente[$row['customer_reference']] ?? 0);
             $valoresPorProjeto = [
                 'base_producao' => $base - ($base * $percentualDesconto / 100),
@@ -528,7 +533,8 @@ class ProducaoCooperativista
         }
         $contabilizaveis = $this->clientesContabilizaveis();
         $cnpjClientesInternos = "'" . implode("','", $contabilizaveis) . "'";
-        $stmt = $this->db->getConnection()->prepare(<<<SQL
+        $stmt = $this->db->getConnection()->prepare(
+            <<<SQL
             -- Percentual trabalhado por cliente
             SELECT u.alias,
                 u.tax_number,
@@ -622,7 +628,8 @@ class ProducaoCooperativista
         }
     }
 
-    private function cadastraCooperadoNoAkaunting(string $name, string $taxNumber): int {
+    private function cadastraCooperadoNoAkaunting(string $name, string $taxNumber): int
+    {
         $connection = $this->db->getConnection(Database::DB_AKAUNTING);
         $insert = new QueryBuilder($connection);
         $insert->insert('contacts')
@@ -640,11 +647,6 @@ class ProducaoCooperativista
         $insert->executeStatement();
         $id = $connection->lastInsertId();
         return (int) $id;
-    }
-
-    public function setDiasUteis(int $diasUteis): void
-    {
-        $this->dates->setDiasUteis($diasUteis);
     }
 
     public function setPercentualMaximo(int $percentualMaximo): void
@@ -756,7 +758,7 @@ class ProducaoCooperativista
     {
         $baseProducao = array_reduce(
             $this->cooperado,
-            fn($carry, $cooperado) => $carry += $cooperado->getProducaoCooperativista()->getValues()->getBaseProducao(),
+            fn ($carry, $cooperado) => $carry += $cooperado->getProducaoCooperativista()->getValues()->getBaseProducao(),
             0
         );
         return $baseProducao;
@@ -801,10 +803,11 @@ class ProducaoCooperativista
         return $output;
     }
 
-    private function csvstr(array $fields) : string {
+    private function csvstr(array $fields): string
+    {
         $f = fopen('php://memory', 'r+');
         if (fputcsv($f, $fields) === false) {
-            return false;
+            return '';
         }
         rewind($f);
         $csv_line = stream_get_contents($f);

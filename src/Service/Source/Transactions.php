@@ -49,8 +49,7 @@ class Transactions
     public function __construct(
         private Database $db,
         private LoggerInterface $logger
-    )
-    {
+    ) {
     }
 
     public function updateDatabase(DateTime $data): void
@@ -96,7 +95,7 @@ class Transactions
 
     private function getCustomerReferenceFromInvoice(array $list): array
     {
-        $filtered = array_filter($list, fn($r) => $r['document_id'] && !$r['customer_reference']);
+        $filtered = array_filter($list, fn ($r) => $r['document_id'] && !$r['customer_reference']);
         $documentIdList = array_column($filtered, 'document_id');
         if (!$documentIdList) {
             return $list;
@@ -117,7 +116,6 @@ class Transactions
             ->andWhere('customer_reference IS NOT NULL');
         $result = $select->executeQuery();
         while ($row = $result->fetchAssociative()) {
-            $exists[] = $row['id'];
             foreach ($list as $key => $transaction) {
                 if ($transaction['document_id'] === $row['id']) {
                     $list[$key]['customer_reference'] = $row['customer_reference'];
@@ -128,7 +126,8 @@ class Transactions
         return $list;
     }
 
-    private function parseDescription(array $row): array {
+    private function parseDescription(array $row): array
+    {
         if (empty($row['description'])) {
             return $row;
         }
@@ -262,11 +261,8 @@ class Transactions
         }
     }
 
-    private function convertDate($date): ?DateTime
+    private function convertDate(string $date): DateTime
     {
-        if (!$date) {
-            return null;
-        }
         $date = preg_replace('/-\d{2}:\d{2}$/', '', $date);
         $date = str_replace('T', ' ', $date);
         $date = DateTime::createFromFormat('Y-m-d H:i:s', $date);

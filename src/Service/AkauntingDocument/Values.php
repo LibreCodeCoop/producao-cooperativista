@@ -80,8 +80,7 @@ class Values
     public function __construct(
         private ?int $anoFiscal,
         private Cooperado $cooperado
-    )
-    {
+    ) {
     }
 
     public function __call($name, $arguments)

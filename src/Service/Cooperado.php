@@ -38,7 +38,7 @@ use ProducaoCooperativista\Service\Source\Invoices;
  * @method int getAkauntingContactId()
  * @method self setDependentes(int $value)
  * @method int getDependentes()
- * @method self setFrra(int $value)
+ * @method self setFrra(FRRA $value)
  * @method FRRA getFrra()
  * @method self setProducaoCooperativista(ProducaoCooperativista $value)
  * @method ProducaoCooperativista getProducaoCooperativista()
@@ -64,8 +64,7 @@ class Cooperado
         private Dates $dates,
         private NumberFormatter $numberFormatter,
         private Invoices $invoices
-    )
-    {
+    ) {
         $this->setProducaoCooperativista(new ProducaoCooperativista(
             anoFiscal: $anoFiscal,
             db: $this->db,

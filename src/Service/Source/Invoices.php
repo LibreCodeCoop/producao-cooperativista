@@ -60,15 +60,9 @@ class Invoices
     public function __construct(
         private Database $db,
         private LoggerInterface $logger
-    )
-    {
+    ) {
         $this->type = 'invoice';
         $this->companyId = (int) $_ENV['AKAUNTING_COMPANY_ID'];
-    }
-
-    public function updateDatabase(): void
-    {
-        $this->saveList();
     }
 
     public function getList(): array
@@ -108,7 +102,7 @@ class Invoices
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
-        $invoice = $this->db->getEntityManager()->find('ProducaoCooperativista\DB\Entity\Invoices', $array['id']);
+        $invoice = $this->db->getEntityManager()->find(\ProducaoCooperativista\DB\Entity\Invoices::class, $array['id']);
         if (!$invoice) {
             $invoice = new InvoicesEntity();
         }
@@ -119,7 +113,7 @@ class Invoices
     public function saveList(): self
     {
         $this->getList();
-        foreach ($this->invoices as $type => $list) {
+        foreach ($this->invoices as $list) {
             foreach ($list as $row) {
                 $this->saveRow($row);
             }
@@ -143,7 +137,8 @@ class Invoices
         return $this->date;
     }
 
-    private function parseNotes(array $row): array {
+    private function parseNotes(array $row): array
+    {
         if (empty($row['notes'])) {
             return $row;
         }

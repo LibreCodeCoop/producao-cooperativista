@@ -55,7 +55,7 @@ class BaseCommand extends Command
         }
 
         $header = array_keys(current($data));
-        $header = array_filter($header, function($value) use ($removeColumns) {
+        $header = array_filter($header, function ($value) use ($removeColumns) {
             return !in_array($value, $removeColumns);
         });
         fputcsv($csv, $header);
