@@ -310,7 +310,7 @@ class ProducaoCooperativista
         $this->totalNotas = (float) $result->fetchOne();
         if (!$this->totalNotas) {
             $messagem = sprintf(
-                'Sem notas entre os dias %s e %s.',
+                'Sem faturas de vendas entre os dias %s e %s.',
                 $this->dates->getInicioProximoMes()->format(('Y-m-d')),
                 $this->dates->getFimProximoMes()->format(('Y-m-d'))
             );
