@@ -31,6 +31,7 @@ use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
 use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
+use ProducaoCooperativista\Helper\Dates;
 use ProducaoCooperativista\Service\Source\Customers;
 use ProducaoCooperativista\Service\Source\Invoices;
 use ProducaoCooperativista\Service\Source\Nfse;

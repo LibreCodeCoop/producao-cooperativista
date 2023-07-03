@@ -28,10 +28,9 @@ namespace ProducaoCooperativista\Service\AkauntingDocument;
 use Exception;
 use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
+use ProducaoCooperativista\Helper\Dates;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Service\Cooperado;
-use ProducaoCooperativista\Service\Dates;
-use ProducaoCooperativista\Service\Producao;
 use ProducaoCooperativista\Service\Source\Invoices;
 use Symfony\Component\HttpClient\Exception\ClientException;
 
