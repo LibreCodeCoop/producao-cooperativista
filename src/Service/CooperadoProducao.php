@@ -27,7 +27,6 @@ namespace ProducaoCooperativista\Service;
 
 use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\Service\AkauntingDocument\AkauntingDocument;
 use ProducaoCooperativista\Service\AkauntingDocument\FRRA;
 use ProducaoCooperativista\Service\AkauntingDocument\ProducaoCooperativista;
 use ProducaoCooperativista\Service\Source\Invoices;
