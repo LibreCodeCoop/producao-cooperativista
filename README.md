@@ -24,8 +24,8 @@ Calcular o bruto da produção cooperativista por cooperado com base em dados co
     * Categorizar transação de saída como `Cliente (custo)` quando forem custos de clientes
     * Sempre que for custo reembolsável pelo cliente, adicionar `<cpf/CNPJ>|<setor>` na transação no campo `Referência` para que seja possível identificar qual cliente deverá reembolsar este custo de entrada. Lembrar de acrescentar o setor sempre que necessário.
     * Plano de saúde deve ser categorizado como `Plano de saúde`
-    * Customização da tranzação deve ser inserida na descrição. Valores possíveis:
-      | Valor            | Descrição                                                  |
+    * Customização da fatura (compra ou venda) ou transação deve ser inserida na descrição. Valores possíveis:
+      | Nome             | Descrição                                                  |
       | ---------------- | ---------------------------------------------------------- |
       | NFSe             | Número da NFSe                                             |
       | Transação do mês | Mês onde esta transação será contabilizada                 |
