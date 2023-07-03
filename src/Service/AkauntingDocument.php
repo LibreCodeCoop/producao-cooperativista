@@ -114,7 +114,7 @@ class AkauntingDocument
         ?int $id = null,
         ?string $code = null,
         string $name = '',
-        string $description = '',
+        ?string $description = '',
         ?int $quantity = null,
         float $price = 0,
         float $total = 0,
