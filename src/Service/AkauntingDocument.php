@@ -144,7 +144,7 @@ class AkauntingDocument
             return $i['name'] === $item['name'] && $i['description'] === $item['description'];
         });
         if ($found) {
-            $this->items[key($found)] = $item;
+            $this->items[key($found)] = array_merge($this->items[key($found)], $item);
             return $this;
         }
         $this->items[] = $item;
