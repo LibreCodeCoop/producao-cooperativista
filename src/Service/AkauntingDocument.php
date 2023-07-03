@@ -494,7 +494,7 @@ class AkauntingDocument
 
     private function updateFrra(): self
     {
-        $total = array_reduce($this->items, function (int $total, array $item) {
+        $total = array_reduce($this->items, function (float $total, array $item) {
             if ($item['item_id'] === $this->itemsIds['frra']) {
                 $total += $item['price'];
             }
