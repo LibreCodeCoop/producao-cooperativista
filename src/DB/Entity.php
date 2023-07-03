@@ -34,14 +34,13 @@ class Entity
      * Assign entity properties using an array
      *
      * @param array $attributes assoc array of values to assign
-     * @return null
      */
-    public function fromArray(array $attributes)
+    public function fromArray(array $attributes): void
     {
         foreach ($attributes as $name => $value) {
             $property = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $name))));
             if (property_exists($this, $property)) {
-                list($nullable, $propertyType) = $this->getTypeOfProperty($property);
+                $propertyType = $this->getTypeOfProperty($property);
                 if (str_contains($propertyType, 'DateTime') && is_string($value)) {
                     $value = new DateTime($value);
                 }
@@ -57,7 +56,7 @@ class Entity
         }
     }
 
-    private function getTypeOfProperty($property): array
+    private function getTypeOfProperty($property): string
     {
         $class = new ReflectionClass($this);
         $reflectionProperty = $class->getProperty($property);
@@ -66,6 +65,6 @@ class Entity
         if ($nullable) {
             $type = ltrim($type, '?');
         }
-        return [$nullable, $type];
+        return $type;
     }
 }

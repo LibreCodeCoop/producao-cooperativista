@@ -170,13 +170,14 @@ class Users
         $handle = fopen($fileCsv, 'r');
         $cols = fgetcsv($handle, 10000, ',');
         $cols = array_filter($cols, fn ($i) => !empty($i));
+        $csv = [];
         while (($row = fgetcsv($handle, 10000, ',')) !== false) {
             if (empty($row[0])) {
                 break;
             }
             $row = array_slice($row, 0, count($cols));
             $row = array_combine($cols, $row);
-            $row['CPF'] = (string) preg_replace('/\D/', '', $row['CPF']);
+            $row['CPF'] = (string) preg_replace('/\D/', '', (string) $row['CPF']);
             $row['Dependentes'] = $row['Dependentes'] ? (int) $row['Dependentes'] : null;
             $row['Plano de saúde'] = $row['Plano de saúde'] ? (float) $row['Plano de saúde'] : null;
             $row['Email corporativo'] = $row['Email corporativo'];

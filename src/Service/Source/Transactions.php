@@ -116,7 +116,6 @@ class Transactions
             ->andWhere('customer_reference IS NOT NULL');
         $result = $select->executeQuery();
         while ($row = $result->fetchAssociative()) {
-            $exists[] = $row['id'];
             foreach ($list as $key => $transaction) {
                 if ($transaction['document_id'] === $row['id']) {
                     $list[$key]['customer_reference'] = $row['customer_reference'];
@@ -262,11 +261,8 @@ class Transactions
         }
     }
 
-    private function convertDate($date): ?DateTime
+    private function convertDate(string $date): DateTime
     {
-        if (!$date) {
-            return null;
-        }
         $date = preg_replace('/-\d{2}:\d{2}$/', '', $date);
         $date = str_replace('T', ' ', $date);
         $date = DateTime::createFromFormat('Y-m-d H:i:s', $date);

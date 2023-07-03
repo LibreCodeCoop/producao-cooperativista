@@ -80,7 +80,6 @@ class Nfse
     ];
     private DateTime $inicio;
     private DateTime $fim;
-    private array $nfseFromDatabase = [];
 
     public function __construct(
         private Database $db,
@@ -109,9 +108,9 @@ class Nfse
         $this->inicio = $inicio;
         $this->fim = $fim;
 
-        $this->login = $login ?? $_ENV['PREFEITURA_LOGIN'] ?? null;
-        $this->senha = $senha ?? $_ENV['PREFEITURA_SENHA'] ?? null;
-        $this->prefeitura = $prefeitura ?? $_ENV['PREFEITURA'] ?? null;
+        $this->login = $login ?? $_ENV['PREFEITURA_LOGIN'];
+        $this->senha = $senha ?? $_ENV['PREFEITURA_SENHA'];
+        $this->prefeitura = $prefeitura ?? $_ENV['PREFEITURA'];
 
         $list = $this->getData();
         return $list;
@@ -124,32 +123,6 @@ class Nfse
         }
         $list = $this->getNfse();
         return $list;
-    }
-
-    public function getByListNumber(array $nfseNumbers): array
-    {
-        if ($this->nfseFromDatabase) {
-            return $this->nfseFromDatabase;
-        }
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('*')
-            ->addSelect('n.valor_cofins + n.valor_ir + n.valor_pis + n.valor_iss AS impostos')
-            ->from('nfse', 'n')
-            ->where('n.numero_substituta IS NULL')
-            ->andWhere($select->expr()->in('numero', ':numeros'))
-            ->setParameter('numeros', $nfseNumbers, ArrayParameterType::STRING);
-        $result = $select->executeQuery();
-        while ($row = $result->fetchAssociative()) {
-            $this->nfseFromDatabase[$row['numero']] = $row;
-        }
-        $diff = array_diff($nfseNumbers, array_keys($this->nfseFromDatabase));
-        if (count($diff)) {
-            throw new Exception(
-                "Notas fiscais não encontradas no site da prefeitura: \n" .
-                json_encode($diff, JSON_PRETTY_PRINT)
-            );
-        }
-        return $this->nfseFromDatabase;
     }
 
     public function saveList(array $list): void
@@ -392,7 +365,7 @@ class Nfse
                 ])
             ]);
         $crawler = $client->request('POST', $urlNotasEmitidas);
-        $crawler = $client->request(
+        $client->request(
             'POST',
             $urlNotasEmitidas,
             [
@@ -461,7 +434,7 @@ class Nfse
                 }
             }
             $row['discriminacao_normalizada'] = json_encode($normalized);
-            if (isset($normalized['setor'])) {
+            if (isset($normalized['setor']) && is_string($normalized['setor'])) {
                 $row['setor'] = $normalized['setor'];
                 $row['codigo_cliente'] = $row[$this->columnInternalToExternal('cnpj')] . '|' . $normalized['setor'];
             } else {

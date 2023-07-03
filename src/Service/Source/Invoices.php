@@ -65,11 +65,6 @@ class Invoices
         $this->companyId = (int) $_ENV['AKAUNTING_COMPANY_ID'];
     }
 
-    public function updateDatabase(): void
-    {
-        $this->saveList();
-    }
-
     public function getList(): array
     {
         if (isset($this->invoices[$this->getType()])) {
@@ -107,7 +102,7 @@ class Invoices
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
-        $invoice = $this->db->getEntityManager()->find('ProducaoCooperativista\DB\Entity\Invoices', $array['id']);
+        $invoice = $this->db->getEntityManager()->find(\ProducaoCooperativista\DB\Entity\Invoices::class, $array['id']);
         if (!$invoice) {
             $invoice = new InvoicesEntity();
         }
@@ -118,7 +113,7 @@ class Invoices
     public function saveList(): self
     {
         $this->getList();
-        foreach ($this->invoices as $type => $list) {
+        foreach ($this->invoices as $list) {
             foreach ($list as $row) {
                 $this->saveRow($row);
             }

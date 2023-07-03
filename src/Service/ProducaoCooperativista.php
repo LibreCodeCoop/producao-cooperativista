@@ -48,8 +48,6 @@ class ProducaoCooperativista
     private array $percentualTrabalhadoPorCliente = [];
     /** @var Cooperado[] */
     private array $cooperado = [];
-    /** @var Producao[] */
-    private array $producao = [];
     private int $totalCooperados = 0;
     private float $totalNotas = 0;
     private float $totalCustoCliente = 0;
@@ -497,7 +495,6 @@ class ProducaoCooperativista
                 $errorsSemContactReference[] = $row;
             }
 
-            $valoresPorProjeto = [];
             $base = $row['amount'] - ($custosPorCliente[$row['customer_reference']] ?? 0);
             $valoresPorProjeto = [
                 'base_producao' => $base - ($base * $percentualDesconto / 100),
@@ -650,11 +647,6 @@ class ProducaoCooperativista
         $insert->executeStatement();
         $id = $connection->lastInsertId();
         return (int) $id;
-    }
-
-    public function setDiasUteis(int $diasUteis): void
-    {
-        $this->dates->setDiasUteis($diasUteis);
     }
 
     public function setPercentualMaximo(int $percentualMaximo): void
@@ -815,7 +807,7 @@ class ProducaoCooperativista
     {
         $f = fopen('php://memory', 'r+');
         if (fputcsv($f, $fields) === false) {
-            return false;
+            return '';
         }
         rewind($f);
         $csv_line = stream_get_contents($f);
