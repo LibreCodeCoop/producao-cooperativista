@@ -43,6 +43,7 @@ class Transactions
         'CNPJ cliente' => 'customer',
         'Setor' => 'sector',
         'setor' => 'sector',
+        'Arquivar' => 'archive',
     ];
 
     public function __construct(
@@ -86,6 +87,7 @@ class Transactions
             $row = $this->parseDescription($row);
             $row = $this->defineTransactionOfMonth($row);
             $row = $this->defineCustomerReference($row);
+            $row['archive'] = strtolower($row['archive'] ?? 'não') === 'sim' ? 1 : 0;
             $list[$key] = $row;
         }
         $list = $this->getCustomerReferenceFromInvoice($list);

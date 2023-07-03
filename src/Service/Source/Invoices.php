@@ -54,6 +54,7 @@ class Invoices
         'CNPJ cliente' => 'customer',
         'Setor' => 'sector',
         'setor' => 'sector',
+        'Arquivar' => 'archive',
     ];
 
     public function __construct(
@@ -192,6 +193,7 @@ class Invoices
         $row['contact_reference'] = $row['contact']['reference'];
         $row['contact_type'] = $row['contact']['type'];
         $row['tax_number'] = $row['contact']['tax_number'] ?? $row['contact_tax_number'];
+        $row['archive'] = strtolower($row['archive'] ?? 'não') === 'sim' ? 1 : 0;
         $row['metadata'] = $row;
         return $row;
     }

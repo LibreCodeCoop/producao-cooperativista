@@ -31,6 +31,7 @@ Calcular o bruto da produção cooperativista por cooperado com base em dados co
       | Transação do mês | Mês onde esta transação será contabilizada                 |
       | CNPJ cliente     | CNPJ do cliente de quem será cobrado o valor               |
       | Setor            | Setor do cliente, quando é um CNPJ com mais de um contrato |
+      | Arquivar         | sim = Arquivar transação e não utilizá-la.                 |
 
       Valores customizados precisam ter o nome da propriedade separado do valor com dois pointos, exemplo:
       ```

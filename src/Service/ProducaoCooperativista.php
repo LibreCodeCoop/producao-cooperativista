@@ -445,6 +445,7 @@ class ProducaoCooperativista
                 FROM invoices i
                 WHERE transaction_of_month = :ano_mes
                 AND i.type = 'invoice'
+                AND archive = 0
                 AND category_name IN (
                     'Cliente',
                     'Serviços de clientes',
@@ -467,6 +468,7 @@ class ProducaoCooperativista
                 FROM transactions ti
                 WHERE transaction_of_month = :ano_mes
                 AND ti.category_type = 'income'
+                AND archive = 0
                 AND category_name IN (
                     'Cliente',
                     'Serviços de clientes',

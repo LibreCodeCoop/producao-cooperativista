@@ -72,6 +72,8 @@ class Invoices extends DBEntity
     private string $categoryName;
     #[Column]
     private string $categoryType;
+    #[Column(type:'smallint', options: ['default' => 0])]
+    private int $archive = 0;
     #[Column]
     private array $metadata;
 }
