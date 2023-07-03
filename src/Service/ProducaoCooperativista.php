@@ -589,7 +589,8 @@ class ProducaoCooperativista
                 ->setDependentes($row['dependents'])
                 ->setTaxNumber($row['tax_number'])
                 ->setAkauntingContactId($row['akaunting_contact_id']);
-            $cooperado->getProducao()
+            $cooperado->getProducaoCooperativista()
+                ->getValues()
                 ->setBaseProducao(0)
                 ->setHealthInsurance($row['health_insurance']);
             $row['base_producao'] = 0;
@@ -662,8 +663,13 @@ class ProducaoCooperativista
             $cooperado
                 ->getProducaoCooperativista()
                 ->save();
+
+            $valueFrra = $cooperado->getProducaoCooperativista()
+                ->getValues()
+                ->getFrra();
+
             $frra = $cooperado->getFrra();
-            $frra->getProducao()->setBaseProducao($cooperado->getProducao()->getFrra());
+            $frra->getValues()->setBaseProducao($valueFrra);
             $frra->save();
         }
     }
@@ -694,8 +700,8 @@ class ProducaoCooperativista
                 continue;
             }
             $aReceberDasSobras = ($sobras * $row['percentual_trabalhado'] / 100);
-            $producao = $this->getCooperado($row['tax_number'])->getProducao();
-            $producao->setBaseProducao($producao->getBaseProducao() + $aReceberDasSobras);
+            $values = $this->getCooperado($row['tax_number'])->getProducaoCooperativista()->getValues();
+            $values->setBaseProducao($values->getBaseProducao() + $aReceberDasSobras);
         }
     }
 
@@ -732,8 +738,8 @@ class ProducaoCooperativista
             }
             $brutoCliente = $totalPorCliente[$row['cliente_codigo']];
             $aReceber = $brutoCliente * $row['percentual_trabalhado'] / 100;
-            $producao = $this->getCooperado($row['tax_number'])->getProducao();
-            $producao->setBaseProducao($producao->getBaseProducao() + $aReceber);
+            $values = $this->getCooperado($row['tax_number'])->getProducaoCooperativista()->getValues();
+            $values->setBaseProducao($values->getBaseProducao() + $aReceber);
         }
         if (count($errorSemCodigoCliente)) {
             throw new Exception(
@@ -749,7 +755,7 @@ class ProducaoCooperativista
     {
         $baseProducao = array_reduce(
             $this->cooperado,
-            fn($carry, $cooperado) => $carry += $cooperado->getProducao()->getBaseProducao(),
+            fn($carry, $cooperado) => $carry += $cooperado->getProducaoCooperativista()->getValues()->getBaseProducao(),
             0
         );
         return $baseProducao;
@@ -785,10 +791,10 @@ class ProducaoCooperativista
         $list = $this->getProducaoCooperativista();
         // header
         $cooperado = current($list);
-        $output[] = $this->csvstr(array_keys($cooperado->getProducao()->toArray()));
+        $output[] = $this->csvstr(array_keys($cooperado->getProducaoCooperativista()->getValues()->toArray()));
         // body
         foreach ($list as $cooperado) {
-            $output[] = $this->csvstr($cooperado->getProducao()->toArray());
+            $output[] = $this->csvstr($cooperado->getProducaoCooperativista()->getValues()->toArray());
         }
         $output = implode("\n", $output);
         return $output;

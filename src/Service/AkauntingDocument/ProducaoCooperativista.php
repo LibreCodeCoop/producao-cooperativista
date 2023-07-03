@@ -40,7 +40,7 @@ class ProducaoCooperativista extends AAkauntingDocument
     private function populateProducaoCooperativistaWithDefault(): self
     {
         $cooperado = $this->getCooperado();
-        $producao = $this->getProducao();
+        $values = $this->getValues();
         $this
             ->setType('bill')
             ->setCategoryId((int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'])
@@ -60,8 +60,8 @@ class ProducaoCooperativista extends AAkauntingDocument
             ->setNote('Notas dos clientes pagas no mês', $this->dates->getInicioProximoMes()->format('Y-m'))
             ->setNote('Dia útil padrão de pagamento', sprintf('%sº', $this->dates->getPagamentoNoDiaUtil()))
             ->setNote('Previsão de pagamento no dia', $this->dates->getDataPagamento()->format('Y-m-d'))
-            ->setNote('Base de cálculo', $this->numberFormatter->format($producao->getBaseProducao()))
-            ->setNote('FRRA', $this->numberFormatter->format($producao->getFrra()))
+            ->setNote('Base de cálculo', $this->numberFormatter->format($values->getBaseProducao()))
+            ->setNote('FRRA', $this->numberFormatter->format($values->getFrra()))
             ->setContactId($cooperado->getAkauntingContactId())
             ->setContactName($cooperado->getName())
             ->setContactTaxNumber($cooperado->getTaxNumber())
@@ -70,12 +70,12 @@ class ProducaoCooperativista extends AAkauntingDocument
             ->setItem(
                 code: 'Auxílio',
                 name: 'Ajuda de custo',
-                price: $producao->getAuxilio()
+                price: $values->getAuxilio()
             )
             ->setItem(
                 code: 'bruto',
                 name: 'Bruto produção',
-                price: $producao->getBruto()
+                price: $values->getBruto()
             )
             ->setTaxes()
             ->coletaNaoPago();
@@ -84,13 +84,13 @@ class ProducaoCooperativista extends AAkauntingDocument
 
     private function insereHealthInsurance(): self
     {
-        $producao = $this->getProducao();
+        $values = $this->getValues();
 
-        if ($producao->getHealthInsurance()) {
+        if ($values->getHealthInsurance()) {
             $this->setItem(
                 itemId: $this->itemsIds['Plano'],
                 name: 'Plano de saúde',
-                price: - $producao->getHealthInsurance(),
+                price: - $values->getHealthInsurance(),
                 order: 10
             );
         }

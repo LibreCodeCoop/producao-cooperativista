@@ -23,13 +23,11 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service;
+namespace ProducaoCooperativista\Service\AkauntingDocument;
 
-use NumberFormatter;
-use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\Service\AkauntingDocument\FRRA;
-use ProducaoCooperativista\Service\AkauntingDocument\ProducaoCooperativista;
-use ProducaoCooperativista\Service\Source\Invoices;
+use ProducaoCooperativista\Service\Cooperado;
+use ProducaoCooperativista\Service\INSS;
+use ProducaoCooperativista\Service\IRPF;
 
 /**
  * @method self setAuxilio(float $value)
@@ -48,14 +46,10 @@ use ProducaoCooperativista\Service\Source\Invoices;
  * @method float getFrra()
  * @method self setFrraDocumentNumber(float $value)
  * @method float getFrraDocumentNumber()
- * @method self setFrraInstance(FRRA $value)
- * @method FRRA getFrraInstance()
  * @method self setHealthInsurance(float $value)
  * @method float getHealthInsurance()
  * @method self setInss(float $value)
  * @method float getInss()
- * @method self setInvoice(ProducaoCooperativista $value)
- * @method ProducaoCooperativista getInvoice()
  * @method self setIrpf(float $value)
  * @method float getIrpf()
  * @method self setIsFrra(bool $value)
@@ -63,7 +57,7 @@ use ProducaoCooperativista\Service\Source\Invoices;
  * @method self setLiquido(float $value)
  * @method float getLiquido()
  */
-class Producao
+class Values
 {
     private ?float $auxilio = 0;
     private ?float $baseIrpf = 0;
@@ -81,8 +75,6 @@ class Producao
     private const STATUS_UPDATING = 1;
     private const STATUS_UPDATED = 2;
     private int $updated = self::STATUS_UPDATED;
-    private ProducaoCooperativista $invoice;
-    private FRRA $frraInstance;
 
 
     public function __construct(

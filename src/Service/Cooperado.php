@@ -30,6 +30,7 @@ use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Service\AkauntingDocument\FRRA;
 use ProducaoCooperativista\Service\AkauntingDocument\ProducaoCooperativista;
+use ProducaoCooperativista\Service\AkauntingDocument\Values;
 use ProducaoCooperativista\Service\Source\Invoices;
 
 /**
@@ -39,8 +40,6 @@ use ProducaoCooperativista\Service\Source\Invoices;
  * @method int getDependentes()
  * @method self setFrra(int $value)
  * @method FRRA getFrra()
- * @method self setProducao(Producao $value)
- * @method Producao getProducao()
  * @method self setProducaoCooperativista(ProducaoCooperativista $value)
  * @method ProducaoCooperativista getProducaoCooperativista()
  * @method self setName(string $value)
@@ -56,7 +55,6 @@ class Cooperado
     private ?int $dependentes = 0;
     private ?string $name = '';
     private ?string $taxNumber = '';
-    private Producao $producao;
     private ProducaoCooperativista $producaoCooperativista;
     private FRRA $frra;
 
@@ -68,10 +66,6 @@ class Cooperado
         private Invoices $invoices
     )
     {
-        $this->setProducao(new Producao(
-            anoFiscal: $anoFiscal,
-            cooperado: $this
-        ));
         $this->setProducaoCooperativista(new ProducaoCooperativista(
             anoFiscal: $anoFiscal,
             db: $this->db,
@@ -80,7 +74,11 @@ class Cooperado
             invoices: $this->invoices,
             cooperado: $this
         ));
-        $this->getProducaoCooperativista()->setProducao($this->getProducao());
+        $this->getProducaoCooperativista()->setValues(new Values(
+            anoFiscal: $anoFiscal,
+            cooperado: $this
+        ));
+
         $this->setFrra(new FRRA(
             anoFiscal: $anoFiscal,
             db: $this->db,
@@ -89,7 +87,7 @@ class Cooperado
             invoices: $this->invoices,
             cooperado: $this
         ));
-        $this->getFrra()->setProducao(new Producao(
+        $this->getFrra()->setValues(new Values(
             anoFiscal: $anoFiscal,
             cooperado: $this
         ));

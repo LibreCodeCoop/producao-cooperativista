@@ -60,8 +60,8 @@ use Symfony\Component\HttpClient\Exception\ClientException;
  * @method int getId()
  * @method self setIssuedAt(string $value)
  * @method string getIssuedAt()
- * @method self setProducao(Producao $value)
- * @method Producao getProducao()
+ * @method self setValues(Values $value)
+ * @method Values getValues()
  * @method self setSearch(string $value)
  * @method string getSearch()
  * @method self setStatus(string $value)
@@ -86,7 +86,7 @@ class AAkauntingDocument
     protected string $search = '';
     protected string $status = '';
     protected string $type = '';
-    protected Producao $producao;
+    protected Values $values;
 
     protected array $notes = [];
     protected array $items = [];
@@ -187,17 +187,17 @@ class AAkauntingDocument
 
     protected function setTaxes(): self
     {
-        $producao = $this->getProducao();
+        $values = $this->getValues();
         $this
             ->setItem(
                 code: 'INSS',
                 name: 'INSS',
-                price: $producao->getInss() * -1
+                price: $values->getInss() * -1
             )
             ->setItem(
                 code: 'IRRF',
                 name: 'IRRF',
-                price: $producao->getIrpf() * -1
+                price: $values->getIrpf() * -1
             );
         return $this;
     }

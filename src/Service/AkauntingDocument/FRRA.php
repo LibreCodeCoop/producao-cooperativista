@@ -92,23 +92,23 @@ class FRRA extends AAkauntingDocument
             return $total;
         }, 0);
 
-        $producao = $this->getProducao();
+        $values = $this->getValues();
         // Backup of current FRRA to don't lost this value after update "baseProducao"
-        $currentFrra = $producao->getBaseProducao();
+        $currentFrra = $values->getBaseProducao();
 
         // Update the "baseProducao" with total of items that isn't tax
-        $producao->setIsFrra(true);
-        $producao->setBaseProducao($total + $currentFrra);
+        $values->setIsFrra(true);
+        $values->setBaseProducao($total + $currentFrra);
 
         $this
             ->setItem(
                 code: 'frra',
                 name: 'FRRA',
                 description: $description,
-                price: $producao->getBaseProducao()
+                price: $values->getBaseProducao()
             )
             ->setTaxes()
-            ->setNote('Base de cálculo', $this->numberFormatter->format($producao->getBaseProducao()));
+            ->setNote('Base de cálculo', $this->numberFormatter->format($values->getBaseProducao()));
         parent::save();
         return $this;
     }
@@ -116,9 +116,9 @@ class FRRA extends AAkauntingDocument
     private function insert(): self
     {
         $cooperado = $this->getCooperado();
-        $producao = $this->getProducao();
-        $producao->setIsFrra(true);
-        $producao->setBaseProducao($producao->getFrra());
+        $values = $this->getValues();
+        $values->setIsFrra(true);
+        $values->setBaseProducao($values->getFrra());
         $this
             ->setType('bill')
             ->setCategoryId((int) $_ENV['AKAUNTING_FRRA_CATEGORY_ID'])
@@ -135,7 +135,7 @@ class FRRA extends AAkauntingDocument
             ->setCurrencyCode('BRL')
             ->setNote('Dia útil padrão de pagamento', sprintf('%sº', $this->dates->getPagamentoNoDiaUtil()))
             ->setNote('Previsão de pagamento no dia', $this->dates->getPrevisaoPagamentoFrra()->format('Y-m-d'))
-            ->setNote('Base de cálculo', $this->numberFormatter->format($producao->getBaseProducao()))
+            ->setNote('Base de cálculo', $this->numberFormatter->format($values->getBaseProducao()))
             ->setContactId($cooperado->getAkauntingContactId())
             ->setContactName($cooperado->getName())
             ->setContactTaxNumber($cooperado->getTaxNumber())
@@ -143,7 +143,7 @@ class FRRA extends AAkauntingDocument
                 code: 'frra',
                 name: 'FRRA',
                 description: sprintf('Referente ao ano/mês: %s', $this->dates->getInicio()->format('Y-m')),
-                price: $producao->getBaseProducao()
+                price: $values->getBaseProducao()
             )
             ->setTaxes();
         parent::save();
