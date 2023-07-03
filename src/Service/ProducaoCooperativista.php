@@ -763,7 +763,6 @@ class ProducaoCooperativista
         $select->select('SUM(amount) as total')
             ->from('invoices')
             ->where("type = 'bill'")
-            ->andWhere("category_type = 'expense'")
             ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID'], ParameterType::INTEGER)))
             ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
 
