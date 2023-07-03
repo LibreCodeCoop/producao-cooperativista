@@ -140,7 +140,9 @@ class AkauntingDocument
         $item['total'] = ($total > 0 ? $total : $item['price']) * $item['quantity'];
         $item['discount'] = $discount;
         $item['order'] = $order;
-        $found = array_filter($this->items, fn($i) => $i['name'] === $item['name']);
+        $found = array_filter($this->items, function (array $i) use ($item): bool {
+            return $i['name'] === $item['name'] && $i['description'] === $item['description'];
+        });
         if ($found) {
             $this->items[key($found)] = $item;
             return $this;
@@ -410,6 +412,7 @@ class AkauntingDocument
                 id: $item['id'],
                 itemId: $item['item_id'],
                 name: $item['name'],
+                description: $item['description'],
                 price: $item['price']
             );
         }
@@ -509,7 +512,8 @@ class AkauntingDocument
         $frra
             ->setItem(
                 code: 'frra',
-                name: sprintf('Referente ao ano/mês: %s', $this->dates->getInicio()->format('Y-m')),
+                name: 'FRRA',
+                description: sprintf('Referente ao ano/mês: %s', $this->dates->getInicio()->format('Y-m')),
                 price: $cooperado->getBaseProducao()
             )
             ->setTaxes()
@@ -543,7 +547,8 @@ class AkauntingDocument
             ->setContactTaxNumber($cooperado->getTaxNumber())
             ->setItem(
                 code: 'frra',
-                name: sprintf('Referente ao ano/mês: %s', $this->dates->getInicio()->format('Y-m')),
+                name: 'FRRA',
+                description: sprintf('Referente ao ano/mês: %s', $this->dates->getInicio()->format('Y-m')),
                 price: $cooperado->getBaseProducao()
             )
             ->setTaxes()
