@@ -29,8 +29,9 @@ use Exception;
 use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
-use ProducaoCooperativista\Service\CooperadoProducao;
+use ProducaoCooperativista\Service\Cooperado;
 use ProducaoCooperativista\Service\Dates;
+use ProducaoCooperativista\Service\Producao;
 use ProducaoCooperativista\Service\Source\Invoices;
 use Symfony\Component\HttpClient\Exception\ClientException;
 
@@ -40,8 +41,8 @@ use Symfony\Component\HttpClient\Exception\ClientException;
  * @method self setCategoryId(int $value)
  * @method int getCategoryId()
  * @method self setContactId(int $value)
- * @method self setCooperado(CooperadoProducao $value)
- * @method CooperadoProducao getCooperadoProducao()
+ * @method self setCooperado(Cooperado $value)
+ * @method Cooperado getCooperado()
  * @method int getContactId()
  * @method self setContactName(string $value)
  * @method string getContactName()
@@ -59,6 +60,8 @@ use Symfony\Component\HttpClient\Exception\ClientException;
  * @method int getId()
  * @method self setIssuedAt(string $value)
  * @method string getIssuedAt()
+ * @method self setProducao(Producao $value)
+ * @method Producao getProducao()
  * @method self setSearch(string $value)
  * @method string getSearch()
  * @method self setStatus(string $value)
@@ -83,6 +86,7 @@ class AAkauntingDocument
     protected string $search = '';
     protected string $status = '';
     protected string $type = '';
+    protected Producao $producao;
 
     protected array $notes = [];
     protected array $items = [];
@@ -91,11 +95,12 @@ class AAkauntingDocument
     protected array $itemsIds;
 
     public function __construct(
+        protected ?int $anoFiscal,
         protected Database $db,
         protected Dates $dates,
         protected NumberFormatter $numberFormatter,
         protected Invoices $invoices,
-        protected CooperadoProducao $cooperadoProducao
+        protected Cooperado $cooperado,
     )
     {
         $this->itemsIds = json_decode($_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS'], true);
@@ -182,17 +187,17 @@ class AAkauntingDocument
 
     protected function setTaxes(): self
     {
-        $cooperado = $this->getCooperadoProducao();
+        $producao = $this->getProducao();
         $this
             ->setItem(
                 code: 'INSS',
                 name: 'INSS',
-                price: $cooperado->getInss() * -1
+                price: $producao->getInss() * -1
             )
             ->setItem(
                 code: 'IRRF',
                 name: 'IRRF',
-                price: $cooperado->getIrpf() * -1
+                price: $producao->getIrpf() * -1
             );
         return $this;
     }

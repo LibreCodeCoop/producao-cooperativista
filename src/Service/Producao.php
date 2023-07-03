@@ -32,8 +32,6 @@ use ProducaoCooperativista\Service\AkauntingDocument\ProducaoCooperativista;
 use ProducaoCooperativista\Service\Source\Invoices;
 
 /**
- * @method self setAkauntingContactId(int $value)
- * @method int getAkauntingContactId()
  * @method self setAuxilio(float $value)
  * @method float getAuxilio()
  * @method self setBaseIrpf(float $value)
@@ -42,8 +40,8 @@ use ProducaoCooperativista\Service\Source\Invoices;
  * @method float getBaseProducao()
  * @method self setBruto(float $value)
  * @method float getBruto()
- * @method self setDependentes(int $value)
- * @method int getDependentes()
+ * @method self setCooperado(Cooperado $value)
+ * @method Cooperado getCooperado()
  * @method self setDocumentNumber(string $value)
  * @method string getDocumentNumber()
  * @method self setFrra(float $value)
@@ -64,19 +62,13 @@ use ProducaoCooperativista\Service\Source\Invoices;
  * @method bool getIsFrra()
  * @method self setLiquido(float $value)
  * @method float getLiquido()
- * @method self setName(string $value)
- * @method string getName()
- * @method self setTaxNumber(string $value)
- * @method string getTaxNumber()
  */
-class CooperadoProducao
+class Producao
 {
-    private ?int $akauntingContactId = 0;
     private ?float $auxilio = 0;
     private ?float $baseIrpf = 0;
     private ?float $baseProducao = 0;
     private ?float $bruto = 0;
-    private ?int $dependentes = 0;
     private ?string $documentNumber = '';
     private ?float $frra = 0;
     private ?string $frraDocumentNumber = '';
@@ -84,8 +76,6 @@ class CooperadoProducao
     private ?float $inss = 0;
     private ?float $irpf = 0;
     private ?float $liquido = 0;
-    private ?string $name = '';
-    private ?string $taxNumber = '';
     private bool $isFrra = false;
     private const STATUS_NEED_TO_UPDATE = 0;
     private const STATUS_UPDATING = 1;
@@ -94,32 +84,16 @@ class CooperadoProducao
     private ProducaoCooperativista $invoice;
     private FRRA $frraInstance;
 
+
     public function __construct(
         private ?int $anoFiscal,
-        private Database $db,
-        private Dates $dates,
-        private NumberFormatter $numberFormatter,
-        private Invoices $invoices
+        private Cooperado $cooperado
     )
     {
-        $this->anoFiscal = $anoFiscal;
-        $this->setInvoice(new ProducaoCooperativista(
-            db: $this->db,
-            dates: $this->dates,
-            numberFormatter: $this->numberFormatter,
-            invoices: $this->invoices,
-            cooperadoProducao: $this
-        ));
-        $this->setFrraInstance(new FRRA(
-            db: $this->db,
-            dates: $this->dates,
-            numberFormatter: $this->numberFormatter,
-            invoices: $this->invoices,
-            cooperadoProducao: $this
-        ));
     }
 
-    public function __call($name, $arguments) {
+    public function __call($name, $arguments)
+    {
         if (!preg_match('/^(?<type>get|set)(?<property>.+)/', $name, $matches)) {
             throw new \LogicException(sprintf('Cannot set non existing property %s->%s = %s.', \get_class($this), $name, var_export($arguments, true)));
         }
@@ -194,28 +168,29 @@ class CooperadoProducao
         $this->setBaseIrpf($irpf->calculaBase(
             $this->getBruto(),
             $this->getInss(),
-            $this->getDependentes()
+            $this->getCooperado()->getDependentes()
         ));
-        $this->setIrpf($irpf->calcula($this->getBaseIrpf(), $this->getDependentes()));
+        $this->setIrpf($irpf->calcula($this->getBaseIrpf(), $this->getCooperado()->getDependentes()));
     }
 
     public function toArray(): array
     {
+        $cooperado = $this->getCooperado();
         return [
-            'akaunting_contact_id' => $this->getAkauntingContactId(),
+            'akaunting_contact_id' => $cooperado->getAkauntingContactId(),
             'auxilio' => $this->getAuxilio(),
             'base_irpf' => $this->getBaseIrpf(),
             'base_producao' => $this->getBaseProducao(),
             'bruto' => $this->getBruto(),
-            'dependentes' => $this->getDependentes(),
+            'dependentes' => $cooperado->getDependentes(),
             'document_number' => $this->getDocumentNumber(),
             'frra' => $this->getFrra(),
             'health_insurance' => $this->getHealthInsurance(),
             'inss' => $this->getInss(),
             'irpf' => $this->getIrpf(),
             'liquido' => $this->getLiquido(),
-            'name' => $this->getName(),
-            'tax_number' => $this->getTaxNumber(),
+            'name' => $cooperado->getName(),
+            'tax_number' => $cooperado->getTaxNumber(),
         ];
     }
 }

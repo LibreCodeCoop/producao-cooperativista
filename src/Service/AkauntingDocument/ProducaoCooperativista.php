@@ -39,7 +39,8 @@ class ProducaoCooperativista extends AAkauntingDocument
 
     private function populateProducaoCooperativistaWithDefault(): self
     {
-        $cooperado = $this->getCooperadoProducao();
+        $cooperado = $this->getCooperado();
+        $producao = $this->getProducao();
         $this
             ->setType('bill')
             ->setCategoryId((int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'])
@@ -59,8 +60,8 @@ class ProducaoCooperativista extends AAkauntingDocument
             ->setNote('Notas dos clientes pagas no mês', $this->dates->getInicioProximoMes()->format('Y-m'))
             ->setNote('Dia útil padrão de pagamento', sprintf('%sº', $this->dates->getPagamentoNoDiaUtil()))
             ->setNote('Previsão de pagamento no dia', $this->dates->getDataPagamento()->format('Y-m-d'))
-            ->setNote('Base de cálculo', $this->numberFormatter->format($cooperado->getBaseProducao()))
-            ->setNote('FRRA', $this->numberFormatter->format($cooperado->getFrra()))
+            ->setNote('Base de cálculo', $this->numberFormatter->format($producao->getBaseProducao()))
+            ->setNote('FRRA', $this->numberFormatter->format($producao->getFrra()))
             ->setContactId($cooperado->getAkauntingContactId())
             ->setContactName($cooperado->getName())
             ->setContactTaxNumber($cooperado->getTaxNumber())
@@ -69,12 +70,12 @@ class ProducaoCooperativista extends AAkauntingDocument
             ->setItem(
                 code: 'Auxílio',
                 name: 'Ajuda de custo',
-                price: $cooperado->getAuxilio()
+                price: $producao->getAuxilio()
             )
             ->setItem(
                 code: 'bruto',
                 name: 'Bruto produção',
-                price: $cooperado->getBruto()
+                price: $producao->getBruto()
             )
             ->setTaxes()
             ->coletaNaoPago();
@@ -83,15 +84,13 @@ class ProducaoCooperativista extends AAkauntingDocument
 
     private function insereHealthInsurance(): self
     {
-        $taxNumber = $this->getContactTaxNumber();
+        $producao = $this->getProducao();
 
-        $cooperado = $this->getCooperadoProducao($taxNumber);
-
-        if ($cooperado->getHealthInsurance()) {
+        if ($producao->getHealthInsurance()) {
             $this->setItem(
                 itemId: $this->itemsIds['Plano'],
                 name: 'Plano de saúde',
-                price: -$cooperado->getHealthInsurance(),
+                price: - $producao->getHealthInsurance(),
                 order: 10
             );
         }
@@ -140,7 +139,7 @@ class ProducaoCooperativista extends AAkauntingDocument
             ->andWhere($select->expr()->in('tax_number', $select->createNamedParameter($this->getContactTaxNumber(), ParameterType::INTEGER)))
             ->andWhere($select->expr()->eq('document_number', $select->createNamedParameter(
                 'PDC_' .
-                $this->getCooperadoProducao()->getTaxNumber() .
+                $this->getCooperado()->getTaxNumber() .
                 '-' .
                 $this->dates->getInicio()->format('Y-m')
             )));

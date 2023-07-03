@@ -26,7 +26,6 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Service;
 
 use DateTime;
-use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
@@ -46,8 +45,10 @@ class ProducaoCooperativista
     private array $custosPorCliente = [];
     private array $valoresPorProjeto = [];
     private array $percentualTrabalhadoPorCliente = [];
-    /** @var CooperadoProducao[] */
+    /** @var Cooperado[] */
     private array $cooperado = [];
+    /** @var Producao[] */
+    private array $producao = [];
     private int $totalCooperados = 0;
     private float $totalNotas = 0;
     private float $totalCustoCliente = 0;
@@ -583,12 +584,13 @@ class ProducaoCooperativista
             if (!$row['cliente_codigo']) {
                 continue;
             }
-            $this->getCooperado($row['tax_number'])
+            $cooperado = $this->getCooperado($row['tax_number'])
                 ->setName($row['alias'])
-                ->setTaxNumber($row['tax_number'])
-                ->setAkauntingContactId($row['akaunting_contact_id'])
-                ->setBaseProducao(0)
                 ->setDependentes($row['dependents'])
+                ->setTaxNumber($row['tax_number'])
+                ->setAkauntingContactId($row['akaunting_contact_id']);
+            $cooperado->getProducao()
+                ->setBaseProducao(0)
                 ->setHealthInsurance($row['health_insurance']);
             $row['base_producao'] = 0;
             $row['percentual_trabalhado'] = (float) $row['percentual_trabalhado'];
@@ -655,19 +657,21 @@ class ProducaoCooperativista
 
     public function updateProducao(): void
     {
-        $producao = $this->getProducaoCooprativista();
+        $producao = $this->getProducaoCooperativista();
         foreach ($producao as $cooperado) {
-            $cooperado->getInvoice()
+            $cooperado
+                ->getProducaoCooperativista()
                 ->save();
-            $cooperado->getFrraInstance()
-                ->save();
+            $frra = $cooperado->getFrra();
+            $frra->getProducao()->setBaseProducao($cooperado->getProducao()->getFrra());
+            $frra->save();
         }
     }
 
     /**
-     * @return CooperadoProducao[]
+     * @return Cooperado[]
      */
-    public function getProducaoCooprativista(): array
+    public function getProducaoCooperativista(): array
     {
         if ($this->cooperado) {
             return $this->cooperado;
@@ -690,15 +694,15 @@ class ProducaoCooperativista
                 continue;
             }
             $aReceberDasSobras = ($sobras * $row['percentual_trabalhado'] / 100);
-            $cooperado = $this->getCooperado($row['tax_number']);
-            $cooperado->setBaseProducao($cooperado->getBaseProducao() + $aReceberDasSobras);
+            $producao = $this->getCooperado($row['tax_number'])->getProducao();
+            $producao->setBaseProducao($producao->getBaseProducao() + $aReceberDasSobras);
         }
     }
 
-    private function getCooperado(string $taxNumber): CooperadoProducao
+    private function getCooperado(string $taxNumber): Cooperado
     {
         if (!isset($this->cooperado[$taxNumber])) {
-            $this->cooperado[$taxNumber] = new CooperadoProducao(
+            $this->cooperado[$taxNumber] = new Cooperado(
                 anoFiscal: (int) $this->dates->getInicio()->format('Y'),
                 db: $this->db,
                 dates: $this->dates,
@@ -728,8 +732,8 @@ class ProducaoCooperativista
             }
             $brutoCliente = $totalPorCliente[$row['cliente_codigo']];
             $aReceber = $brutoCliente * $row['percentual_trabalhado'] / 100;
-            $cooperado = $this->getCooperado($row['tax_number']);
-            $cooperado->setBaseProducao($cooperado->getBaseProducao() + $aReceber);
+            $producao = $this->getCooperado($row['tax_number'])->getProducao();
+            $producao->setBaseProducao($producao->getBaseProducao() + $aReceber);
         }
         if (count($errorSemCodigoCliente)) {
             throw new Exception(
@@ -745,7 +749,7 @@ class ProducaoCooperativista
     {
         $baseProducao = array_reduce(
             $this->cooperado,
-            fn($carry, $cooperado) => $carry += $cooperado->getBaseProducao(),
+            fn($carry, $cooperado) => $carry += $cooperado->getProducao()->getBaseProducao(),
             0
         );
         return $baseProducao;
@@ -778,13 +782,13 @@ class ProducaoCooperativista
 
     public function exportToCsv(): string
     {
-        $list = $this->getProducaoCooprativista();
+        $list = $this->getProducaoCooperativista();
         // header
         $cooperado = current($list);
-        $output[] = $this->csvstr(array_keys($cooperado->toArray()));
+        $output[] = $this->csvstr(array_keys($cooperado->getProducao()->toArray()));
         // body
         foreach ($list as $cooperado) {
-            $output[] = $this->csvstr($cooperado->toArray());
+            $output[] = $this->csvstr($cooperado->getProducao()->toArray());
         }
         $output = implode("\n", $output);
         return $output;
@@ -834,7 +838,7 @@ class ProducaoCooperativista
 
         $producao = $spreadsheet->getSheetByName('mês')
             ->setTitle($this->dates->getInicio()->format('Y-m'));
-        $cooperados = $this->getProducaoCooprativista();
+        $cooperados = $this->getProducaoCooperativista();
         $row = 4;
         foreach ($cooperados as $cooperado) {
             $producao->setCellValue('A' . $row, $cooperado->getName());
