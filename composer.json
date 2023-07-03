@@ -35,6 +35,12 @@
             "bamarni/composer-bin-plugin": true
         }
     },
+    "extra": {
+        "bamarni-bin": {
+            "bin-links": true,
+            "forward-command": true
+        }
+    },
     "scripts": {
         "bin": "echo 'bin not installed'",
         "lint": "find . -name \\*.php -not -path './vendor/*' -not -path './vendor-bin/*' -print0 | xargs -0 -n1 php -l",
