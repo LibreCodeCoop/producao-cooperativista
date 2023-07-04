@@ -589,7 +589,6 @@ class ProducaoCooperativista
         );
         $stmt->bindValue('data_inicio', $this->dates->getInicio()->format('Y-m-d'));
         $stmt->bindValue('data_fim', $this->dates->getFim()->format('Y-m-d H:i:s'));
-        $stmt->bindValue('ano_mes', $this->dates->getInicioProximoMes()->format('Y-m'));
         $result = $stmt->executeQuery();
         $this->percentualTrabalhadoPorCliente = [];
         while ($row = $result->fetchAssociative()) {
