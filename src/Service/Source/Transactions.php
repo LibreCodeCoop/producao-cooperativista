@@ -88,6 +88,7 @@ class Transactions
 
     public function fromArray(array $array): TransactionsEntity
     {
+        $array = array_merge($array, $this->parseText($array['invoice_notes']));
         $array = array_merge($array, $this->parseText($array['description']));
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->defineCustomerReference($array);
@@ -118,6 +119,7 @@ class Transactions
         $select = new QueryBuilder($this->db->getConnection());
         $select->select('id')
             ->addSelect('customer_reference')
+            ->addSelect('metadata->"$.notes" as invoice_notes')
             ->from('invoices')
             ->where(
                 $select->expr()->in(
@@ -133,6 +135,7 @@ class Transactions
         while ($row = $result->fetchAssociative()) {
             foreach ($this->list as $key => $transaction) {
                 if ($transaction['document_id'] === $row['id']) {
+                    $this->list[$key]['invoice_notes'] = $row['invoice_notes'];
                     $this->list[$key]['customer_reference'] = $row['customer_reference'];
                     break;
                 }
