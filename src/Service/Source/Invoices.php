@@ -34,10 +34,10 @@ use ProducaoCooperativista\Service\Source\Provider\Akaunting;
 use Psr\Log\LoggerInterface;
 
 /**
- * @method Invoices setCompanyId(int $value)
+ * @method self setCompanyId(int $value)
  * @method int getCompanyId();
- * @method Invoices setDate(DateTime $value)
- * @method Invoices setType(string $value)
+ * @method self setDate(DateTime $value)
+ * @method self setType(string $value)
  * @method string getType()
  */
 class Invoices
