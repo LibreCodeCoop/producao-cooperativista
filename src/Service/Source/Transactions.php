@@ -32,6 +32,7 @@ use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Types;
 use Exception;
 use ProducaoCooperativista\DB\Database;
+use ProducaoCooperativista\DB\Entity\Transactions as TransactionsEntity;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Service\Source\Provider\Akaunting;
 use Psr\Log\LoggerInterface;
