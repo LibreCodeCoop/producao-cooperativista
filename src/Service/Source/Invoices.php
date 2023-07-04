@@ -98,7 +98,7 @@ class Invoices
 
     public function fromArray(array $array): InvoicesEntity
     {
-        $array = $this->parseNotes($array);
+        $array = array_merge($array, $this->parseText($array['notes']));
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
@@ -135,22 +135,6 @@ class Invoices
             throw new Exception('You need to set the start date of month that you want to get invoices');
         }
         return $this->date;
-    }
-
-    private function parseNotes(array $row): array
-    {
-        if (empty($row['notes'])) {
-            return $row;
-        }
-        $explodedNotes = explode("\n", $row['notes']);
-        $pattern = '/^(?<paramName>' . implode('|', array_keys($this->dictionaryParamsAtNotes)) . '): (?<paramValue>.*)$/i';
-        foreach ($explodedNotes as $rowOfNotes) {
-            if (!preg_match($pattern, $rowOfNotes, $matches)) {
-                continue;
-            }
-            $row[$this->dictionaryParamsAtNotes[$matches['paramName']]] = strtolower(trim($matches['paramValue']));
-        }
-        return $row;
     }
 
     private function defineTransactionOfMonth(array $row): array

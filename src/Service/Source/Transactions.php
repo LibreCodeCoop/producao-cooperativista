@@ -51,14 +51,6 @@ class Transactions
     private int $companyId;
     private ?int $categoryId;
     private array $list = [];
-    private array $dictionaryParamsAtDescription = [
-        'NFSe' => 'nfse',
-        'Transação do mês' => 'transaction_of_month',
-        'CNPJ cliente' => 'customer',
-        'Setor' => 'sector',
-        'setor' => 'sector',
-        'Arquivar' => 'archive',
-    ];
 
     public function __construct(
         private Database $db,
@@ -94,6 +86,20 @@ class Transactions
         }
         $this->getCustomerReferenceFromInvoice();
         return $this->list;
+    }
+
+    public function fromArray(array $array): TransactionsEntity
+    {
+        $array = array_merge($array, $this->parseText($array['description']));
+        $array = $this->defineTransactionOfMonth($array);
+        $array = $this->defineCustomerReference($array);
+        $array['archive'] = strtolower($array['archive'] ?? 'não') === 'sim' ? 1 : 0;
+        $entity = $this->db->getEntityManager()->find(TransactionsEntity::class, $array['id']);
+        if (!$entity instanceof TransactionsEntity) {
+            $entity = new TransactionsEntity();
+        }
+        $entity->fromArray($array);
+        return $entity;
     }
 
     private function getDate(): DateTime
@@ -134,22 +140,6 @@ class Transactions
                 }
             }
         }
-    }
-
-    private function parseDescription(array $row): array
-    {
-        if (empty($row['description'])) {
-            return $row;
-        }
-        $explodedDescription = explode("\n", $row['description']);
-        $pattern = '/^(?<paramName>' . implode('|', array_keys($this->dictionaryParamsAtDescription)) . '): (?<paramValue>.*)$/i';
-        foreach ($explodedDescription as $rowOfDescription) {
-            if (!preg_match($pattern, $rowOfDescription, $matches)) {
-                continue;
-            }
-            $row[$this->dictionaryParamsAtDescription[$matches['paramName']]] = strtolower(trim($matches['paramValue']));
-        }
-        return $row;
     }
 
     private function defineTransactionOfMonth(array $row): array
