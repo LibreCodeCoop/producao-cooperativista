@@ -48,14 +48,6 @@ class Invoices
     private string $type;
     private int $companyId;
     private array $list = [];
-    private array $dictionaryParamsAtNotes = [
-        'NFSe' => 'nfse',
-        'Transação do mês' => 'transaction_of_month',
-        'CNPJ cliente' => 'customer',
-        'Setor' => 'sector',
-        'setor' => 'sector',
-        'Arquivar' => 'archive',
-    ];
 
     public function __construct(
         private Database $db,
