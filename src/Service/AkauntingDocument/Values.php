@@ -46,8 +46,6 @@ use ProducaoCooperativista\Service\IRPF;
  * @method float getFrra()
  * @method self setFrraDocumentNumber(float $value)
  * @method float getFrraDocumentNumber()
- * @method self setHealthInsurance(float $value)
- * @method float getHealthInsurance()
  * @method self setInss(float $value)
  * @method float getInss()
  * @method self setIrpf(float $value)
@@ -66,7 +64,6 @@ class Values
     private ?string $documentNumber = '';
     private ?float $frra = 0;
     private ?string $frraDocumentNumber = '';
-    private ?float $healthInsurance = 0;
     private ?float $inss = 0;
     private ?float $irpf = 0;
     private ?float $liquido = 0;
@@ -117,13 +114,14 @@ class Values
         }
         $this->setAuxilio($this->getBaseProducao() * 0.2);
         $this->setBruto($this->getBaseProducao() - $this->getAuxilio() - $this->getFrra());
-        $this->setLiquido(
-            $this->getBruto()
+        $liquido = $this->getBruto()
             - $this->getInss()
             - $this->getIrpf()
-            - $this->getHealthInsurance()
-            + $this->getAuxilio()
-        );
+            + $this->getAuxilio();
+        if (!$this->isFrra) {
+            $liquido -=$this->getCooperado()->getHealthInsurance();
+        }
+        $this->setLiquido($liquido);
         $this->updated = self::STATUS_UPDATED;
     }
 
@@ -141,7 +139,6 @@ class Values
         $this->baseIrpf = 0;
         $this->bruto = 0;
         $this->frra = 0;
-        $this->healthInsurance = 0;
         $this->inss = 0;
         $this->irpf = 0;
         $this->liquido = 0;
@@ -176,7 +173,7 @@ class Values
             'dependentes' => $cooperado->getDependentes(),
             'document_number' => $this->getDocumentNumber(),
             'frra' => $this->getFrra(),
-            'health_insurance' => $this->getHealthInsurance(),
+            'health_insurance' => $cooperado->getHealthInsurance(),
             'inss' => $this->getInss(),
             'irpf' => $this->getIrpf(),
             'liquido' => $this->getLiquido(),

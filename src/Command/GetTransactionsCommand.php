@@ -26,8 +26,7 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Command;
 
 use DateTime;
-use ProducaoCooperativista\Service\Source\Transactions as SourceTransactions;
-use ProducaoCooperativista\Service\Transactions;
+use ProducaoCooperativista\Service\Source\Transactions;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -41,7 +40,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 class GetTransactionsCommand extends BaseCommand
 {
     public function __construct(
-        private SourceTransactions $transactions
+        private Transactions $transactions
     ) {
         parent::__construct();
     }
@@ -78,16 +77,16 @@ class GetTransactionsCommand extends BaseCommand
             return Command::INVALID;
         }
         $date = DateTime::createFromFormat('Y-m', $input->getOption('year-month'));
-        $list = $this->transactions->getFromApi(
-            date: $date,
-            companyId: (int) $input->getOption('company'),
-            categoryId: (int) $input->getOption('category')
-        );
+        $list = $this->transactions
+            ->setDate($date)
+            ->setCompanyId((int) $input->getOption('company'))
+            ->setCategoryId((int) $input->getOption('category'))
+            ->getList();
         if ($input->getOption('csv')) {
             $output->write($this->toCsv($list));
         }
         if ($input->getOption('database')) {
-            $this->transactions->saveList($list, $date, $input->getOption('category'));
+            $this->transactions->saveList();
         }
         return Command::SUCCESS;
     }

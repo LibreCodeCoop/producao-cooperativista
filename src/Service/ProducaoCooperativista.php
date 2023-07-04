@@ -147,7 +147,9 @@ class ProducaoCooperativista
             ->setType('bill')
             ->saveList();
         $this->timesheets->updateDatabase($this->dates->getInicio());
-        $this->transactions->updateDatabase($this->dates->getInicioProximoMes());
+        $this->transactions
+            ->setDate($this->dates->getInicioProximoMes())
+            ->saveList();
         $this->users->updateDatabase();
     }
 
@@ -245,6 +247,7 @@ class ProducaoCooperativista
                     FROM invoices i
                 WHERE i.type = 'bill'
                     AND transaction_of_month = :ano_mes
+                    AND archive = 0
                     AND category_type = 'expense'
                     AND category_name NOT IN (
                         'Produção cooperativista',
@@ -263,6 +266,7 @@ class ProducaoCooperativista
                 SELECT sum(amount) AS total_dispendios
                     FROM transactions t
                 WHERE transaction_of_month = :ano_mes
+                    AND archive = 0
                     AND category_type = 'expense'
                     AND category_name NOT IN (
                         'Produção cooperativista',
@@ -299,6 +303,7 @@ class ProducaoCooperativista
             SELECT SUM(amount) AS notas
             FROM invoices i
             WHERE type = 'invoice'
+            AND archive = 0
             AND category_name IN (
                 'Cliente',
                 'Serviços de clientes',
@@ -366,6 +371,7 @@ class ProducaoCooperativista
                     contact_name
                 FROM invoices i
                 WHERE i.type = 'bill'
+                AND archive = 0
                 AND transaction_of_month = :ano_mes
                 AND category_type = 'expense'
                 AND category_name IN (
@@ -386,6 +392,7 @@ class ProducaoCooperativista
                     contact_name
                 FROM transactions t
                 WHERE transaction_of_month = :ano_mes
+                AND archive = 0
                 AND category_type = 'expense'
                 AND category_name IN (
                     'Cliente',
@@ -532,7 +539,7 @@ class ProducaoCooperativista
             return $this->percentualTrabalhadoPorCliente;
         }
         $contabilizaveis = $this->clientesContabilizaveis();
-        $cnpjClientesInternos = "'" . implode("','", $contabilizaveis) . "'";
+        $cnpjContabilizaveis = "'" . implode("','", $contabilizaveis) . "'";
         $stmt = $this->db->getConnection()->prepare(
             <<<SQL
             -- Percentual trabalhado por cliente
@@ -550,7 +557,7 @@ class ProducaoCooperativista
             JOIN timesheet t ON t.project_id = p.id
             JOIN users u ON u.id = t.user_id
             JOIN (
-                -- Total minutos faturados por cliente
+                -- Total minutos a faturar por cliente
                 SELECT c.id as customer_id,
                     c.name,
                     c.vat_id,
@@ -562,7 +569,7 @@ class ProducaoCooperativista
                 JOIN timesheet t ON t.project_id = p.id AND t.`begin` >= :data_inicio AND t.`end` <= :data_fim
                 JOIN users u2 ON u2.id = t.user_id
                 WHERE u2.enabled = 1
-                AND c.vat_id IN ($cnpjClientesInternos)
+                AND c.vat_id IN ($cnpjContabilizaveis)
                 GROUP BY c.id,
                         c.name,
                         c.vat_id
@@ -584,21 +591,17 @@ class ProducaoCooperativista
         );
         $stmt->bindValue('data_inicio', $this->dates->getInicio()->format('Y-m-d'));
         $stmt->bindValue('data_fim', $this->dates->getFim()->format('Y-m-d H:i:s'));
-        $stmt->bindValue('ano_mes', $this->dates->getInicioProximoMes()->format('Y-m'));
         $result = $stmt->executeQuery();
         $this->percentualTrabalhadoPorCliente = [];
         while ($row = $result->fetchAssociative()) {
             if (!$row['cliente_codigo']) {
                 continue;
             }
-            $cooperado = $this->getCooperado($row['tax_number'])
+            $this->getCooperado($row['tax_number'])
                 ->setName($row['alias'])
                 ->setDependentes($row['dependents'])
                 ->setTaxNumber($row['tax_number'])
-                ->setAkauntingContactId($row['akaunting_contact_id']);
-            $cooperado->getProducaoCooperativista()
-                ->getValues()
-                ->setBaseProducao(0)
+                ->setAkauntingContactId($row['akaunting_contact_id'])
                 ->setHealthInsurance($row['health_insurance']);
             $row['base_producao'] = 0;
             $row['percentual_trabalhado'] = (float) $row['percentual_trabalhado'];
@@ -779,6 +782,7 @@ class ProducaoCooperativista
         $select->select('SUM(amount) as total')
             ->from('invoices')
             ->where($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID'], ParameterType::INTEGER)))
+            ->andWhere($select->expr()->eq('archive', $select->createNamedParameter(0, ParameterType::INTEGER)))
             ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
 
         $result = $select->executeQuery();

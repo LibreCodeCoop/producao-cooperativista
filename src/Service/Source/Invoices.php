@@ -34,10 +34,10 @@ use ProducaoCooperativista\Service\Source\Provider\Akaunting;
 use Psr\Log\LoggerInterface;
 
 /**
- * @method Invoices setCompanyId(int $value)
+ * @method self setCompanyId(int $value)
  * @method int getCompanyId();
- * @method Invoices setDate(DateTime $value)
- * @method Invoices setType(string $value)
+ * @method self setDate(DateTime $value)
+ * @method self setType(string $value)
  * @method string getType()
  */
 class Invoices
@@ -47,15 +47,8 @@ class Invoices
     private ?DateTime $date;
     private string $type;
     private int $companyId;
-    private array $invoices = [];
-    private array $dictionaryParamsAtNotes = [
-        'NFSe' => 'nfse',
-        'Transação do mês' => 'transaction_of_month',
-        'CNPJ cliente' => 'customer',
-        'Setor' => 'sector',
-        'setor' => 'sector',
-        'Arquivar' => 'archive',
-    ];
+    /** @var InvoicesEntity[] */
+    private array $list = [];
 
     public function __construct(
         private Database $db,
@@ -67,8 +60,8 @@ class Invoices
 
     public function getList(): array
     {
-        if (isset($this->invoices[$this->getType()])) {
-            return $this->invoices[$this->getType()];
+        if (isset($this->list[$this->getType()])) {
+            return $this->list[$this->getType()];
         }
         $this->logger->debug('Baixando dados de invoices');
 
@@ -91,29 +84,29 @@ class Invoices
         ]);
         foreach ($list as $row) {
             $invoice = $this->fromArray($row);
-            $this->invoices[$this->getType()][] = $invoice;
+            $this->list[$this->getType()][] = $invoice;
         }
-        return $this->invoices[$this->getType()] ?? [];
+        return $this->list[$this->getType()] ?? [];
     }
 
     public function fromArray(array $array): InvoicesEntity
     {
-        $array = $this->parseNotes($array);
+        $array = array_merge($array, $this->parseText((string) $array['notes']));
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
-        $invoice = $this->db->getEntityManager()->find(\ProducaoCooperativista\DB\Entity\Invoices::class, $array['id']);
-        if (!$invoice) {
-            $invoice = new InvoicesEntity();
+        $entity = $this->db->getEntityManager()->find(InvoicesEntity::class, $array['id']);
+        if (!$entity instanceof InvoicesEntity) {
+            $entity = new InvoicesEntity();
         }
-        $invoice->fromArray($array);
-        return $invoice;
+        $entity->fromArray($array);
+        return $entity;
     }
 
     public function saveList(): self
     {
         $this->getList();
-        foreach ($this->invoices as $list) {
+        foreach ($this->list as $list) {
             foreach ($list as $row) {
                 $this->saveRow($row);
             }
@@ -137,26 +130,10 @@ class Invoices
         return $this->date;
     }
 
-    private function parseNotes(array $row): array
-    {
-        if (empty($row['notes'])) {
-            return $row;
-        }
-        $explodedNotes = explode("\n", $row['notes']);
-        $pattern = '/^(?<paramName>' . implode('|', array_keys($this->dictionaryParamsAtNotes)) . '): (?<paramValue>.*)$/i';
-        foreach ($explodedNotes as $rowOfNotes) {
-            if (!preg_match($pattern, $rowOfNotes, $matches)) {
-                continue;
-            }
-            $row[$this->dictionaryParamsAtNotes[$matches['paramName']]] = strtolower(trim($matches['paramValue']));
-        }
-        return $row;
-    }
-
     private function defineTransactionOfMonth(array $row): array
     {
         if (!array_key_exists('transaction_of_month', $row)) {
-            $date = $this->convertDate($row['issued_at']);
+            $date = $this->convertDate($row['due_at']);
             $row['transaction_of_month'] = $date->format('Y-m');
         }
         return $row;
@@ -181,15 +158,15 @@ class Invoices
 
     private function convertFields(array $row): array
     {
-        $row['nfse'] = !empty($row['nfse']) ? (int) $row['nfse'] : null;
+        $row['archive'] = strtolower($row['archive'] ?? 'não') === 'sim' ? 1 : 0;
         $row['category_name'] = $row['category']['name'];
         $row['category_type'] = $row['category']['type'];
         $row['contact_name'] = $row['contact']['name'];
         $row['contact_reference'] = $row['contact']['reference'];
         $row['contact_type'] = $row['contact']['type'];
-        $row['tax_number'] = $row['contact']['tax_number'] ?? $row['contact_tax_number'];
-        $row['archive'] = strtolower($row['archive'] ?? 'não') === 'sim' ? 1 : 0;
         $row['metadata'] = $row;
+        $row['nfse'] = !empty($row['nfse']) ? (int) $row['nfse'] : null;
+        $row['tax_number'] = $row['contact']['tax_number'] ?? $row['contact_tax_number'];
         return $row;
     }
 
