@@ -30,13 +30,27 @@ use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Types;
+use Exception;
 use ProducaoCooperativista\DB\Database;
+use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Service\Source\Provider\Akaunting;
 use Psr\Log\LoggerInterface;
 
+/**
+ * @method self setCategoryId(int $value)
+ * @method int getCategoryId();
+ * @method self setCompanyId(int $value)
+ * @method int getCompanyId();
+ * @method self setDate(DateTime $value)
+ */
 class Transactions
 {
+    use MagicGetterSetterTrait;
     use Akaunting;
+    private ?DateTime $date;
+    private int $companyId;
+    private ?int $categoryId;
+    private array $list = [];
     private array $dictionaryParamsAtDescription = [
         'NFSe' => 'nfse',
         'Transação do mês' => 'transaction_of_month',
@@ -50,55 +64,52 @@ class Transactions
         private Database $db,
         private LoggerInterface $logger
     ) {
+        $this->companyId = (int) $_ENV['AKAUNTING_COMPANY_ID'];
     }
 
-    public function updateDatabase(DateTime $data): void
-    {
-        $list = $this->getFromApi($data, companyId: (int) $_ENV['AKAUNTING_COMPANY_ID']);
-        $this->saveList($list, $data);
-    }
-
-    public function getFromApi(DateTime $date, int $companyId, ?int $categoryId = null): array
-    {
-        $transactions = $this->getTransactions($date, $companyId, $categoryId);
-        return $transactions;
-    }
-
-    private function getTransactions(DateTime $date, int $companyId, ?int $categoryId): array
+    public function getList(): array
     {
         $this->logger->debug('Baixando dados de transactions');
-        $begin = $date
+        $begin = $this->getDate()
             ->modify('first day of this month');
         $end = clone $begin;
         $end = $end->modify('last day of this month');
 
         $search = [];
-        if ($categoryId) {
-            $search[] = 'category_id:' . $categoryId;
+        if ($this->getCategoryId()) {
+            $search[] = 'category_id:' . $this->getCategoryId();
         }
         $search[] = 'paid_at>=' . $begin->format('Y-m-d');
         $search[] = 'paid_at<=' . $end->format('Y-m-d');
-        $list = $this->getDataList('/api/transactions', [
-            'company_id' => $companyId,
+        $this->list = $this->getDataList('/api/transactions', [
+            'company_id' => $this->getCompanyId(),
             'search' => implode(' ', $search),
         ]);
-        foreach ($list as $key => $row) {
+        foreach ($this->list as $key => $row) {
             $row = $this->parseDescription($row);
             $row = $this->defineTransactionOfMonth($row);
             $row = $this->defineCustomerReference($row);
             $row['archive'] = strtolower($row['archive'] ?? 'não') === 'sim' ? 1 : 0;
-            $list[$key] = $row;
+            $this->list[$key] = $row;
         }
-        $list = $this->getCustomerReferenceFromInvoice($list);
-        return $list;
+        $this->getCustomerReferenceFromInvoice();
+        return $this->list;
     }
 
-    private function getCustomerReferenceFromInvoice(array $list): array
+    private function getDate(): DateTime
     {
-        $filtered = array_filter($list, fn ($r) => $r['document_id'] && !$r['customer_reference']);
+        if (!$this->date instanceof DateTime) {
+            throw new Exception('You need to set the start date of month that you want to get transactions');
+        }
+        return $this->date;
+    }
+
+    private function getCustomerReferenceFromInvoice(): void
+    {
+        $filtered = array_filter($this->list, fn ($r) => $r['document_id'] && !$r['customer_reference']);
         $documentIdList = array_column($filtered, 'document_id');
         if (!$documentIdList) {
-            return $list;
+            return;
         }
         $select = new QueryBuilder($this->db->getConnection());
         $select->select('id')
@@ -116,14 +127,13 @@ class Transactions
             ->andWhere('customer_reference IS NOT NULL');
         $result = $select->executeQuery();
         while ($row = $result->fetchAssociative()) {
-            foreach ($list as $key => $transaction) {
+            foreach ($this->list as $key => $transaction) {
                 if ($transaction['document_id'] === $row['id']) {
-                    $list[$key]['customer_reference'] = $row['customer_reference'];
+                    $this->list[$key]['customer_reference'] = $row['customer_reference'];
                     break;
                 }
             }
         }
-        return $list;
     }
 
     private function parseDescription(array $row): array
@@ -168,9 +178,10 @@ class Transactions
         return $row;
     }
 
-    public function saveList(array $list, DateTime $date, ?string $category = null): void
+    public function saveList(): void
     {
-        $begin = $date
+        $list = $this->getList();
+        $begin = $this->getDate()
             ->modify('first day of this month');
         $end = clone $begin;
         $end = $end->modify('last day of this month');
@@ -199,11 +210,11 @@ class Transactions
                 $select->createNamedParameter($end, Types::DATE_MUTABLE)
             )
         );
-        if ($category) {
+        if ($this->getCategoryId()) {
             $select->andWhere(
                 $select->expr()->eq(
                     'category_id',
-                    $select->createNamedParameter($category)
+                    $select->createNamedParameter($this->getCategoryId(), Types::INTEGER)
                 )
             );
         }

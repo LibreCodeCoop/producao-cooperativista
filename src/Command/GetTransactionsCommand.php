@@ -77,16 +77,16 @@ class GetTransactionsCommand extends BaseCommand
             return Command::INVALID;
         }
         $date = DateTime::createFromFormat('Y-m', $input->getOption('year-month'));
-        $list = $this->transactions->getFromApi(
-            date: $date,
-            companyId: (int) $input->getOption('company'),
-            categoryId: (int) $input->getOption('category')
-        );
+        $list = $this->transactions
+            ->setDate($date)
+            ->setCompanyId((int) $input->getOption('company'))
+            ->setCategoryId((int) $input->getOption('category'))
+            ->getList();
         if ($input->getOption('csv')) {
             $output->write($this->toCsv($list));
         }
         if ($input->getOption('database')) {
-            $this->transactions->saveList($list, $date, $input->getOption('category'));
+            $this->transactions->saveList();
         }
         return Command::SUCCESS;
     }

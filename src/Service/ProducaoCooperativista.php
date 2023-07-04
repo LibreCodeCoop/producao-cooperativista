@@ -147,7 +147,9 @@ class ProducaoCooperativista
             ->setType('bill')
             ->saveList();
         $this->timesheets->updateDatabase($this->dates->getInicio());
-        $this->transactions->updateDatabase($this->dates->getInicioProximoMes());
+        $this->transactions
+            ->setDate($this->dates->getInicioProximoMes())
+            ->saveList();
         $this->users->updateDatabase();
     }
 
