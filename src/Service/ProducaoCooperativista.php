@@ -537,7 +537,7 @@ class ProducaoCooperativista
             return $this->percentualTrabalhadoPorCliente;
         }
         $contabilizaveis = $this->clientesContabilizaveis();
-        $cnpjClientesInternos = "'" . implode("','", $contabilizaveis) . "'";
+        $cnpjContabilizaveis = "'" . implode("','", $contabilizaveis) . "'";
         $stmt = $this->db->getConnection()->prepare(
             <<<SQL
             -- Percentual trabalhado por cliente
@@ -567,7 +567,7 @@ class ProducaoCooperativista
                 JOIN timesheet t ON t.project_id = p.id AND t.`begin` >= :data_inicio AND t.`end` <= :data_fim
                 JOIN users u2 ON u2.id = t.user_id
                 WHERE u2.enabled = 1
-                AND c.vat_id IN ($cnpjClientesInternos)
+                AND c.vat_id IN ($cnpjContabilizaveis)
                 GROUP BY c.id,
                         c.name,
                         c.vat_id
