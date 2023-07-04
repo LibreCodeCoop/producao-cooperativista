@@ -26,8 +26,7 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Command;
 
 use DateTime;
-use ProducaoCooperativista\Service\Source\Transactions as SourceTransactions;
-use ProducaoCooperativista\Service\Transactions;
+use ProducaoCooperativista\Service\Source\Transactions;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -41,7 +40,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 class GetTransactionsCommand extends BaseCommand
 {
     public function __construct(
-        private SourceTransactions $transactions
+        private Transactions $transactions
     ) {
         parent::__construct();
     }
