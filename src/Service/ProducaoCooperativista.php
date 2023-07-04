@@ -245,6 +245,7 @@ class ProducaoCooperativista
                     FROM invoices i
                 WHERE i.type = 'bill'
                     AND transaction_of_month = :ano_mes
+                    AND archive = 0
                     AND category_type = 'expense'
                     AND category_name NOT IN (
                         'Produção cooperativista',
@@ -263,6 +264,7 @@ class ProducaoCooperativista
                 SELECT sum(amount) AS total_dispendios
                     FROM transactions t
                 WHERE transaction_of_month = :ano_mes
+                    AND archive = 0
                     AND category_type = 'expense'
                     AND category_name NOT IN (
                         'Produção cooperativista',
@@ -299,6 +301,7 @@ class ProducaoCooperativista
             SELECT SUM(amount) AS notas
             FROM invoices i
             WHERE type = 'invoice'
+            AND archive = 0
             AND category_name IN (
                 'Cliente',
                 'Serviços de clientes',
@@ -366,6 +369,7 @@ class ProducaoCooperativista
                     contact_name
                 FROM invoices i
                 WHERE i.type = 'bill'
+                AND archive = 0
                 AND transaction_of_month = :ano_mes
                 AND category_type = 'expense'
                 AND category_name IN (
@@ -386,6 +390,7 @@ class ProducaoCooperativista
                     contact_name
                 FROM transactions t
                 WHERE transaction_of_month = :ano_mes
+                AND archive = 0
                 AND category_type = 'expense'
                 AND category_name IN (
                     'Cliente',
@@ -779,6 +784,7 @@ class ProducaoCooperativista
         $select->select('SUM(amount) as total')
             ->from('invoices')
             ->where($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID'], ParameterType::INTEGER)))
+            ->andWhere($select->expr()->eq('archive', $select->createNamedParameter(0, ParameterType::INTEGER)))
             ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
 
         $result = $select->executeQuery();
