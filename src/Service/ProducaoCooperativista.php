@@ -555,7 +555,7 @@ class ProducaoCooperativista
             JOIN timesheet t ON t.project_id = p.id
             JOIN users u ON u.id = t.user_id
             JOIN (
-                -- Total minutos faturados por cliente
+                -- Total minutos a faturar por cliente
                 SELECT c.id as customer_id,
                     c.name,
                     c.vat_id,
