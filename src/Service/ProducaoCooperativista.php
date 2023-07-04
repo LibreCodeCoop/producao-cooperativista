@@ -595,14 +595,11 @@ class ProducaoCooperativista
             if (!$row['cliente_codigo']) {
                 continue;
             }
-            $cooperado = $this->getCooperado($row['tax_number'])
+            $this->getCooperado($row['tax_number'])
                 ->setName($row['alias'])
                 ->setDependentes($row['dependents'])
                 ->setTaxNumber($row['tax_number'])
-                ->setAkauntingContactId($row['akaunting_contact_id']);
-            $cooperado->getProducaoCooperativista()
-                ->getValues()
-                ->setBaseProducao(0)
+                ->setAkauntingContactId($row['akaunting_contact_id'])
                 ->setHealthInsurance($row['health_insurance']);
             $row['base_producao'] = 0;
             $row['percentual_trabalhado'] = (float) $row['percentual_trabalhado'];
