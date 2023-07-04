@@ -156,7 +156,7 @@ class Invoices
     private function defineTransactionOfMonth(array $row): array
     {
         if (!array_key_exists('transaction_of_month', $row)) {
-            $date = $this->convertDate($row['issued_at']);
+            $date = $this->convertDate($row['due_at']);
             $row['transaction_of_month'] = $date->format('Y-m');
         }
         return $row;
