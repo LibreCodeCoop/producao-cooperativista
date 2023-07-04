@@ -158,15 +158,15 @@ class Invoices
 
     private function convertFields(array $row): array
     {
-        $row['nfse'] = !empty($row['nfse']) ? (int) $row['nfse'] : null;
+        $row['archive'] = strtolower($row['archive'] ?? 'não') === 'sim' ? 1 : 0;
         $row['category_name'] = $row['category']['name'];
         $row['category_type'] = $row['category']['type'];
         $row['contact_name'] = $row['contact']['name'];
         $row['contact_reference'] = $row['contact']['reference'];
         $row['contact_type'] = $row['contact']['type'];
-        $row['tax_number'] = $row['contact']['tax_number'] ?? $row['contact_tax_number'];
-        $row['archive'] = strtolower($row['archive'] ?? 'não') === 'sim' ? 1 : 0;
         $row['metadata'] = $row;
+        $row['nfse'] = !empty($row['nfse']) ? (int) $row['nfse'] : null;
+        $row['tax_number'] = $row['contact']['tax_number'] ?? $row['contact_tax_number'];
         return $row;
     }
 
