@@ -77,14 +77,11 @@ class Transactions
             'company_id' => $this->getCompanyId(),
             'search' => implode(' ', $search),
         ]);
+        $this->getDataFromAssociatedDocument();
         foreach ($this->list as $key => $row) {
-            $row = $this->parseDescription($row);
-            $row = $this->defineTransactionOfMonth($row);
-            $row = $this->defineCustomerReference($row);
-            $row['archive'] = strtolower($row['archive'] ?? 'não') === 'sim' ? 1 : 0;
-            $this->list[$key] = $row;
+            $transaction = $this->fromArray($row);
+            $this->list[$key] = $transaction;
         }
-        $this->getCustomerReferenceFromInvoice();
         return $this->list;
     }
 
@@ -110,7 +107,7 @@ class Transactions
         return $this->date;
     }
 
-    private function getCustomerReferenceFromInvoice(): void
+    private function getDataFromAssociatedDocument(): void
     {
         $filtered = array_filter($this->list, fn ($r) => $r['document_id'] && !$r['customer_reference']);
         $documentIdList = array_column($filtered, 'document_id');
