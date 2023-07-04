@@ -97,7 +97,6 @@ class FRRA extends AAkauntingDocument
         $currentFrra = $values->getBaseProducao();
 
         // Update the "baseProducao" with total of items that isn't tax
-        $values->setIsFrra(true);
         $values->setBaseProducao($total + $currentFrra);
 
         $this
@@ -117,8 +116,6 @@ class FRRA extends AAkauntingDocument
     {
         $cooperado = $this->getCooperado();
         $values = $this->getValues();
-        $values->setIsFrra(true);
-        $values->setBaseProducao($values->getFrra());
         $this
             ->setType('bill')
             ->setCategoryId((int) $_ENV['AKAUNTING_FRRA_CATEGORY_ID'])
