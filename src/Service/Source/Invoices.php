@@ -47,7 +47,7 @@ class Invoices
     private ?DateTime $date;
     private string $type;
     private int $companyId;
-    private array $invoices = [];
+    private array $list = [];
     private array $dictionaryParamsAtNotes = [
         'NFSe' => 'nfse',
         'Transação do mês' => 'transaction_of_month',
@@ -67,8 +67,8 @@ class Invoices
 
     public function getList(): array
     {
-        if (isset($this->invoices[$this->getType()])) {
-            return $this->invoices[$this->getType()];
+        if (isset($this->list[$this->getType()])) {
+            return $this->list[$this->getType()];
         }
         $this->logger->debug('Baixando dados de invoices');
 
@@ -91,9 +91,9 @@ class Invoices
         ]);
         foreach ($list as $row) {
             $invoice = $this->fromArray($row);
-            $this->invoices[$this->getType()][] = $invoice;
+            $this->list[$this->getType()][] = $invoice;
         }
-        return $this->invoices[$this->getType()] ?? [];
+        return $this->list[$this->getType()] ?? [];
     }
 
     public function fromArray(array $array): InvoicesEntity
@@ -113,7 +113,7 @@ class Invoices
     public function saveList(): self
     {
         $this->getList();
-        foreach ($this->invoices as $list) {
+        foreach ($this->list as $list) {
             foreach ($list as $row) {
                 $this->saveRow($row);
             }
