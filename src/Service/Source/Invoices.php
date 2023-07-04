@@ -47,6 +47,7 @@ class Invoices
     private ?DateTime $date;
     private string $type;
     private int $companyId;
+    /** @var InvoicesEntity[] */
     private array $list = [];
 
     public function __construct(

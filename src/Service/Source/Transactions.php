@@ -51,6 +51,7 @@ class Transactions
     private ?DateTime $date;
     private int $companyId;
     private ?int $categoryId;
+    /** @var TransactionsEntity */
     private array $list = [];
 
     public function __construct(
