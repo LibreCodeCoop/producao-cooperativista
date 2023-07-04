@@ -91,7 +91,7 @@ class Invoices
 
     public function fromArray(array $array): InvoicesEntity
     {
-        $array = array_merge($array, $this->parseText($array['notes']));
+        $array = array_merge($array, $this->parseText((string) $array['notes']));
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
