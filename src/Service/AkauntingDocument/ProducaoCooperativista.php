@@ -84,13 +84,13 @@ class ProducaoCooperativista extends AAkauntingDocument
 
     private function insereHealthInsurance(): self
     {
-        $values = $this->getValues();
+        $healthInsurance = $this->getCooperado()->getHealthInsurance();
 
-        if ($values->getHealthInsurance()) {
+        if ($healthInsurance) {
             $this->setItem(
                 itemId: $this->itemsIds['Plano'],
                 name: 'Plano de saúde',
-                price: - $values->getHealthInsurance(),
+                price: - $healthInsurance,
                 order: 10
             );
         }
