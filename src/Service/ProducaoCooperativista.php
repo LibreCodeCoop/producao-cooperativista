@@ -782,7 +782,7 @@ class ProducaoCooperativista
             ->from('invoices')
             ->where($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID'], ParameterType::INTEGER)))
             ->andWhere($select->expr()->eq('archive', $select->createNamedParameter(0, ParameterType::INTEGER)))
-            ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
+            ->andWhere($select->expr()->eq('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
 
         $result = $select->executeQuery();
         $total = 0;
