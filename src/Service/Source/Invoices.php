@@ -95,7 +95,6 @@ class Invoices
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
-        $this->updateHealthInsurance($array);
         $entity = $this->db->getEntityManager()->find(EntityInvoices::class, $array['id']);
         if (!$entity instanceof EntityInvoices) {
             $entity = new EntityInvoices();

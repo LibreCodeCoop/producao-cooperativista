@@ -40,8 +40,6 @@ use ProducaoCooperativista\Service\Source\Invoices;
  * @method int getDependentes()
  * @method self setFrra(FRRA $value)
  * @method FRRA getFrra()
- * @method self setHealthInsurance(float $value)
- * @method float getHealthInsurance()
  * @method self setProducaoCooperativista(ProducaoCooperativista $value)
  * @method ProducaoCooperativista getProducaoCooperativista()
  * @method self setName(string $value)
@@ -57,7 +55,6 @@ class Cooperado
     private ?int $dependentes = 0;
     private ?string $name = '';
     private ?string $taxNumber = '';
-    private ?float $healthInsurance = 0;
     private ProducaoCooperativista $producaoCooperativista;
     private FRRA $frra;
 

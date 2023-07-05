@@ -59,7 +59,9 @@ class GetUsersCommand extends BaseCommand
 
     public function execute(InputInterface $input, OutputInterface $output): int
     {
-        $list = $this->users->getFromApi((int) $input->getOption('visible'));
+        $list = $this->users
+            ->setVisibility((int) $input->getOption('visible'))
+            ->getList();
         if ($input->getOption('csv')) {
             $output->write($this->toCsv($list));
         }

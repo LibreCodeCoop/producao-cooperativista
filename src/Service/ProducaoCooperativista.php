@@ -150,7 +150,7 @@ class ProducaoCooperativista
         $this->transactions
             ->setDate($this->dates->getInicioProximoMes())
             ->saveList();
-        $this->users->updateDatabase();
+        $this->users->saveList();
     }
 
     private function getTotalSegundosLibreCode(): int
@@ -546,7 +546,6 @@ class ProducaoCooperativista
                 u.tax_number,
                 u.dependents,
                 u.akaunting_contact_id,
-                u.health_insurance,
                 c.id as customer_id,
                 c.name,
                 c.vat_id as cliente_codigo,
@@ -580,7 +579,6 @@ class ProducaoCooperativista
                     u.tax_number,
                     u.dependents,
                     u.akaunting_contact_id,
-                    u.health_insurance,
                     c.id,
                     c.name,
                     c.vat_id
@@ -600,8 +598,7 @@ class ProducaoCooperativista
                 ->setName($row['alias'])
                 ->setDependentes($row['dependents'])
                 ->setTaxNumber($row['tax_number'])
-                ->setAkauntingContactId($row['akaunting_contact_id'])
-                ->setHealthInsurance($row['health_insurance']);
+                ->setAkauntingContactId($row['akaunting_contact_id']);
             $row['base_producao'] = 0;
             $row['percentual_trabalhado'] = (float) $row['percentual_trabalhado'];
             $this->percentualTrabalhadoPorCliente[] = $row;
@@ -691,8 +688,17 @@ class ProducaoCooperativista
         $this->cadastraCooperadoQueProduziuNoAkaunting();
         $this->distribuiProducaoExterna();
         $this->distribuiSobras();
+        $this->atualizaPlanoDeSaude();
         $this->logger->debug('Produção por cooperado ooperado: {json}', ['json' => json_encode($this->cooperado)]);
         return $this->cooperado;
+    }
+
+    private function atualizaPlanoDeSaude(): self
+    {
+        foreach ($this->cooperado as $cooperado) {
+            $cooperado->getProducaoCooperativista()->updateHealthInsurance();
+        }
+        return $this;
     }
 
     private function distribuiSobras(): void
