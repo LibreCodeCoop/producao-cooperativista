@@ -336,7 +336,13 @@ class AAkauntingDocument
 
     private function setNotesFromString(string $notes): self
     {
+        if (empty($notes)) {
+            return $this;
+        }
         foreach (explode("\n", $notes) as $note) {
+            if (!str_contains($note, ': ')) {
+                continue;
+            }
             list($label, $value) = explode(': ', $note);
             $this->setNote($label, $value);
         }
