@@ -30,7 +30,7 @@ use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
 use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\DB\Entity\Transactions as TransactionsEntity;
+use ProducaoCooperativista\DB\Entity\Transactions as EntityTransactions;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Service\Source\Provider\Akaunting;
 use Psr\Log\LoggerInterface;
@@ -49,7 +49,7 @@ class Transactions
     private ?DateTime $date;
     private int $companyId;
     private ?int $categoryId = null;
-    /** @var TransactionsEntity[] */
+    /** @var EntityTransactions[] */
     private array $list = [];
 
     public function __construct(
@@ -87,16 +87,16 @@ class Transactions
         return $this->list;
     }
 
-    public function fromArray(array $array): TransactionsEntity
+    public function fromArray(array $array): EntityTransactions
     {
         $array = $this->getDataFromAssociatedDocument($array);
         $array = array_merge($array, $this->parseText((string) $array['description']));
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
-        $entity = $this->db->getEntityManager()->find(TransactionsEntity::class, $array['id']);
-        if (!$entity instanceof TransactionsEntity) {
-            $entity = new TransactionsEntity();
+        $entity = $this->db->getEntityManager()->find(EntityTransactions::class, $array['id']);
+        if (!$entity instanceof EntityTransactions) {
+            $entity = new EntityTransactions();
         }
         $entity->fromArray($array);
         return $entity;
@@ -111,7 +111,7 @@ class Transactions
         return $this;
     }
 
-    public function saveRow(TransactionsEntity $invoice): self
+    public function saveRow(EntityTransactions $invoice): self
     {
         $em = $this->db->getEntityManager();
         $em->persist($invoice);
