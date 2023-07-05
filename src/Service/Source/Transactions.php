@@ -136,7 +136,7 @@ class Transactions
         $select = new QueryBuilder($this->db->getConnection());
         $select->select('id')
             ->addSelect('customer_reference')
-            ->addSelect('metadata->"$.notes" as invoice_notes')
+            ->addSelect('metadata->>"$.notes" as invoice_notes')
             ->from('invoices')
             ->where($select->expr()->eq('id', $select->createNamedParameter($item['document_id'], ParameterType::INTEGER)))
             ->andWhere('customer_reference IS NOT NULL');
@@ -146,9 +146,6 @@ class Transactions
             return $item;
         }
         if (is_string($row['invoice_notes'])) {
-            // Field from MYSQL JSON string is coming inside double quotes and with explicit string \r\n
-            $row['invoice_notes'] = trim($row['invoice_notes'], '"');
-            $row['invoice_notes'] = str_replace('\r\n', "\n", $row['invoice_notes']);
             $item = array_merge($item, $this->parseText($row['invoice_notes']));
         }
         if (empty($item['customer_reference'])) {

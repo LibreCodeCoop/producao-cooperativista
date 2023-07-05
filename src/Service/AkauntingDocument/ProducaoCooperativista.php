@@ -34,13 +34,16 @@ class ProducaoCooperativista extends AAkauntingDocument
     {
         $this->populateProducaoCooperativistaWithDefault();
         parent::save();
+        $this->getCooperado()
+            ->getInssIrpf()
+            ->saveFromDocument($this);
         return $this;
     }
 
     public function updateHealthInsurance(): self
     {
         $select = new QueryBuilder($this->db->getConnection());
-        $select->select('metadata->"$.notes" as notes')
+        $select->select('metadata->>"$.notes" as notes')
             ->from('invoices')
             ->where("type = 'bill'")
             ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_PLANO_DE_SAUDE_CATEGORY_ID'], ParameterType::INTEGER)))
@@ -54,9 +57,6 @@ class ProducaoCooperativista extends AAkauntingDocument
         if (empty($text)) {
             return $return;
         }
-        // Field from MYSQL JSON string is coming inside double quotes and with explicit string \r\n
-        $text = trim($text, '"');
-        $text = str_replace('\r\n', "\n", $text);
 
         $explodedText = explode("\n", $text);
         $pattern = '/^Cooperado: .*CPF: (?<CPF>\d+)[,;]? Valor: (R\$ ?)?(?<value>.*)$/i';
