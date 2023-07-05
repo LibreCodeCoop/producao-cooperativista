@@ -228,11 +228,11 @@ class ProducaoCooperativista
      *
      * Desconsidera-se:
      * * Produção cooperativista (cliente interno)
-     * * Produção externa (pagamento para quem trabalha diretamente para cliente externo)
-     * * Impostos de pessoa física: IRPF, INSS
+     * * "Produção: externa" (pagamento para quem trabalha diretamente para cliente externo)
+     * * "Imposto: Pessoa Física": IRPF, INSS
      * * Cliente: Todos os custos dos clientes
-     * * Serviços de clientes: É algo que o cliente pagou, isto nem expense deveria ser
-     * * Plano de saúde: Este valor é reembolsado pelo cooperado então não entra para ser dividido por todos
+     * * "Dispêndio: Cliente": É algo que o cliente pagou, isto nem expense deveria ser
+     * * "Dispêndio: Plano de saúde": Este valor é reembolsado pelo cooperado então não entra para ser dividido por todos
      */
     private function getTotalDispendios(): float
     {
@@ -251,11 +251,12 @@ class ProducaoCooperativista
                     AND category_type = 'expense'
                     AND category_name NOT IN (
                         'Produção cooperativista',
-                        'Produção externa',
-                        'Imposto Pessoa Física',
-                        'Cliente',
-                        'Serviços de clientes',
-                        'Plano de saúde'
+                        'Produção: Distribuição de sobras',
+                        'Produção: externa',
+                        'Produção: FRRA',
+                        'Imposto: Pessoa Física',
+                        'Dispêndio: Cliente',
+                        'Dispêndio: Plano de saúde'
                     )
                 SQL
             );
@@ -270,11 +271,12 @@ class ProducaoCooperativista
                     AND category_type = 'expense'
                     AND category_name NOT IN (
                         'Produção cooperativista',
-                        'Produção externa',
-                        'Imposto Pessoa Física',
-                        'Cliente',
-                        'Serviços de clientes',
-                        'Plano de saúde'
+                        'Produção: Distribuição de sobras',
+                        'Produção: externa',
+                        'Produção: FRRA',
+                        'Imposto: Pessoa Física',
+                        'Dispêndio: Cliente',
+                        'Dispêndio: Plano de saúde'
                     )
                 SQL
             );
@@ -305,10 +307,9 @@ class ProducaoCooperativista
             WHERE type = 'invoice'
             AND archive = 0
             AND category_name IN (
-                'Cliente',
-                'Serviços de clientes',
-                'Recorrência',
-                'Serviço'
+                'Cliente: Recorrência',
+                'Cliente: Serviço',
+                'Cliente: Serviço externo'
             )
             AND transaction_of_month = :ano_mes
             SQL
@@ -375,8 +376,7 @@ class ProducaoCooperativista
                 AND transaction_of_month = :ano_mes
                 AND category_type = 'expense'
                 AND category_name IN (
-                    'Cliente',
-                    'Serviços de clientes'
+                    'Dispêndio: Cliente'
                 )
                 GROUP BY customer_reference, i.type, contact_name
                 SQL
@@ -395,8 +395,7 @@ class ProducaoCooperativista
                 AND archive = 0
                 AND category_type = 'expense'
                 AND category_name IN (
-                    'Cliente',
-                    'Serviços de clientes'
+                    'Dispêndio: Cliente'
                 )
                 GROUP BY customer_reference, t.type, contact_name
                 SQL
@@ -462,8 +461,8 @@ class ProducaoCooperativista
                 AND archive = 0
                 AND category_name IN (
                     'Cliente',
-                    'Serviços de clientes',
-                    'Recorrência'
+                    'Cliente: Serviço',
+                    'Cliente: Recorrência'
                 )
                 SQL
             );
@@ -486,8 +485,8 @@ class ProducaoCooperativista
                 AND archive = 0
                 AND category_name IN (
                     'Cliente',
-                    'Serviços de clientes',
-                    'Recorrência'
+                    'Cliente: Serviço',
+                    'Cliente: Recorrência'
                 )
                 SQL
             );
