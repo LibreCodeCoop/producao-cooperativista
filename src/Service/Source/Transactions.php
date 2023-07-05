@@ -80,9 +80,9 @@ class Transactions
             'company_id' => $this->getCompanyId(),
             'search' => implode(' ', $search),
         ]);
-        foreach ($list as $key => $row) {
+        foreach ($list as $row) {
             $transaction = $this->fromArray($row);
-            $this->list[$key] = $transaction;
+            $this->list[] = $transaction;
         }
         return $this->list;
     }
