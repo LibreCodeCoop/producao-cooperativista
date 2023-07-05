@@ -38,7 +38,7 @@ final class Version20230627233144 extends AbstractMigration
     public function up(Schema $schema): void
     {
         $table = $schema->createTable('transactions');
-        $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => true]);
+        $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => false]);
         $table->addColumn('type', 'string', ['length' => 50]);
         $table->addColumn('paid_at', 'datetime');
         $table->addColumn('transaction_of_month', 'string');
