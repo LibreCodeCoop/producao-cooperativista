@@ -24,6 +24,17 @@ Calcular o bruto da produção cooperativista por cooperado com base em dados co
     * Categorizar transação de saída como `Cliente (custo)` quando forem custos de clientes
     * Sempre que for custo reembolsável pelo cliente, adicionar `<cpf/CNPJ>|<setor>` na transação no campo `Referência` para que seja possível identificar qual cliente deverá reembolsar este custo de entrada. Lembrar de acrescentar o setor sempre que necessário.
     * Plano de saúde deve ser categorizado como `Plano de saúde`
+    * No campo "nota" (descrição) do plano de saúde deve conter a divisão das sobras do plano de saúde.
+      Exemplo:
+      ```csv
+      Cooperado: Hedy Lamarr; CPF: 00000000000; Valor: 781,95
+      Cooperado: Grace Hopper; CPF: 11111111111; Valor: R$ 439,55
+      Cooperado: Ada Lovelace, CPF: 11111111111, Valor: R$439,55
+      ```
+      > **Dica**: Esta descrição é coletada com a seguinte regex:
+      > ```
+      > /^Cooperado: .*CPF: (?<CPF>\d+)[,;]? Valor: (R\$ ?)?(?<value>.*)$/i
+      > ```
     * Customização da fatura (compra ou venda) ou transação deve ser inserida na descrição. Valores possíveis:
       | Nome             | Descrição                                                  |
       | ---------------- | ---------------------------------------------------------- |
