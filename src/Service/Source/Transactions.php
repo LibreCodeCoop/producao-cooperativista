@@ -105,10 +105,8 @@ class Transactions
     public function saveList(): self
     {
         $this->getList();
-        foreach ($this->list as $list) {
-            foreach ($list as $row) {
-                $this->saveRow($row);
-            }
+        foreach ($this->list as $row) {
+            $this->saveRow($row);
         }
         return $this;
     }
