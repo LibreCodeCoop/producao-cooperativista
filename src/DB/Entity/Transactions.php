@@ -63,8 +63,8 @@ class Transactions extends DBEntity
     private ?string $contactReference;
     #[Column]
     private string $contactName;
-    #[Column]
-    private string $contactType;
+    #[Column(nullable: true)]
+    private ?string $contactType;
     #[Column(type: 'bigint')]
     private int $categoryId;
     #[Column]

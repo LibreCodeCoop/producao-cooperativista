@@ -51,7 +51,7 @@ final class Version20230627233144 extends AbstractMigration
         $table->addColumn('contact_id', 'bigint');
         $table->addColumn('contact_reference', 'string', ['notnull' => false]);
         $table->addColumn('contact_name', 'string');
-        $table->addColumn('contact_type', 'string');
+        $table->addColumn('contact_type', 'string', ['notnull' => false]);
         $table->addColumn('category_id', 'bigint');
         $table->addColumn('category_name', 'string');
         $table->addColumn('category_type', 'string');
