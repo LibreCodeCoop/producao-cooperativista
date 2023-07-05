@@ -303,7 +303,7 @@ class AAkauntingDocument
                     $this->setAmount(0);
                     continue 2;
                 case 'notes':
-                    $this->setNotesFromString($value);
+                    $this->setNotesFromString((string) $value);
                     continue 2;
                 case 'items':
                     $this->setItemsFromAkaunting($value['data']);
