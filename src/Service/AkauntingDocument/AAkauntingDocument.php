@@ -106,9 +106,12 @@ class AAkauntingDocument
             anoFiscal: $anoFiscal,
             cooperado: $cooperado
         ));
-        if ($this instanceof FRRA) {
-            $this->getValues()->setIsFrra(true);
-        }
+        $this->setUp();
+    }
+
+    protected function setUp(): self
+    {
+        return $this;
     }
 
     public function setNote(string $label, $value): self
