@@ -213,7 +213,6 @@ class Users
             $row = array_combine($cols, $row);
             $row['CPF'] = (string) preg_replace('/\D/', '', (string) $row['CPF']);
             $row['Dependentes'] = $row['Dependentes'] ? (int) $row['Dependentes'] : null;
-            $row['Plano de saúde'] = $row['Plano de saúde'] ? (float) $row['Plano de saúde'] : null;
             $row['Email corporativo'] = $row['Email corporativo'];
             $this->spreadsheetData[] = $row;
         }
