@@ -35,6 +35,7 @@ class FRRA extends AAkauntingDocument
         $this->getValues()->setIsFrra(true);
         return $this;
     }
+
     private function coletaNaoPago(): self
     {
         $select = new QueryBuilder($this->db->getConnection());
