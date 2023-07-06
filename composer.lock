@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e9fd318c901b648445b20e46c014c341",
+    "content-hash": "81729cc17bd100b73956f7cc213daacb",
     "packages": [
         {
             "name": "cmixin/business-day",
