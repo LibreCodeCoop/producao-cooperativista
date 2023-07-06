@@ -27,6 +27,7 @@ namespace ProducaoCooperativista\Service\AkauntingDocument\Taxes;
 
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
+use Exception;
 use ProducaoCooperativista\Service\AkauntingDocument\AAkauntingDocument;
 
 class InssIrpf extends AAkauntingDocument
