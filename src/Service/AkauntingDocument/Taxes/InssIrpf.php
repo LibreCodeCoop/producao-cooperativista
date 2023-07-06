@@ -146,27 +146,9 @@ class InssIrpf extends AAkauntingDocument
         $this->setItem(
             code: $code,
             name: $code . ' ' . $this->getCooperado()->getName(),
-            description: $this->getItemDescription(),
+            description: 'Documento: ' . $this->document->getDocumentNumber(),
             price: $item['price']
         );
         return $this;
-    }
-
-    private function getItemDescription(): string
-    {
-        $keyValue = [];
-        $keyValue['documento'] = $this->document->getDocumentNumber();
-
-        $names = [];
-        foreach ($keyValue as $label => $value) {
-            if (!is_numeric($label)) {
-                $names[] = $label . ': ' . $value;
-                continue;
-            }
-            $names[] = $value;
-        }
-        $name = implode(", ", $names);
-        $name = ucfirst($name);
-        return $name;
     }
 }
