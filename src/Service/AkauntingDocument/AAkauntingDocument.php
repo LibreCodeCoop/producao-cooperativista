@@ -75,7 +75,7 @@ class AAkauntingDocument
     protected int $categoryId = 0;
     protected int $contactId = 0;
     protected string $contactName = '';
-    protected string $contactTaxNumber = '';
+    protected ?string $contactTaxNumber = null;
     protected string $currencyCode = '';
     protected int $currencyRate = 1;
     protected string $documentNumber = '';
@@ -94,12 +94,12 @@ class AAkauntingDocument
     protected array $itemsIds;
 
     public function __construct(
-        protected ?int $anoFiscal,
         protected Database $db,
         protected Dates $dates,
-        protected NumberFormatter $numberFormatter,
         protected Invoices $invoices,
-        protected Cooperado $cooperado,
+        protected ?int $anoFiscal = null,
+        protected ?NumberFormatter $numberFormatter = null,
+        protected ?Cooperado $cooperado = null,
     ) {
         $this->itemsIds = json_decode($_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS'], true);
         $this->setValues(new Values(

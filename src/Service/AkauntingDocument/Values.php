@@ -79,7 +79,7 @@ class Values
 
     public function __construct(
         private ?int $anoFiscal,
-        private Cooperado $cooperado
+        private ?Cooperado $cooperado
     ) {
     }
 
