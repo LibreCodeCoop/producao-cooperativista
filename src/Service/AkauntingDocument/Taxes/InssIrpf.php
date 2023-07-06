@@ -46,8 +46,12 @@ class InssIrpf extends AAkauntingDocument
         return $this;
     }
 
-    public function saveMonthTaxes(float $total): self
+    public function saveMonthTaxes(): self
     {
+        $total = $this->getTotalOfMonth();
+        if (!$total) {
+            return $this;
+        }
         $this->coletaNaoPago();
         $this
             ->setItem(
@@ -58,6 +62,29 @@ class InssIrpf extends AAkauntingDocument
             );
         $this->save();
         return $this;
+    }
+
+    public function getTotalOfMonth(): float
+    {
+        $stmt = $this->db->getConnection()->prepare(
+            <<<SQL
+            SELECT SUM(jt.amount) as irpf
+            FROM invoices i ,
+                JSON_TABLE(i.metadata, '$.item_taxes.data[*]' COLUMNS (
+                    id INTEGER PATH '$.tax_id',
+                    amount DOUBLE PATH '$.amount'
+                )) jt
+            WHERE jt.id = :tax_id
+            AND i.transaction_of_month = :ano_mes
+            SQL
+        );
+        $stmt->bindValue('ano_mes', $this->dates->getInicioProximoMes()->format('Y-m'));
+        $taxData = json_decode($_ENV['AKAUNTING_IMPOSTOS_INSS_IRRF']);
+        $stmt->bindValue('tax_id', $taxData->taxId, ParameterType::INTEGER);
+        $result = $stmt->executeQuery();
+
+        $total = (float) $result->fetchOne();
+        return $total;
     }
 
     public function saveFromDocument(AAkauntingDocument $document): self
