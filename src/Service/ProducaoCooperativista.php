@@ -688,11 +688,13 @@ class ProducaoCooperativista
                     id INTEGER PATH '$.tax_id',
                     amount DOUBLE PATH '$.amount'
                 )) jt
-            WHERE jt.id = 2
+            WHERE jt.id = :tax_id
             AND i.transaction_of_month = :ano_mes
             SQL
         );
         $stmt->bindValue('ano_mes', $this->dates->getInicioProximoMes()->format('Y-m'));
+        $taxData = json_decode($_ENV['AKAUNTING_IMPOSTOS_INSS_IRRF']);
+        $stmt->bindValue('tax_id', $taxData->taxId, ParameterType::INTEGER);
         $result = $stmt->executeQuery();
 
         $total = $result->fetchOne();
