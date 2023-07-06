@@ -33,7 +33,7 @@ use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Helper\Dates;
 use ProducaoCooperativista\Service\AkauntingDocument\Taxes\Cofins;
-use ProducaoCooperativista\Service\AkauntingDocument\Taxes\InssIrpf;
+use ProducaoCooperativista\Service\AkauntingDocument\Taxes\Irpf;
 use ProducaoCooperativista\Service\AkauntingDocument\Taxes\Iss;
 use ProducaoCooperativista\Service\AkauntingDocument\Taxes\Pis;
 use ProducaoCooperativista\Service\Source\Customers;
@@ -679,7 +679,7 @@ class ProducaoCooperativista
             $frra->save();
         }
 
-        $inssIrpf = new InssIrpf(
+        $inssIrpf = new Irpf(
             db: $this->db,
             dates: $this->dates,
             invoices: $this->invoices

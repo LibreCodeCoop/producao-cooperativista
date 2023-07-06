@@ -27,12 +27,9 @@ namespace ProducaoCooperativista\Service\AkauntingDocument\Taxes;
 
 use ProducaoCooperativista\Service\AkauntingDocument\AAkauntingDocument;
 
-class InssIrpf extends Tax
+class InssIrpf extends Irpf
 {
     private AAkauntingDocument $document;
-    protected string $whoami = 'INSS_IRRF';
-    protected string $readableName = 'IRRF';
-    protected int $quantity = -1;
 
     public function saveFromDocument(AAkauntingDocument $document): self
     {
