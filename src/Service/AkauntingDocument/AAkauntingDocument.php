@@ -242,7 +242,7 @@ class AAkauntingDocument
                             "Impossible to save the document.\n" .
                             "Got an error when get the document from Akaunting OR the total of documents is different of 1.\n" .
                             "Response from API:\n" .
-                            json_encode($this->toArray()) . "\n" .
+                            json_encode($response) . "\n" .
                             "#############################\n" .
                             "Data to save:\n" .
                             json_encode($this->toArray())
