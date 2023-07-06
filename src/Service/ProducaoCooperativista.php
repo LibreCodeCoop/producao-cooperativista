@@ -32,6 +32,7 @@ use Exception;
 use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Helper\Dates;
+use ProducaoCooperativista\Service\AkauntingDocument\Taxes\InssIrpf;
 use ProducaoCooperativista\Service\Source\Customers;
 use ProducaoCooperativista\Service\Source\Invoices;
 use ProducaoCooperativista\Service\Source\Nfse;
@@ -674,6 +675,37 @@ class ProducaoCooperativista
             $frra->getValues()->setBaseProducao($valueFrra);
             $frra->save();
         }
+        $this->updateInssIrpfFromInvoicesDeduction();
+    }
+
+    private function updateInssIrpfFromInvoicesDeduction(): self
+    {
+        $stmt = $this->db->getConnection()->prepare(
+            <<<SQL
+            SELECT SUM(jt.amount) as irpf
+            FROM invoices i ,
+                JSON_TABLE(i.metadata, '$.item_taxes.data[*]' COLUMNS (
+                    id INTEGER PATH '$.tax_id',
+                    amount DOUBLE PATH '$.amount'
+                )) jt
+            WHERE jt.id = 2
+            AND i.transaction_of_month = :ano_mes
+            SQL
+        );
+        $stmt->bindValue('ano_mes', $this->dates->getInicioProximoMes()->format('Y-m'));
+        $result = $stmt->executeQuery();
+
+        $total = $result->fetchOne();
+        if (!$total) {
+            return $this;
+        }
+        $inssIrpf = new InssIrpf(
+            db: $this->db,
+            dates: $this->dates,
+            invoices: $this->invoices
+        );
+        $inssIrpf->saveMonthTaxes($total);
+        return $this;
     }
 
     /**

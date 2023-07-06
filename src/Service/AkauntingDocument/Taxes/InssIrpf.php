@@ -37,11 +37,32 @@ class InssIrpf extends AAkauntingDocument
     private const ACTION_UPDATE = 2;
     private const ACTION_IGNORE = 3;
     private int $action = self::ACTION_IGNORE;
+
+    public function saveMonthTaxes(float $total): self
+    {
+        $this->coletaNaoPago();
+        $this
+            ->setItem(
+                code: 'IRRF',
+                name: 'IRRF',
+                description: 'Impostos do mês ' . $this->dates->getInicioProximoMes()->format('Y-m'),
+                price: $total * -1
+            );
+        $this->save();
+        return $this;
+    }
+
     public function saveFromDocument(AAkauntingDocument $document): self
     {
         $this->document = $document;
         $this->coletaNaoPago();
         $this->updateItems();
+        $this->save();
+        return $this;
+    }
+
+    public function save(): self
+    {
         switch ($this->action) {
             case self::ACTION_CREATE:
                 $this->insert();
