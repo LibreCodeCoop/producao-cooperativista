@@ -161,6 +161,11 @@ class AAkauntingDocument
         return $this;
     }
 
+    public function getItems(): array
+    {
+        return $this->items;
+    }
+
     public function toArray(): array
     {
         $notes = [];
@@ -320,9 +325,6 @@ class AAkauntingDocument
     private function setItemsFromAkaunting(array $items): self
     {
         foreach ($items as $item) {
-            if ($item['item_id'] !== $this->itemsIds['frra']) {
-                continue;
-            }
             $this->setItem(
                 id: $item['id'],
                 itemId: $item['item_id'],
