@@ -27,7 +27,9 @@ namespace ProducaoCooperativista\Service\AkauntingDocument\Taxes;
 
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
+use Exception;
 use ProducaoCooperativista\Service\AkauntingDocument\AAkauntingDocument;
+use stdClass;
 
 class InssIrpf extends AAkauntingDocument
 {
@@ -36,11 +38,39 @@ class InssIrpf extends AAkauntingDocument
     private const ACTION_UPDATE = 2;
     private const ACTION_IGNORE = 3;
     private int $action = self::ACTION_IGNORE;
+    private stdClass $taxData;
+
+    protected function setUp(): self
+    {
+        $this->taxData = json_decode($_ENV['AKAUNTING_IMPOSTOS_INSS_IRRF']);
+        return $this;
+    }
+
+    public function saveMonthTaxes(float $total): self
+    {
+        $this->coletaNaoPago();
+        $this
+            ->setItem(
+                code: 'IRRF',
+                name: 'IRRF',
+                description: 'Impostos do mês ' . $this->dates->getInicioProximoMes()->format('Y-m'),
+                price: $total * -1
+            );
+        $this->save();
+        return $this;
+    }
+
     public function saveFromDocument(AAkauntingDocument $document): self
     {
         $this->document = $document;
         $this->coletaNaoPago();
         $this->updateItems();
+        $this->save();
+        return $this;
+    }
+
+    public function save(): self
+    {
         switch ($this->action) {
             case self::ACTION_CREATE:
                 $this->insert();
@@ -55,10 +85,11 @@ class InssIrpf extends AAkauntingDocument
 
     private function insert(): self
     {
-        $cooperado = $this->getCooperado();
+        $contact = $this->getContact();
+
         $this
             ->setType('bill')
-            ->setCategoryId((int) $_ENV['AKAUNTING_IMPOSTOS_INSS_IRRF_CATEGORY_ID'])
+            ->setCategoryId($this->taxData->categoryId)
             ->setDocumentNumber(
                 'IR_INSS_' .
                 $this->dates->getDataPagamento()->format('Y-m')
@@ -68,11 +99,33 @@ class InssIrpf extends AAkauntingDocument
             ->setIssuedAt($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'))
             ->setDueAt($this->dates->getDataPagamento()->format('Y-m-d H:i:s'))
             ->setCurrencyCode('BRL')
-            ->setContactId($cooperado->getAkauntingContactId())
-            ->setContactName($cooperado->getName())
-            ->setContactTaxNumber($cooperado->getTaxNumber());
+            ->setContactId($contact['id'])
+            ->setContactName($contact['name'])
+            ->setContactTaxNumber($contact['tax_number'] ?? '');
         parent::save();
         return $this;
+    }
+
+    private function getContact(): array
+    {
+        $response = $this->invoices->sendData(
+            endpoint: '/api/contacts/' . $this->taxData->contactId,
+            query: [
+                'search' => implode(' ', [
+                    'type:vendor',
+                ]),
+            ],
+            method: 'GET'
+        );
+        if (!isset($response['data'])) {
+            throw new Exception(
+                "Impossible to handle contact to insert bill of type INSS_IRPF.\n" .
+                "Got an error when get the contact with ID: {$this->taxData->contactId}.\n" .
+                "Response from API:\n" .
+                json_encode($response)
+            );
+        }
+        return $response['data'];
     }
 
     private function coletaNaoPago(): self
@@ -84,7 +137,7 @@ class InssIrpf extends AAkauntingDocument
             ->addSelect('metadata->>"$.status" AS status')
             ->from('invoices')
             ->where("type = 'bill'")
-            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_IMPOSTOS_INSS_IRRF_CATEGORY_ID'], ParameterType::INTEGER)));
+            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter($this->taxData->categoryId, ParameterType::INTEGER)));
 
         $result = $select->executeQuery();
         $row = $result->fetchAssociative();
@@ -123,27 +176,9 @@ class InssIrpf extends AAkauntingDocument
         $this->setItem(
             code: $code,
             name: $code . ' ' . $this->getCooperado()->getName(),
-            description: $this->getItemDescription(),
+            description: 'Documento: ' . $this->document->getDocumentNumber(),
             price: $item['price']
         );
         return $this;
-    }
-
-    private function getItemDescription(): string
-    {
-        $keyValue = [];
-        $keyValue['documento'] = $this->document->getDocumentNumber();
-
-        $names = [];
-        foreach ($keyValue as $label => $value) {
-            if (!is_numeric($label)) {
-                $names[] = $label . ': ' . $value;
-                continue;
-            }
-            $names[] = $value;
-        }
-        $name = implode(", ", $names);
-        $name = ucfirst($name);
-        return $name;
     }
 }
