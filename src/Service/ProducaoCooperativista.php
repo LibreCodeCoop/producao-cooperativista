@@ -32,7 +32,10 @@ use Exception;
 use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Helper\Dates;
+use ProducaoCooperativista\Service\AkauntingDocument\Taxes\Cofins;
 use ProducaoCooperativista\Service\AkauntingDocument\Taxes\InssIrpf;
+use ProducaoCooperativista\Service\AkauntingDocument\Taxes\Iss;
+use ProducaoCooperativista\Service\AkauntingDocument\Taxes\Pis;
 use ProducaoCooperativista\Service\Source\Customers;
 use ProducaoCooperativista\Service\Source\Invoices;
 use ProducaoCooperativista\Service\Source\Nfse;
@@ -675,39 +678,34 @@ class ProducaoCooperativista
             $frra->getValues()->setBaseProducao($valueFrra);
             $frra->save();
         }
-        $this->updateInssIrpfFromInvoicesDeduction();
-    }
 
-    private function updateInssIrpfFromInvoicesDeduction(): self
-    {
-        $stmt = $this->db->getConnection()->prepare(
-            <<<SQL
-            SELECT SUM(jt.amount) as irpf
-            FROM invoices i ,
-                JSON_TABLE(i.metadata, '$.item_taxes.data[*]' COLUMNS (
-                    id INTEGER PATH '$.tax_id',
-                    amount DOUBLE PATH '$.amount'
-                )) jt
-            WHERE jt.id = :tax_id
-            AND i.transaction_of_month = :ano_mes
-            SQL
-        );
-        $stmt->bindValue('ano_mes', $this->dates->getInicioProximoMes()->format('Y-m'));
-        $taxData = json_decode($_ENV['AKAUNTING_IMPOSTOS_INSS_IRRF']);
-        $stmt->bindValue('tax_id', $taxData->taxId, ParameterType::INTEGER);
-        $result = $stmt->executeQuery();
-
-        $total = $result->fetchOne();
-        if (!$total) {
-            return $this;
-        }
         $inssIrpf = new InssIrpf(
             db: $this->db,
             dates: $this->dates,
             invoices: $this->invoices
         );
-        $inssIrpf->saveMonthTaxes($total);
-        return $this;
+        $inssIrpf->saveMonthTaxes();
+
+        $cofins = new Cofins(
+            db: $this->db,
+            dates: $this->dates,
+            invoices: $this->invoices
+        );
+        $cofins->saveMonthTaxes();
+
+        $pis = new Pis(
+            db: $this->db,
+            dates: $this->dates,
+            invoices: $this->invoices
+        );
+        $pis->saveMonthTaxes();
+
+        $iss = new Iss(
+            db: $this->db,
+            dates: $this->dates,
+            invoices: $this->invoices
+        );
+        $iss->saveMonthTaxes();
     }
 
     /**
