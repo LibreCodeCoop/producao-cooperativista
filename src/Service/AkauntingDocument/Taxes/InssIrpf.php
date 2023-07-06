@@ -79,8 +79,7 @@ class InssIrpf extends AAkauntingDocument
             SQL
         );
         $stmt->bindValue('ano_mes', $this->dates->getInicioProximoMes()->format('Y-m'));
-        $taxData = json_decode($_ENV['AKAUNTING_IMPOSTOS_INSS_IRRF']);
-        $stmt->bindValue('tax_id', $taxData->taxId, ParameterType::INTEGER);
+        $stmt->bindValue('tax_id', $this->taxData->taxId, ParameterType::INTEGER);
         $result = $stmt->executeQuery();
 
         $total = (float) $result->fetchOne();
