@@ -32,7 +32,10 @@ use Exception;
 use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Helper\Dates;
+use ProducaoCooperativista\Service\AkauntingDocument\Taxes\Cofins;
 use ProducaoCooperativista\Service\AkauntingDocument\Taxes\InssIrpf;
+use ProducaoCooperativista\Service\AkauntingDocument\Taxes\Iss;
+use ProducaoCooperativista\Service\AkauntingDocument\Taxes\Pis;
 use ProducaoCooperativista\Service\Source\Customers;
 use ProducaoCooperativista\Service\Source\Invoices;
 use ProducaoCooperativista\Service\Source\Nfse;
@@ -675,12 +678,34 @@ class ProducaoCooperativista
             $frra->getValues()->setBaseProducao($valueFrra);
             $frra->save();
         }
+
         $inssIrpf = new InssIrpf(
             db: $this->db,
             dates: $this->dates,
             invoices: $this->invoices
         );
         $inssIrpf->saveMonthTaxes();
+
+        $cofins = new Cofins(
+            db: $this->db,
+            dates: $this->dates,
+            invoices: $this->invoices
+        );
+        $cofins->saveMonthTaxes();
+
+        $pis = new Pis(
+            db: $this->db,
+            dates: $this->dates,
+            invoices: $this->invoices
+        );
+        $pis->saveMonthTaxes();
+
+        $iss = new Iss(
+            db: $this->db,
+            dates: $this->dates,
+            invoices: $this->invoices
+        );
+        $iss->saveMonthTaxes();
     }
 
     /**
