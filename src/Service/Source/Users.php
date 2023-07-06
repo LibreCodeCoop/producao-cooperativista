@@ -33,6 +33,7 @@ use League\Flysystem\WebDAV\WebDAVAdapter;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use ProducaoCooperativista\DB\Database;
+use ProducaoCooperativista\DB\Entity\Users as EntityUsers;
 use ProducaoCooperativista\Service\Source\Provider\Kimai;
 use Psr\Log\LoggerInterface;
 use Sabre\DAV\Client;
@@ -40,11 +41,15 @@ use Sabre\DAV\Client;
 class Users
 {
     use Kimai;
-    private array $visibilidade = [
+    private int $visibility = 3;
+    private array $visibilityDataset = [
         1 => 'visible',
         2 => 'hidden',
         3 => 'all',
     ];
+    /** @var EntityUsers[] */
+    private array $list = [];
+    private array $spreadsheetData = [];
 
     public function __construct(
         private Database $db,
@@ -52,10 +57,15 @@ class Users
     ) {
     }
 
+    public function setVisibility(int $visibility): self
+    {
+        $this->visibility = $visibility;
+        return $this;
+    }
+
     public function updateDatabase(): void
     {
-        $this->logger->debug('Baixando dados de users');
-        $list = $this->getFromApi();
+        $list = $this->getList();
         $this->saveList($list);
     }
 
@@ -65,80 +75,105 @@ class Users
      * @param integer $visible 1=visible, 2=hidden, 3=all
      * @return array
      */
-    public function getFromApi(int $visible = 3): array
+    public function getList(): array
     {
+        if (!empty($this->list)) {
+            return $this->list;
+        }
         $this->logger->debug('Importando usuários com visibilidade = {visibilidade}', [
-            'visibilidade' => $this->visibilidade[$visible],
+            'visibilidade' => $this->visibilityDataset[$this->visibility],
         ]);
         $list = $this->doRequestKimai('/api/users', [
-            'visible' => $visible,
+            'visible' => $this->visibility,
         ]);
-        $list = $this->updateWithDataFromSpreadsheet($list);
-        $list = $this->updateWithAkauntingData($list);
+        foreach ($list as $row) {
+            try {
+                $user = $this->fromArray($row);
+                $this->list[] = $user;
+            } catch (\Throwable $th) {
+                $this->logger->debug('Falha ao salvar dados de usuário', [
+                    'message' => $th->getMessage(),
+                    'data' => $row,
+                ]);
+            }
+        }
         $this->logger->debug('Dados baixados: {json}', ['json' => json_encode($list)]);
         return $list;
     }
 
-    private function updateWithAkauntingData(array $list): array
+    public function fromArray(array $array): EntityUsers
     {
-        $taxNumber = array_column($list, 'tax_number');
-        $email = array_column($list, 'corporate_mail');
+        $array = $this->updateWithDataFromSpreadsheet($array);
+        $array = $this->updateWithAkauntingData($array);
+        $array = $this->convertFields($array);
+        $entity = $this->db->getEntityManager()->find(EntityUsers::class, $array['id']);
+        if (!$entity instanceof EntityUsers) {
+            $entity = new EntityUsers();
+        }
+        $entity->fromArray($array);
+        return $entity;
+    }
 
+    private function updateWithAkauntingData(array $item): array
+    {
+        if (empty($item['tax_number'])) {
+            return $item;
+        }
         $select = new QueryBuilder($this->db->getConnection(Database::DB_AKAUNTING));
         $select->select('c.*')
             ->from('contacts', 'c')
             ->where($select->expr()->or(
-                $select->expr()->in('tax_number', $select->createNamedParameter($taxNumber, ArrayParameterType::STRING)),
-                $select->expr()->in('email', $select->createNamedParameter($email, ArrayParameterType::STRING)),
+                $select->expr()->eq('tax_number', $select->createNamedParameter($item['tax_number'])),
+                $select->expr()->eq('email', $select->createNamedParameter($item['corporate_mail'])),
             ))
             ->andWhere('deleted_at IS NULL')
             ->andWhere($select->expr()->in('type', $select->createNamedParameter(['vendor', 'employee'], ArrayParameterType::STRING)))
             ->orderBy('c.type');
         $result = $select->executeQuery();
-
-        while ($row = $result->fetchAssociative()) {
-            foreach ($list as $key => $value) {
-                if ($value['corporate_mail'] === $row['email']
-                    || ($value['tax_number'] === $row['tax_number'])
-                    || ($value['kimai_username'] === $row['email'])
-                ) {
-                    $list[$key]['akaunting_contact_id'] = $row['id'];
-                    break;
-                }
-            }
+        $row = $result->fetchAssociative();
+        if (!$row) {
+            return $item;
         }
-        return $list;
+
+        if ($item['corporate_mail'] === $row['email']
+            || ($item['tax_number'] === $row['tax_number'])
+            || ($item['kimai_username'] === $row['email'])
+        ) {
+            $item['akaunting_contact_id'] = $row['id'];
+        }
+        return $item;
     }
 
-    private function updateWithDataFromSpreadsheet(array $list): array
+    private function updateWithDataFromSpreadsheet(array $row): array
     {
-        $csv = $this->getSpreadsheet();
-        foreach ($list as $key => $value) {
-            $username = $value['username'];
-            $rowFromCsv = array_filter($csv, fn ($i) => $i['Usuário Kimai'] === $username);
-            if (!count($rowFromCsv)) {
-                unset($list[$key]);
-                continue;
-            }
-            $rowFromCsv = current($rowFromCsv);
-            $list[$key]['kimai_username'] = $username;
-            unset($list[$key]['username']);
-            $list[$key]['tax_number'] = $rowFromCsv['CPF'];
-            if (empty($list[$key]['tax_number'])) {
-                unset($list[$key]);
-                continue;
-            }
-            $list[$key]['dependents'] = $rowFromCsv['Dependentes'] ?? 0;
-            $list[$key]['health_insurance'] = $rowFromCsv['Plano de saúde'] ?? 0;
-            $list[$key]['corporate_mail'] = $rowFromCsv['Email corporativo'] ?? 0;
-        }
-        $list = array_filter($list, fn ($r) => !empty($r['tax_number']));
+        $username = $row['kimai_username'] = $row['username'];
+        unset($row['username']);
 
-        return $list;
+        $csv = $this->getSpreadsheet();
+        $rowFromCsv = array_filter($csv, fn ($i) => $i['Usuário Kimai'] === $username);
+        if (!count($rowFromCsv)) {
+            throw new \Exception('Usuário não encontrado na planilha. Informe o username do kimai deste usuário.');
+        }
+        $rowFromCsv = current($rowFromCsv);
+
+        if (empty($rowFromCsv['CPF'])) {
+            throw new \Exception('Usuário na planilha não possui CPF');
+        }
+        if (empty($rowFromCsv['Email corporativo'])) {
+            throw new \Exception('Usuário na planilha não possui email corporativo');
+        }
+        $row['tax_number'] = $rowFromCsv['CPF'];
+        $row['dependents'] = $rowFromCsv['Dependentes'] ?? 0;
+        $row['corporate_mail'] = $rowFromCsv['Email corporativo'] ?? 0;
+
+        return $row;
     }
 
     private function getSpreadsheet(): array
     {
+        if ($this->spreadsheetData) {
+            return $this->spreadsheetData;
+        }
         $config = [
             'baseUri' => $_ENV['NEXTCLOUD_URL'],
             'userName' => $_ENV['NEXTCLOUD_USERNAME'],
@@ -170,7 +205,6 @@ class Users
         $handle = fopen($fileCsv, 'r');
         $cols = fgetcsv($handle, 10000, ',');
         $cols = array_filter($cols, fn ($i) => !empty($i));
-        $csv = [];
         while (($row = fgetcsv($handle, 10000, ',')) !== false) {
             if (empty($row[0])) {
                 break;
@@ -179,57 +213,35 @@ class Users
             $row = array_combine($cols, $row);
             $row['CPF'] = (string) preg_replace('/\D/', '', (string) $row['CPF']);
             $row['Dependentes'] = $row['Dependentes'] ? (int) $row['Dependentes'] : null;
-            $row['Plano de saúde'] = $row['Plano de saúde'] ? (float) $row['Plano de saúde'] : null;
             $row['Email corporativo'] = $row['Email corporativo'];
-            $csv[] = $row;
+            $this->spreadsheetData[] = $row;
         }
         fclose($handle);
 
-        return $csv;
+        return $this->spreadsheetData;
     }
 
-    public function saveList(array $list): void
+    public function saveList(): self
     {
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('id')
-            ->from('users')
-            ->where($select->expr()->in('id', ':id'))
-            ->setParameter('id', array_column($list, 'id'), ArrayParameterType::STRING);
-        $result = $select->executeQuery();
-        $exists = [];
-        while ($row = $result->fetchAssociative()) {
-            $exists[] = $row['id'];
+        $this->getList();
+        foreach ($this->list as $row) {
+            $this->saveRow($row);
         }
-        $insert = new QueryBuilder($this->db->getConnection());
-        foreach ($list as $row) {
-            if (in_array($row['id'], $exists)) {
-                $update = new QueryBuilder($this->db->getConnection());
-                $update->update('users')
-                    ->set('alias', $update->createNamedParameter($row['alias']))
-                    ->set('kimai_username', $update->createNamedParameter($row['kimai_username']))
-                    ->set('akaunting_contact_id', $update->createNamedParameter($row['akaunting_contact_id'] ?? null))
-                    ->set('tax_number', $update->createNamedParameter($row['tax_number']))
-                    ->set('dependents', $update->createNamedParameter($row['dependents']))
-                    ->set('health_insurance', $update->createNamedParameter($row['health_insurance']))
-                    ->set('enabled', $update->createNamedParameter($row['enabled'], ParameterType::INTEGER))
-                    ->set('metadata', $update->createNamedParameter(json_encode($row)))
-                    ->where($update->expr()->eq('id', $update->createNamedParameter($row['id'])))
-                    ->executeStatement();
-                continue;
-            }
-            $insert->insert('users')
-                ->values([
-                    'id' => $insert->createNamedParameter($row['id']),
-                    'alias' => $insert->createNamedParameter($row['alias']),
-                    'kimai_username' => $insert->createNamedParameter($row['kimai_username']),
-                    'akaunting_contact_id' => $insert->createNamedParameter($row['akaunting_contact_id'] ?? null),
-                    'tax_number' => $insert->createNamedParameter($row['tax_number']),
-                    'dependents' => $insert->createNamedParameter($row['dependents']),
-                    'health_insurance' => $insert->createNamedParameter($row['health_insurance']),
-                    'enabled' => $insert->createNamedParameter($row['enabled'], ParameterType::INTEGER),
-                    'metadata' => $insert->createNamedParameter(json_encode($row)),
-                ])
-                ->executeStatement();
-        }
+        return $this;
+    }
+
+    public function saveRow(EntityUsers $user): self
+    {
+        $em = $this->db->getEntityManager();
+        $em->persist($user);
+        $em->flush();
+        return $this;
+    }
+
+    private function convertFields(array $row): array
+    {
+        $row['akaunting_contact_id'] = $row['akaunting_contact_id'] ?? null;
+        $row['metadata'] = $row;
+        return $row;
     }
 }

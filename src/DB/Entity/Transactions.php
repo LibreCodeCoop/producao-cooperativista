@@ -37,8 +37,7 @@ class Transactions extends DBEntity
 {
     use MagicGetterSetterTrait;
     #[Id]
-    #[Column(unique: true, insertable: true, options: ['unsigned' => true])]
-    #[GeneratedValue(strategy: 'AUTO')]
+    #[Column(insertable: true, options: ['unsigned' => true])]
     private int $id;
     #[Column(length: 50)]
     private string $type;
@@ -64,8 +63,8 @@ class Transactions extends DBEntity
     private ?string $contactReference;
     #[Column]
     private string $contactName;
-    #[Column]
-    private string $contactType;
+    #[Column(nullable: true)]
+    private ?string $contactType;
     #[Column(type: 'bigint')]
     private int $categoryId;
     #[Column]

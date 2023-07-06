@@ -31,6 +31,7 @@ use ProducaoCooperativista\Helper\Dates;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Service\AkauntingDocument\FRRA;
 use ProducaoCooperativista\Service\AkauntingDocument\ProducaoCooperativista;
+use ProducaoCooperativista\Service\AkauntingDocument\Taxes\InssIrpf;
 use ProducaoCooperativista\Service\Source\Invoices;
 
 /**
@@ -40,12 +41,12 @@ use ProducaoCooperativista\Service\Source\Invoices;
  * @method int getDependentes()
  * @method self setFrra(FRRA $value)
  * @method FRRA getFrra()
- * @method self setHealthInsurance(float $value)
- * @method float getHealthInsurance()
  * @method self setProducaoCooperativista(ProducaoCooperativista $value)
  * @method ProducaoCooperativista getProducaoCooperativista()
  * @method self setName(string $value)
  * @method string getName()
+ * @method self setInssIrpf(InssIrpf $value)
+ * @method InssIrpf getInssIrpf()
  * @method self setTaxNumber(string $value)
  * @method string getTaxNumber()
  */
@@ -57,9 +58,9 @@ class Cooperado
     private ?int $dependentes = 0;
     private ?string $name = '';
     private ?string $taxNumber = '';
-    private ?float $healthInsurance = 0;
     private ProducaoCooperativista $producaoCooperativista;
     private FRRA $frra;
+    private InssIrpf $inssIrpf;
 
     public function __construct(
         private ?int $anoFiscal,
@@ -78,6 +79,15 @@ class Cooperado
         ));
 
         $this->setFrra(new FRRA(
+            anoFiscal: $anoFiscal,
+            db: $this->db,
+            dates: $this->dates,
+            numberFormatter: $this->numberFormatter,
+            invoices: $this->invoices,
+            cooperado: $this
+        ));
+
+        $this->setInssIrpf(new InssIrpf(
             anoFiscal: $anoFiscal,
             db: $this->db,
             dates: $this->dates,

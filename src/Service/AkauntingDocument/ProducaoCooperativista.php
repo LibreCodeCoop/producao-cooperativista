@@ -34,6 +34,43 @@ class ProducaoCooperativista extends AAkauntingDocument
     {
         $this->populateProducaoCooperativistaWithDefault();
         parent::save();
+        $this->getCooperado()
+            ->getInssIrpf()
+            ->saveFromDocument($this);
+        return $this;
+    }
+
+    public function updateHealthInsurance(): self
+    {
+        $select = new QueryBuilder($this->db->getConnection());
+        $select->select('metadata->>"$.notes" as notes')
+            ->from('invoices')
+            ->where("type = 'bill'")
+            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_PLANO_DE_SAUDE_CATEGORY_ID'], ParameterType::INTEGER)))
+            ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
+        $result = $select->executeQuery();
+        $text = $result->fetchOne();
+        if (!$text) {
+            return $this;
+        }
+        $return = [];
+        if (empty($text)) {
+            return $return;
+        }
+
+        $explodedText = explode("\n", $text);
+        $pattern = '/^Cooperado: .*CPF: (?<CPF>\d+)[,;]? Valor: (R\$ ?)?(?<value>.*)$/i';
+        foreach ($explodedText as $row) {
+            if (!preg_match($pattern, $row, $matches)) {
+                continue;
+            }
+            if ($matches['CPF'] === $this->getCooperado()->getTaxNumber()) {
+                $value = str_replace('.', '', $matches['value']);
+                $value = str_replace(',', '.', $value);
+                $value = (float) $value;
+                $this->values->setHealthInsurance($value);
+            }
+        }
         return $this;
     }
 
@@ -84,7 +121,7 @@ class ProducaoCooperativista extends AAkauntingDocument
 
     private function insereHealthInsurance(): self
     {
-        $healthInsurance = $this->getCooperado()->getHealthInsurance();
+        $healthInsurance = $this->values->getHealthInsurance();
 
         if ($healthInsurance) {
             $this->setItem(

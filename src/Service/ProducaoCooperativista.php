@@ -150,7 +150,7 @@ class ProducaoCooperativista
         $this->transactions
             ->setDate($this->dates->getInicioProximoMes())
             ->saveList();
-        $this->users->updateDatabase();
+        $this->users->saveList();
     }
 
     private function getTotalSegundosLibreCode(): int
@@ -228,11 +228,11 @@ class ProducaoCooperativista
      *
      * Desconsidera-se:
      * * Produção cooperativista (cliente interno)
-     * * Produção externa (pagamento para quem trabalha diretamente para cliente externo)
-     * * Impostos de pessoa física: IRPF, INSS
+     * * "Produção: externa" (pagamento para quem trabalha diretamente para cliente externo)
+     * * "Imposto: Pessoa Física": IRPF, INSS
      * * Cliente: Todos os custos dos clientes
-     * * Serviços de clientes: É algo que o cliente pagou, isto nem expense deveria ser
-     * * Plano de saúde: Este valor é reembolsado pelo cooperado então não entra para ser dividido por todos
+     * * "Dispêndio: Cliente": É algo que o cliente pagou, isto nem expense deveria ser
+     * * "Dispêndio: Plano de saúde": Este valor é reembolsado pelo cooperado então não entra para ser dividido por todos
      */
     private function getTotalDispendios(): float
     {
@@ -251,11 +251,12 @@ class ProducaoCooperativista
                     AND category_type = 'expense'
                     AND category_name NOT IN (
                         'Produção cooperativista',
-                        'Produção externa',
-                        'Imposto Pessoa Física',
-                        'Cliente',
-                        'Serviços de clientes',
-                        'Plano de saúde'
+                        'Produção: Distribuição de sobras',
+                        'Produção: externa',
+                        'Produção: FRRA',
+                        'Imposto: Pessoa Física',
+                        'Dispêndio: Cliente',
+                        'Dispêndio: Plano de saúde'
                     )
                 SQL
             );
@@ -270,11 +271,12 @@ class ProducaoCooperativista
                     AND category_type = 'expense'
                     AND category_name NOT IN (
                         'Produção cooperativista',
-                        'Produção externa',
-                        'Imposto Pessoa Física',
-                        'Cliente',
-                        'Serviços de clientes',
-                        'Plano de saúde'
+                        'Produção: Distribuição de sobras',
+                        'Produção: externa',
+                        'Produção: FRRA',
+                        'Imposto: Pessoa Física',
+                        'Dispêndio: Cliente',
+                        'Dispêndio: Plano de saúde'
                     )
                 SQL
             );
@@ -305,10 +307,9 @@ class ProducaoCooperativista
             WHERE type = 'invoice'
             AND archive = 0
             AND category_name IN (
-                'Cliente',
-                'Serviços de clientes',
-                'Recorrência',
-                'Serviço'
+                'Cliente: Recorrência',
+                'Cliente: Serviço',
+                'Cliente: Serviço externo'
             )
             AND transaction_of_month = :ano_mes
             SQL
@@ -375,8 +376,7 @@ class ProducaoCooperativista
                 AND transaction_of_month = :ano_mes
                 AND category_type = 'expense'
                 AND category_name IN (
-                    'Cliente',
-                    'Serviços de clientes'
+                    'Dispêndio: Cliente'
                 )
                 GROUP BY customer_reference, i.type, contact_name
                 SQL
@@ -395,8 +395,7 @@ class ProducaoCooperativista
                 AND archive = 0
                 AND category_type = 'expense'
                 AND category_name IN (
-                    'Cliente',
-                    'Serviços de clientes'
+                    'Dispêndio: Cliente'
                 )
                 GROUP BY customer_reference, t.type, contact_name
                 SQL
@@ -462,8 +461,8 @@ class ProducaoCooperativista
                 AND archive = 0
                 AND category_name IN (
                     'Cliente',
-                    'Serviços de clientes',
-                    'Recorrência'
+                    'Cliente: Serviço',
+                    'Cliente: Recorrência'
                 )
                 SQL
             );
@@ -486,8 +485,8 @@ class ProducaoCooperativista
                 AND archive = 0
                 AND category_name IN (
                     'Cliente',
-                    'Serviços de clientes',
-                    'Recorrência'
+                    'Cliente: Serviço',
+                    'Cliente: Recorrência'
                 )
                 SQL
             );
@@ -547,7 +546,6 @@ class ProducaoCooperativista
                 u.tax_number,
                 u.dependents,
                 u.akaunting_contact_id,
-                u.health_insurance,
                 c.id as customer_id,
                 c.name,
                 c.vat_id as cliente_codigo,
@@ -581,7 +579,6 @@ class ProducaoCooperativista
                     u.tax_number,
                     u.dependents,
                     u.akaunting_contact_id,
-                    u.health_insurance,
                     c.id,
                     c.name,
                     c.vat_id
@@ -601,8 +598,7 @@ class ProducaoCooperativista
                 ->setName($row['alias'])
                 ->setDependentes($row['dependents'])
                 ->setTaxNumber($row['tax_number'])
-                ->setAkauntingContactId($row['akaunting_contact_id'])
-                ->setHealthInsurance($row['health_insurance']);
+                ->setAkauntingContactId($row['akaunting_contact_id']);
             $row['base_producao'] = 0;
             $row['percentual_trabalhado'] = (float) $row['percentual_trabalhado'];
             $this->percentualTrabalhadoPorCliente[] = $row;
@@ -692,8 +688,17 @@ class ProducaoCooperativista
         $this->cadastraCooperadoQueProduziuNoAkaunting();
         $this->distribuiProducaoExterna();
         $this->distribuiSobras();
+        $this->atualizaPlanoDeSaude();
         $this->logger->debug('Produção por cooperado ooperado: {json}', ['json' => json_encode($this->cooperado)]);
         return $this->cooperado;
+    }
+
+    private function atualizaPlanoDeSaude(): self
+    {
+        foreach ($this->cooperado as $cooperado) {
+            $cooperado->getProducaoCooperativista()->updateHealthInsurance();
+        }
+        return $this;
     }
 
     private function distribuiSobras(): void
@@ -783,7 +788,7 @@ class ProducaoCooperativista
             ->from('invoices')
             ->where($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID'], ParameterType::INTEGER)))
             ->andWhere($select->expr()->eq('archive', $select->createNamedParameter(0, ParameterType::INTEGER)))
-            ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
+            ->andWhere($select->expr()->eq('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
 
         $result = $select->executeQuery();
         $total = 0;

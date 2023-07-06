@@ -30,6 +30,12 @@ use Doctrine\DBAL\Query\QueryBuilder;
 
 class FRRA extends AAkauntingDocument
 {
+    protected function setUp(): self
+    {
+        $this->getValues()->setIsFrra(true);
+        return $this;
+    }
+
     private function coletaNaoPago(): self
     {
         $select = new QueryBuilder($this->db->getConnection());

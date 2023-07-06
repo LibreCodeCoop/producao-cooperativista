@@ -27,15 +27,16 @@ namespace ProducaoCooperativista\DB\Entity;
 
 use Doctrine\ORM\Mapping\Column;
 use Doctrine\ORM\Mapping\Entity;
-use Doctrine\ORM\Mapping\GeneratedValue;
 use Doctrine\ORM\Mapping\Id;
+use ProducaoCooperativista\DB\Entity as DBEntity;
+use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 
 #[Entity]
-class Users
+class Users extends DBEntity
 {
+    use MagicGetterSetterTrait;
     #[Id]
     #[Column(insertable: true, options: ['unsigned' => true])]
-    #[GeneratedValue(strategy: 'AUTO')]
     private int $id;
     #[Column(length: 60)]
     private string $alias;
@@ -47,8 +48,6 @@ class Users
     private string $taxNumber;
     #[Column(type: 'smallint')]
     private int $dependents;
-    #[Column]
-    private float $healthInsurance;
     #[Column(type: 'smallint')]
     private int $enabled;
     #[Column]

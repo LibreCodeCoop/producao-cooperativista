@@ -46,6 +46,8 @@ use ProducaoCooperativista\Service\IRPF;
  * @method float getFrra()
  * @method self setFrraDocumentNumber(float $value)
  * @method float getFrraDocumentNumber()
+ * @method self setHealthInsurance(float $value)
+ * @method float getHealthInsurance()
  * @method self setInss(float $value)
  * @method float getInss()
  * @method self setIrpf(float $value)
@@ -67,6 +69,7 @@ class Values
     private ?float $inss = 0;
     private ?float $irpf = 0;
     private ?float $liquido = 0;
+    private ?float $healthInsurance = 0;
     private bool $isFrra = false;
     private const STATUS_NEED_TO_UPDATE = 0;
     private const STATUS_UPDATING = 1;
@@ -119,7 +122,7 @@ class Values
             - $this->getIrpf()
             + $this->getAuxilio();
         if (!$this->isFrra) {
-            $liquido -=$this->getCooperado()->getHealthInsurance();
+            $liquido -=$this->getHealthInsurance();
         }
         $this->setLiquido($liquido);
         $this->updated = self::STATUS_UPDATED;
@@ -173,7 +176,7 @@ class Values
             'dependentes' => $cooperado->getDependentes(),
             'document_number' => $this->getDocumentNumber(),
             'frra' => $this->getFrra(),
-            'health_insurance' => $cooperado->getHealthInsurance(),
+            'health_insurance' => $this->getHealthInsurance(),
             'inss' => $this->getInss(),
             'irpf' => $this->getIrpf(),
             'liquido' => $this->getLiquido(),

@@ -28,7 +28,7 @@ namespace ProducaoCooperativista\Service\Source;
 use DateTime;
 use Exception;
 use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\DB\Entity\Invoices as InvoicesEntity;
+use ProducaoCooperativista\DB\Entity\Invoices as EntityInvoices;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Service\Source\Provider\Akaunting;
 use Psr\Log\LoggerInterface;
@@ -47,7 +47,7 @@ class Invoices
     private ?DateTime $date;
     private string $type;
     private int $companyId;
-    /** @var InvoicesEntity[] */
+    /** @var EntityInvoices[] */
     private array $list = [];
 
     public function __construct(
@@ -76,8 +76,8 @@ class Invoices
 
         $search = [];
         $search[] = 'type:' . $this->getType();
-        $search[] = 'invoiced_at>=' . $begin->format('Y-m-d');
-        $search[] = 'invoiced_at<=' . $end->format('Y-m-d');
+        $search[] = 'due_at>=' . $begin->format('Y-m-d');
+        $search[] = 'due_at<=' . $end->format('Y-m-d');
         $list = $this->getDataList('/api/documents', [
             'company_id' => $this->getCompanyId(),
             'search' => implode(' ', $search),
@@ -89,15 +89,15 @@ class Invoices
         return $this->list[$this->getType()] ?? [];
     }
 
-    public function fromArray(array $array): InvoicesEntity
+    public function fromArray(array $array): EntityInvoices
     {
         $array = array_merge($array, $this->parseText((string) $array['notes']));
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
-        $entity = $this->db->getEntityManager()->find(InvoicesEntity::class, $array['id']);
-        if (!$entity instanceof InvoicesEntity) {
-            $entity = new InvoicesEntity();
+        $entity = $this->db->getEntityManager()->find(EntityInvoices::class, $array['id']);
+        if (!$entity instanceof EntityInvoices) {
+            $entity = new EntityInvoices();
         }
         $entity->fromArray($array);
         return $entity;
@@ -114,7 +114,7 @@ class Invoices
         return $this;
     }
 
-    public function saveRow(InvoicesEntity $invoice): self
+    public function saveRow(EntityInvoices $invoice): self
     {
         $em = $this->db->getEntityManager();
         $em->persist($invoice);

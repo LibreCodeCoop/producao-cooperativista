@@ -30,7 +30,7 @@ use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
 use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\DB\Entity\Transactions as TransactionsEntity;
+use ProducaoCooperativista\DB\Entity\Transactions as EntityTransactions;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Service\Source\Provider\Akaunting;
 use Psr\Log\LoggerInterface;
@@ -49,7 +49,7 @@ class Transactions
     private ?DateTime $date;
     private int $companyId;
     private ?int $categoryId = null;
-    /** @var TransactionsEntity[] */
+    /** @var EntityTransactions[] */
     private array $list = [];
 
     public function __construct(
@@ -80,23 +80,23 @@ class Transactions
             'company_id' => $this->getCompanyId(),
             'search' => implode(' ', $search),
         ]);
-        foreach ($list as $key => $row) {
+        foreach ($list as $row) {
             $transaction = $this->fromArray($row);
-            $this->list[$key] = $transaction;
+            $this->list[] = $transaction;
         }
         return $this->list;
     }
 
-    public function fromArray(array $array): TransactionsEntity
+    public function fromArray(array $array): EntityTransactions
     {
         $array = $this->getDataFromAssociatedDocument($array);
         $array = array_merge($array, $this->parseText((string) $array['description']));
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
-        $entity = $this->db->getEntityManager()->find(TransactionsEntity::class, $array['id']);
-        if (!$entity instanceof TransactionsEntity) {
-            $entity = new TransactionsEntity();
+        $entity = $this->db->getEntityManager()->find(EntityTransactions::class, $array['id']);
+        if (!$entity instanceof EntityTransactions) {
+            $entity = new EntityTransactions();
         }
         $entity->fromArray($array);
         return $entity;
@@ -105,15 +105,13 @@ class Transactions
     public function saveList(): self
     {
         $this->getList();
-        foreach ($this->list as $list) {
-            foreach ($list as $row) {
-                $this->saveRow($row);
-            }
+        foreach ($this->list as $row) {
+            $this->saveRow($row);
         }
         return $this;
     }
 
-    public function saveRow(TransactionsEntity $invoice): self
+    public function saveRow(EntityTransactions $invoice): self
     {
         $em = $this->db->getEntityManager();
         $em->persist($invoice);
@@ -138,7 +136,7 @@ class Transactions
         $select = new QueryBuilder($this->db->getConnection());
         $select->select('id')
             ->addSelect('customer_reference')
-            ->addSelect('metadata->"$.notes" as invoice_notes')
+            ->addSelect('metadata->>"$.notes" as invoice_notes')
             ->from('invoices')
             ->where($select->expr()->eq('id', $select->createNamedParameter($item['document_id'], ParameterType::INTEGER)))
             ->andWhere('customer_reference IS NOT NULL');
@@ -148,9 +146,6 @@ class Transactions
             return $item;
         }
         if (is_string($row['invoice_notes'])) {
-            // Field from MYSQL JSON string is coming inside double quotes and with explicit string \r\n
-            $row['invoice_notes'] = trim($row['invoice_notes'], '"');
-            $row['invoice_notes'] = str_replace('\r\n', "\n", $row['invoice_notes']);
             $item = array_merge($item, $this->parseText($row['invoice_notes']));
         }
         if (empty($item['customer_reference'])) {

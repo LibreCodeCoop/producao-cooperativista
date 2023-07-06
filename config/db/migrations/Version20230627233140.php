@@ -38,13 +38,12 @@ final class Version20230627233140 extends AbstractMigration
     public function up(Schema $schema): void
     {
         $table = $schema->createTable('users');
-        $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => true]);
+        $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => false]);
         $table->addColumn('alias', 'string', ['length' => 60]);
         $table->addColumn('kimai_username', 'string', ['length' => 180]);
         $table->addColumn('akaunting_contact_id', 'bigint', ['notnull' => false]);
         $table->addColumn('tax_number', 'string', ['length' => 20]);
         $table->addColumn('dependents', 'smallint');
-        $table->addColumn('health_insurance', 'float');
         $table->addColumn('enabled', 'smallint');
         $table->addColumn('metadata', 'json');
         $table->addUniqueConstraint(['kimai_username']);

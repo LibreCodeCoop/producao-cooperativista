@@ -106,9 +106,12 @@ class AAkauntingDocument
             anoFiscal: $anoFiscal,
             cooperado: $cooperado
         ));
-        if ($this instanceof FRRA) {
-            $this->getValues()->setIsFrra(true);
-        }
+        $this->setUp();
+    }
+
+    protected function setUp(): self
+    {
+        return $this;
     }
 
     public function setNote(string $label, $value): self
@@ -156,6 +159,11 @@ class AAkauntingDocument
         }
         $this->items[] = $item;
         return $this;
+    }
+
+    public function getItems(): array
+    {
+        return $this->items;
     }
 
     public function toArray(): array
@@ -300,7 +308,7 @@ class AAkauntingDocument
                     $this->setAmount(0);
                     continue 2;
                 case 'notes':
-                    $this->setNotesFromString($value);
+                    $this->setNotesFromString((string) $value);
                     continue 2;
                 case 'items':
                     $this->setItemsFromAkaunting($value['data']);
@@ -317,9 +325,6 @@ class AAkauntingDocument
     private function setItemsFromAkaunting(array $items): self
     {
         foreach ($items as $item) {
-            if ($item['item_id'] !== $this->itemsIds['frra']) {
-                continue;
-            }
             $this->setItem(
                 id: $item['id'],
                 itemId: $item['item_id'],
@@ -333,7 +338,13 @@ class AAkauntingDocument
 
     private function setNotesFromString(string $notes): self
     {
+        if (empty($notes)) {
+            return $this;
+        }
         foreach (explode("\n", $notes) as $note) {
+            if (!str_contains($note, ': ')) {
+                continue;
+            }
             list($label, $value) = explode(': ', $note);
             $this->setNote($label, $value);
         }
