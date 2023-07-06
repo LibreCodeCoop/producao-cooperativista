@@ -29,6 +29,7 @@ use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
 use ProducaoCooperativista\Service\AkauntingDocument\AAkauntingDocument;
+use stdClass;
 
 class InssIrpf extends AAkauntingDocument
 {
@@ -37,6 +38,13 @@ class InssIrpf extends AAkauntingDocument
     private const ACTION_UPDATE = 2;
     private const ACTION_IGNORE = 3;
     private int $action = self::ACTION_IGNORE;
+    private stdClass $taxData;
+
+    protected function setUp(): self
+    {
+        $this->taxData = json_decode($_ENV['AKAUNTING_IMPOSTOS_INSS_IRRF']);
+        return $this;
+    }
 
     public function saveMonthTaxes(float $total): self
     {
@@ -81,7 +89,7 @@ class InssIrpf extends AAkauntingDocument
 
         $this
             ->setType('bill')
-            ->setCategoryId((int) $_ENV['AKAUNTING_IMPOSTOS_INSS_IRRF_CATEGORY_ID'])
+            ->setCategoryId($this->taxData->categoryId)
             ->setDocumentNumber(
                 'IR_INSS_' .
                 $this->dates->getDataPagamento()->format('Y-m')
@@ -101,7 +109,7 @@ class InssIrpf extends AAkauntingDocument
     private function getContact(): array
     {
         $response = $this->invoices->sendData(
-            endpoint: '/api/contacts/' . $_ENV['AKAUNTING_IMPOSTOS_INSS_IRRF_CONTACT_ID'],
+            endpoint: '/api/contacts/' . $this->taxData->contactId,
             query: [
                 'search' => implode(' ', [
                     'type:vendor',
@@ -112,7 +120,7 @@ class InssIrpf extends AAkauntingDocument
         if (!isset($response['data'])) {
             throw new Exception(
                 "Impossible to handle contact to insert bill of type INSS_IRPF.\n" .
-                "Got an error when get the contact with ID: {$_ENV['AKAUNTING_IMPOSTOS_INSS_IRRF_CONTACT_ID']}.\n" .
+                "Got an error when get the contact with ID: {$this->taxData->contactId}.\n" .
                 "Response from API:\n" .
                 json_encode($response)
             );
@@ -129,7 +137,7 @@ class InssIrpf extends AAkauntingDocument
             ->addSelect('metadata->>"$.status" AS status')
             ->from('invoices')
             ->where("type = 'bill'")
-            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_IMPOSTOS_INSS_IRRF_CATEGORY_ID'], ParameterType::INTEGER)));
+            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter($this->taxData->categoryId, ParameterType::INTEGER)));
 
         $result = $select->executeQuery();
         $row = $result->fetchAssociative();
