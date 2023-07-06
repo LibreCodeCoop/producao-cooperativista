@@ -55,7 +55,8 @@ class InssIrpf extends AAkauntingDocument
 
     private function insert(): self
     {
-        $cooperado = $this->getCooperado();
+        $contact = $this->getContact();
+
         $this
             ->setType('bill')
             ->setCategoryId((int) $_ENV['AKAUNTING_IMPOSTOS_INSS_IRRF_CATEGORY_ID'])
@@ -68,11 +69,33 @@ class InssIrpf extends AAkauntingDocument
             ->setIssuedAt($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'))
             ->setDueAt($this->dates->getDataPagamento()->format('Y-m-d H:i:s'))
             ->setCurrencyCode('BRL')
-            ->setContactId($cooperado->getAkauntingContactId())
-            ->setContactName($cooperado->getName())
-            ->setContactTaxNumber($cooperado->getTaxNumber());
+            ->setContactId($contact['id'])
+            ->setContactName($contact['name'])
+            ->setContactTaxNumber($contact['tax_number'] ?? '');
         parent::save();
         return $this;
+    }
+
+    private function getContact(): array
+    {
+        $response = $this->invoices->sendData(
+            endpoint: '/api/contacts/' . $_ENV['AKAUNTING_IMPOSTOS_INSS_IRRF_CONTACT_ID'],
+            query: [
+                'search' => implode(' ', [
+                    'type:vendor',
+                ]),
+            ],
+            method: 'GET'
+        );
+        if (!isset($response['data'])) {
+            throw new Exception(
+                "Impossible to handle contact to insert bill of type INSS_IRPF.\n" .
+                "Got an error when get the contact with ID: {$_ENV['AKAUNTING_IMPOSTOS_INSS_IRRF_CONTACT_ID']}.\n" .
+                "Response from API:\n" .
+                json_encode($response)
+            );
+        }
+        return $response['data'];
     }
 
     private function coletaNaoPago(): self
