@@ -141,17 +141,20 @@ class Invoices
 
     private function defineCustomerReference(array $row): array
     {
-        if (!empty($row['contact']['reference'])) {
-            $row['customer_reference'] = $row['contact']['reference'];
-        } elseif (!empty($row['contact']['tax_number'])) {
-            $row['customer_reference'] = $row['contact']['tax_number'];
-        } elseif (!empty($row['customer'])) {
+        if (!empty($row['customer_reference'])) {
+            return $row;
+        }
+        if (!empty($row['customer'])) {
             $row['customer_reference'] = $row['customer'];
             if (!empty($row['sector'])) {
                 $row['customer_reference'] = $row['customer_reference'] . '|' . strtolower($row['sector']);
             }
+        } elseif (!empty($row['contact']['reference'])) {
+            $row['customer_reference'] = $row['contact']['reference'];
+        } elseif (!empty($row['contact']['tax_number'])) {
+            $row['customer_reference'] = $row['contact']['tax_number'];
         } else {
-            $row['customer_reference'] = null;
+            $row['customer_reference'] = $_ENV['CNPJ_COMPANY'];
         }
         return $row;
     }
