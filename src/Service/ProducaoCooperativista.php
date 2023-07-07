@@ -230,7 +230,10 @@ class ProducaoCooperativista
     /**
      * Dispêndios da LibreCode
      *
-     * Desconsidera-se:
+     * Desconsidera-se tudo o que é pago entre o bruto do cooperado e o líquido que o cooperado recebe.
+     *
+     * Exemplos:
+     *
      * * Produção cooperativista (cliente interno)
      * * "Produção: externa" (pagamento para quem trabalha diretamente para cliente externo)
      * * "Imposto: Pessoa Física": IRPF, INSS
