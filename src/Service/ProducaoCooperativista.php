@@ -812,6 +812,7 @@ class ProducaoCooperativista
 
     public function exportToOds(): void
     {
+        throw new Exception('Need to be fixed');
         $reader = new \PhpOffice\PhpSpreadsheet\Reader\Ods();
         $spreadsheet = $reader->load(__DIR__ . '/../assets/base.ods');
         $spreadsheet->getSheetByName('valores calculados')
