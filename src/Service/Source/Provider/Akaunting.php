@@ -33,6 +33,7 @@ trait Akaunting
         'NFSe' => 'nfse',
         'Transação do mês' => 'transaction_of_month',
         'CNPJ cliente' => 'customer',
+        'CNPJ' => 'customer',
         'Setor' => 'sector',
         'setor' => 'sector',
         'Arquivar' => 'archive',
