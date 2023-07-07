@@ -93,9 +93,9 @@ class Dates
             $inicoMes = (clone $this->inicioProximoMes)->modify('first day of next month');
             $carbon = Carbon::parse($inicoMes);
             $dataPagamento = $carbon->addBusinessDays($this->pagamentoNoDiaUtil);
-            $string = $dataPagamento->format('Y-m-d');
             $this->dataProcessamento = new DateTime();
-            if ($string >= $this->dataProcessamento->format('Y-m-d')) {
+            $string = $dataPagamento->format('Y-m-d H:i:s');
+            if ($string > $this->dataProcessamento->format('Y-m-d H:i:s')) {
                 $this->dataPagamento = new DateTime($string);
             } else {
                 $this->dataPagamento = $this->dataProcessamento;
