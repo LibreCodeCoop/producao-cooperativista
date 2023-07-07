@@ -50,10 +50,13 @@ class ProducaoCooperativista
     private array $custosPorCliente = [];
     private array $valoresPorProjeto = [];
     private array $percentualTrabalhadoPorCliente = [];
+    private array $entradas = [];
+    private array $saidas = [];
+    private array $dispendios = [];
     /** @var Cooperado[] */
     private array $cooperado = [];
     private int $totalCooperados = 0;
-    private float $totalNotas = 0;
+    private float $totalNotasClientes = 0;
     private float $totalCustoCliente = 0;
     private float $totalDispendios = 0;
     private int $totalSegundosLibreCode = 0;
@@ -88,7 +91,7 @@ class ProducaoCooperativista
         if ($this->baseCalculoDispendios) {
             return $this->baseCalculoDispendios;
         }
-        $this->baseCalculoDispendios = $this->getTotalNotas() - $this->getTotalCustoCliente();
+        $this->baseCalculoDispendios = $this->getTotalNotasClientes() - $this->getTotalCustoCliente();
         return $this->baseCalculoDispendios;
     }
 
@@ -246,54 +249,83 @@ class ProducaoCooperativista
         if ($this->totalDispendios) {
             return $this->totalDispendios;
         }
+        $notDispendio = [
+            'Produção cooperativista',
+            'Produção: Distribuição de sobras',
+            'Produção: externa',
+            'Produção: FRRA',
+            'Imposto: Pessoa Física',
+            'Dispêndio: Cliente',
+            'Dispêndio: Plano de saúde',
+        ];
+        $this->dispendios = array_filter($this->saidas, function ($i) use ($notDispendio): bool {
+            if ($i['transaction_of_month'] === $this->dates->getInicioProximoMes()->format('Y-m')) {
+                if ($i['archive'] === 0) {
+                    if (!in_array($i['category_name'], $notDispendio)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        });
+        $this->totalDispendios = array_reduce($this->dispendios, fn($total, $i) => $total += $i['amount'], 0);
+        $this->logger->debug('Total dispêndios: {total}', ['total' => $this->totalDispendios]);
+        return $this->totalDispendios;
+    }
+
+    private function getSaidas(): array
+    {
+        if ($this->saidas) {
+            return $this->saidas;
+        }
         if ($this->previsao) {
             $stmt = $this->db->getConnection()->prepare(
                 <<<SQL
-                -- Total dispêndios
-                SELECT sum(amount) AS total_dispendios
+                -- Saídas
+                SELECT *
                     FROM invoices i
                 WHERE i.type = 'bill'
                     AND transaction_of_month = :ano_mes
                     AND archive = 0
                     AND category_type = 'expense'
-                    AND category_name NOT IN (
-                        'Produção cooperativista',
-                        'Produção: Distribuição de sobras',
-                        'Produção: externa',
-                        'Produção: FRRA',
-                        'Imposto: Pessoa Física',
-                        'Dispêndio: Cliente',
-                        'Dispêndio: Plano de saúde'
-                    )
                 SQL
             );
         } else {
             $stmt = $this->db->getConnection()->prepare(
                 <<<SQL
-                -- Total dispêndios
-                SELECT sum(amount) AS total_dispendios
+                -- Saídas
+                SELECT *
                     FROM transactions t
                 WHERE transaction_of_month = :ano_mes
                     AND archive = 0
                     AND category_type = 'expense'
-                    AND category_name NOT IN (
-                        'Produção cooperativista',
-                        'Produção: Distribuição de sobras',
-                        'Produção: externa',
-                        'Produção: FRRA',
-                        'Imposto: Pessoa Física',
-                        'Dispêndio: Cliente',
-                        'Dispêndio: Plano de saúde'
-                    )
                 SQL
             );
         }
         $result = $stmt->executeQuery([
             'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m'),
         ]);
-        $this->totalDispendios = (float) $result->fetchOne();
-        $this->logger->debug('Total dispêndios: {total}', ['total' => $this->totalDispendios]);
-        return $this->totalDispendios;
+        $errors = [];
+        while ($row = $result->fetchAssociative()) {
+            if (empty($row['customer_reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['customer_reference'])) {
+                $errors[] = $row;
+            }
+            $this->saidas[] = $row;
+        }
+
+        if (count($errors)) {
+            throw new Exception(sprintf(
+                "Código de cliente inválido na transação de saída no Akaunting.\n" .
+                "Intervalo: %s a %s\n" .
+                "Dados:\n%s",
+                $this->dates->getInicioProximoMes()->format('Y-m-d'),
+                $this->dates->getFimProximoMes()->format('Y-m-d'),
+                json_encode($errors, JSON_PRETTY_PRINT)
+            ));
+        }
+
+        $this->logger->debug('Saídas', [$this->saidas]);
+        return $this->saidas;
     }
 
     /**
@@ -301,40 +333,27 @@ class ProducaoCooperativista
      *
      * @throws Exception
      */
-    private function getTotalNotas(): float
+    private function getTotalNotasClientes(): float
     {
-        if ($this->totalNotas) {
-            return $this->totalNotas;
+        if ($this->totalNotasClientes) {
+            return $this->totalNotasClientes;
         }
 
-        $stmt = $this->db->getConnection()->prepare(
-            <<<SQL
-            SELECT SUM(amount) AS notas
-            FROM invoices i
-            WHERE type = 'invoice'
-            AND archive = 0
-            AND category_name IN (
-                'Cliente: Recorrência',
-                'Cliente: Serviço',
-                'Cliente: Serviço externo'
-            )
-            AND transaction_of_month = :ano_mes
-            SQL
-        );
-        $result = $stmt->executeQuery([
-            'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m'),
-        ]);
-        $this->totalNotas = (float) $result->fetchOne();
-        if (!$this->totalNotas) {
-            $messagem = sprintf(
-                'Sem faturas de vendas entre os dias %s e %s.',
-                $this->dates->getInicioProximoMes()->format(('Y-m-d')),
-                $this->dates->getFimProximoMes()->format(('Y-m-d'))
-            );
-            throw new Exception($messagem);
-        }
-        $this->logger->debug('Total notas: {total}', ['total' => $this->totalNotas]);
-        return $this->totalNotas;
+        $this->totalNotasClientes = array_reduce($this->getEntradasClientes(),fn ($total, $i) => $total + $i['amount'], 0);
+        return $this->totalNotasClientes;
+    }
+
+    private function getEntradasClientes(): array
+    {
+        $entradas = $this->getEntradas();
+        $categoriasNotasClientes = [
+            'Cliente',
+            'Cliente: Recorrência',
+            'Cliente: Serviço',
+            'Cliente: Serviço externo',
+        ];
+        $entradasClientes = array_filter($entradas, fn($i) => in_array($i['category_name'], $categoriasNotasClientes));
+        return $entradasClientes;
     }
 
     /**
@@ -348,9 +367,9 @@ class ProducaoCooperativista
         if ($this->totalCustoCliente) {
             return $this->totalCustoCliente;
         }
-        $rows = $this->getCustosPorCliente();
-        $this->totalCustoCliente = array_reduce($rows, function ($total, $row): float {
-            $total += $row['total_custos'];
+        $custosPorCliente = $this->getCustosPorCliente();
+        $this->totalCustoCliente = array_reduce($custosPorCliente, function ($total, $row): float {
+            $total += $row['amount'];
             return $total;
         }, 0);
         $this->logger->debug('Total custos clientes: {total}', ['total' => $this->totalCustoCliente]);
@@ -368,67 +387,7 @@ class ProducaoCooperativista
         if ($this->custosPorCliente) {
             return $this->custosPorCliente;
         }
-        if ($this->previsao) {
-            $stmt = $this->db->getConnection()->prepare(
-                <<<SQL
-                -- Custos clientes
-                SELECT customer_reference as cliente_codigo,
-                    SUM(amount) AS total_custos,
-                    i.type,
-                    'invoices' as 'table',
-                    contact_name
-                FROM invoices i
-                WHERE i.type = 'bill'
-                AND archive = 0
-                AND transaction_of_month = :ano_mes
-                AND category_type = 'expense'
-                AND category_name IN (
-                    'Dispêndio: Cliente'
-                )
-                GROUP BY customer_reference, i.type, contact_name
-                SQL
-            );
-        } else {
-            $stmt = $this->db->getConnection()->prepare(
-                <<<SQL
-                -- Custos clientes
-                SELECT customer_reference as cliente_codigo,
-                    SUM(amount) AS total_custos,
-                    t.type,
-                    'transactions' as 'table',
-                    contact_name
-                FROM transactions t
-                WHERE transaction_of_month = :ano_mes
-                AND archive = 0
-                AND category_type = 'expense'
-                AND category_name IN (
-                    'Dispêndio: Cliente'
-                )
-                GROUP BY customer_reference, t.type, contact_name
-                SQL
-            );
-        }
-        $result = $stmt->executeQuery([
-            'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m'),
-        ]);
-        $this->custosPorCliente = [];
-        $errors = [];
-        while ($row = $result->fetchAssociative()) {
-            if (empty($row['cliente_codigo']) || !preg_match('/^\d+(\|\S+)?$/', $row['cliente_codigo'])) {
-                $errors[] = $row;
-            }
-            $this->custosPorCliente[] = $row;
-        }
-        if (count($errors)) {
-            throw new Exception(sprintf(
-                "Código de cliente inválido no Akaunting para calcular custos por cliente.\n" .
-                "Intervalo: %s a %s\n" .
-                "Dados:\n%s",
-                $this->dates->getInicioProximoMes()->format('Y-m-d'),
-                $this->dates->getFimProximoMes()->format('Y-m-d'),
-                json_encode($errors, JSON_PRETTY_PRINT)
-            ));
-        }
+        $this->custosPorCliente = array_filter($this->saidas, fn ($i) => $i['category_name'] === 'Dispêndio: Cliente');
         $this->logger->debug('Custos por clientes: {json}', ['json' => json_encode($this->custosPorCliente)]);
         return $this->custosPorCliente;
     }
@@ -439,62 +398,58 @@ class ProducaoCooperativista
         return $percentualDesconto;
     }
 
-    private function getValoresPorProjeto(): array
+    private function calculaBaseProducaoPorEntrada(): self
     {
-        if ($this->valoresPorProjeto) {
-            return $this->valoresPorProjeto;
+        $entradas = $this->getEntradas();
+
+        if (count($this->entradas)) {
+            $current = current($this->entradas);
+            if (!empty($current['base_producao'])) {
+                return $this->valoresPorProjeto;
+            }
         }
 
         $percentualDesconto = $this->getPercentualDesconto();
         $custosPorCliente = $this->getCustosPorCliente();
-        $custosPorCliente = array_column($custosPorCliente, 'total_custos', 'cliente_codigo');
+        $custosPorCliente = array_column($custosPorCliente, 'total_custos', 'customer_reference');
+
+        foreach ($entradas as $key => $row) {
+            $base = $row['amount'] - ($custosPorCliente[$row['customer_reference']] ?? 0);
+            $this->entradas[$key]['base_producao'] = $base - ($base * $percentualDesconto / 100);
+        }
+
+        $this->logger->debug('Entradas no mês com base de produção', [json_encode($this->entradas)]);
+        return $this;
+    }
+
+    private function getEntradas(): array
+    {
+        if ($this->entradas) {
+            return $this->entradas;
+        }
 
         if ($this->previsao) {
             $stmt = $this->db->getConnection()->prepare(
                 <<<SQL
-                SELECT i.id,
-                    i.amount,
-                    i.type,
-                    'invoices' as 'table',
-                    i.category_type,
-                    i.category_name,
-                    i.customer_reference,
-                    i.nfse,
-                    i.issued_at,
-                    transaction_of_month
+                -- Entradas
+                SELECT 'invoices' as 'table',
+                    i.*
                 FROM invoices i
                 WHERE transaction_of_month = :ano_mes
                 AND i.type = 'invoice'
                 AND archive = 0
-                AND category_name IN (
-                    'Cliente',
-                    'Cliente: Serviço',
-                    'Cliente: Recorrência'
-                )
                 SQL
             );
         } else {
             $stmt = $this->db->getConnection()->prepare(
                 <<<SQL
-                SELECT ti.id,
-                    ti.amount,
-                    ti.type,
-                    'transactions' as 'table',
-                    ti.category_type,
-                    ti.category_name,
-                    ti.customer_reference,
-                    ti.nfse,
-                    ti.paid_at,
-                    transaction_of_month
+                -- Entradas
+                SELECT 'transactions' as 'table',
+                    i.*
                 FROM transactions ti
                 WHERE transaction_of_month = :ano_mes
                 AND ti.category_type = 'income'
                 AND archive = 0
-                AND category_name IN (
-                    'Cliente',
-                    'Cliente: Serviço',
-                    'Cliente: Recorrência'
-                )
                 SQL
             );
         }
@@ -502,18 +457,12 @@ class ProducaoCooperativista
             'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m'),
         ]);
         $errorsSemContactReference = [];
-        $this->valoresPorProjeto = [];
         while ($row = $result->fetchAssociative()) {
             if (empty($row['customer_reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['customer_reference'])) {
                 $errorsSemContactReference[] = $row;
             }
 
-            $base = $row['amount'] - ($custosPorCliente[$row['customer_reference']] ?? 0);
-            $valoresPorProjeto = [
-                'base_producao' => $base - ($base * $percentualDesconto / 100),
-                'customer_reference' => $row['customer_reference'],
-            ];
-            $this->valoresPorProjeto[] = $valoresPorProjeto;
+            $this->entradas[] = $row;
         }
         if (count($errorsSemContactReference)) {
             throw new Exception(
@@ -523,19 +472,19 @@ class ProducaoCooperativista
             );
         }
 
-        $this->logger->debug('Valores por projetos: {valores}', ['valores' => json_encode($this->valoresPorProjeto)]);
-        return $this->valoresPorProjeto;
+        $this->logger->debug('Entradas no mês', [json_encode($this->entradas)]);
+        return $this->entradas;
     }
 
     private function clientesContabilizaveis(): array
     {
         $cnpjClientesInternos = explode(',', $_ENV['CNPJ_CLIENTES_INTERNOS']);
-        $clientes = $this->getValoresPorProjeto();
-        $clientesContabilizaveis = array_column($clientes, 'customer_reference');
+        $clientesContabilizaveis = array_column($this->getEntradasClientes(), 'customer_reference');
         $clientesContabilizaveis = array_merge(
             array_values($clientesContabilizaveis),
             $cnpjClientesInternos
         );
+        $clientesContabilizaveis = array_unique($clientesContabilizaveis);
         return $clientesContabilizaveis;
     }
 
@@ -555,7 +504,7 @@ class ProducaoCooperativista
                 u.akaunting_contact_id,
                 c.id as customer_id,
                 c.name,
-                c.vat_id as cliente_codigo,
+                c.vat_id as customer_reference,
                 COALESCE(sum(t.duration), 0) * 100 / total_cliente.total AS percentual_trabalhado
             FROM customers c
             JOIN projects p ON p.customer_id = c.id
@@ -598,7 +547,7 @@ class ProducaoCooperativista
         $result = $stmt->executeQuery();
         $this->percentualTrabalhadoPorCliente = [];
         while ($row = $result->fetchAssociative()) {
-            if (!$row['cliente_codigo']) {
+            if (!$row['customer_reference']) {
                 continue;
             }
             $this->getCooperado($row['tax_number'])
@@ -720,6 +669,11 @@ class ProducaoCooperativista
             return $this->cooperado;
         }
 
+        $this->getEntradas();
+        $this->getSaidas();
+        $this->getCustosPorCliente();
+        $this->getTotalDispendios();
+        $this->calculaBaseProducaoPorEntrada();
         $this->cadastraCooperadoQueProduziuNoAkaunting();
         $this->distribuiProducaoExterna();
         $this->distribuiSobras();
@@ -742,7 +696,7 @@ class ProducaoCooperativista
         $sobras = $this->getTotalSobrasDoMes();
         $cnpjClientesInternos = explode(',', $_ENV['CNPJ_CLIENTES_INTERNOS']);
         foreach ($percentualTrabalhadoPorCliente as $row) {
-            if (!in_array($row['cliente_codigo'], $cnpjClientesInternos)) {
+            if (!in_array($row['customer_reference'], $cnpjClientesInternos)) {
                 continue;
             }
             $aReceberDasSobras = ($sobras * $row['percentual_trabalhado'] / 100);
@@ -771,25 +725,25 @@ class ProducaoCooperativista
             return;
         }
         $percentualTrabalhadoPorCliente = $this->getPercentualTrabalhadoPorCliente();
-        $totalPorCliente = array_column($this->getValoresPorProjeto(), 'base_producao', 'customer_reference');
+        $totalPorCliente = array_column($this->getEntradasClientes(), 'base_producao', 'customer_reference');
         $errorSemCodigoCliente = [];
         $cnpjClientesInternos = explode(',', $_ENV['CNPJ_CLIENTES_INTERNOS']);
         foreach ($percentualTrabalhadoPorCliente as $row) {
-            if (in_array($row['cliente_codigo'], $cnpjClientesInternos)) {
+            if (in_array($row['customer_reference'], $cnpjClientesInternos)) {
                 continue;
             }
-            if (!isset($totalPorCliente[$row['cliente_codigo']])) {
+            if (!isset($totalPorCliente[$row['customer_reference']])) {
                 $errorSemCodigoCliente[] = $row;
                 continue;
             }
-            $brutoCliente = $totalPorCliente[$row['cliente_codigo']];
+            $brutoCliente = $totalPorCliente[$row['customer_reference']];
             $aReceber = $brutoCliente * $row['percentual_trabalhado'] / 100;
             $values = $this->getCooperado($row['tax_number'])->getProducaoCooperativista()->getValues();
             $values->setBaseProducao($values->getBaseProducao() + $aReceber);
         }
         if (count($errorSemCodigoCliente)) {
             throw new Exception(
-                "O cliente_codigo trabalhado no Kimai não possui faturamento no mês " . $this->dates->getInicioProximoMes()->format('Y-m-d'). ".\n" .
+                "O customer_reference trabalhado no Kimai não possui faturamento no mês " . $this->dates->getInicioProximoMes()->format('Y-m-d'). ".\n" .
                 "Dados:\n" .
                 json_encode($errorSemCodigoCliente, JSON_PRETTY_PRINT)
             );
@@ -818,18 +772,16 @@ class ProducaoCooperativista
 
     private function getTotalSobrasDistribuidasNoMes(): float
     {
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('SUM(amount) as total')
-            ->from('invoices')
-            ->where($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID'], ParameterType::INTEGER)))
-            ->andWhere($select->expr()->eq('archive', $select->createNamedParameter(0, ParameterType::INTEGER)))
-            ->andWhere($select->expr()->eq('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
-
-        $result = $select->executeQuery();
-        $total = 0;
-        while ($item = $result->fetchOne()) {
-            $total +=$item;
-        }
+        $total = array_reduce($this->entradas, function (float $total, array $i): float {
+            if ($i['category_id'] === (int) $_ENV['AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID']) {
+                if ($i['archive'] === 0) {
+                    if ($i['transaction_of_month'] === $this->dates->getInicioProximoMes()->format('Y-m')) {
+                        $total += $i['amount'];
+                    }
+                }
+            }
+            return $total;
+        }, 0);
         return $total;
     }
 
@@ -868,7 +820,7 @@ class ProducaoCooperativista
             ->setCellValue('B3', $this->dates->getInicioProximoMes()->format('Y-m-d H:i:s'))
             ->setCellValue('B4', $this->dates->getFimProximoMes()->format('Y-m-d H:i:s'))
             ->setCellValue('B5', $this->getTotalCooperados())
-            ->setCellValue('B6', $this->getTotalNotas())
+            ->setCellValue('B6', $this->getTotalNotasClientes())
             ->setCellValue('B7', $this->getTotalCustoCliente())
             ->setCellValue('B8', $this->getTotalSegundosLibreCode() / 60 / 60)
             ->setCellValue('B9', $this->percentualLibreCode())
