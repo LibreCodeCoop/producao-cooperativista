@@ -268,7 +268,7 @@ class ProducaoCooperativista
             }
             return false;
         });
-        $this->totalDispendios = array_reduce($this->dispendios, fn($total, $i) => $total += $i['amount'], 0);
+        $this->totalDispendios = array_reduce($this->dispendios, fn ($total, $i) => $total += $i['amount'], 0);
         $this->logger->debug('Total dispêndios: {total}', ['total' => $this->totalDispendios]);
         return $this->totalDispendios;
     }
@@ -339,7 +339,7 @@ class ProducaoCooperativista
             return $this->totalNotasClientes;
         }
 
-        $this->totalNotasClientes = array_reduce($this->getEntradasClientes(),fn ($total, $i) => $total + $i['amount'], 0);
+        $this->totalNotasClientes = array_reduce($this->getEntradasClientes(), fn ($total, $i) => $total + $i['amount'], 0);
         return $this->totalNotasClientes;
     }
 
@@ -352,7 +352,7 @@ class ProducaoCooperativista
             'Cliente: Serviço',
             'Cliente: Serviço externo',
         ];
-        $entradasClientes = array_filter($entradas, fn($i) => in_array($i['category_name'], $categoriasNotasClientes));
+        $entradasClientes = array_filter($entradas, fn ($i) => in_array($i['category_name'], $categoriasNotasClientes));
         return $entradasClientes;
     }
 
