@@ -264,6 +264,9 @@ class AAkauntingDocument
                     ],
                     method: 'GET'
                 );
+                if (isset($response['status_code']) && $response['status_code'] === 429 && isset($response['message']) && $response['message'] === 'Too Many Attempts.') {
+                    throw new Exception('Excesso de requisições para a API do Akaunting.');
+                }
                 if ($response['data']['status'] !== 'draft') {
                     // Only is possible to update billing when is draft
                     return $this;
