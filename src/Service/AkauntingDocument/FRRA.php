@@ -90,7 +90,7 @@ class FRRA extends AAkauntingDocument
                 $this->itemsIds['IRRF'],
             ];
             if (!in_array($item['item_id'], $taxesIds)) {
-                if ($item['item_id'] === $current['item_id']) {
+                if ($current && $item['item_id'] === $current['item_id']) {
                     if (empty($current['description']) || $item['description'] === $current['description']) {
                         return $total;
                     }
