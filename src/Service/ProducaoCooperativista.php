@@ -338,12 +338,7 @@ class ProducaoCooperativista
     private function getEntradasClientes(): array
     {
         $this->atualizaEntradas();
-        $categoriasNotasClientes = [
-            'Cliente',
-            'Cliente: Recorrência',
-            'Cliente: Serviço',
-            'Cliente: Serviço externo',
-        ];
+        $categoriasNotasClientes = $_ENV['AKAUNTING_NOTAS_CLIENTES_CATEGORIES'];
         $entradasClientes = array_filter($this->entradas, fn ($i) => in_array($i['category_name'], $categoriasNotasClientes));
         return $entradasClientes;
     }
