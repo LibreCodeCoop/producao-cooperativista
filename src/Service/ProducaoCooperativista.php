@@ -88,7 +88,7 @@ class ProducaoCooperativista
 
     private function getBaseCalculoDispendios(): float
     {
-        if ($this->baseCalculoDispendios) {
+        if (!empty($this->baseCalculoDispendios)) {
             return $this->baseCalculoDispendios;
         }
         $this->baseCalculoDispendios = $this->getTotalNotasClientes() - $this->getTotalCustoCliente();
@@ -338,7 +338,7 @@ class ProducaoCooperativista
     private function getEntradasClientes(): array
     {
         $this->atualizaEntradas();
-        $categoriasNotasClientes = $_ENV['AKAUNTING_NOTAS_CLIENTES_CATEGORIES'];
+        $categoriasNotasClientes = json_decode($_ENV['AKAUNTING_NOTAS_CLIENTES_CATEGORIES']);
         $entradasClientes = array_filter($this->entradas, fn ($i) => in_array($i['category_name'], $categoriasNotasClientes));
         return $entradasClientes;
     }
