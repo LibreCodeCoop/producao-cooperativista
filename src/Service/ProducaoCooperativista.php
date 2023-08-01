@@ -249,15 +249,7 @@ class ProducaoCooperativista
         if ($this->totalDispendios) {
             return $this->totalDispendios;
         }
-        $notDispendio = [
-            'Produção cooperativista',
-            'Produção: Distribuição de sobras',
-            'Produção: externa',
-            'Produção: FRRA',
-            'Imposto: Pessoa Física',
-            'Dispêndio: Cliente',
-            'Dispêndio: Plano de saúde',
-        ];
+        $notDispendio = json_decode($_ENV['AKAUNTING_NAO_DISPENDIOS_CATEGORIES'], true);
         $this->dispendios = array_filter($this->saidas, function ($i) use ($notDispendio): bool {
             if ($i['transaction_of_month'] === $this->dates->getInicioProximoMes()->format('Y-m')) {
                 if ($i['archive'] === 0) {
