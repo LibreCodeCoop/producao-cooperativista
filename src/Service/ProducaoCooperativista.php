@@ -445,10 +445,10 @@ class ProducaoCooperativista
                 <<<SQL
                 -- Entradas
                 SELECT 'transactions' as 'table',
-                    i.*
-                FROM transactions ti
+                    t.*
+                FROM transactions t
                 WHERE transaction_of_month = :ano_mes
-                AND ti.category_type = 'income'
+                AND t.category_type = 'income'
                 AND archive = 0
                 SQL
             );
