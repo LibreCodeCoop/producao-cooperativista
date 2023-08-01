@@ -345,14 +345,14 @@ class ProducaoCooperativista
 
     private function getEntradasClientes(): array
     {
-        $entradas = $this->getEntradas();
+        $this->atualizaEntradas();
         $categoriasNotasClientes = [
             'Cliente',
             'Cliente: Recorrência',
             'Cliente: Serviço',
             'Cliente: Serviço externo',
         ];
-        $entradasClientes = array_filter($entradas, fn ($i) => in_array($i['category_name'], $categoriasNotasClientes));
+        $entradasClientes = array_filter($this->entradas, fn ($i) => in_array($i['category_name'], $categoriasNotasClientes));
         return $entradasClientes;
     }
 
@@ -387,7 +387,7 @@ class ProducaoCooperativista
         if ($this->custosPorCliente) {
             return $this->custosPorCliente;
         }
-        $this->custosPorCliente = array_filter($this->saidas, fn ($i) => $i['category_name'] === 'Dispêndio: Cliente');
+        $this->custosPorCliente = array_filter($this->saidas, fn ($i) => $i['category_id'] === (int) $_ENV['AKAUNTING_DISPENDIOS_CLIENTE_CATEGORY_ID']);
         $this->logger->debug('Custos por clientes: {json}', ['json' => json_encode($this->custosPorCliente)]);
         return $this->custosPorCliente;
     }
@@ -400,12 +400,12 @@ class ProducaoCooperativista
 
     private function calculaBaseProducaoPorEntrada(): self
     {
-        $entradas = $this->getEntradas();
+        $this->atualizaEntradas();
 
         if (count($this->entradas)) {
             $current = current($this->entradas);
             if (!empty($current['base_producao'])) {
-                return $this->valoresPorProjeto;
+                return $this;
             }
         }
 
@@ -413,7 +413,7 @@ class ProducaoCooperativista
         $custosPorCliente = $this->getCustosPorCliente();
         $custosPorCliente = array_column($custosPorCliente, 'total_custos', 'customer_reference');
 
-        foreach ($entradas as $key => $row) {
+        foreach ($this->entradas as $key => $row) {
             $base = $row['amount'] - ($custosPorCliente[$row['customer_reference']] ?? 0);
             $this->entradas[$key]['base_producao'] = $base - ($base * $percentualDesconto / 100);
         }
@@ -422,10 +422,10 @@ class ProducaoCooperativista
         return $this;
     }
 
-    private function getEntradas(): array
+    private function atualizaEntradas(): void
     {
         if ($this->entradas) {
-            return $this->entradas;
+            return;
         }
 
         if ($this->previsao) {
@@ -473,7 +473,7 @@ class ProducaoCooperativista
         }
 
         $this->logger->debug('Entradas no mês', [json_encode($this->entradas)]);
-        return $this->entradas;
+        return;
     }
 
     private function clientesContabilizaveis(): array
@@ -669,7 +669,7 @@ class ProducaoCooperativista
             return $this->cooperado;
         }
 
-        $this->getEntradas();
+        $this->atualizaEntradas();
         $this->getSaidas();
         $this->getCustosPorCliente();
         $this->getTotalDispendios();
