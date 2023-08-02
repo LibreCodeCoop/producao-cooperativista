@@ -42,6 +42,7 @@ use ProducaoCooperativista\Command\GetTransactionsCommand;
 use ProducaoCooperativista\Command\GetUsersCommand;
 use ProducaoCooperativista\Command\MakeProducaoCommand;
 use ProducaoCooperativista\DB\Database;
+use ProducaoCooperativista\Provider\Akaunting\Request;
 use ProducaoCooperativista\Provider\Akaunting\Dataset;
 use ProducaoCooperativista\Provider\Akaunting\ParseText;
 use ProducaoCooperativista\Service\ProducaoCooperativista;
@@ -64,7 +65,8 @@ $logger->pushHandler(new StreamHandler('logs/system.log'));
 $database = new Database($logger);
 $customers = new Customers($database, $logger);
 $parseText = new ParseText();
-$dataset = new Dataset();
+$request = new Request();
+$dataset = new Dataset($request);
 $invoices = new Invoices($database, $logger, $parseText, $dataset);
 $nfse = new Nfse($database, $logger);
 $projects = new Projects($database, $logger);
@@ -80,7 +82,8 @@ $producaoCooperativista = new ProducaoCooperativista(
     $invoices,
     $timesheets,
     $transactions,
-    $users
+    $users,
+    $request,
 );
 
 $application->addCommands([

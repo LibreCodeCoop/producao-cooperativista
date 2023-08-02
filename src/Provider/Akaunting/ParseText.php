@@ -25,7 +25,8 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Provider\Akaunting;
 
-class ParseText {
+class ParseText
+{
     private array $dictionaryTextParams = [
         'NFSe' => 'nfse',
         'Transação do mês' => 'transaction_of_month',

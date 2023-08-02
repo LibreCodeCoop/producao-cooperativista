@@ -25,13 +25,18 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Provider\Akaunting;
 
-class Dataset extends Request
+class Dataset
 {
+    public function __construct(
+        private Request $request,
+    ) {
+
+    }
     public function list(string $endpoint, array $query = []): array
     {
         $list = [];
         while (true) {
-            $response = $this->send(
+            $response = $this->request->send(
                 endpoint: $endpoint,
                 query: $query,
                 method: 'GET',

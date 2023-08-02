@@ -28,10 +28,12 @@ namespace ProducaoCooperativista\Provider\Akaunting;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-class Request {
+class Request
+{
     protected HttpClientInterface $client;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->client = HttpClient::create();
     }
 

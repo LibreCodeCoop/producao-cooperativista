@@ -32,6 +32,7 @@ use Exception;
 use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Helper\Dates;
+use ProducaoCooperativista\Provider\Akaunting\Request;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Cofins;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Irpf;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Iss;
@@ -77,7 +78,8 @@ class ProducaoCooperativista
         private Invoices $invoices,
         private Timesheets $timesheets,
         private Transactions $transactions,
-        private Users $users
+        private Users $users,
+        private Request $request,
     ) {
         $this->numberFormatter = new NumberFormatter(
             $_ENV['LOCALE'] ?? 'pt_BR',
@@ -622,6 +624,7 @@ class ProducaoCooperativista
             db: $this->db,
             dates: $this->dates,
             invoices: $this->invoices,
+            request: $this->request,
         );
         $inssIrpf->saveMonthTaxes();
 
@@ -629,6 +632,7 @@ class ProducaoCooperativista
             db: $this->db,
             dates: $this->dates,
             invoices: $this->invoices,
+            request: $this->request,
         );
         $cofins->saveMonthTaxes();
 
@@ -636,6 +640,7 @@ class ProducaoCooperativista
             db: $this->db,
             dates: $this->dates,
             invoices: $this->invoices,
+            request: $this->request,
         );
         $pis->saveMonthTaxes();
 
@@ -643,6 +648,7 @@ class ProducaoCooperativista
             db: $this->db,
             dates: $this->dates,
             invoices: $this->invoices,
+            request: $this->request,
         );
         $iss->saveMonthTaxes();
     }
@@ -701,6 +707,7 @@ class ProducaoCooperativista
                 dates: $this->dates,
                 numberFormatter: $this->numberFormatter,
                 invoices: $this->invoices,
+                request: $this->request,
             );
         }
         return $this->cooperado[$taxNumber];

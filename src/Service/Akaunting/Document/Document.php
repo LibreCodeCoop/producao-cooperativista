@@ -87,7 +87,6 @@ class Document
     protected string $status = '';
     protected string $type = '';
     protected Values $values;
-    protected Request $request;
 
     protected array $notes = [];
     protected array $items = [];
@@ -99,11 +98,11 @@ class Document
         protected Database $db,
         protected Dates $dates,
         protected Invoices $invoices,
+        protected Request $request,
         protected ?int $anoFiscal = null,
         protected ?NumberFormatter $numberFormatter = null,
         protected ?Cooperado $cooperado = null,
     ) {
-        $this->request = new Request();
         $this->itemsIds = json_decode($_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS'], true);
         $this->setValues(new Values(
             anoFiscal: $anoFiscal,

@@ -29,6 +29,7 @@ use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Helper\Dates;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
+use ProducaoCooperativista\Provider\Akaunting\Request;
 use ProducaoCooperativista\Service\Akaunting\Document\FRRA;
 use ProducaoCooperativista\Service\Akaunting\Document\ProducaoCooperativista;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\InssIrpf;
@@ -68,6 +69,7 @@ class Cooperado
         private Dates $dates,
         private NumberFormatter $numberFormatter,
         private Invoices $invoices,
+        private Request $request,
     ) {
         $this->setProducaoCooperativista(new ProducaoCooperativista(
             anoFiscal: $anoFiscal,
@@ -75,7 +77,8 @@ class Cooperado
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
             invoices: $this->invoices,
-            cooperado: $this
+            cooperado: $this,
+            request: $this->request,
         ));
 
         $this->setFrra(new FRRA(
@@ -84,7 +87,8 @@ class Cooperado
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
             invoices: $this->invoices,
-            cooperado: $this
+            cooperado: $this,
+            request: $this->request,
         ));
 
         $this->setInssIrpf(new InssIrpf(
@@ -93,7 +97,8 @@ class Cooperado
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
             invoices: $this->invoices,
-            cooperado: $this
+            cooperado: $this,
+            request: $this->request,
         ));
     }
 }
