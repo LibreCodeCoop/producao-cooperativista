@@ -29,7 +29,7 @@ use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\Service\Source\Provider\Kimai;
+use ProducaoCooperativista\Provider\Kimai;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpClient\HttpClient;
 

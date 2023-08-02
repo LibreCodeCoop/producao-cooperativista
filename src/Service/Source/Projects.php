@@ -31,7 +31,7 @@ use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Types;
 use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\Service\Source\Provider\Kimai;
+use ProducaoCooperativista\Provider\Kimai;
 use Psr\Log\LoggerInterface;
 
 class Projects

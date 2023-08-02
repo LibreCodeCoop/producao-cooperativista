@@ -34,7 +34,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\DB\Entity\Users as EntityUsers;
-use ProducaoCooperativista\Service\Source\Provider\Kimai;
+use ProducaoCooperativista\Provider\Kimai;
 use Psr\Log\LoggerInterface;
 use Sabre\DAV\Client;
 
