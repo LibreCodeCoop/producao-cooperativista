@@ -57,24 +57,4 @@ trait Akaunting
         }
         return $list;
     }
-
-    public function sendData(string $endpoint, array $body = [], array $query = [], string $method = 'POST'): array
-    {
-        $client = HttpClient::create();
-        $result = $client->request(
-            $method,
-            rtrim($_ENV['AKAUNTING_API_BASE_URL'], '/') . $endpoint,
-            [
-                'query' => $query,
-                'body' => $body,
-                'auth_basic' => [
-                    'X-AUTH-USER' => $_ENV['AKAUNTING_AUTH_USER'],
-                    'X-AUTH-TOKEN' => $_ENV['AKAUNTING_AUTH_TOKEN'],
-                ]
-            ],
-        );
-        $response = $result->toArray(false);
-
-        return $response;
-    }
 }

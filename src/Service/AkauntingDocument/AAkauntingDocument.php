@@ -30,6 +30,7 @@ use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Helper\Dates;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
+use ProducaoCooperativista\Provider\Akaunting\Request;
 use ProducaoCooperativista\Service\Cooperado;
 use ProducaoCooperativista\Service\Source\Invoices;
 use Symfony\Component\HttpClient\Exception\ClientException;
@@ -86,6 +87,7 @@ class AAkauntingDocument
     protected string $status = '';
     protected string $type = '';
     protected Values $values;
+    protected Request $request;
 
     protected array $notes = [];
     protected array $items = [];
@@ -101,6 +103,7 @@ class AAkauntingDocument
         protected ?NumberFormatter $numberFormatter = null,
         protected ?Cooperado $cooperado = null,
     ) {
+        $this->request = new Request();
         $this->itemsIds = json_decode($_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS'], true);
         $this->setValues(new Values(
             anoFiscal: $anoFiscal,
@@ -219,14 +222,14 @@ class AAkauntingDocument
         try {
             if (!$this->getId()) {
                 // Save new
-                $response = $this->invoices->sendData(
+                $response = $this->request->send(
                     endpoint: '/api/documents',
                     body: $this->toArray()
                 );
                 // If already exists a document with the same documentNumber...
                 if (isset($response['errors']['document_number'])) {
                     // Search the item that have the same documentNumber to get the ID
-                    $response = $this->invoices->sendData(
+                    $response = $this->request->send(
                         endpoint: '/api/documents',
                         query: [
                             'search' => implode(' ', [
@@ -255,7 +258,7 @@ class AAkauntingDocument
                 }
             } else {
                 // Get the existing document to check if the current values is ok
-                $response = $this->invoices->sendData(
+                $response = $this->request->send(
                     endpoint: '/api/documents/' . $this->getId(),
                     query: [
                         'search' => implode(' ', [
@@ -272,7 +275,7 @@ class AAkauntingDocument
                     return $this;
                 }
                 // Update if exists
-                $response = $this->invoices->sendData(
+                $response = $this->request->send(
                     endpoint: '/api/documents/' . $this->getId(),
                     body: $this->toArray(),
                     method: 'PATCH'
@@ -295,7 +298,7 @@ class AAkauntingDocument
 
     protected function loadFromAkaunting(): void
     {
-        $response = $this->invoices->sendData(
+        $response = $this->request->send(
             endpoint: '/api/documents/' . $this->getId(),
             query: [
                 'search' => implode(' ', [

@@ -155,7 +155,7 @@ class Tax extends AAkauntingDocument
 
     private function getContact(): array
     {
-        $response = $this->invoices->sendData(
+        $response = $this->request->send(
             endpoint: '/api/contacts/' . $this->taxData->contactId,
             query: [
                 'search' => implode(' ', [
