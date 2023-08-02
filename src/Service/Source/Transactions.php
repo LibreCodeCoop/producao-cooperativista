@@ -32,7 +32,7 @@ use Exception;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\DB\Entity\Transactions as EntityTransactions;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
-use ProducaoCooperativista\Provider\Akaunting;
+use ProducaoCooperativista\Provider\Akaunting\Dataset;
 use ProducaoCooperativista\Provider\Akaunting\ParseText;
 use Psr\Log\LoggerInterface;
 
@@ -46,13 +46,13 @@ use Psr\Log\LoggerInterface;
 class Transactions
 {
     use MagicGetterSetterTrait;
-    use Akaunting;
     private ?DateTime $date;
     private int $companyId;
     private ?int $categoryId = null;
     /** @var EntityTransactions[] */
     private array $list = [];
     private ParseText $parseText;
+    private Dataset $dataset;
 
     public function __construct(
         private Database $db,
@@ -60,6 +60,7 @@ class Transactions
     ) {
         $this->companyId = (int) $_ENV['AKAUNTING_COMPANY_ID'];
         $this->parseText = new ParseText();
+        $this->dataset = new Dataset();
     }
 
     public function getList(): array
@@ -79,7 +80,7 @@ class Transactions
         }
         $search[] = 'paid_at>=' . $begin->format('Y-m-d');
         $search[] = 'paid_at<=' . $end->format('Y-m-d');
-        $list = $this->getDataList('/api/transactions', [
+        $list = $this->dataset->list('/api/transactions', [
             'company_id' => $this->getCompanyId(),
             'search' => implode(' ', $search),
         ]);

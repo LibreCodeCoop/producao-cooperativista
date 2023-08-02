@@ -30,7 +30,7 @@ use Exception;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\DB\Entity\Invoices as EntityInvoices;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
-use ProducaoCooperativista\Provider\Akaunting;
+use ProducaoCooperativista\Provider\Akaunting\Dataset;
 use ProducaoCooperativista\Provider\Akaunting\ParseText;
 use Psr\Log\LoggerInterface;
 
@@ -44,13 +44,13 @@ use Psr\Log\LoggerInterface;
 class Invoices
 {
     use MagicGetterSetterTrait;
-    use Akaunting;
     private ?DateTime $date;
     private string $type;
     private int $companyId;
     /** @var EntityInvoices[] */
     private array $list = [];
     private ParseText $parseText;
+    private Dataset $dataset;
 
     public function __construct(
         private Database $db,
@@ -59,6 +59,7 @@ class Invoices
         $this->type = 'invoice';
         $this->companyId = (int) $_ENV['AKAUNTING_COMPANY_ID'];
         $this->parseText = new ParseText();
+        $this->dataset = new Dataset();
     }
 
     public function getList(): array
@@ -77,7 +78,7 @@ class Invoices
         $search[] = 'type:' . $this->getType();
         $search[] = 'due_at>=' . $begin->format('Y-m-d');
         $search[] = 'due_at<=' . $end->format('Y-m-d');
-        $list = $this->getDataList('/api/documents', [
+        $list = $this->dataset->list('/api/documents', [
             'company_id' => $this->getCompanyId(),
             'search' => implode(' ', $search),
         ]);

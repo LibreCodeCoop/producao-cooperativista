@@ -37,17 +37,20 @@ class Request {
 
     public function send(string $endpoint, array $body = [], array $query = [], string $method = 'POST'): array
     {
+        $options = [
+            'query' => $query,
+            'auth_basic' => [
+                'X-AUTH-USER' => $_ENV['AKAUNTING_AUTH_USER'],
+                'X-AUTH-TOKEN' => $_ENV['AKAUNTING_AUTH_TOKEN'],
+            ]
+        ];
+        if (!empty($body)) {
+            $options['body'] = $body;
+        }
         $result = $this->client->request(
             $method,
             rtrim($_ENV['AKAUNTING_API_BASE_URL'], '/') . $endpoint,
-            [
-                'query' => $query,
-                'body' => $body,
-                'auth_basic' => [
-                    'X-AUTH-USER' => $_ENV['AKAUNTING_AUTH_USER'],
-                    'X-AUTH-TOKEN' => $_ENV['AKAUNTING_AUTH_TOKEN'],
-                ]
-            ],
+            $options,
         );
         $response = $result->toArray(false);
 

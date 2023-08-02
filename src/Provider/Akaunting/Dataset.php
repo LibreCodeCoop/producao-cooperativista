@@ -23,32 +23,20 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Provider;
+namespace ProducaoCooperativista\Provider\Akaunting;
 
-use Symfony\Component\HttpClient\HttpClient;
-
-trait Akaunting
+class Dataset extends Request
 {
-    public function getDataList(string $endpoint, array $query = []): array
+    public function list(string $endpoint, array $query = []): array
     {
-        $client = HttpClient::create();
         $list = [];
         while (true) {
-            $this->logger->debug('Akaunting query: {query}', ['query' => $query]);
-            $this->logger->debug('Akaunting endpoint: {endpoint}', ['endpoint' => $endpoint]);
-            $result = $client->request(
-                'GET',
-                rtrim($_ENV['AKAUNTING_API_BASE_URL'], '/') . $endpoint,
-                [
-                    'query' => $query,
-                    'auth_basic' => [
-                        'X-AUTH-USER' => $_ENV['AKAUNTING_AUTH_USER'],
-                        'X-AUTH-TOKEN' => $_ENV['AKAUNTING_AUTH_TOKEN'],
-                    ],
-                ],
+            $response = $this->send(
+                endpoint: $endpoint,
+                query: $query,
+                method: 'GET',
             );
-            $response = $result->toArray();
-            $this->logger->debug('Akaunting response: {response}', ['response' => json_encode($response['data'])]);
+
             $list = array_merge($list, $response['data']);
             if (is_null($response['links']['next'])) {
                 break;
