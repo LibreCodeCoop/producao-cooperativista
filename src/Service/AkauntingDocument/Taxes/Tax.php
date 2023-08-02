@@ -44,11 +44,11 @@ class Tax extends AAkauntingDocument
 
     public function saveMonthTaxes(): self
     {
-        $total = $this->getTotalOfMonth();
+        $total = $this->getTotalRetainedOfMonth();
         if (!$total) {
             return $this;
         }
-        $this->coletaNaoPago();
+        $this->coletaInvoiceNaoPago();
         $this
             ->setItem(
                 itemId: (int) $_ENV['AKAUNTING_IMPOSTOS_ITEM_ID'],
@@ -80,7 +80,7 @@ class Tax extends AAkauntingDocument
         return $this;
     }
 
-    protected function coletaNaoPago(): self
+    protected function coletaInvoiceNaoPago(): self
     {
         $select = new QueryBuilder($this->db->getConnection());
         $select->select('id')
@@ -110,7 +110,7 @@ class Tax extends AAkauntingDocument
         return $this;
     }
 
-    private function getTotalOfMonth(): float
+    private function getTotalRetainedOfMonth(): float
     {
         $stmt = $this->db->getConnection()->prepare(
             <<<SQL
