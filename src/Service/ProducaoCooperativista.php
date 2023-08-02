@@ -823,7 +823,7 @@ class ProducaoCooperativista
         $spreadsheet->createSheet()
             ->setTitle('Valores por projeto')
             ->fromArray(['Cliente', 'referência', 'valor do serviço', 'impostos', 'total dos custos', 'base producao'])
-            ->fromArray($this->getValoresPorProjeto(), null, 'A2');
+            ->fromArray([]/*$this->getValoresPorProjeto()*/, null, 'A2');
 
         $spreadsheet->createSheet()
             ->setTitle('Trabalhado por cliente')
