@@ -36,7 +36,6 @@ use ProducaoCooperativista\Service\Akaunting\Source\Invoices;
 use Symfony\Component\HttpClient\Exception\ClientException;
 
 /**
- * @method self setAmount(float $value)
  * @method float getAmount()
  * @method self setCategoryId(int $value)
  * @method int getCategoryId()
@@ -307,29 +306,32 @@ class Document
             method: 'GET'
         );
         foreach ($response['data'] as $property => $value) {
-            switch ($property) {
-                case 'amount':
-                    // The amount need to be calculated by items every time
-                    $this->setAmount(0);
-                    continue 2;
-                case 'notes':
-                    $this->setNotesFromString((string) $value);
-                    continue 2;
-                case 'items':
-                    $this->setItemsFromAkaunting($value['data']);
-                    continue 2;
-            }
-            $property = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $property))));
-            if (!property_exists($this, $property)) {
+            $property = $this->camelize($property);
+            $methodName = 'set' . ucfirst($property);
+            if (method_exists($this, $methodName)) {
+                $this->$methodName($value);
                 continue;
             }
-            $this->{'set' . ucfirst($property)}($value);
+            if (property_exists($this, $property)) {
+                $this->$methodName($value);
+            }
         }
     }
 
-    private function setItemsFromAkaunting(array $items): self
+    private function camelize(string $text): string
     {
-        foreach ($items as $item) {
+        return lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $text))));
+    }
+
+    private function setAmount(): void
+    {
+        // The amount need to be calculated by items every time
+        $this->amount = 0;
+    }
+
+    private function setItems($value): self
+    {
+        foreach ($value['data'] as $item) {
             $this->setItem(
                 id: $item['id'],
                 itemId: $item['item_id'],
@@ -341,7 +343,7 @@ class Document
         return $this;
     }
 
-    private function setNotesFromString(string $notes): self
+    private function setNotes($notes): self
     {
         if (empty($notes)) {
             return $this;
