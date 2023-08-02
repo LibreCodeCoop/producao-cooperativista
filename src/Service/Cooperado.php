@@ -32,7 +32,7 @@ use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Service\Akaunting\Document\FRRA;
 use ProducaoCooperativista\Service\Akaunting\Document\ProducaoCooperativista;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\InssIrpf;
-use ProducaoCooperativista\Service\Source\Invoices;
+use ProducaoCooperativista\Service\Akaunting\Source\Invoices;
 
 /**
  * @method self setAkauntingContactId(int $value)

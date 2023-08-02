@@ -23,33 +23,31 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\Source;
+namespace ProducaoCooperativista\Service\Akaunting\Source;
 
 use DateTime;
-use Doctrine\DBAL\ParameterType;
-use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
 use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\DB\Entity\Transactions as EntityTransactions;
+use ProducaoCooperativista\DB\Entity\Invoices as EntityInvoices;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Provider\Akaunting\Dataset;
 use ProducaoCooperativista\Provider\Akaunting\ParseText;
 use Psr\Log\LoggerInterface;
 
 /**
- * @method self setCategoryId(int $value)
- * @method int getCategoryId();
  * @method self setCompanyId(int $value)
  * @method int getCompanyId();
  * @method self setDate(DateTime $value)
+ * @method self setType(string $value)
+ * @method string getType()
  */
-class Transactions
+class Invoices
 {
     use MagicGetterSetterTrait;
     private ?DateTime $date;
+    private string $type;
     private int $companyId;
-    private ?int $categoryId = null;
-    /** @var EntityTransactions[] */
+    /** @var EntityInvoices[] */
     private array $list = [];
 
     public function __construct(
@@ -58,47 +56,46 @@ class Transactions
         private ParseText $parseText,
         private Dataset $dataset,
     ) {
+        $this->type = 'invoice';
         $this->companyId = (int) $_ENV['AKAUNTING_COMPANY_ID'];
     }
 
     public function getList(): array
     {
-        if (!empty($this->list)) {
-            return $this->list;
+        if (isset($this->list[$this->getType()])) {
+            return $this->list[$this->getType()];
         }
-        $this->logger->debug('Baixando dados de transactions');
+        $this->logger->debug('Baixando dados de invoices');
+
         $begin = $this->getDate()
             ->modify('first day of this month');
         $end = clone $begin;
         $end = $end->modify('last day of this month');
 
         $search = [];
-        if ($this->getCategoryId()) {
-            $search[] = 'category_id:' . $this->getCategoryId();
-        }
-        $search[] = 'paid_at>=' . $begin->format('Y-m-d');
-        $search[] = 'paid_at<=' . $end->format('Y-m-d');
-        $list = $this->dataset->list('/api/transactions', [
+        $search[] = 'type:' . $this->getType();
+        $search[] = 'due_at>=' . $begin->format('Y-m-d');
+        $search[] = 'due_at<=' . $end->format('Y-m-d');
+        $list = $this->dataset->list('/api/documents', [
             'company_id' => $this->getCompanyId(),
             'search' => implode(' ', $search),
         ]);
         foreach ($list as $row) {
-            $transaction = $this->fromArray($row);
-            $this->list[] = $transaction;
+            $invoice = $this->fromArray($row);
+            $this->list[$this->getType()][] = $invoice;
         }
-        return $this->list;
+        return $this->list[$this->getType()] ?? [];
     }
 
-    public function fromArray(array $array): EntityTransactions
+    public function fromArray(array $array): EntityInvoices
     {
-        $array = $this->getDataFromAssociatedDocument($array);
-        $array = array_merge($array, $this->parseText->do((string) $array['description']));
+        $array = array_merge($array, $this->parseText->do((string) $array['notes']));
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
-        $entity = $this->db->getEntityManager()->find(EntityTransactions::class, $array['id']);
-        if (!$entity instanceof EntityTransactions) {
-            $entity = new EntityTransactions();
+        $entity = $this->db->getEntityManager()->find(EntityInvoices::class, $array['id']);
+        if (!$entity instanceof EntityInvoices) {
+            $entity = new EntityInvoices();
         }
         $entity->fromArray($array);
         return $entity;
@@ -107,13 +104,15 @@ class Transactions
     public function saveList(): self
     {
         $this->getList();
-        foreach ($this->list as $row) {
-            $this->saveRow($row);
+        foreach ($this->list as $list) {
+            foreach ($list as $row) {
+                $this->saveRow($row);
+            }
         }
         return $this;
     }
 
-    public function saveRow(EntityTransactions $invoice): self
+    public function saveRow(EntityInvoices $invoice): self
     {
         $em = $this->db->getEntityManager();
         $em->persist($invoice);
@@ -124,42 +123,15 @@ class Transactions
     private function getDate(): DateTime
     {
         if (!$this->date instanceof DateTime) {
-            throw new Exception('You need to set the start date of month that you want to get transactions');
+            throw new Exception('You need to set the start date of month that you want to get invoices');
         }
         return $this->date;
-    }
-
-    private function getDataFromAssociatedDocument(array $item): array
-    {
-        $item['invoice_notes'] = null;
-        if (!$item['document_id']) {
-            return $item;
-        }
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('id')
-            ->addSelect('customer_reference')
-            ->addSelect('metadata->>"$.notes" as invoice_notes')
-            ->from('invoices')
-            ->where($select->expr()->eq('id', $select->createNamedParameter($item['document_id'], ParameterType::INTEGER)))
-            ->andWhere('customer_reference IS NOT NULL');
-        $result = $select->executeQuery();
-        $row = $result->fetchAssociative();
-        if (!$row) {
-            return $item;
-        }
-        if (is_string($row['invoice_notes'])) {
-            $item = array_merge($item, $this->parseText->do($row['invoice_notes']));
-        }
-        if (empty($item['customer_reference'])) {
-            $item['customer_reference'] = $row['customer_reference'];
-        }
-        return $item;
     }
 
     private function defineTransactionOfMonth(array $row): array
     {
         if (!array_key_exists('transaction_of_month', $row)) {
-            $date = $this->convertDate($row['paid_at']);
+            $date = $this->convertDate($row['due_at']);
             $row['transaction_of_month'] = $date->format('Y-m');
         }
         return $row;
@@ -188,22 +160,20 @@ class Transactions
     private function convertFields(array $row): array
     {
         $row['archive'] = strtolower($row['archive'] ?? 'não') === 'sim' ? 1 : 0;
-        $row['category_id'] = $row['category_id'];
         $row['category_name'] = $row['category']['name'];
         $row['category_type'] = $row['category']['type'];
         $row['contact_name'] = $row['contact']['name'];
         $row['contact_reference'] = $row['contact']['reference'];
         $row['contact_type'] = $row['contact']['type'];
-        $row['customer_reference'] = $row['customer_reference'];
         $row['metadata'] = $row;
         $row['nfse'] = !empty($row['nfse']) ? (int) $row['nfse'] : null;
-        $row['tax_number'] = $row['contact']['tax_number'];
+        $row['tax_number'] = $row['contact']['tax_number'] ?? $row['contact_tax_number'];
         return $row;
     }
 
     private function convertDate(string $date): DateTime
     {
-        $date = preg_replace('/-\d{2}:\d{2}$/', '', $date);
+        $date = preg_replace('/[+-]\d{2}:\d{2}$/', '', $date);
         $date = str_replace('T', ' ', $date);
         $date = DateTime::createFromFormat('Y-m-d H:i:s', $date);
         return $date;

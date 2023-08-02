@@ -32,7 +32,7 @@ use ProducaoCooperativista\Helper\Dates;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Provider\Akaunting\Request;
 use ProducaoCooperativista\Service\Cooperado;
-use ProducaoCooperativista\Service\Source\Invoices;
+use ProducaoCooperativista\Service\Akaunting\Source\Invoices;
 use Symfony\Component\HttpClient\Exception\ClientException;
 
 /**
