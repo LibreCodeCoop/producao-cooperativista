@@ -28,7 +28,7 @@ namespace ProducaoCooperativista\Service\Akaunting\Document;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 
-class FRRA extends AAkauntingDocument
+class FRRA extends Document
 {
     protected function setUp(): self
     {

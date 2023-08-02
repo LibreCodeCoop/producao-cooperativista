@@ -28,10 +28,10 @@ namespace ProducaoCooperativista\Service\Akaunting\Document\Taxes;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
-use ProducaoCooperativista\Service\Akaunting\Document\AAkauntingDocument;
+use ProducaoCooperativista\Service\Akaunting\Document\Document;
 use stdClass;
 
-class Tax extends AAkauntingDocument
+class Tax extends Document
 {
     protected const ACTION_CREATE = 1;
     protected const ACTION_UPDATE = 2;

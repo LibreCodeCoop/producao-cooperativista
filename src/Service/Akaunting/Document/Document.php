@@ -69,7 +69,7 @@ use Symfony\Component\HttpClient\Exception\ClientException;
  * @method self setType(string $value)
  * @method string getType()
  */
-class AAkauntingDocument
+class Document
 {
     use MagicGetterSetterTrait;
     protected float $amount = 0;
