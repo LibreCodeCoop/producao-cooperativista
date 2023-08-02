@@ -59,14 +59,14 @@ class Tax extends Document
 
     public function save(): self
     {
-        switch ($this->action) {
-            case self::ACTION_CREATE:
-                $this->insert();
-                return $this;
-            case self::ACTION_UPDATE:
-                $this->setSearch('type:bill');
-                parent::save();
-                return $this;
+        if ($this->action === self::ACTION_CREATE) {
+            $this->insert();
+            return $this;
+        }
+        if ($this->action === self::ACTION_UPDATE) {
+            $this->setSearch('type:bill');
+            parent::save();
+            return $this;
         }
         return $this;
     }
