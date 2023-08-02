@@ -33,6 +33,7 @@ use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\DB\Entity\Transactions as EntityTransactions;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Provider\Akaunting;
+use ProducaoCooperativista\Provider\Akaunting\ParseText;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -51,12 +52,14 @@ class Transactions
     private ?int $categoryId = null;
     /** @var EntityTransactions[] */
     private array $list = [];
+    private ParseText $parseText;
 
     public function __construct(
         private Database $db,
         private LoggerInterface $logger
     ) {
         $this->companyId = (int) $_ENV['AKAUNTING_COMPANY_ID'];
+        $this->parseText = new ParseText();
     }
 
     public function getList(): array
@@ -90,7 +93,7 @@ class Transactions
     public function fromArray(array $array): EntityTransactions
     {
         $array = $this->getDataFromAssociatedDocument($array);
-        $array = array_merge($array, $this->parseText((string) $array['description']));
+        $array = array_merge($array, $this->parseText->do((string) $array['description']));
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
@@ -146,7 +149,7 @@ class Transactions
             return $item;
         }
         if (is_string($row['invoice_notes'])) {
-            $item = array_merge($item, $this->parseText($row['invoice_notes']));
+            $item = array_merge($item, $this->parseText->do($row['invoice_notes']));
         }
         if (empty($item['customer_reference'])) {
             $item['customer_reference'] = $row['customer_reference'];

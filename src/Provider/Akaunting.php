@@ -29,15 +29,6 @@ use Symfony\Component\HttpClient\HttpClient;
 
 trait Akaunting
 {
-    private array $dictionaryTextParams = [
-        'NFSe' => 'nfse',
-        'Transação do mês' => 'transaction_of_month',
-        'CNPJ cliente' => 'customer',
-        'Setor' => 'sector',
-        'setor' => 'sector',
-        'Arquivar' => 'archive',
-    ];
-
     public function getDataList(string $endpoint, array $query = []): array
     {
         $client = HttpClient::create();
@@ -83,23 +74,7 @@ trait Akaunting
             ],
         );
         $response = $result->toArray(false);
-        return $response;
-    }
 
-    public function parseText(string $text): array
-    {
-        $return = [];
-        if (empty($text)) {
-            return $return;
-        }
-        $explodedText = explode("\n", $text);
-        $pattern = '/^(?<paramName>' . implode('|', array_keys($this->dictionaryTextParams)) . '): (?<paramValue>.*)$/i';
-        foreach ($explodedText as $row) {
-            if (!preg_match($pattern, $row, $matches)) {
-                continue;
-            }
-            $return[$this->dictionaryTextParams[$matches['paramName']]] = strtolower(trim($matches['paramValue']));
-        }
-        return $return;
+        return $response;
     }
 }

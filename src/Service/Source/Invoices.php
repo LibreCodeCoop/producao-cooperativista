@@ -31,6 +31,7 @@ use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\DB\Entity\Invoices as EntityInvoices;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Provider\Akaunting;
+use ProducaoCooperativista\Provider\Akaunting\ParseText;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -49,6 +50,7 @@ class Invoices
     private int $companyId;
     /** @var EntityInvoices[] */
     private array $list = [];
+    private ParseText $parseText;
 
     public function __construct(
         private Database $db,
@@ -56,6 +58,7 @@ class Invoices
     ) {
         $this->type = 'invoice';
         $this->companyId = (int) $_ENV['AKAUNTING_COMPANY_ID'];
+        $this->parseText = new ParseText();
     }
 
     public function getList(): array
@@ -87,7 +90,7 @@ class Invoices
 
     public function fromArray(array $array): EntityInvoices
     {
-        $array = array_merge($array, $this->parseText((string) $array['notes']));
+        $array = array_merge($array, $this->parseText->do((string) $array['notes']));
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
