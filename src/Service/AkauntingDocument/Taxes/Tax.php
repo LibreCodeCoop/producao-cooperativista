@@ -89,6 +89,7 @@ class Tax extends AAkauntingDocument
             ->addSelect('metadata->>"$.status" AS status')
             ->from('invoices')
             ->where("type = 'bill'")
+            ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))))
             ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter($this->taxData->categoryId, ParameterType::INTEGER)));
 
         $result = $select->executeQuery();
