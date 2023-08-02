@@ -621,28 +621,28 @@ class ProducaoCooperativista
         $inssIrpf = new Irpf(
             db: $this->db,
             dates: $this->dates,
-            invoices: $this->invoices
+            invoices: $this->invoices,
         );
         $inssIrpf->saveMonthTaxes();
 
         $cofins = new Cofins(
             db: $this->db,
             dates: $this->dates,
-            invoices: $this->invoices
+            invoices: $this->invoices,
         );
         $cofins->saveMonthTaxes();
 
         $pis = new Pis(
             db: $this->db,
             dates: $this->dates,
-            invoices: $this->invoices
+            invoices: $this->invoices,
         );
         $pis->saveMonthTaxes();
 
         $iss = new Iss(
             db: $this->db,
             dates: $this->dates,
-            invoices: $this->invoices
+            invoices: $this->invoices,
         );
         $iss->saveMonthTaxes();
     }
@@ -700,7 +700,7 @@ class ProducaoCooperativista
                 db: $this->db,
                 dates: $this->dates,
                 numberFormatter: $this->numberFormatter,
-                invoices: $this->invoices
+                invoices: $this->invoices,
             );
         }
         return $this->cooperado[$taxNumber];

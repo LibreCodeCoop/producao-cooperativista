@@ -67,7 +67,7 @@ class Cooperado
         private Database $db,
         private Dates $dates,
         private NumberFormatter $numberFormatter,
-        private Invoices $invoices
+        private Invoices $invoices,
     ) {
         $this->setProducaoCooperativista(new ProducaoCooperativista(
             anoFiscal: $anoFiscal,
