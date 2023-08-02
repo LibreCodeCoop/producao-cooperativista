@@ -51,16 +51,14 @@ class Transactions
     private ?int $categoryId = null;
     /** @var EntityTransactions[] */
     private array $list = [];
-    private ParseText $parseText;
-    private Dataset $dataset;
 
     public function __construct(
         private Database $db,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private ParseText $parseText,
+        private Dataset $dataset,
     ) {
         $this->companyId = (int) $_ENV['AKAUNTING_COMPANY_ID'];
-        $this->parseText = new ParseText();
-        $this->dataset = new Dataset();
     }
 
     public function getList(): array

@@ -61,11 +61,13 @@ $logger->pushHandler(new StreamHandler('logs/system.log'));
 
 $database = new Database($logger);
 $customers = new Customers($database, $logger);
-$invoices = new Invoices($database, $logger);
+$parseText = new ParseText();
+$dataset = new Dataset();
+$invoices = new Invoices($database, $logger, $parseText, $dataset);
 $nfse = new Nfse($database, $logger);
 $projects = new Projects($database, $logger);
 $timesheets = new Timesheets($database, $logger);
-$transactions = new Transactions($database, $logger);
+$transactions = new Transactions($database, $logger, $parseText, $dataset);
 $users = new Users($database, $logger);
 $producaoCooperativista = new ProducaoCooperativista(
     $database,
