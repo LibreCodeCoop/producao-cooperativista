@@ -23,7 +23,7 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\AkauntingDocument;
+namespace ProducaoCooperativista\Service\Akaunting\Document;
 
 use ProducaoCooperativista\Service\Cooperado;
 use ProducaoCooperativista\Service\INSS;

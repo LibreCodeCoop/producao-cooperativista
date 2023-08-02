@@ -23,10 +23,11 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\AkauntingDocument\Taxes;
+namespace ProducaoCooperativista\Service\Akaunting\Document\Taxes;
 
-class Cofins extends Tax
+class Irpf extends Tax
 {
-    protected string $whoami = 'COFINS';
-    protected string $readableName = 'COFINS';
+    protected string $whoami = 'INSS_IRRF';
+    protected string $readableName = 'IRRF';
+    protected int $quantity = -1;
 }

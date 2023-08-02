@@ -23,12 +23,12 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\AkauntingDocument\Taxes;
+namespace ProducaoCooperativista\Service\Akaunting\Document\Taxes;
 
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
-use ProducaoCooperativista\Service\AkauntingDocument\AAkauntingDocument;
+use ProducaoCooperativista\Service\Akaunting\Document\AAkauntingDocument;
 use stdClass;
 
 class Tax extends AAkauntingDocument

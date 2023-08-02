@@ -23,11 +23,10 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\AkauntingDocument\Taxes;
+namespace ProducaoCooperativista\Service\Akaunting\Document\Taxes;
 
-class Irpf extends Tax
+class Iss extends Tax
 {
-    protected string $whoami = 'INSS_IRRF';
-    protected string $readableName = 'IRRF';
-    protected int $quantity = -1;
+    protected string $whoami = 'ISS';
+    protected string $readableName = 'ISS';
 }

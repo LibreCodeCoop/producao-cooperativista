@@ -23,9 +23,9 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\AkauntingDocument\Taxes;
+namespace ProducaoCooperativista\Service\Akaunting\Document\Taxes;
 
-use ProducaoCooperativista\Service\AkauntingDocument\AAkauntingDocument;
+use ProducaoCooperativista\Service\Akaunting\Document\AAkauntingDocument;
 
 class InssIrpf extends Irpf
 {

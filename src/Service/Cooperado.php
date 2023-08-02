@@ -29,9 +29,9 @@ use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Helper\Dates;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
-use ProducaoCooperativista\Service\AkauntingDocument\FRRA;
-use ProducaoCooperativista\Service\AkauntingDocument\ProducaoCooperativista;
-use ProducaoCooperativista\Service\AkauntingDocument\Taxes\InssIrpf;
+use ProducaoCooperativista\Service\Akaunting\Document\FRRA;
+use ProducaoCooperativista\Service\Akaunting\Document\ProducaoCooperativista;
+use ProducaoCooperativista\Service\Akaunting\Document\Taxes\InssIrpf;
 use ProducaoCooperativista\Service\Source\Invoices;
 
 /**
