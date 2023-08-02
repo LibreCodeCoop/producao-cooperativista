@@ -115,7 +115,7 @@ class ProducaoCooperativista extends AAkauntingDocument
                 price: $values->getBruto()
             )
             ->setTaxes()
-            ->coletaNaoPago();
+            ->coletaInvoiceNaoPago();
         return $this;
     }
 
@@ -163,7 +163,7 @@ class ProducaoCooperativista extends AAkauntingDocument
         return $this;
     }
 
-    private function coletaNaoPago(): void
+    private function coletaInvoiceNaoPago(): void
     {
         $select = new QueryBuilder($this->db->getConnection());
         $select->select('id')

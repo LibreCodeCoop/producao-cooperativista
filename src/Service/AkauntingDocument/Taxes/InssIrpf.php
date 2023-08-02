@@ -34,7 +34,7 @@ class InssIrpf extends Irpf
     public function saveFromDocument(AAkauntingDocument $document): self
     {
         $this->document = $document;
-        $this->coletaNaoPago();
+        $this->coletaInvoiceNaoPago();
         $this->updateItems();
         $this->save();
         return $this;

@@ -36,7 +36,7 @@ class FRRA extends AAkauntingDocument
         return $this;
     }
 
-    private function coletaNaoPago(): self
+    private function coletaInvoiceNaoPago(): self
     {
         $select = new QueryBuilder($this->db->getConnection());
         $select->select('id')
@@ -60,7 +60,7 @@ class FRRA extends AAkauntingDocument
 
     public function save(): self
     {
-        $this->coletaNaoPago();
+        $this->coletaInvoiceNaoPago();
         if ($this->getId()) {
             $this->setSearch('type:bill');
             $this->update();
