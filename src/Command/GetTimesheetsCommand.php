@@ -26,7 +26,7 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Command;
 
 use DateTime;
-use ProducaoCooperativista\Service\Source\Timesheets as SourceTimesheets;
+use ProducaoCooperativista\Service\Kimai\Source\Timesheets;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -40,7 +40,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 class GetTimesheetsCommand extends BaseCommand
 {
     public function __construct(
-        private SourceTimesheets $timesheets
+        private Timesheets $timesheets
     ) {
         parent::__construct();
     }

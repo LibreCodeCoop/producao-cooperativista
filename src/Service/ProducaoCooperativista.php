@@ -36,13 +36,13 @@ use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Cofins;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Irpf;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Iss;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Pis;
-use ProducaoCooperativista\Service\Source\Customers;
 use ProducaoCooperativista\Service\Akaunting\Source\Invoices;
-use ProducaoCooperativista\Service\Source\Nfse;
-use ProducaoCooperativista\Service\Source\Projects;
-use ProducaoCooperativista\Service\Source\Timesheets;
 use ProducaoCooperativista\Service\Akaunting\Source\Transactions;
-use ProducaoCooperativista\Service\Source\Users;
+use ProducaoCooperativista\Service\Kimai\Source\Customers;
+use ProducaoCooperativista\Service\Kimai\Source\Projects;
+use ProducaoCooperativista\Service\Kimai\Source\Timesheets;
+use ProducaoCooperativista\Service\Kimai\Source\Users;
+use ProducaoCooperativista\Service\Source\Nfse;
 use Psr\Log\LoggerInterface;
 
 class ProducaoCooperativista
