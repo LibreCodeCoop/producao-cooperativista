@@ -23,15 +23,15 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\AkauntingDocument\Taxes;
+namespace ProducaoCooperativista\Service\Akaunting\Document\Taxes;
 
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
-use ProducaoCooperativista\Service\AkauntingDocument\AAkauntingDocument;
+use ProducaoCooperativista\Service\Akaunting\Document\Document;
 use stdClass;
 
-class Tax extends AAkauntingDocument
+class Tax extends Document
 {
     protected const ACTION_CREATE = 1;
     protected const ACTION_UPDATE = 2;
@@ -44,11 +44,8 @@ class Tax extends AAkauntingDocument
 
     public function saveMonthTaxes(): self
     {
-        $total = $this->getTotalOfMonth();
-        if (!$total) {
-            return $this;
-        }
-        $this->coletaNaoPago();
+        $total = $this->getTotalRetainedOfMonth();
+        $this->coletaInvoiceNaoPago();
         $this
             ->setItem(
                 itemId: (int) $_ENV['AKAUNTING_IMPOSTOS_ITEM_ID'],
@@ -62,14 +59,14 @@ class Tax extends AAkauntingDocument
 
     public function save(): self
     {
-        switch ($this->action) {
-            case self::ACTION_CREATE:
-                $this->insert();
-                return $this;
-            case self::ACTION_UPDATE:
-                $this->setSearch('type:bill');
-                parent::save();
-                return $this;
+        if ($this->action === self::ACTION_CREATE) {
+            $this->insert();
+            return $this;
+        }
+        if ($this->action === self::ACTION_UPDATE) {
+            $this->setSearch('type:bill');
+            parent::save();
+            return $this;
         }
         return $this;
     }
@@ -80,7 +77,7 @@ class Tax extends AAkauntingDocument
         return $this;
     }
 
-    protected function coletaNaoPago(): self
+    protected function coletaInvoiceNaoPago(): self
     {
         $select = new QueryBuilder($this->db->getConnection());
         $select->select('id')
@@ -89,6 +86,7 @@ class Tax extends AAkauntingDocument
             ->addSelect('metadata->>"$.status" AS status')
             ->from('invoices')
             ->where("type = 'bill'")
+            ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))))
             ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter($this->taxData->categoryId, ParameterType::INTEGER)));
 
         $result = $select->executeQuery();
@@ -110,7 +108,7 @@ class Tax extends AAkauntingDocument
         return $this;
     }
 
-    private function getTotalOfMonth(): float
+    private function getTotalRetainedOfMonth(): float
     {
         $stmt = $this->db->getConnection()->prepare(
             <<<SQL
@@ -157,7 +155,7 @@ class Tax extends AAkauntingDocument
 
     private function getContact(): array
     {
-        $response = $this->invoices->sendData(
+        $response = $this->request->send(
             endpoint: '/api/contacts/' . $this->taxData->contactId,
             query: [
                 'search' => implode(' ', [

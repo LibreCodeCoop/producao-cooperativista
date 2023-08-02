@@ -23,12 +23,12 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\AkauntingDocument;
+namespace ProducaoCooperativista\Service\Akaunting\Document;
 
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 
-class FRRA extends AAkauntingDocument
+class FRRA extends Document
 {
     protected function setUp(): self
     {
@@ -36,7 +36,7 @@ class FRRA extends AAkauntingDocument
         return $this;
     }
 
-    private function coletaNaoPago(): self
+    private function coletaInvoiceNaoPago(): self
     {
         $select = new QueryBuilder($this->db->getConnection());
         $select->select('id')
@@ -60,7 +60,7 @@ class FRRA extends AAkauntingDocument
 
     public function save(): self
     {
-        $this->coletaNaoPago();
+        $this->coletaInvoiceNaoPago();
         if ($this->getId()) {
             $this->setSearch('type:bill');
             $this->update();

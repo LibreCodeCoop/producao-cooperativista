@@ -23,10 +23,31 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\AkauntingDocument\Taxes;
+namespace ProducaoCooperativista\Provider\Akaunting;
 
-class Pis extends Tax
+class Dataset
 {
-    protected string $whoami = 'PIS';
-    protected string $readableName = 'PIS';
+    public function __construct(
+        private Request $request,
+    ) {
+
+    }
+    public function list(string $endpoint, array $query = []): array
+    {
+        $list = [];
+        while (true) {
+            $response = $this->request->send(
+                endpoint: $endpoint,
+                query: $query,
+                method: 'GET',
+            );
+
+            $list = array_merge($list, $response['data']);
+            if (is_null($response['links']['next'])) {
+                break;
+            }
+            $endpoint = $response['links']['next'];
+        }
+        return $list;
+    }
 }

@@ -29,10 +29,11 @@ use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Helper\Dates;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
-use ProducaoCooperativista\Service\AkauntingDocument\FRRA;
-use ProducaoCooperativista\Service\AkauntingDocument\ProducaoCooperativista;
-use ProducaoCooperativista\Service\AkauntingDocument\Taxes\InssIrpf;
-use ProducaoCooperativista\Service\Source\Invoices;
+use ProducaoCooperativista\Provider\Akaunting\Request;
+use ProducaoCooperativista\Service\Akaunting\Document\FRRA;
+use ProducaoCooperativista\Service\Akaunting\Document\ProducaoCooperativista;
+use ProducaoCooperativista\Service\Akaunting\Document\Taxes\InssIrpf;
+use ProducaoCooperativista\Service\Akaunting\Source\Invoices;
 
 /**
  * @method self setAkauntingContactId(int $value)
@@ -67,7 +68,8 @@ class Cooperado
         private Database $db,
         private Dates $dates,
         private NumberFormatter $numberFormatter,
-        private Invoices $invoices
+        private Invoices $invoices,
+        private Request $request,
     ) {
         $this->setProducaoCooperativista(new ProducaoCooperativista(
             anoFiscal: $anoFiscal,
@@ -75,7 +77,8 @@ class Cooperado
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
             invoices: $this->invoices,
-            cooperado: $this
+            cooperado: $this,
+            request: $this->request,
         ));
 
         $this->setFrra(new FRRA(
@@ -84,7 +87,8 @@ class Cooperado
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
             invoices: $this->invoices,
-            cooperado: $this
+            cooperado: $this,
+            request: $this->request,
         ));
 
         $this->setInssIrpf(new InssIrpf(
@@ -93,7 +97,8 @@ class Cooperado
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
             invoices: $this->invoices,
-            cooperado: $this
+            cooperado: $this,
+            request: $this->request,
         ));
     }
 }

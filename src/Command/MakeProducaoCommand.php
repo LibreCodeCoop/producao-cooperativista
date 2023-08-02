@@ -113,6 +113,10 @@ class MakeProducaoCommand extends BaseCommand
         $previsao = (bool) $input->getOption('previsao');
         $diaUtilPagamento = (int) $input->getOption('dia-util-pagamento');
         $inicio = DateTime::createFromFormat('Y-m', $input->getOption('ano-mes'));
+        if (!$inicio instanceof DateTime) {
+            $output->writeln('<error>--ano-mes precisa estar no formato YYYY-MM</error>');
+            return Command::INVALID;
+        }
         if ((bool) $input->getOption('baixar-dados')) {
             $this->producaoCooperativista->loadFromExternalSources($inicio);
         }

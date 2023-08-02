@@ -23,7 +23,7 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\Source\Provider;
+namespace ProducaoCooperativista\Provider;
 
 use Symfony\Component\HttpClient\HttpClient;
 

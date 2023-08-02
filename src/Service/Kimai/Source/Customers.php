@@ -23,96 +23,111 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\Source;
+namespace ProducaoCooperativista\Service\Kimai\Source;
 
-use DateTime;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
-use Doctrine\DBAL\Types\Types;
 use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\Service\Source\Provider\Kimai;
+use ProducaoCooperativista\Provider\Kimai;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpClient\HttpClient;
 
-class Projects
+class Customers
 {
     use Kimai;
+    private array $customers = [];
     public function __construct(
         private Database $db,
         private LoggerInterface $logger
     ) {
     }
 
-    public function updateDatabase(): void
+    public function updateDatabase(): self
     {
-        $this->logger->debug('Baixando dados de projects');
-        $list = $this->getFromApi();
-        $this->saveList($list);
+        $this->logger->debug('Baixando dados de customers');
+        $this->getFromApi();
+        $this->saveList();
+        return $this;
     }
 
     public function getFromApi(): array
     {
-        $list = $this->doRequestKimai('/api/projects');
-        return $list;
+        if ($this->customers) {
+            return $this->customers;
+        }
+        $this->customers = $this->doRequestKimai('/api/customers');
+        $this->populateWithExtraFields();
+        return $this->customers;
     }
 
-    public function saveList(array $list): void
+    public function saveList(): self
     {
         $select = new QueryBuilder($this->db->getConnection());
         $select->select('id')
-            ->from('projects')
+            ->from('customers')
             ->where($select->expr()->in('id', ':id'))
-            ->setParameter('id', array_column($list, 'id'), ArrayParameterType::INTEGER);
+            ->setParameter('id', array_column($this->customers, 'id'), ArrayParameterType::INTEGER);
         $result = $select->executeQuery();
         $exists = [];
         while ($row = $result->fetchAssociative()) {
             $exists[] = $row['id'];
         }
         $insert = new QueryBuilder($this->db->getConnection());
-        foreach ($list as $row) {
+        foreach ($this->customers as $row) {
             if (in_array($row['id'], $exists)) {
                 $update = new QueryBuilder($this->db->getConnection());
-                $update->update('projects')
-                    ->set('parent_title', $update->createNamedParameter($row['parentTitle']))
-                    ->set('customer_id', $update->createNamedParameter($row['customer'], ParameterType::INTEGER))
+                $update->update('customers')
                     ->set('name', $update->createNamedParameter($row['name']))
-                    ->set('start', $update->createNamedParameter($this->convertDate($row['start']), Types::DATE_MUTABLE))
-                    ->set('end', $update->createNamedParameter($this->convertDate($row['end']), Types::DATE_MUTABLE))
+                    ->set('number', $update->createNamedParameter($row['number']))
                     ->set('comment', $update->createNamedParameter($row['comment']))
                     ->set('visible', $update->createNamedParameter($row['visible'], ParameterType::INTEGER))
                     ->set('billable', $update->createNamedParameter($row['billable'], ParameterType::INTEGER))
+                    ->set('currency', $update->createNamedParameter($row['currency']))
                     ->set('color', $update->createNamedParameter($row['color']))
-                    ->set('global_activities', $update->createNamedParameter($row['globalActivities'], ParameterType::INTEGER))
+                    ->set('vat_id', $update->createNamedParameter($row['vat_id']))
+                    ->set('time_budget', $update->createNamedParameter($row['time_budget']))
                     ->where($update->expr()->eq('id', $update->createNamedParameter($row['id'], ParameterType::INTEGER)))
                     ->executeStatement();
                 continue;
             }
-            $insert->insert('projects')
+            $insert->insert('customers')
                 ->values([
                     'id' => $insert->createNamedParameter($row['id'], ParameterType::INTEGER),
-                    'parent_title' => $insert->createNamedParameter($row['parentTitle']),
-                    'customer_id' => $insert->createNamedParameter($row['customer'], ParameterType::INTEGER),
                     'name' => $insert->createNamedParameter($row['name']),
-                    'start' => $insert->createNamedParameter($this->convertDate($row['start']), Types::DATE_MUTABLE),
-                    'end' => $insert->createNamedParameter($this->convertDate($row['end']), Types::DATE_MUTABLE),
+                    'number' => $insert->createNamedParameter($row['number']),
                     'comment' => $insert->createNamedParameter($row['comment']),
                     'visible' => $insert->createNamedParameter($row['visible'], ParameterType::INTEGER),
                     'billable' => $insert->createNamedParameter($row['billable'], ParameterType::INTEGER),
+                    'currency' => $insert->createNamedParameter($row['currency']),
                     'color' => $insert->createNamedParameter($row['color']),
-                    'global_activities' => $insert->createNamedParameter($row['globalActivities'], ParameterType::INTEGER),
+                    'vat_id' => $insert->createNamedParameter($row['vat_id']),
+                    'time_budget' => $insert->createNamedParameter($row['time_budget'], ParameterType::INTEGER),
                 ])
                 ->executeStatement();
         }
+        return $this;
     }
 
-    private function convertDate($date): ?DateTime
+    private function populateWithExtraFields(): void
     {
-        if (!$date) {
-            return null;
+        $client = HttpClient::create();
+        foreach ($this->customers as $key => $customer) {
+            $this->logger->debug('Dados extras do customer: {name}', ['name' => $customer['name']]);
+            $result = $client->request(
+                'GET',
+                rtrim($_ENV['KIMAI_API_BASE_URL'], '/') . '/api/customers/' . $customer['id'],
+                [
+                    'headers' => [
+                        'X-AUTH-USER' => $_ENV['KIMAI_AUTH_USER'],
+                        'X-AUTH-TOKEN' => $_ENV['KIMAI_AUTH_TOKEN'],
+                    ],
+                ]
+            );
+            $allFields = $result->toArray();
+            $this->logger->debug('{json}', ['json' => $allFields]);
+            $this->customers[$key]['time_budget'] = $allFields['timeBudget'];
+            $this->customers[$key]['vat_id'] = $allFields['vatId'];
         }
-        $date = preg_replace('/-\d{4}$/', '', $date);
-        $date = str_replace('T', ' ', $date);
-        $date = DateTime::createFromFormat('Y-m-d', $date);
-        return $date;
     }
 }

@@ -26,7 +26,7 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Command;
 
 use DateTime;
-use ProducaoCooperativista\Service\Source\Transactions;
+use ProducaoCooperativista\Service\Akaunting\Source\Transactions;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;

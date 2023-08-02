@@ -23,19 +23,19 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\AkauntingDocument;
+namespace ProducaoCooperativista\Service\Akaunting\Document;
 
 use Exception;
 use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Helper\Dates;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
+use ProducaoCooperativista\Provider\Akaunting\Request;
 use ProducaoCooperativista\Service\Cooperado;
-use ProducaoCooperativista\Service\Source\Invoices;
+use ProducaoCooperativista\Service\Akaunting\Source\Invoices;
 use Symfony\Component\HttpClient\Exception\ClientException;
 
 /**
- * @method self setAmount(float $value)
  * @method float getAmount()
  * @method self setCategoryId(int $value)
  * @method int getCategoryId()
@@ -68,7 +68,7 @@ use Symfony\Component\HttpClient\Exception\ClientException;
  * @method self setType(string $value)
  * @method string getType()
  */
-class AAkauntingDocument
+class Document
 {
     use MagicGetterSetterTrait;
     protected float $amount = 0;
@@ -97,6 +97,7 @@ class AAkauntingDocument
         protected Database $db,
         protected Dates $dates,
         protected Invoices $invoices,
+        protected Request $request,
         protected ?int $anoFiscal = null,
         protected ?NumberFormatter $numberFormatter = null,
         protected ?Cooperado $cooperado = null,
@@ -219,14 +220,14 @@ class AAkauntingDocument
         try {
             if (!$this->getId()) {
                 // Save new
-                $response = $this->invoices->sendData(
+                $response = $this->request->send(
                     endpoint: '/api/documents',
                     body: $this->toArray()
                 );
                 // If already exists a document with the same documentNumber...
                 if (isset($response['errors']['document_number'])) {
                     // Search the item that have the same documentNumber to get the ID
-                    $response = $this->invoices->sendData(
+                    $response = $this->request->send(
                         endpoint: '/api/documents',
                         query: [
                             'search' => implode(' ', [
@@ -255,7 +256,7 @@ class AAkauntingDocument
                 }
             } else {
                 // Get the existing document to check if the current values is ok
-                $response = $this->invoices->sendData(
+                $response = $this->request->send(
                     endpoint: '/api/documents/' . $this->getId(),
                     query: [
                         'search' => implode(' ', [
@@ -272,7 +273,7 @@ class AAkauntingDocument
                     return $this;
                 }
                 // Update if exists
-                $response = $this->invoices->sendData(
+                $response = $this->request->send(
                     endpoint: '/api/documents/' . $this->getId(),
                     body: $this->toArray(),
                     method: 'PATCH'
@@ -295,7 +296,7 @@ class AAkauntingDocument
 
     protected function loadFromAkaunting(): void
     {
-        $response = $this->invoices->sendData(
+        $response = $this->request->send(
             endpoint: '/api/documents/' . $this->getId(),
             query: [
                 'search' => implode(' ', [
@@ -305,29 +306,32 @@ class AAkauntingDocument
             method: 'GET'
         );
         foreach ($response['data'] as $property => $value) {
-            switch ($property) {
-                case 'amount':
-                    // The amount need to be calculated by items every time
-                    $this->setAmount(0);
-                    continue 2;
-                case 'notes':
-                    $this->setNotesFromString((string) $value);
-                    continue 2;
-                case 'items':
-                    $this->setItemsFromAkaunting($value['data']);
-                    continue 2;
-            }
-            $property = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $property))));
-            if (!property_exists($this, $property)) {
+            $property = $this->camelize($property);
+            $methodName = 'set' . ucfirst($property);
+            if (method_exists($this, $methodName)) {
+                $this->$methodName($value);
                 continue;
             }
-            $this->{'set' . ucfirst($property)}($value);
+            if (property_exists($this, $property)) {
+                $this->$methodName($value);
+            }
         }
     }
 
-    private function setItemsFromAkaunting(array $items): self
+    private function camelize(string $text): string
     {
-        foreach ($items as $item) {
+        return lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $text))));
+    }
+
+    private function setAmount(): void
+    {
+        // The amount need to be calculated by items every time
+        $this->amount = 0;
+    }
+
+    private function setItems($value): self
+    {
+        foreach ($value['data'] as $item) {
             $this->setItem(
                 id: $item['id'],
                 itemId: $item['item_id'],
@@ -339,7 +343,7 @@ class AAkauntingDocument
         return $this;
     }
 
-    private function setNotesFromString(string $notes): self
+    private function setNotes($notes): self
     {
         if (empty($notes)) {
             return $this;

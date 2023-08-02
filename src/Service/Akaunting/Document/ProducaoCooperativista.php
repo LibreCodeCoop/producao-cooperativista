@@ -23,12 +23,12 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\AkauntingDocument;
+namespace ProducaoCooperativista\Service\Akaunting\Document;
 
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 
-class ProducaoCooperativista extends AAkauntingDocument
+class ProducaoCooperativista extends Document
 {
     public function save(): self
     {
@@ -115,7 +115,7 @@ class ProducaoCooperativista extends AAkauntingDocument
                 price: $values->getBruto()
             )
             ->setTaxes()
-            ->coletaNaoPago();
+            ->coletaInvoiceNaoPago();
         return $this;
     }
 
@@ -163,7 +163,7 @@ class ProducaoCooperativista extends AAkauntingDocument
         return $this;
     }
 
-    private function coletaNaoPago(): void
+    private function coletaInvoiceNaoPago(): void
     {
         $select = new QueryBuilder($this->db->getConnection());
         $select->select('id')

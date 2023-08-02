@@ -23,10 +23,10 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\AkauntingDocument\Taxes;
+namespace ProducaoCooperativista\Service\Akaunting\Document\Taxes;
 
-class Cofins extends Tax
+class Pis extends Tax
 {
-    protected string $whoami = 'COFINS';
-    protected string $readableName = 'COFINS';
+    protected string $whoami = 'PIS';
+    protected string $readableName = 'PIS';
 }

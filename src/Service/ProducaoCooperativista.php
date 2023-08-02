@@ -32,17 +32,18 @@ use Exception;
 use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Helper\Dates;
-use ProducaoCooperativista\Service\AkauntingDocument\Taxes\Cofins;
-use ProducaoCooperativista\Service\AkauntingDocument\Taxes\Irpf;
-use ProducaoCooperativista\Service\AkauntingDocument\Taxes\Iss;
-use ProducaoCooperativista\Service\AkauntingDocument\Taxes\Pis;
-use ProducaoCooperativista\Service\Source\Customers;
-use ProducaoCooperativista\Service\Source\Invoices;
+use ProducaoCooperativista\Provider\Akaunting\Request;
+use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Cofins;
+use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Irpf;
+use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Iss;
+use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Pis;
+use ProducaoCooperativista\Service\Akaunting\Source\Invoices;
+use ProducaoCooperativista\Service\Akaunting\Source\Transactions;
+use ProducaoCooperativista\Service\Kimai\Source\Customers;
+use ProducaoCooperativista\Service\Kimai\Source\Projects;
+use ProducaoCooperativista\Service\Kimai\Source\Timesheets;
+use ProducaoCooperativista\Service\Kimai\Source\Users;
 use ProducaoCooperativista\Service\Source\Nfse;
-use ProducaoCooperativista\Service\Source\Projects;
-use ProducaoCooperativista\Service\Source\Timesheets;
-use ProducaoCooperativista\Service\Source\Transactions;
-use ProducaoCooperativista\Service\Source\Users;
 use Psr\Log\LoggerInterface;
 
 class ProducaoCooperativista
@@ -77,7 +78,8 @@ class ProducaoCooperativista
         private Invoices $invoices,
         private Timesheets $timesheets,
         private Transactions $transactions,
-        private Users $users
+        private Users $users,
+        private Request $request,
     ) {
         $this->numberFormatter = new NumberFormatter(
             $_ENV['LOCALE'] ?? 'pt_BR',
@@ -88,7 +90,7 @@ class ProducaoCooperativista
 
     private function getBaseCalculoDispendios(): float
     {
-        if ($this->baseCalculoDispendios) {
+        if (!empty($this->baseCalculoDispendios)) {
             return $this->baseCalculoDispendios;
         }
         $this->baseCalculoDispendios = $this->getTotalNotasClientes() - $this->getTotalCustoCliente();
@@ -249,15 +251,7 @@ class ProducaoCooperativista
         if ($this->totalDispendios) {
             return $this->totalDispendios;
         }
-        $notDispendio = [
-            'Produção cooperativista',
-            'Produção: Distribuição de sobras',
-            'Produção: externa',
-            'Produção: FRRA',
-            'Imposto: Pessoa Física',
-            'Dispêndio: Cliente',
-            'Dispêndio: Plano de saúde',
-        ];
+        $notDispendio = json_decode($_ENV['AKAUNTING_NAO_DISPENDIOS_CATEGORIES'], true);
         $this->dispendios = array_filter($this->saidas, function ($i) use ($notDispendio): bool {
             if ($i['transaction_of_month'] === $this->dates->getInicioProximoMes()->format('Y-m')) {
                 if ($i['archive'] === 0) {
@@ -345,14 +339,9 @@ class ProducaoCooperativista
 
     private function getEntradasClientes(): array
     {
-        $entradas = $this->getEntradas();
-        $categoriasNotasClientes = [
-            'Cliente',
-            'Cliente: Recorrência',
-            'Cliente: Serviço',
-            'Cliente: Serviço externo',
-        ];
-        $entradasClientes = array_filter($entradas, fn ($i) => in_array($i['category_name'], $categoriasNotasClientes));
+        $this->atualizaEntradas();
+        $categoriasNotasClientes = json_decode($_ENV['AKAUNTING_NOTAS_CLIENTES_CATEGORIES']);
+        $entradasClientes = array_filter($this->entradas, fn ($i) => in_array($i['category_name'], $categoriasNotasClientes));
         return $entradasClientes;
     }
 
@@ -387,7 +376,7 @@ class ProducaoCooperativista
         if ($this->custosPorCliente) {
             return $this->custosPorCliente;
         }
-        $this->custosPorCliente = array_filter($this->saidas, fn ($i) => $i['category_name'] === 'Dispêndio: Cliente');
+        $this->custosPorCliente = array_filter($this->saidas, fn ($i) => $i['category_id'] === (int) $_ENV['AKAUNTING_DISPENDIOS_CLIENTE_CATEGORY_ID']);
         $this->logger->debug('Custos por clientes: {json}', ['json' => json_encode($this->custosPorCliente)]);
         return $this->custosPorCliente;
     }
@@ -400,12 +389,12 @@ class ProducaoCooperativista
 
     private function calculaBaseProducaoPorEntrada(): self
     {
-        $entradas = $this->getEntradas();
+        $this->atualizaEntradas();
 
         if (count($this->entradas)) {
             $current = current($this->entradas);
             if (!empty($current['base_producao'])) {
-                return $this->valoresPorProjeto;
+                return $this;
             }
         }
 
@@ -413,7 +402,7 @@ class ProducaoCooperativista
         $custosPorCliente = $this->getCustosPorCliente();
         $custosPorCliente = array_column($custosPorCliente, 'total_custos', 'customer_reference');
 
-        foreach ($entradas as $key => $row) {
+        foreach ($this->entradas as $key => $row) {
             $base = $row['amount'] - ($custosPorCliente[$row['customer_reference']] ?? 0);
             $this->entradas[$key]['base_producao'] = $base - ($base * $percentualDesconto / 100);
         }
@@ -422,10 +411,10 @@ class ProducaoCooperativista
         return $this;
     }
 
-    private function getEntradas(): array
+    private function atualizaEntradas(): void
     {
         if ($this->entradas) {
-            return $this->entradas;
+            return;
         }
 
         if ($this->previsao) {
@@ -445,10 +434,10 @@ class ProducaoCooperativista
                 <<<SQL
                 -- Entradas
                 SELECT 'transactions' as 'table',
-                    i.*
-                FROM transactions ti
+                    t.*
+                FROM transactions t
                 WHERE transaction_of_month = :ano_mes
-                AND ti.category_type = 'income'
+                AND t.category_type = 'income'
                 AND archive = 0
                 SQL
             );
@@ -473,7 +462,7 @@ class ProducaoCooperativista
         }
 
         $this->logger->debug('Entradas no mês', [json_encode($this->entradas)]);
-        return $this->entradas;
+        return;
     }
 
     private function clientesContabilizaveis(): array
@@ -634,28 +623,32 @@ class ProducaoCooperativista
         $inssIrpf = new Irpf(
             db: $this->db,
             dates: $this->dates,
-            invoices: $this->invoices
+            invoices: $this->invoices,
+            request: $this->request,
         );
         $inssIrpf->saveMonthTaxes();
 
         $cofins = new Cofins(
             db: $this->db,
             dates: $this->dates,
-            invoices: $this->invoices
+            invoices: $this->invoices,
+            request: $this->request,
         );
         $cofins->saveMonthTaxes();
 
         $pis = new Pis(
             db: $this->db,
             dates: $this->dates,
-            invoices: $this->invoices
+            invoices: $this->invoices,
+            request: $this->request,
         );
         $pis->saveMonthTaxes();
 
         $iss = new Iss(
             db: $this->db,
             dates: $this->dates,
-            invoices: $this->invoices
+            invoices: $this->invoices,
+            request: $this->request,
         );
         $iss->saveMonthTaxes();
     }
@@ -669,7 +662,7 @@ class ProducaoCooperativista
             return $this->cooperado;
         }
 
-        $this->getEntradas();
+        $this->atualizaEntradas();
         $this->getSaidas();
         $this->getCustosPorCliente();
         $this->getTotalDispendios();
@@ -713,7 +706,8 @@ class ProducaoCooperativista
                 db: $this->db,
                 dates: $this->dates,
                 numberFormatter: $this->numberFormatter,
-                invoices: $this->invoices
+                invoices: $this->invoices,
+                request: $this->request,
             );
         }
         return $this->cooperado[$taxNumber];
@@ -836,7 +830,7 @@ class ProducaoCooperativista
         $spreadsheet->createSheet()
             ->setTitle('Valores por projeto')
             ->fromArray(['Cliente', 'referência', 'valor do serviço', 'impostos', 'total dos custos', 'base producao'])
-            ->fromArray($this->getValoresPorProjeto(), null, 'A2');
+            ->fromArray([]/*$this->getValoresPorProjeto()*/, null, 'A2');
 
         $spreadsheet->createSheet()
             ->setTitle('Trabalhado por cliente')

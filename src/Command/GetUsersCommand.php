@@ -25,7 +25,7 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Command;
 
-use ProducaoCooperativista\Service\Source\Users;
+use ProducaoCooperativista\Service\Kimai\Source\Users;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;

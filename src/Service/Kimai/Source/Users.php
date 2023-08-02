@@ -23,7 +23,7 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\Source;
+namespace ProducaoCooperativista\Service\Kimai\Source;
 
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
@@ -34,7 +34,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\DB\Entity\Users as EntityUsers;
-use ProducaoCooperativista\Service\Source\Provider\Kimai;
+use ProducaoCooperativista\Provider\Kimai;
 use Psr\Log\LoggerInterface;
 use Sabre\DAV\Client;
 
