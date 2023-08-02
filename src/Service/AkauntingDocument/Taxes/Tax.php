@@ -45,9 +45,6 @@ class Tax extends AAkauntingDocument
     public function saveMonthTaxes(): self
     {
         $total = $this->getTotalRetainedOfMonth();
-        if (!$total) {
-            return $this;
-        }
         $this->coletaInvoiceNaoPago();
         $this
             ->setItem(
