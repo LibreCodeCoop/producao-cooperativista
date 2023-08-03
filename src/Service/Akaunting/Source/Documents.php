@@ -28,7 +28,7 @@ namespace ProducaoCooperativista\Service\Akaunting\Source;
 use DateTime;
 use Exception;
 use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\DB\Entity\Invoices as EntityInvoices;
+use ProducaoCooperativista\DB\Entity\Invoices;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Provider\Akaunting\Dataset;
 use ProducaoCooperativista\Provider\Akaunting\ParseText;
@@ -41,13 +41,13 @@ use Psr\Log\LoggerInterface;
  * @method self setType(string $value)
  * @method string getType()
  */
-class Invoices
+class Documents
 {
     use MagicGetterSetterTrait;
     private ?DateTime $date;
     private string $type;
     private int $companyId;
-    /** @var EntityInvoices[] */
+    /** @var Invoices[] */
     private array $list = [];
 
     public function __construct(
@@ -87,15 +87,15 @@ class Invoices
         return $this->list[$this->getType()] ?? [];
     }
 
-    public function fromArray(array $array): EntityInvoices
+    public function fromArray(array $array): Invoices
     {
         $array = array_merge($array, $this->parseText->do((string) $array['notes']));
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
-        $entity = $this->db->getEntityManager()->find(EntityInvoices::class, $array['id']);
-        if (!$entity instanceof EntityInvoices) {
-            $entity = new EntityInvoices();
+        $entity = $this->db->getEntityManager()->find(Invoices::class, $array['id']);
+        if (!$entity instanceof Invoices) {
+            $entity = new Invoices();
         }
         $entity->fromArray($array);
         return $entity;
@@ -112,7 +112,7 @@ class Invoices
         return $this;
     }
 
-    public function saveRow(EntityInvoices $invoice): self
+    public function saveRow(Invoices $invoice): self
     {
         $em = $this->db->getEntityManager();
         $em->persist($invoice);

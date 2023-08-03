@@ -47,7 +47,7 @@ class Database
     public const DB_LOCAL = 'local';
     public const DB_AKAUNTING = 'akaunting';
 
-    public function __construct(LoggerInterface $logger = null)
+    public function __construct(LoggerInterface $logger)
     {
         $config = new Configuration();
         $logMiddleware = new Middleware($logger);

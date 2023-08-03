@@ -26,7 +26,7 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Command;
 
 use DateTime;
-use ProducaoCooperativista\Service\Akaunting\Source\Invoices;
+use ProducaoCooperativista\Service\Akaunting\Source\Documents;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -40,7 +40,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 class GetInvoicesCommand extends BaseCommand
 {
     public function __construct(
-        private Invoices $invoices
+        private Documents $documents
     ) {
         parent::__construct();
     }
@@ -78,7 +78,7 @@ class GetInvoicesCommand extends BaseCommand
             return Command::INVALID;
         }
         $date = DateTime::createFromFormat('Y-m', $input->getOption('year-month'));
-        $list = $this->invoices
+        $list = $this->documents
             ->setDate($date)
             ->setCompanyId((int) $input->getOption('company'))
             ->setType((string) $input->getOption('type'))
@@ -87,7 +87,7 @@ class GetInvoicesCommand extends BaseCommand
             $output->write($this->toCsv($list));
         }
         if ($input->getOption('database')) {
-            $this->invoices->saveList();
+            $this->documents->saveList();
         }
         return Command::SUCCESS;
     }

@@ -37,7 +37,7 @@ use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Cofins;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Irpf;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Iss;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Pis;
-use ProducaoCooperativista\Service\Akaunting\Source\Invoices;
+use ProducaoCooperativista\Service\Akaunting\Source\Documents;
 use ProducaoCooperativista\Service\Akaunting\Source\Transactions;
 use ProducaoCooperativista\Service\Kimai\Source\Customers;
 use ProducaoCooperativista\Service\Kimai\Source\Projects;
@@ -75,7 +75,7 @@ class ProducaoCooperativista
         private Customers $customers,
         private Nfse $nfse,
         private Projects $projects,
-        private Invoices $invoices,
+        private Documents $documents,
         private Timesheets $timesheets,
         private Transactions $transactions,
         private Users $users,
@@ -149,7 +149,7 @@ class ProducaoCooperativista
         $this->customers->updateDatabase();
         $this->nfse->updateDatabase($this->dates->getInicioProximoMes());
         $this->projects->updateDatabase();
-        $this->invoices
+        $this->documents
             ->setDate($this->dates->getInicioProximoMes())
             ->setType('invoice')
             ->saveList()
@@ -623,7 +623,7 @@ class ProducaoCooperativista
         $inssIrpf = new Irpf(
             db: $this->db,
             dates: $this->dates,
-            invoices: $this->invoices,
+            documents: $this->documents,
             request: $this->request,
         );
         $inssIrpf->saveMonthTaxes();
@@ -631,7 +631,7 @@ class ProducaoCooperativista
         $cofins = new Cofins(
             db: $this->db,
             dates: $this->dates,
-            invoices: $this->invoices,
+            documents: $this->documents,
             request: $this->request,
         );
         $cofins->saveMonthTaxes();
@@ -639,7 +639,7 @@ class ProducaoCooperativista
         $pis = new Pis(
             db: $this->db,
             dates: $this->dates,
-            invoices: $this->invoices,
+            documents: $this->documents,
             request: $this->request,
         );
         $pis->saveMonthTaxes();
@@ -647,7 +647,7 @@ class ProducaoCooperativista
         $iss = new Iss(
             db: $this->db,
             dates: $this->dates,
-            invoices: $this->invoices,
+            documents: $this->documents,
             request: $this->request,
         );
         $iss->saveMonthTaxes();
@@ -706,7 +706,7 @@ class ProducaoCooperativista
                 db: $this->db,
                 dates: $this->dates,
                 numberFormatter: $this->numberFormatter,
-                invoices: $this->invoices,
+                documents: $this->documents,
                 request: $this->request,
             );
         }

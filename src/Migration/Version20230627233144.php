@@ -23,36 +23,35 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Migrations;
+namespace ProducaoCooperativista\Migration;
 
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\Migrations\AbstractMigration;
 
-final class Version20230627233146 extends AbstractMigration
+final class Version20230627233144 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return 'Create Invoices';
+        return 'Create Transactions';
     }
 
     public function up(Schema $schema): void
     {
-        $table = $schema->createTable('invoices');
+        $table = $schema->createTable('transactions');
         $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => false]);
         $table->addColumn('type', 'string', ['length' => 50]);
-        $table->addColumn('issued_at', 'datetime');
-        $table->addColumn('due_at', 'datetime');
+        $table->addColumn('paid_at', 'datetime');
         $table->addColumn('transaction_of_month', 'string');
         $table->addColumn('amount', 'float');
         $table->addColumn('currency_code', 'string', ['length' => 14]);
-        $table->addColumn('document_number', 'string');
+        $table->addColumn('reference', 'string', ['notnull' => false]);
         $table->addColumn('nfse', 'bigint', ['unsigned' => true, 'notnull' => false]);
         $table->addColumn('tax_number', 'string', ['notnull' => false]);
         $table->addColumn('customer_reference', 'string', ['notnull' => false]);
         $table->addColumn('contact_id', 'bigint');
-        $table->addColumn('contact_reference', 'string', ['notnull' => false, 'length' => 191]);
+        $table->addColumn('contact_reference', 'string', ['notnull' => false]);
         $table->addColumn('contact_name', 'string');
-        $table->addColumn('contact_type', 'string', ['notnull' => false, 'length' => 191]);
+        $table->addColumn('contact_type', 'string', ['notnull' => false]);
         $table->addColumn('category_id', 'bigint');
         $table->addColumn('category_name', 'string');
         $table->addColumn('category_type', 'string');
@@ -63,6 +62,6 @@ final class Version20230627233146 extends AbstractMigration
 
     public function down(Schema $schema): void
     {
-        $schema->dropTable('invoices');
+        $schema->dropTable('transactions');
     }
 }
