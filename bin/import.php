@@ -44,15 +44,6 @@ use ProducaoCooperativista\Command\GetUsersCommand;
 use ProducaoCooperativista\Command\MakeProducaoCommand;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Helper\Dates;
-use ProducaoCooperativista\Provider\Akaunting\Request;
-use ProducaoCooperativista\Provider\Akaunting\Dataset;
-use ProducaoCooperativista\Provider\Akaunting\ParseText;
-use ProducaoCooperativista\Service\Akaunting\Source\Documents;
-use ProducaoCooperativista\Service\Akaunting\Source\Transactions;
-use ProducaoCooperativista\Service\Kimai\Source\Customers;
-use ProducaoCooperativista\Service\Kimai\Source\Projects;
-use ProducaoCooperativista\Service\Kimai\Source\Timesheets;
-use ProducaoCooperativista\Service\Kimai\Source\Users;
 use ProducaoCooperativista\Service\Source\Nfse;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -68,18 +59,11 @@ $containerBuilder->addDefinitions([
     LoggerInterface::class => \DI\get(Logger::class),
     Database::class => \DI\autowire(),
     Dates::class => \DI\autowire()
-        ->constructorParameter('locationHolydays', \DI\env('HOLYDAYS_LIST', 'br-national'))
-        ->constructorParameter('pagamentoFrraMesPadrao', \DI\env('AKAUNTING_FRRA_MES_PADRAO', 12)),
-    Customers::class => \DI\autowire(),
-    ParseText::class => \DI\autowire(),
-    Request::class => \DI\autowire(),
-    Dataset::class => \DI\autowire(),
-    Documents::class => \DI\autowire(),
+        ->constructorParameter('locationHolydays', \DI\env('HOLYDAYS_LIST', 'br-national')),
+    'ProducaoCooperativista\Service\Kimai\Source\*' => \DI\autowire('ProducaoCooperativista\Service\Kimai\Source\*'),
+    'ProducaoCooperativista\Provider\Akaunting\*' => \DI\autowire('ProducaoCooperativista\Provider\Akaunting\*'),
+    'ProducaoCooperativista\Service\Akaunting\Source\*' => \DI\autowire('ProducaoCooperativista\Service\Akaunting\Source\*'),
     Nfse::class => \DI\autowire(),
-    Projects::class => \DI\autowire(),
-    Timesheets::class => \DI\autowire(),
-    Transactions::class => \DI\autowire(),
-    Users::class => \DI\autowire(),
     'ProducaoCooperativista\Command\*Command' => \DI\autowire('ProducaoCooperativista\Command\*Command'),
     NumberFormatter::class => \DI\autowire()
         ->constructor(
