@@ -33,7 +33,7 @@ use ProducaoCooperativista\Provider\Akaunting\Request;
 use ProducaoCooperativista\Service\Akaunting\Document\FRRA;
 use ProducaoCooperativista\Service\Akaunting\Document\ProducaoCooperativista;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\InssIrpf;
-use ProducaoCooperativista\Service\Akaunting\Source\Invoices;
+use ProducaoCooperativista\Service\Akaunting\Source\Documents;
 
 /**
  * @method self setAkauntingContactId(int $value)
@@ -68,7 +68,7 @@ class Cooperado
         private Database $db,
         private Dates $dates,
         private NumberFormatter $numberFormatter,
-        private Invoices $invoices,
+        private Documents $documents,
         private Request $request,
     ) {
         $this->setProducaoCooperativista(new ProducaoCooperativista(
@@ -76,7 +76,7 @@ class Cooperado
             db: $this->db,
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
-            invoices: $this->invoices,
+            documents: $this->documents,
             cooperado: $this,
             request: $this->request,
         ));
@@ -86,7 +86,7 @@ class Cooperado
             db: $this->db,
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
-            invoices: $this->invoices,
+            documents: $this->documents,
             cooperado: $this,
             request: $this->request,
         ));
@@ -96,7 +96,7 @@ class Cooperado
             db: $this->db,
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
-            invoices: $this->invoices,
+            documents: $this->documents,
             cooperado: $this,
             request: $this->request,
         ));

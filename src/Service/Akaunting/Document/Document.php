@@ -32,7 +32,7 @@ use ProducaoCooperativista\Helper\Dates;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Provider\Akaunting\Request;
 use ProducaoCooperativista\Service\Cooperado;
-use ProducaoCooperativista\Service\Akaunting\Source\Invoices;
+use ProducaoCooperativista\Service\Akaunting\Source\Documents;
 use Symfony\Component\HttpClient\Exception\ClientException;
 
 /**
@@ -96,7 +96,7 @@ class Document
     public function __construct(
         protected Database $db,
         protected Dates $dates,
-        protected Invoices $invoices,
+        protected Documents $documents,
         protected Request $request,
         protected ?int $anoFiscal = null,
         protected ?NumberFormatter $numberFormatter = null,
@@ -289,8 +289,8 @@ class Document
             throw new Exception(json_encode($response));
         }
         // Update local database
-        $invoice = $this->invoices->fromArray($response['data']);
-        $this->invoices->saveRow($invoice);
+        $document = $this->documents->fromArray($response['data']);
+        $this->documents->saveRow($document);
         return $this;
     }
 

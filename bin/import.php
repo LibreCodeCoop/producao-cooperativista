@@ -45,7 +45,7 @@ use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Provider\Akaunting\Request;
 use ProducaoCooperativista\Provider\Akaunting\Dataset;
 use ProducaoCooperativista\Provider\Akaunting\ParseText;
-use ProducaoCooperativista\Service\Akaunting\Source\Invoices;
+use ProducaoCooperativista\Service\Akaunting\Source\Documents;
 use ProducaoCooperativista\Service\Akaunting\Source\Transactions;
 use ProducaoCooperativista\Service\Kimai\Source\Customers;
 use ProducaoCooperativista\Service\Kimai\Source\Projects;
@@ -68,7 +68,7 @@ $containerBuilder->addDefinitions([
     ParseText::class => \DI\autowire(),
     Request::class => \DI\autowire(),
     Dataset::class => \DI\autowire(),
-    Invoices::class => \DI\autowire(),
+    Documents::class => \DI\autowire(),
     Nfse::class => \DI\autowire(),
     Projects::class => \DI\autowire(),
     Timesheets::class => \DI\autowire(),
