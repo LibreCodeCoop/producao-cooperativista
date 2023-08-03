@@ -75,14 +75,7 @@ $containerBuilder->addDefinitions([
     Timesheets::class => \DI\autowire(),
     Transactions::class => \DI\autowire(),
     Users::class => \DI\autowire(),
-    GetCustomersCommand::class => \DI\autowire(),
-    GetInvoicesCommand::class => \DI\autowire(),
-    GetNfseCommand::class => \DI\autowire(),
-    GetProjectsCommand::class => \DI\autowire(),
-    GetTimesheetsCommand::class => \DI\autowire(),
-    GetTransactionsCommand::class => \DI\autowire(),
-    GetUsersCommand::class => \DI\autowire(),
-    MakeProducaoCommand::class => \DI\autowire(),
+    'ProducaoCooperativista\Command\*Command' => \DI\autowire('ProducaoCooperativista\Command\*Command'),
     NumberFormatter::class => \DI\autowire()
         ->constructor(
             \DI\env('LOCALE') ?? 'pt_BR',
