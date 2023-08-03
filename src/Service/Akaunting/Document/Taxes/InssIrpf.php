@@ -25,13 +25,13 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service\Akaunting\Document\Taxes;
 
-use ProducaoCooperativista\Service\Akaunting\Document\Document;
+use ProducaoCooperativista\Service\Akaunting\Document\ADocument;
 
 class InssIrpf extends Irpf
 {
-    private Document $document;
+    private ADocument $document;
 
-    public function saveFromDocument(Document $document): self
+    public function saveFromDocument(ADocument $document): self
     {
         $this->document = $document;
         $this->coletaInvoiceNaoPago();

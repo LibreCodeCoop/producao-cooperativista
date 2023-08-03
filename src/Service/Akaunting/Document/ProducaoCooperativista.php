@@ -28,7 +28,7 @@ namespace ProducaoCooperativista\Service\Akaunting\Document;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 
-class ProducaoCooperativista extends Document
+class ProducaoCooperativista extends ADocument
 {
     public function save(): self
     {
