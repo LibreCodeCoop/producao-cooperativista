@@ -42,10 +42,10 @@ class Tax extends ADocument
     protected string $readableName = 'Tax';
     protected int $quantity = 1;
 
-    public function saveMonthTaxes(): self
+    public function saveMonthTaxes(string $transactionOfMonth): self
     {
         $total = $this->getTotalRetainedOfMonth();
-        $this->coletaInvoiceNaoPago();
+        $this->coletaInvoiceNaoPago($transactionOfMonth);
         $this
             ->setItem(
                 itemId: (int) $_ENV['AKAUNTING_IMPOSTOS_ITEM_ID'],
@@ -77,7 +77,7 @@ class Tax extends ADocument
         return $this;
     }
 
-    protected function coletaInvoiceNaoPago(): self
+    protected function coletaInvoiceNaoPago(string $transactionOfMonth): self
     {
         $select = new QueryBuilder($this->db->getConnection());
         $select->select('id')
@@ -86,7 +86,7 @@ class Tax extends ADocument
             ->addSelect('metadata->>"$.status" AS status')
             ->from('invoices')
             ->where("type = 'bill'")
-            ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))))
+            ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($transactionOfMonth)))
             ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter($this->taxData->categoryId, ParameterType::INTEGER)));
 
         $result = $select->executeQuery();

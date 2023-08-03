@@ -34,7 +34,7 @@ use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Helper\Dates;
 use ProducaoCooperativista\Provider\Akaunting\Request;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Cofins;
-use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Irpf;
+use ProducaoCooperativista\Service\Akaunting\Document\Taxes\IrpfRetidoNaNota;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Iss;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Pis;
 use ProducaoCooperativista\Service\Akaunting\Source\Documents;
@@ -615,13 +615,13 @@ class ProducaoCooperativista
             $frra->save();
         }
 
-        $inssIrpf = new Irpf(
+        $inssIrpf = new IrpfRetidoNaNota(
             db: $this->db,
             dates: $this->dates,
             documents: $this->documents,
             request: $this->request,
         );
-        $inssIrpf->saveMonthTaxes();
+        $inssIrpf->saveMonthTaxes($this->dates->getInicioProximoMes()->format('Y-m'));
 
         $cofins = new Cofins(
             db: $this->db,
@@ -629,7 +629,7 @@ class ProducaoCooperativista
             documents: $this->documents,
             request: $this->request,
         );
-        $cofins->saveMonthTaxes();
+        $cofins->saveMonthTaxes($this->dates->getInicioProximoMes()->format('Y-m'));
 
         $pis = new Pis(
             db: $this->db,
@@ -637,7 +637,7 @@ class ProducaoCooperativista
             documents: $this->documents,
             request: $this->request,
         );
-        $pis->saveMonthTaxes();
+        $pis->saveMonthTaxes($this->dates->getInicioProximoMes()->format('Y-m'));
 
         $iss = new Iss(
             db: $this->db,
@@ -645,7 +645,7 @@ class ProducaoCooperativista
             documents: $this->documents,
             request: $this->request,
         );
-        $iss->saveMonthTaxes();
+        $iss->saveMonthTaxes($this->dates->getInicioProximoMes()->format('Y-m'));
     }
 
     /**

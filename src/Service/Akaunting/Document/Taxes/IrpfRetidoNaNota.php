@@ -25,9 +25,29 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service\Akaunting\Document\Taxes;
 
-class Irpf extends Tax
+use Carbon\Carbon;
+
+class IrpfRetidoNaNota extends Tax
 {
-    protected string $whoami = 'INSS_IRRF';
-    protected string $readableName = 'IRRF';
+    protected string $whoami = 'IRRF_RETIDO_NA_NOTA';
+    protected string $readableName = 'IRRF retido na nota';
     protected int $quantity = -1;
+    private \DateTime $previsaoResgateSaldoIrpf;
+
+    protected function setUp(): self
+    {
+        $this->calculaPrevisaoPagamentoResgateSaldoIrpf();
+        return parent::setUp();
+    }
+
+    private function calculaPrevisaoPagamentoResgateSaldoIrpf(): void
+    {
+        $mesResgateSaldoIrpf = $_ENV['AKAUNTING_RESGATE_SALDO_IRPF_MES_PADRAO'];
+        $this->previsaoResgateSaldoIrpf = \DateTime::createFromFormat('m', (string) $mesResgateSaldoIrpf)
+            ->modify('first day of this month')
+            ->setTime(00, 00, 00);
+        $carbon = Carbon::parse($this->previsaoResgateSaldoIrpf);
+        $pagamentoNoDiaUtil = 5;
+        $this->previsaoResgateSaldoIrpf = $carbon->addBusinessDays($pagamentoNoDiaUtil);
+    }
 }

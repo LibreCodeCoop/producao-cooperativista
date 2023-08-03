@@ -27,14 +27,17 @@ namespace ProducaoCooperativista\Service\Akaunting\Document\Taxes;
 
 use ProducaoCooperativista\Service\Akaunting\Document\ADocument;
 
-class InssIrpf extends Irpf
+class InssIrpf extends Tax
 {
+    protected string $whoami = 'INSS_IRRF';
+    protected string $readableName = 'IRRF';
+    protected int $quantity = -1;
     private ADocument $document;
 
     public function saveFromDocument(ADocument $document): self
     {
         $this->document = $document;
-        $this->coletaInvoiceNaoPago();
+        $this->coletaInvoiceNaoPago($this->dates->getInicioProximoMes()->format('Y-m'));
         $this->updateItems();
         $this->save();
         return $this;
