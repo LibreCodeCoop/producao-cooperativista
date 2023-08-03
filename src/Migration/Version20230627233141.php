@@ -23,40 +23,37 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Migrations;
+namespace ProducaoCooperativista\Migration;
 
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\Migrations\AbstractMigration;
 
-final class Version20230627233147 extends AbstractMigration
+final class Version20230627233141 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return 'Create Nfse';
+        return 'Create Customers';
     }
 
     public function up(Schema $schema): void
     {
-        $table = $schema->createTable('nfse');
-        $table->addColumn('numero', 'bigint', ['unsigned' => true]);
-        $table->addColumn('numero_substituta', 'bigint', ['notnull' => false]);
-        $table->addColumn('cnpj', 'string', ['length' => 14]);
-        $table->addColumn('razao_social', 'string');
-        $table->addColumn('data_emissao', 'datetime');
-        $table->addColumn('valor_servico', 'float');
-        $table->addColumn('valor_cofins', 'float');
-        $table->addColumn('valor_ir', 'float');
-        $table->addColumn('valor_pis', 'float');
-        $table->addColumn('valor_iss', 'float');
-        $table->addColumn('discriminacao_normalizada', 'text');
-        $table->addColumn('setor', 'string', ['notnull' => false]);
-        $table->addColumn('codigo_cliente', 'string');
-        $table->addColumn('metadata', 'json');
-        $table->setPrimaryKey(['numero']);
+        $table = $schema->createTable('customers');
+        $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => true]);
+        $table->addColumn('name', 'string', ['length' => 150]);
+        $table->addColumn('number', 'string', ['length' => 50, 'notnull' => false]);
+        $table->addColumn('comment', 'text', ['notnull' => false]);
+        $table->addColumn('visible', 'smallint');
+        $table->addColumn('billable', 'smallint');
+        $table->addColumn('currency', 'string', ['length' => 3]);
+        $table->addColumn('color', 'string', ['length' => 7, 'notnull' => false]);
+        $table->addColumn('vat_id', 'string', ['notnull' => false]);
+        $table->addColumn('time_budget', 'bigint');
+        $table->setPrimaryKey(['id']);
+        $table->addUniqueIndex(['vat_id']);
     }
 
     public function down(Schema $schema): void
     {
-        $schema->dropTable('nfse');
+        $schema->dropTable('customers');
     }
 }

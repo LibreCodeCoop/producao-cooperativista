@@ -11,7 +11,7 @@ return
     ],
 
     'migrations_paths' => [
-        'ProducaoCooperativista\Migrations' => '/config/db/migrations',
+        'ProducaoCooperativista\Migration' => '/src/Migration',
     ],
 
     'all_or_nothing' => true,

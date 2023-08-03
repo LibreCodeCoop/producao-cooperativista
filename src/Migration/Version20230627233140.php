@@ -23,37 +23,35 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Migrations;
+namespace ProducaoCooperativista\Migration;
 
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\Migrations\AbstractMigration;
 
-final class Version20230627233141 extends AbstractMigration
+final class Version20230627233140 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return 'Create Customers';
+        return 'Create Users';
     }
 
     public function up(Schema $schema): void
     {
-        $table = $schema->createTable('customers');
-        $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => true]);
-        $table->addColumn('name', 'string', ['length' => 150]);
-        $table->addColumn('number', 'string', ['length' => 50, 'notnull' => false]);
-        $table->addColumn('comment', 'text', ['notnull' => false]);
-        $table->addColumn('visible', 'smallint');
-        $table->addColumn('billable', 'smallint');
-        $table->addColumn('currency', 'string', ['length' => 3]);
-        $table->addColumn('color', 'string', ['length' => 7, 'notnull' => false]);
-        $table->addColumn('vat_id', 'string', ['notnull' => false]);
-        $table->addColumn('time_budget', 'bigint');
+        $table = $schema->createTable('users');
+        $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => false]);
+        $table->addColumn('alias', 'string', ['length' => 60]);
+        $table->addColumn('kimai_username', 'string', ['length' => 180]);
+        $table->addColumn('akaunting_contact_id', 'bigint', ['notnull' => false]);
+        $table->addColumn('tax_number', 'string', ['length' => 20]);
+        $table->addColumn('dependents', 'smallint');
+        $table->addColumn('enabled', 'smallint');
+        $table->addColumn('metadata', 'json');
+        $table->addUniqueConstraint(['kimai_username']);
         $table->setPrimaryKey(['id']);
-        $table->addUniqueIndex(['vat_id']);
     }
 
     public function down(Schema $schema): void
     {
-        $schema->dropTable('customers');
+        $schema->dropTable('users');
     }
 }
