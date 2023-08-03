@@ -9,6 +9,7 @@
         "doctrine/sql-formatter": "^1.1",
         "league/flysystem-webdav": "^3.15",
         "monolog/monolog": "^3.3",
+        "php-di/php-di": "*",
         "phpoffice/phpspreadsheet": "^1.28",
         "symfony/browser-kit": "^6.2",
         "symfony/cache": "^6.3",
