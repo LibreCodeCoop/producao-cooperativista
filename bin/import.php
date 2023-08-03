@@ -82,6 +82,11 @@ $containerBuilder->addDefinitions([
     GetTransactionsCommand::class => \DI\autowire(),
     GetUsersCommand::class => \DI\autowire(),
     MakeProducaoCommand::class => \DI\autowire(),
+    NumberFormatter::class => \DI\autowire()
+        ->constructor(
+            $_ENV['LOCALE'] ?? 'pt_BR',
+            NumberFormatter::CURRENCY,
+        ),
 ]);
 $container = $containerBuilder->build();
 
