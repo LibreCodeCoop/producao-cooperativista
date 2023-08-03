@@ -37,6 +37,7 @@ use ProducaoCooperativista\Command\GetCustomersCommand;
 use ProducaoCooperativista\Command\GetInvoicesCommand;
 use ProducaoCooperativista\Command\GetNfseCommand;
 use ProducaoCooperativista\Command\GetProjectsCommand;
+use ProducaoCooperativista\Command\GetTaxesCommand;
 use ProducaoCooperativista\Command\GetTimesheetsCommand;
 use ProducaoCooperativista\Command\GetTransactionsCommand;
 use ProducaoCooperativista\Command\GetUsersCommand;
@@ -102,6 +103,7 @@ $application->addCommands([
     $container->get(GetProjectsCommand::class),
     $container->get(GetTimesheetsCommand::class),
     $container->get(GetTransactionsCommand::class),
+    $container->get(GetTaxesCommand::class),
     $container->get(GetUsersCommand::class),
     $container->get(MakeProducaoCommand::class),
 ]);
