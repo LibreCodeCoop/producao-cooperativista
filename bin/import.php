@@ -52,6 +52,7 @@ use ProducaoCooperativista\Service\Kimai\Source\Projects;
 use ProducaoCooperativista\Service\Kimai\Source\Timesheets;
 use ProducaoCooperativista\Service\Kimai\Source\Users;
 use ProducaoCooperativista\Service\Source\Nfse;
+use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Application;
 
@@ -74,19 +75,17 @@ $containerBuilder->addDefinitions([
     Timesheets::class => \DI\autowire(),
     Transactions::class => \DI\autowire(),
     Users::class => \DI\autowire(),
-    GetCustomersCommand::class => \DI\autowire(),
-    GetInvoicesCommand::class => \DI\autowire(),
-    GetNfseCommand::class => \DI\autowire(),
-    GetProjectsCommand::class => \DI\autowire(),
-    GetTimesheetsCommand::class => \DI\autowire(),
-    GetTransactionsCommand::class => \DI\autowire(),
-    GetUsersCommand::class => \DI\autowire(),
-    MakeProducaoCommand::class => \DI\autowire(),
+    'ProducaoCooperativista\Command\*Command' => \DI\autowire('ProducaoCooperativista\Command\*Command'),
     NumberFormatter::class => \DI\autowire()
         ->constructor(
-            $_ENV['LOCALE'] ?? 'pt_BR',
+            \DI\env('LOCALE') ?? 'pt_BR',
             NumberFormatter::CURRENCY,
         ),
+    SingleManagerProvider::class => DI\factory(function (ContainerInterface $c) {
+        /** @var Database */
+        $database = $c->get(Database::class);
+        return new SingleManagerProvider($database->getEntityManager());
+    }),
 ]);
 $container = $containerBuilder->build();
 
@@ -104,9 +103,7 @@ $application->addCommands([
 ]);
 
 // Doctrine ORM
-$entityManager = $container->get(Database::class)->getEntityManager();
-$singleManagerProvider = new SingleManagerProvider($entityManager);
-DoctrineOrmConsoleRunner::addCommands($application, $singleManagerProvider);
+DoctrineOrmConsoleRunner::addCommands($application, $container->get(SingleManagerProvider::class));
 
 // Doctrine Migrations
 $dependencyFactory = DoctrineMigrationsConsoleRunner::findDependencyFactory();
