@@ -68,7 +68,7 @@ use Symfony\Component\HttpClient\Exception\ClientException;
  * @method self setType(string $value)
  * @method string getType()
  */
-class Document
+abstract class ADocument
 {
     use MagicGetterSetterTrait;
     protected float $amount = 0;
