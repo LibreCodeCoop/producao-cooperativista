@@ -42,6 +42,7 @@ use ProducaoCooperativista\Command\GetTransactionsCommand;
 use ProducaoCooperativista\Command\GetUsersCommand;
 use ProducaoCooperativista\Command\MakeProducaoCommand;
 use ProducaoCooperativista\DB\Database;
+use ProducaoCooperativista\Helper\Dates;
 use ProducaoCooperativista\Provider\Akaunting\Request;
 use ProducaoCooperativista\Provider\Akaunting\Dataset;
 use ProducaoCooperativista\Provider\Akaunting\ParseText;
@@ -65,6 +66,8 @@ $containerBuilder->addDefinitions([
         ->method('pushHandler', new StreamHandler('logs/system.log')),
     LoggerInterface::class => \DI\get(Logger::class),
     Database::class => \DI\autowire(),
+    Dates::class => \DI\autowire()
+        ->constructorParameter('locationHolydays', \DI\env('HOLYDAYS_LIST', 'br-national')),
     Customers::class => \DI\autowire(),
     ParseText::class => \DI\autowire(),
     Request::class => \DI\autowire(),

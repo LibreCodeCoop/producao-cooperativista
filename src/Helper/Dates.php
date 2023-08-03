@@ -52,9 +52,10 @@ class Dates
     private DateTime $fimProximoMes;
     private DateTime $previsaoPagamentoFrra;
 
-    public function __construct()
-    {
-        BusinessDay::enable('Carbon\Carbon', $_ENV['HOLYDAYS_LIST'] ?? 'br-national');
+    public function __construct(
+        private string $locationHolydays = 'br-national',
+    ) {
+        BusinessDay::enable('Carbon\Carbon', $this->locationHolydays);
         $this->calculaPrevisaoPagamentoFrra();
     }
 
