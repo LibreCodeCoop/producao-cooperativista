@@ -67,7 +67,8 @@ $containerBuilder->addDefinitions([
     LoggerInterface::class => \DI\get(Logger::class),
     Database::class => \DI\autowire(),
     Dates::class => \DI\autowire()
-        ->constructorParameter('locationHolydays', \DI\env('HOLYDAYS_LIST', 'br-national')),
+        ->constructorParameter('locationHolydays', \DI\env('HOLYDAYS_LIST', 'br-national'))
+        ->constructorParameter('pagamentoFrraMesPadrao', \DI\env('AKAUNTING_FRRA_MES_PADRAO', 12)),
     Customers::class => \DI\autowire(),
     ParseText::class => \DI\autowire(),
     Request::class => \DI\autowire(),
