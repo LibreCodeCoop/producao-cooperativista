@@ -52,6 +52,7 @@ use ProducaoCooperativista\Service\Kimai\Source\Projects;
 use ProducaoCooperativista\Service\Kimai\Source\Timesheets;
 use ProducaoCooperativista\Service\Kimai\Source\Users;
 use ProducaoCooperativista\Service\Source\Nfse;
+use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Application;
 
@@ -87,6 +88,11 @@ $containerBuilder->addDefinitions([
             $_ENV['LOCALE'] ?? 'pt_BR',
             NumberFormatter::CURRENCY,
         ),
+    SingleManagerProvider::class => DI\factory(function (ContainerInterface $c) {
+        /** @var Database */
+        $database = $c->get(Database::class);
+        return new SingleManagerProvider($database->getEntityManager());
+    }),
 ]);
 $container = $containerBuilder->build();
 
@@ -104,9 +110,7 @@ $application->addCommands([
 ]);
 
 // Doctrine ORM
-$entityManager = $container->get(Database::class)->getEntityManager();
-$singleManagerProvider = new SingleManagerProvider($entityManager);
-DoctrineOrmConsoleRunner::addCommands($application, $singleManagerProvider);
+DoctrineOrmConsoleRunner::addCommands($application, $container->get(SingleManagerProvider::class));
 
 // Doctrine Migrations
 $dependencyFactory = DoctrineMigrationsConsoleRunner::findDependencyFactory();
