@@ -85,7 +85,7 @@ $containerBuilder->addDefinitions([
     MakeProducaoCommand::class => \DI\autowire(),
     NumberFormatter::class => \DI\autowire()
         ->constructor(
-            $_ENV['LOCALE'] ?? 'pt_BR',
+            \DI\env('LOCALE') ?? 'pt_BR',
             NumberFormatter::CURRENCY,
         ),
     SingleManagerProvider::class => DI\factory(function (ContainerInterface $c) {
