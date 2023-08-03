@@ -66,8 +66,6 @@ class ProducaoCooperativista
     private float $percentualDispendios = 0;
     private bool $sobrasDistribuidas = false;
     private bool $previsao = false;
-    public Dates $dates;
-    private NumberFormatter $numberFormatter;
 
     public function __construct(
         private Database $db,
@@ -80,12 +78,9 @@ class ProducaoCooperativista
         private Transactions $transactions,
         private Users $users,
         private Request $request,
+        private NumberFormatter $numberFormatter,
+        public Dates $dates,
     ) {
-        $this->numberFormatter = new NumberFormatter(
-            $_ENV['LOCALE'] ?? 'pt_BR',
-            NumberFormatter::CURRENCY
-        );
-        $this->dates = new Dates();
     }
 
     private function getBaseCalculoDispendios(): float
