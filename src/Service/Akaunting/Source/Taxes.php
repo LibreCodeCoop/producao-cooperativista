@@ -25,27 +25,27 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service\Akaunting\Source;
 
-use DateTime;
-use Exception;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\DB\Entity\Taxes as EntityTaxes;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Provider\Akaunting\Dataset;
-use ProducaoCooperativista\Provider\Akaunting\ParseText;
 use Psr\Log\LoggerInterface;
 
 /**
  * @method self setCompanyId(int $value)
- * @method int getCompanyId();
- * @method self setDate(DateTime $value)
- * @method self setType(string $value)
- * @method string getType()
+ * @method int getCompanyId()
+ * @method self setName(string $value)
+ * @method string getName()
+ * @method self setRate(float $value)
+ * @method float getRate()
+ * @method self setEnabled(int $value)
+ * @method int getEnabled()
+ * @method self setMetadata(string $value)
+ * @method string getMetadata()
  */
 class Taxes
 {
     use MagicGetterSetterTrait;
-    private ?DateTime $date;
-    private string $type;
     private int $companyId;
     /** @var EntityTaxes[] */
     private array $list = [];
@@ -53,7 +53,6 @@ class Taxes
     public function __construct(
         private Database $db,
         private LoggerInterface $logger,
-        private ParseText $parseText,
         private Dataset $dataset,
     ) {
         $this->companyId = (int) $_ENV['AKAUNTING_COMPANY_ID'];
