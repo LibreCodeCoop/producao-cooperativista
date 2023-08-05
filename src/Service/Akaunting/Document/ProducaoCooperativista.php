@@ -30,6 +30,7 @@ use Doctrine\DBAL\Query\QueryBuilder;
 
 class ProducaoCooperativista extends ADocument
 {
+    protected string $whoami = 'PDC';
     public function save(): self
     {
         $this->populateProducaoCooperativistaWithDefault();
@@ -74,6 +75,19 @@ class ProducaoCooperativista extends ADocument
         return $this;
     }
 
+    protected function getDocumentNumber(): string
+    {
+        if (empty($this->documentNumber)) {
+            $this->setDocumentNumber(
+                'PDC_' .
+                $this->getCooperado()->getTaxNumber() .
+                '-' .
+                $this->dates->getInicio()->format('Y-m')
+            );
+        }
+        return $this->documentNumber;
+    }
+
     private function populateProducaoCooperativistaWithDefault(): self
     {
         $cooperado = $this->getCooperado();
@@ -81,13 +95,6 @@ class ProducaoCooperativista extends ADocument
         $this
             ->setType('bill')
             ->setCategoryId((int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'])
-            ->setDocumentNumber(
-                'PDC_' .
-                $cooperado->getTaxNumber() .
-                '-' .
-                $this->dates->getInicio()->format('Y-m')
-            )
-            ->setSearch('type:bill')
             ->setStatus('draft')
             ->setIssuedAt($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'))
             ->setDueAt($this->dates->getDataPagamento()->format('Y-m-d H:i:s'))
@@ -174,12 +181,7 @@ class ProducaoCooperativista extends ADocument
             ->andWhere("category_type = 'expense'")
             ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'], ParameterType::INTEGER)))
             ->andWhere($select->expr()->in('tax_number', $select->createNamedParameter($this->getContactTaxNumber(), ParameterType::INTEGER)))
-            ->andWhere($select->expr()->eq('document_number', $select->createNamedParameter(
-                'PDC_' .
-                $this->getCooperado()->getTaxNumber() .
-                '-' .
-                $this->dates->getInicio()->format('Y-m')
-            )));
+            ->andWhere($select->expr()->eq('document_number', $select->createNamedParameter($this->getDocumentNumber())));
 
         $result = $select->executeQuery();
         $row = $result->fetchAssociative();

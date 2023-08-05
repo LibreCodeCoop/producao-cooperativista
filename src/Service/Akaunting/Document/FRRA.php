@@ -30,6 +30,8 @@ use Doctrine\DBAL\Query\QueryBuilder;
 
 class FRRA extends ADocument
 {
+    protected string $whoami = 'FRRA';
+
     protected function setUp(): self
     {
         $this->getValues()->setIsFrra(true);
@@ -43,10 +45,7 @@ class FRRA extends ADocument
             ->addSelect('tax_number')
             ->addSelect('document_number')
             ->from('invoices')
-            ->where("type = 'bill'")
-            ->andWhere("category_type = 'expense'")
-            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_FRRA_CATEGORY_ID'], ParameterType::INTEGER)))
-            ->andWhere($select->expr()->eq('tax_number', $select->createNamedParameter($this->getCooperado()->getTaxNumber(), ParameterType::INTEGER)));
+            ->where($select->expr()->eq('document_number', $select->createNamedParameter($this->getDocumentNumber())));
 
         $result = $select->executeQuery();
         $row = $result->fetchAssociative();
@@ -58,11 +57,24 @@ class FRRA extends ADocument
         return $this;
     }
 
+    protected function getDocumentNumber(): string
+    {
+        if (empty($this->documentNumber)) {
+            $cooperado = $this->getCooperado();
+            $this->setDocumentNumber(
+                'FRRA_' .
+                $cooperado->getTaxNumber() .
+                '-' .
+                $this->dates->getPrevisaoPagamentoFrra()->format('Y-m')
+            );
+        }
+        return $this->documentNumber;
+    }
+
     public function save(): self
     {
         $this->coletaInvoiceNaoPago();
         if ($this->getId()) {
-            $this->setSearch('type:bill');
             $this->update();
             return $this;
         }
@@ -127,13 +139,6 @@ class FRRA extends ADocument
         $this
             ->setType('bill')
             ->setCategoryId((int) $_ENV['AKAUNTING_FRRA_CATEGORY_ID'])
-            ->setDocumentNumber(
-                'FRRA_' .
-                $cooperado->getTaxNumber() .
-                '-' .
-                $this->dates->getPrevisaoPagamentoFrra()->format('Y-m')
-            )
-            ->setSearch('type:bill')
             ->setStatus('draft')
             ->setIssuedAt($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'))
             ->setDueAt($this->dates->getPrevisaoPagamentoFrra()->format('Y-m-d H:i:s'))

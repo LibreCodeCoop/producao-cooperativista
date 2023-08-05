@@ -41,6 +41,7 @@ class Tax extends ADocument
     protected string $whoami = 'TAX';
     protected string $readableName = 'Tax';
     protected int $quantity = 1;
+    protected string $type = 'bill';
 
     public function saveMonthTaxes(string $transactionOfMonth): self
     {
@@ -85,9 +86,7 @@ class Tax extends ADocument
             ->addSelect('document_number')
             ->addSelect('metadata->>"$.status" AS status')
             ->from('invoices')
-            ->where("type = 'bill'")
-            ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($transactionOfMonth)))
-            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter($this->taxData->categoryId, ParameterType::INTEGER)));
+            ->where($select->expr()->eq('document_number', $select->createNamedParameter($this->getDocumentNumber())));
 
         $result = $select->executeQuery();
         $row = $result->fetchAssociative();
@@ -135,13 +134,7 @@ class Tax extends ADocument
         $contact = $this->getContact();
 
         $this
-            ->setType('bill')
             ->setCategoryId($this->taxData->categoryId)
-            ->setDocumentNumber(
-                $this->whoami . '_' .
-                $this->dates->getDataPagamento()->format('Y-m')
-            )
-            ->setSearch('type:bill')
             ->setStatus('draft')
             ->setIssuedAt($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'))
             ->setDueAt($this->dates->getDataPagamento()->format('Y-m-d H:i:s'))

@@ -52,7 +52,6 @@ use Symfony\Component\HttpClient\Exception\ClientException;
  * @method self setCurrencyRate(int $value)
  * @method int getCurrencyRate()
  * @method self setDocumentNumber(string $value)
- * @method string getDocumentNumber()
  * @method self setDueAt(string $value)
  * @method string getDueAt()
  * @method self setId(int $value)
@@ -62,7 +61,6 @@ use Symfony\Component\HttpClient\Exception\ClientException;
  * @method self setValues(Values $value)
  * @method Values getValues()
  * @method self setSearch(string $value)
- * @method string getSearch()
  * @method self setStatus(string $value)
  * @method string getStatus()
  * @method self setType(string $value)
@@ -85,6 +83,7 @@ abstract class ADocument
     protected string $search = '';
     protected string $status = '';
     protected string $type = '';
+    protected string $whoami = '';
     protected Values $values;
 
     protected array $notes = [];
@@ -113,6 +112,23 @@ abstract class ADocument
     protected function setUp(): self
     {
         return $this;
+    }
+
+    protected function getDocumentNumber(): string
+    {
+        if (empty($this->documentNumber)) {
+            $this->setDocumentNumber(($this->whoami ?? $this->type) . '_' . $this->dates->getDataPagamento()->format('Y-m-d'));
+        }
+        return $this->documentNumber;
+    }
+
+    private function getSearch(): string
+    {
+        if ($this->search) {
+            return $this->search;
+        }
+        $this->search = 'type:' . $this->getType();
+        return $this->search;
     }
 
     public function setNote(string $label, $value): self
@@ -231,7 +247,7 @@ abstract class ADocument
                         endpoint: '/api/documents',
                         query: [
                             'search' => implode(' ', [
-                                'type:bill',
+                                $this->getSearch(),
                                 $this->getDocumentNumber()
                             ]),
                         ],
@@ -260,7 +276,7 @@ abstract class ADocument
                     endpoint: '/api/documents/' . $this->getId(),
                     query: [
                         'search' => implode(' ', [
-                            'type:bill',
+                            $this->getSearch(),
                         ]),
                     ],
                     method: 'GET'

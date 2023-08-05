@@ -29,10 +29,11 @@ use Carbon\Carbon;
 
 class IrpfRetidoNaNota extends Tax
 {
-    protected string $whoami = 'IRRF_RETIDO_NA_NOTA';
     protected string $readableName = 'IRRF retido na nota';
     protected int $quantity = -1;
     private \DateTime $previsaoResgateSaldoIrpf;
+    protected string $whoami = 'IRPF_RETIDO';
+    protected string $type = 'invoice';
 
     protected function setUp(): self
     {
