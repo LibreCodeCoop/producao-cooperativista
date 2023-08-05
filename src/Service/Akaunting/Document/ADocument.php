@@ -265,9 +265,7 @@ abstract class ADocument
                     ],
                     method: 'GET'
                 );
-                if (isset($response['status_code']) && $response['status_code'] === 429 && isset($response['message']) && $response['message'] === 'Too Many Attempts.') {
-                    throw new Exception('Excesso de requisições para a API do Akaunting.');
-                }
+                $this->request->handleError($response);
                 if ($response['data']['status'] !== 'draft') {
                     // Only is possible to update billing when is draft
                     return $this;
@@ -284,10 +282,7 @@ abstract class ADocument
             $content = $response->toArray(false);
             throw new Exception(json_encode($content));
         }
-        // When the response have a message key is an error and we can't go ahead
-        if (isset($response['message'])) {
-            throw new Exception(json_encode($response));
-        }
+        $this->request->handleError($response);
         // Update local database
         $document = $this->documents->fromArray($response['data']);
         $this->documents->saveRow($document);

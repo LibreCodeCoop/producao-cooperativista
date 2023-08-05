@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Provider\Akaunting;
 
+use Exception;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -71,5 +72,27 @@ class Request
         ));
 
         return $response;
+    }
+
+    public function handleError($response): void
+    {
+        if (!isset($response['status_code'])) {
+            return;
+        }
+        if ($response['status_code'] === 429) {
+            if (isset($response['message']) && $response['message'] === 'Too Many Attempts.') {
+                throw new Exception('Excesso de requisições para a API do Akaunting.');
+            }
+            throw new Exception($response['message']);
+        } elseif ($response['status_code'] === 500) {
+            if (str_contains($response['message'], 'No query results for model')) {
+                throw new Exception(sprintf(
+                    "Informação não encontrada no Akaunting.\n" .
+                    "%s",
+                    $response['message']
+                ));
+            }
+        }
+        throw new Exception($response);
     }
 }
