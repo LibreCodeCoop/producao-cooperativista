@@ -282,39 +282,13 @@ abstract class ADocument
                         ],
                         method: 'GET'
                     );
-                    // If found the document....
-                    if (!isset($response['data']) || count($response['data']) !== 1) {
-                        throw new Exception(
-                            "Impossible to save the document.\n" .
-                            "Got an error when get the document from Akaunting OR the total of documents is different of 1.\n" .
-                            "Response from API:\n" .
-                            json_encode($response) . "\n" .
-                            "#############################\n" .
-                            "Data to save:\n" .
-                            json_encode($this->toArray())
-                        );
-                    }
+                    $this->request->handleError($response);
                     // Set the ID of existing document and request again this method to handle the update
                     $this->setId($response['data'][0]['id']);
                     $this->save();
                     return $this;
                 }
             } else {
-                // Get the existing document to check if the current values is ok
-                $response = $this->request->send(
-                    endpoint: '/api/documents/' . $this->getId(),
-                    query: [
-                        'search' => implode(' ', [
-                            $this->getSearch(),
-                        ]),
-                    ],
-                    method: 'GET'
-                );
-                $this->request->handleError($response);
-                if ($response['data']['status'] !== 'draft') {
-                    // Only is possible to update billing when is draft
-                    return $this;
-                }
                 // Update if exists
                 $response = $this->request->send(
                     endpoint: '/api/documents/' . $this->getId(),
