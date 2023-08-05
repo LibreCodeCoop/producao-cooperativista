@@ -33,26 +33,25 @@ use stdClass;
 
 class Tax extends ADocument
 {
-    protected const ACTION_CREATE = 1;
-    protected const ACTION_UPDATE = 2;
-    protected const ACTION_IGNORE = 3;
-    protected int $action = self::ACTION_IGNORE;
     protected stdClass $taxData;
     protected string $whoami = 'TAX';
     protected string $readableName = 'Tax';
     protected int $quantity = 1;
+    protected string $type = 'bill';
+    protected float $totalNotasClientes;
 
     public function saveMonthTaxes(): self
     {
-        $total = $this->getTotalRetainedOfMonth();
-        $this->coletaInvoiceNaoPago();
-        $this
-            ->setItem(
-                itemId: (int) $_ENV['AKAUNTING_IMPOSTOS_ITEM_ID'],
-                name: $this->readableName,
-                description: 'Impostos do mês ' . $this->dates->getInicioProximoMes()->format('Y-m'),
-                price: $total * $this->quantity
-            );
+        $aPagar = $this->pegaValorAPagar();
+        if ($aPagar > 0) {
+            $this
+                ->setItem(
+                    itemId: (int) $_ENV['AKAUNTING_IMPOSTOS_ITEM_ID'],
+                    name: $this->readableName,
+                    description: 'Impostos do mês ' . $this->dates->getInicioProximoMes()->format('Y-m'),
+                    price: $aPagar * $this->quantity
+                );
+        }
         $this->save();
         return $this;
     }
@@ -64,51 +63,40 @@ class Tax extends ADocument
             return $this;
         }
         if ($this->action === self::ACTION_UPDATE) {
-            $this->setSearch('type:bill');
             parent::save();
             return $this;
         }
         return $this;
     }
 
+    private function pegaValorAPagar(): float
+    {
+        $retido = $this->getTotalRetainedOfMonth();
+        $percentualImposto = $this->getPercentualDoImposto();
+        $totalNotas = $this->getTotalNotasClientes();
+        $totalImpostoAPagar = $totalNotas * $percentualImposto / 100;
+        $diferenca = $totalImpostoAPagar - $retido;
+        return $diferenca;
+    }
+
+    private function getPercentualDoImposto(): float
+    {
+        $select = new QueryBuilder($this->db->getConnection());
+        $select->select('rate')
+            ->from('taxes', 't')
+            ->where($select->expr()->eq('id', $select->createNamedParameter($this->taxData->taxId, ParameterType::INTEGER)));
+        $result = $select->executeQuery();
+        $percentual = $result->fetchOne();
+        return $percentual;
+    }
+
     protected function setUp(): self
     {
         $this->taxData = json_decode($_ENV['AKAUNTING_IMPOSTOS_' . $this->whoami]);
-        return $this;
+        return parent::setUp();
     }
 
-    protected function coletaInvoiceNaoPago(): self
-    {
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('id')
-            ->addSelect('tax_number')
-            ->addSelect('document_number')
-            ->addSelect('metadata->>"$.status" AS status')
-            ->from('invoices')
-            ->where("type = 'bill'")
-            ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))))
-            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter($this->taxData->categoryId, ParameterType::INTEGER)));
-
-        $result = $select->executeQuery();
-        $row = $result->fetchAssociative();
-
-        if (!$row) {
-            $this->action = self::ACTION_CREATE;
-            return $this;
-        }
-
-        if (in_array($row['status'], ['paid', 'cancelled'])) {
-            $this->action = self::ACTION_IGNORE;
-            return $this;
-        }
-
-        $this->action = self::ACTION_UPDATE;
-        $this->setId($row['id'])
-            ->loadFromAkaunting($row['id']);
-        return $this;
-    }
-
-    private function getTotalRetainedOfMonth(): float
+    protected function getTotalRetainedOfMonth(): float
     {
         $stmt = $this->db->getConnection()->prepare(
             <<<SQL
@@ -135,16 +123,9 @@ class Tax extends ADocument
         $contact = $this->getContact();
 
         $this
-            ->setType('bill')
             ->setCategoryId($this->taxData->categoryId)
-            ->setDocumentNumber(
-                $this->whoami . '_' .
-                $this->dates->getDataPagamento()->format('Y-m')
-            )
-            ->setSearch('type:bill')
             ->setStatus('draft')
             ->setIssuedAt($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'))
-            ->setDueAt($this->dates->getDataPagamento()->format('Y-m-d H:i:s'))
             ->setCurrencyCode('BRL')
             ->setContactId($contact['id'])
             ->setContactName($contact['name'])

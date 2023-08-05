@@ -52,15 +52,17 @@ class Dates
     private DateTime $fimProximoMes;
     private DateTime $previsaoPagamentoFrra;
 
-    public function __construct()
-    {
-        BusinessDay::enable('Carbon\Carbon', $_ENV['HOLYDAYS_LIST'] ?? 'br-national');
+    public function __construct(
+        private string $locationHolydays = 'br-national',
+        private int $pagamentoFrraMesPadrao = 12,
+    ) {
+        BusinessDay::enable('Carbon\Carbon', $this->locationHolydays);
         $this->calculaPrevisaoPagamentoFrra();
     }
 
     private function calculaPrevisaoPagamentoFrra(): void
     {
-        $this->previsaoPagamentoFrra = \DateTime::createFromFormat('m', $_ENV['AKAUNTING_FRRA_MES_PADRAO'])
+        $this->previsaoPagamentoFrra = \DateTime::createFromFormat('m', (string) $this->pagamentoFrraMesPadrao)
             ->modify('first day of this month')
             ->setTime(00, 00, 00);
         $carbon = Carbon::parse($this->previsaoPagamentoFrra);

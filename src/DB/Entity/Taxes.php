@@ -23,11 +23,27 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\Akaunting\Document\Taxes;
+namespace ProducaoCooperativista\DB\Entity;
 
-class Irpf extends Tax
+use Doctrine\ORM\Mapping\Column;
+use Doctrine\ORM\Mapping\Entity;
+use Doctrine\ORM\Mapping\Id;
+use ProducaoCooperativista\DB\Entity as DBEntity;
+use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
+
+#[Entity]
+class Taxes extends DBEntity
 {
-    protected string $whoami = 'INSS_IRRF';
-    protected string $readableName = 'IRRF';
-    protected int $quantity = -1;
+    use MagicGetterSetterTrait;
+    #[Id]
+    #[Column(insertable: true, options: ['unsigned' => true])]
+    private int $id;
+    #[Column]
+    private string $name;
+    #[Column(type: 'smallint', options: ['default' => 1])]
+    private int $enabled;
+    #[Column]
+    private float $rate;
+    #[Column]
+    private array $metadata;
 }

@@ -27,42 +27,41 @@ namespace ProducaoCooperativista\Service\Akaunting\Document;
 
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
+use UnexpectedValueException;
 
 class FRRA extends ADocument
 {
+    protected string $whoami = 'FRRA';
+
     protected function setUp(): self
     {
         $this->getValues()->setIsFrra(true);
-        return $this;
+        try {
+            $this->getDueAt();
+        } catch (UnexpectedValueException $e) {
+            $this->changeDueAt($this->dates->getPrevisaoPagamentoFrra());
+        }
+        return parent::setUp();
     }
 
-    private function coletaInvoiceNaoPago(): self
+    protected function getDocumentNumber(): string
     {
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('id')
-            ->addSelect('tax_number')
-            ->addSelect('document_number')
-            ->from('invoices')
-            ->where("type = 'bill'")
-            ->andWhere("category_type = 'expense'")
-            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_FRRA_CATEGORY_ID'], ParameterType::INTEGER)))
-            ->andWhere($select->expr()->eq('tax_number', $select->createNamedParameter($this->getCooperado()->getTaxNumber(), ParameterType::INTEGER)));
-
-        $result = $select->executeQuery();
-        $row = $result->fetchAssociative();
-        if (!$row) {
-            return $this;
+        if (empty($this->documentNumber)) {
+            $cooperado = $this->getCooperado();
+            $this->setDocumentNumber(
+                'FRRA_' .
+                $cooperado->getTaxNumber() .
+                '-' .
+                $this->dates->getPrevisaoPagamentoFrra()->format('Y-m')
+            );
         }
-        $this->setId($row['id'])
-            ->loadFromAkaunting($row['id']);
-        return $this;
+        return $this->documentNumber;
     }
 
     public function save(): self
     {
         $this->coletaInvoiceNaoPago();
         if ($this->getId()) {
-            $this->setSearch('type:bill');
             $this->update();
             return $this;
         }
@@ -127,16 +126,8 @@ class FRRA extends ADocument
         $this
             ->setType('bill')
             ->setCategoryId((int) $_ENV['AKAUNTING_FRRA_CATEGORY_ID'])
-            ->setDocumentNumber(
-                'FRRA_' .
-                $cooperado->getTaxNumber() .
-                '-' .
-                $this->dates->getPrevisaoPagamentoFrra()->format('Y-m')
-            )
-            ->setSearch('type:bill')
             ->setStatus('draft')
             ->setIssuedAt($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'))
-            ->setDueAt($this->dates->getPrevisaoPagamentoFrra()->format('Y-m-d H:i:s'))
             ->setCurrencyCode('BRL')
             ->setNote('Dia útil padrão de pagamento', sprintf('%sº', $this->dates->getPagamentoNoDiaUtil()))
             ->setNote('Previsão de pagamento no dia', $this->dates->getPrevisaoPagamentoFrra()->format('Y-m-d'))

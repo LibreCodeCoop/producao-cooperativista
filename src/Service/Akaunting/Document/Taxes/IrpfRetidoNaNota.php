@@ -27,18 +27,34 @@ namespace ProducaoCooperativista\Service\Akaunting\Document\Taxes;
 
 use UnexpectedValueException;
 
-class Pis extends Tax
+class IrpfRetidoNaNota extends Tax
 {
-    protected string $whoami = 'PIS';
-    protected string $readableName = 'PIS';
+    protected string $whoami = 'IRPF_RETIDO';
+    protected string $readableName = 'IRPF retido na nota';
+    protected string $type = 'invoice';
+    protected int $quantity = 1;
 
     protected function setUp(): self
     {
         try {
             $this->getDueAt();
         } catch (UnexpectedValueException $e) {
-            $this->changeDueAt($this->dates->getDataPagamento());
+            $this->changeDueAt(\DateTime::createFromFormat('m', (string) $_ENV['AKAUNTING_RESGATE_SALDO_IRPF_MES_PADRAO']));
         }
         return parent::setUp();
+    }
+
+    public function saveMonthTaxes(): self
+    {
+        $total = $this->getTotalRetainedOfMonth();
+        $this
+            ->setItem(
+                itemId: (int) $_ENV['AKAUNTING_IMPOSTOS_ITEM_ID'],
+                name: $this->readableName,
+                description: 'Impostos retidos do mês ' . $this->dates->getInicioProximoMes()->format('Y-m'),
+                price: $total * $this->quantity
+            );
+        $this->save();
+        return $this;
     }
 }

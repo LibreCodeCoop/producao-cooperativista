@@ -26,15 +26,28 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Service\Akaunting\Document\Taxes;
 
 use ProducaoCooperativista\Service\Akaunting\Document\ADocument;
+use UnexpectedValueException;
 
-class InssIrpf extends Irpf
+class InssIrpf extends Tax
 {
+    protected string $whoami = 'INSS_IRRF';
+    protected string $readableName = 'IRRF';
+    protected int $quantity = -1;
     private ADocument $document;
+
+    protected function setUp(): self
+    {
+        try {
+            $this->getDueAt();
+        } catch (UnexpectedValueException $e) {
+            $this->changeDueAt($this->dates->getDataPagamento());
+        }
+        return parent::setUp();
+    }
 
     public function saveFromDocument(ADocument $document): self
     {
         $this->document = $document;
-        $this->coletaInvoiceNaoPago();
         $this->updateItems();
         $this->save();
         return $this;
