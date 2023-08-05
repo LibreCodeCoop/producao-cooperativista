@@ -38,6 +38,7 @@ use ProducaoCooperativista\Service\Akaunting\Document\Taxes\IrpfRetidoNaNota;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Iss;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Pis;
 use ProducaoCooperativista\Service\Akaunting\Source\Documents;
+use ProducaoCooperativista\Service\Akaunting\Source\Taxes;
 use ProducaoCooperativista\Service\Akaunting\Source\Transactions;
 use ProducaoCooperativista\Service\Kimai\Source\Customers;
 use ProducaoCooperativista\Service\Kimai\Source\Projects;
@@ -79,6 +80,7 @@ class ProducaoCooperativista
         private Users $users,
         private Request $request,
         private NumberFormatter $numberFormatter,
+        private Taxes $taxes,
         public Dates $dates,
     ) {
     }
@@ -154,6 +156,7 @@ class ProducaoCooperativista
         $this->transactions
             ->setDate($this->dates->getInicioProximoMes())
             ->saveList();
+        $this->taxes->saveList();
         $this->users->saveList();
     }
 
@@ -621,7 +624,7 @@ class ProducaoCooperativista
             documents: $this->documents,
             request: $this->request,
         );
-        $inssIrpf->saveMonthTaxes($this->dates->getInicioProximoMes()->format('Y-m'));
+        $inssIrpf->saveMonthTaxes();
 
         $cofins = new Cofins(
             db: $this->db,
@@ -629,7 +632,8 @@ class ProducaoCooperativista
             documents: $this->documents,
             request: $this->request,
         );
-        $cofins->saveMonthTaxes($this->dates->getInicioProximoMes()->format('Y-m'));
+        $cofins->setTotalNotasClientes($this->getTotalNotasClientes());
+        $cofins->saveMonthTaxes();
 
         $pis = new Pis(
             db: $this->db,
@@ -637,7 +641,8 @@ class ProducaoCooperativista
             documents: $this->documents,
             request: $this->request,
         );
-        $pis->saveMonthTaxes($this->dates->getInicioProximoMes()->format('Y-m'));
+        $pis->setTotalNotasClientes($this->getTotalNotasClientes());
+        $pis->saveMonthTaxes();
 
         $iss = new Iss(
             db: $this->db,
@@ -645,7 +650,8 @@ class ProducaoCooperativista
             documents: $this->documents,
             request: $this->request,
         );
-        $iss->saveMonthTaxes($this->dates->getInicioProximoMes()->format('Y-m'));
+        $iss->setTotalNotasClientes($this->getTotalNotasClientes());
+        $iss->saveMonthTaxes();
     }
 
     /**

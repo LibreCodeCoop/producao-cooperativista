@@ -25,8 +25,20 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service\Akaunting\Document\Taxes;
 
+use UnexpectedValueException;
+
 class Pis extends Tax
 {
     protected string $whoami = 'PIS';
     protected string $readableName = 'PIS';
+
+    protected function setUp(): self
+    {
+        try {
+            $this->getDueAt();
+        } catch (UnexpectedValueException $e) {
+            $this->changeDueAt($this->dates->getDataPagamento());
+        }
+        return parent::setUp();
+    }
 }

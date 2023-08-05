@@ -25,30 +25,36 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service\Akaunting\Document\Taxes;
 
-use Carbon\Carbon;
+use UnexpectedValueException;
 
 class IrpfRetidoNaNota extends Tax
 {
-    protected string $readableName = 'IRRF retido na nota';
-    protected int $quantity = -1;
-    private \DateTime $previsaoResgateSaldoIrpf;
     protected string $whoami = 'IRPF_RETIDO';
+    protected string $readableName = 'IRPF retido na nota';
     protected string $type = 'invoice';
+    protected int $quantity = 1;
 
     protected function setUp(): self
     {
-        $this->calculaPrevisaoPagamentoResgateSaldoIrpf();
+        try {
+            $this->getDueAt();
+        } catch (UnexpectedValueException $e) {
+            $this->changeDueAt(\DateTime::createFromFormat('m', (string) $_ENV['AKAUNTING_RESGATE_SALDO_IRPF_MES_PADRAO']));
+        }
         return parent::setUp();
     }
 
-    private function calculaPrevisaoPagamentoResgateSaldoIrpf(): void
+    public function saveMonthTaxes(): self
     {
-        $mesResgateSaldoIrpf = $_ENV['AKAUNTING_RESGATE_SALDO_IRPF_MES_PADRAO'];
-        $this->previsaoResgateSaldoIrpf = \DateTime::createFromFormat('m', (string) $mesResgateSaldoIrpf)
-            ->modify('first day of this month')
-            ->setTime(00, 00, 00);
-        $carbon = Carbon::parse($this->previsaoResgateSaldoIrpf);
-        $pagamentoNoDiaUtil = 5;
-        $this->previsaoResgateSaldoIrpf = $carbon->addBusinessDays($pagamentoNoDiaUtil);
+        $total = $this->getTotalRetainedOfMonth();
+        $this
+            ->setItem(
+                itemId: (int) $_ENV['AKAUNTING_IMPOSTOS_ITEM_ID'],
+                name: $this->readableName,
+                description: 'Impostos retidos do mês ' . $this->dates->getInicioProximoMes()->format('Y-m'),
+                price: $total * $this->quantity
+            );
+        $this->save();
+        return $this;
     }
 }

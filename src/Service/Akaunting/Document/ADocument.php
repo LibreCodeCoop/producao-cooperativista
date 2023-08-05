@@ -25,6 +25,8 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service\Akaunting\Document;
 
+use DateTime;
+use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
 use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
@@ -34,6 +36,7 @@ use ProducaoCooperativista\Provider\Akaunting\Request;
 use ProducaoCooperativista\Service\Cooperado;
 use ProducaoCooperativista\Service\Akaunting\Source\Documents;
 use Symfony\Component\HttpClient\Exception\ClientException;
+use UnexpectedValueException;
 
 /**
  * @method float getAmount()
@@ -52,8 +55,6 @@ use Symfony\Component\HttpClient\Exception\ClientException;
  * @method self setCurrencyRate(int $value)
  * @method int getCurrencyRate()
  * @method self setDocumentNumber(string $value)
- * @method self setDueAt(string $value)
- * @method string getDueAt()
  * @method self setId(int $value)
  * @method int getId()
  * @method self setIssuedAt(string $value)
@@ -69,6 +70,10 @@ use Symfony\Component\HttpClient\Exception\ClientException;
 abstract class ADocument
 {
     use MagicGetterSetterTrait;
+    protected const ACTION_CREATE = 1;
+    protected const ACTION_UPDATE = 2;
+    protected const ACTION_IGNORE = 3;
+    protected int $action = self::ACTION_IGNORE;
     protected float $amount = 0;
     protected int $categoryId = 0;
     protected int $contactId = 0;
@@ -77,7 +82,7 @@ abstract class ADocument
     protected string $currencyCode = '';
     protected int $currencyRate = 1;
     protected string $documentNumber = '';
-    protected string $dueAt = '';
+    protected ?DateTime $dueAt = null;
     protected int $id = 0;
     protected string $issuedAt = '';
     protected string $search = '';
@@ -85,6 +90,7 @@ abstract class ADocument
     protected string $type = '';
     protected string $whoami = '';
     protected Values $values;
+    protected bool $loadedFromAkaunting = false;
 
     protected array $notes = [];
     protected array $items = [];
@@ -111,13 +117,23 @@ abstract class ADocument
 
     protected function setUp(): self
     {
+        $this->coletaInvoiceNaoPago();
+        return $this;
+    }
+
+    protected function changed(): self
+    {
+        if ($this->action === self::ACTION_CREATE) {
+            return $this;
+        }
+        $this->action = self::ACTION_UPDATE;
         return $this;
     }
 
     protected function getDocumentNumber(): string
     {
         if (empty($this->documentNumber)) {
-            $this->setDocumentNumber(($this->whoami ?? $this->type) . '_' . $this->dates->getDataPagamento()->format('Y-m-d'));
+            $this->setDocumentNumber(($this->whoami ?? $this->type) . '_' . $this->dueAt->format('Y-m-d'));
         }
         return $this->documentNumber;
     }
@@ -133,7 +149,11 @@ abstract class ADocument
 
     public function setNote(string $label, $value): self
     {
-        $this->notes[$label] = $value;
+        $current = $this->notes[$label] ?? null;
+        if ($value !== $current) {
+            $this->changed();
+            $this->notes[$label] = $value;
+        }
         return $this;
     }
 
@@ -173,7 +193,11 @@ abstract class ADocument
             return $i['name'] === $item['name'] && $i['description'] === $item['description'];
         });
         if ($found) {
-            $this->items[key($found)] = array_merge($this->items[key($found)], $item);
+            $items = array_merge($this->items[key($found)], $item);
+            if (array_diff($this->items[key($found)], $items)) {
+                $this->changed();
+                $this->items[key($found)] = $items;
+            }
             return $this;
         }
         $this->items[] = $item;
@@ -203,7 +227,7 @@ abstract class ADocument
             'search' => $this->getSearch(),
             'status' => $this->getStatus(),
             'issued_at' => $this->getIssuedAt(),
-            'due_at' => $this->getDueAt(),
+            'due_at' => $this->getDueAt()->format('Y-m-d H:i:s'),
             'id' => $this->getId(),
             'currency_code' => $this->getCurrencyCode(),
             'currency_rate' => $this->getCurrencyRate(),
@@ -235,6 +259,9 @@ abstract class ADocument
 
     public function save(): self
     {
+        if ($this->action === self::ACTION_IGNORE) {
+            return $this;
+        }
         try {
             if (!$this->getId()) {
                 // Save new
@@ -307,8 +334,43 @@ abstract class ADocument
         return $this;
     }
 
+    protected function coletaInvoiceNaoPago(): self
+    {
+        if ($this->loadedFromAkaunting) {
+            return $this;
+        }
+        $select = new QueryBuilder($this->db->getConnection());
+        $select->select('id')
+            ->addSelect('tax_number')
+            ->addSelect('document_number')
+            ->addSelect('metadata->>"$.status" AS status')
+            ->addSelect('due_at')
+            ->from('invoices')
+            ->where($select->expr()->eq('document_number', $select->createNamedParameter($this->getDocumentNumber())));
+
+        $result = $select->executeQuery();
+        $row = $result->fetchAssociative();
+
+        if (!$row) {
+            $this->action = self::ACTION_CREATE;
+            return $this;
+        }
+
+        if (in_array($row['status'], ['paid', 'cancelled'])) {
+            return $this;
+        }
+
+        $this->setId($row['id'])
+            ->setDueAt($row['due_at'])
+            ->loadFromAkaunting($row['id']);
+        return $this;
+    }
+
     protected function loadFromAkaunting(): void
     {
+        if ($this->loadedFromAkaunting) {
+            return;
+        }
         $response = $this->request->send(
             endpoint: '/api/documents/' . $this->getId(),
             query: [
@@ -329,11 +391,54 @@ abstract class ADocument
                 $this->$methodName($value);
             }
         }
+        $document = $this->documents->fromArray($response['data']);
+        $this->documents->saveRow($document);
+        $this->loadedFromAkaunting = true;
     }
 
     private function camelize(string $text): string
     {
         return lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $text))));
+    }
+
+    private function setDueAt(string $dateTime): self
+    {
+        $dateTime = preg_replace('/-\d{2}:\d{2}$/', '', $dateTime);
+        $dateTime = str_replace('T', ' ', $dateTime);
+        $dateTime = DateTime::createFromFormat('Y-m-d H:i:s', $dateTime);
+
+        return $this->changeDueAt($dateTime);
+    }
+
+    protected function changeDueAt(DateTime $dueAt): self
+    {
+        $current = $this->dueAt;
+        if ($current instanceof DateTime) {
+            $time = $current->format('H:i:s');
+            // A data é zero quando é um item novo
+            if ($time !== '00:00:00' && $current !== $this->dueAt) {
+                $this->changed();
+            }
+        }
+        $this->dueAt = $dueAt;
+        return $this;
+    }
+
+    protected function getDueAt(): DateTime
+    {
+        if (!$this->dueAt instanceof DateTime) {
+            throw new UnexpectedValueException('DueAt não inicializado');
+        }
+        return $this->dueAt;
+    }
+
+    protected function setStatus(string $value): self
+    {
+        if ($value !== 'draft') {
+            $this->action = self::ACTION_IGNORE;
+        }
+        $this->status = $value;
+        return $this;
     }
 
     private function setAmount(): void
@@ -366,7 +471,7 @@ abstract class ADocument
                 continue;
             }
             list($label, $value) = explode(': ', $note);
-            $this->setNote($label, $value);
+            $this->notes[$label] = $value;
         }
         return $this;
     }

@@ -27,6 +27,7 @@ namespace ProducaoCooperativista\Service\Akaunting\Document;
 
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
+use UnexpectedValueException;
 
 class ProducaoCooperativista extends ADocument
 {
@@ -39,6 +40,16 @@ class ProducaoCooperativista extends ADocument
             ->getInssIrpf()
             ->saveFromDocument($this);
         return $this;
+    }
+
+    protected function setUp(): self
+    {
+        try {
+            $this->getDueAt();
+        } catch (UnexpectedValueException $e) {
+            $this->changeDueAt($this->dates->getDataPagamento());
+        }
+        return parent::setUp();
     }
 
     public function updateHealthInsurance(): self
@@ -97,7 +108,6 @@ class ProducaoCooperativista extends ADocument
             ->setCategoryId((int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'])
             ->setStatus('draft')
             ->setIssuedAt($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'))
-            ->setDueAt($this->dates->getDataPagamento()->format('Y-m-d H:i:s'))
             ->setCurrencyCode('BRL')
             ->setNote('Data geração', $this->dates->getDataProcessamento()->format('Y-m-d'))
             ->setNote('Produção realizada no mês', $this->dates->getInicio()->format('Y-m'))
@@ -168,26 +178,5 @@ class ProducaoCooperativista extends ADocument
             );
         }
         return $this;
-    }
-
-    private function coletaInvoiceNaoPago(): void
-    {
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('id')
-            ->addSelect('tax_number')
-            ->addSelect('document_number')
-            ->from('invoices')
-            ->where("type = 'bill'")
-            ->andWhere("category_type = 'expense'")
-            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'], ParameterType::INTEGER)))
-            ->andWhere($select->expr()->in('tax_number', $select->createNamedParameter($this->getContactTaxNumber(), ParameterType::INTEGER)))
-            ->andWhere($select->expr()->eq('document_number', $select->createNamedParameter($this->getDocumentNumber())));
-
-        $result = $select->executeQuery();
-        $row = $result->fetchAssociative();
-        if (!$row) {
-            return;
-        }
-        $this->setId($row['id']);
     }
 }

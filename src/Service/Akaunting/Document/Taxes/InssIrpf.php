@@ -26,6 +26,7 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Service\Akaunting\Document\Taxes;
 
 use ProducaoCooperativista\Service\Akaunting\Document\ADocument;
+use UnexpectedValueException;
 
 class InssIrpf extends Tax
 {
@@ -34,10 +35,19 @@ class InssIrpf extends Tax
     protected int $quantity = -1;
     private ADocument $document;
 
+    protected function setUp(): self
+    {
+        try {
+            $this->getDueAt();
+        } catch (UnexpectedValueException $e) {
+            $this->changeDueAt($this->dates->getDataPagamento());
+        }
+        return parent::setUp();
+    }
+
     public function saveFromDocument(ADocument $document): self
     {
         $this->document = $document;
-        $this->coletaInvoiceNaoPago($this->dates->getInicioProximoMes()->format('Y-m'));
         $this->updateItems();
         $this->save();
         return $this;

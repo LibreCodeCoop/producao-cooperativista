@@ -27,6 +27,7 @@ namespace ProducaoCooperativista\Service\Akaunting\Document;
 
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
+use UnexpectedValueException;
 
 class FRRA extends ADocument
 {
@@ -35,26 +36,12 @@ class FRRA extends ADocument
     protected function setUp(): self
     {
         $this->getValues()->setIsFrra(true);
-        return $this;
-    }
-
-    private function coletaInvoiceNaoPago(): self
-    {
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('id')
-            ->addSelect('tax_number')
-            ->addSelect('document_number')
-            ->from('invoices')
-            ->where($select->expr()->eq('document_number', $select->createNamedParameter($this->getDocumentNumber())));
-
-        $result = $select->executeQuery();
-        $row = $result->fetchAssociative();
-        if (!$row) {
-            return $this;
+        try {
+            $this->getDueAt();
+        } catch (UnexpectedValueException $e) {
+            $this->changeDueAt($this->dates->getPrevisaoPagamentoFrra());
         }
-        $this->setId($row['id'])
-            ->loadFromAkaunting($row['id']);
-        return $this;
+        return parent::setUp();
     }
 
     protected function getDocumentNumber(): string
@@ -141,7 +128,6 @@ class FRRA extends ADocument
             ->setCategoryId((int) $_ENV['AKAUNTING_FRRA_CATEGORY_ID'])
             ->setStatus('draft')
             ->setIssuedAt($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'))
-            ->setDueAt($this->dates->getPrevisaoPagamentoFrra()->format('Y-m-d H:i:s'))
             ->setCurrencyCode('BRL')
             ->setNote('Dia útil padrão de pagamento', sprintf('%sº', $this->dates->getPagamentoNoDiaUtil()))
             ->setNote('Previsão de pagamento no dia', $this->dates->getPrevisaoPagamentoFrra()->format('Y-m-d'))

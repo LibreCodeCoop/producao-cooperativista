@@ -25,8 +25,28 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service\Akaunting\Document\Taxes;
 
+use UnexpectedValueException;
+
 class Iss extends Tax
 {
     protected string $whoami = 'ISS';
     protected string $readableName = 'ISS';
+
+    protected function setUp(): self
+    {
+        try {
+            $this->getDueAt();
+        } catch (UnexpectedValueException $e) {
+            $this->changeDueAt($this->dates->getDataPagamento());
+        }
+        return parent::setUp();
+    }
+
+    private function pegaValorAPagar(): float
+    {
+        $percentualImposto = $this->getPercentualDoImposto();
+        $totalNotas = $this->getTotalNotasClientes();
+        $totalImpostoAPagar = $totalNotas * $percentualImposto / 100;
+        return $totalImpostoAPagar;
+    }
 }

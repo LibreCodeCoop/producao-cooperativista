@@ -58,7 +58,6 @@ class Dates
     ) {
         BusinessDay::enable('Carbon\Carbon', $this->locationHolydays);
         $this->calculaPrevisaoPagamentoFrra();
-        $this->calculaPrevisaoPagamentoResgateSaldoIrpf();
     }
 
     private function calculaPrevisaoPagamentoFrra(): void

@@ -41,13 +41,10 @@ use ProducaoCooperativista\Service\Akaunting\Source\Documents;
  * @method self setDependentes(int $value)
  * @method int getDependentes()
  * @method self setFrra(FRRA $value)
- * @method FRRA getFrra()
  * @method self setProducaoCooperativista(ProducaoCooperativista $value)
- * @method ProducaoCooperativista getProducaoCooperativista()
  * @method self setName(string $value)
  * @method string getName()
  * @method self setInssIrpf(InssIrpf $value)
- * @method InssIrpf getInssIrpf()
  * @method self setTaxNumber(string $value)
  * @method string getTaxNumber()
  */
@@ -71,8 +68,12 @@ class Cooperado
         private Documents $documents,
         private Request $request,
     ) {
+    }
+
+    public function getProducaoCooperativista(): ProducaoCooperativista
+    {
         $this->setProducaoCooperativista(new ProducaoCooperativista(
-            anoFiscal: $anoFiscal,
+            anoFiscal: $this->anoFiscal,
             db: $this->db,
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
@@ -80,9 +81,13 @@ class Cooperado
             cooperado: $this,
             request: $this->request,
         ));
+        return $this->producaoCooperativista;
+    }
 
+    public function getFrra(): FRRA
+    {
         $this->setFrra(new FRRA(
-            anoFiscal: $anoFiscal,
+            anoFiscal: $this->anoFiscal,
             db: $this->db,
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
@@ -90,9 +95,13 @@ class Cooperado
             cooperado: $this,
             request: $this->request,
         ));
+        return $this->frra;
+    }
 
+    public function getInssIrpf(): InssIrpf
+    {
         $this->setInssIrpf(new InssIrpf(
-            anoFiscal: $anoFiscal,
+            anoFiscal: $this->anoFiscal,
             db: $this->db,
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
@@ -100,5 +109,6 @@ class Cooperado
             cooperado: $this,
             request: $this->request,
         ));
+        return $this->inssIrpf;
     }
 }
