@@ -56,9 +56,9 @@ class Cooperado
     private ?int $dependentes = 0;
     private ?string $name = '';
     private ?string $taxNumber = '';
-    private ProducaoCooperativista $producaoCooperativista;
-    private FRRA $frra;
-    private InssIrpf $inssIrpf;
+    private ?ProducaoCooperativista $producaoCooperativista = null;
+    private ?FRRA $frra = null;
+    private ?InssIrpf $inssIrpf = null;
 
     public function __construct(
         private ?int $anoFiscal,
@@ -72,6 +72,9 @@ class Cooperado
 
     public function getProducaoCooperativista(): ProducaoCooperativista
     {
+        if ($this->producaoCooperativista) {
+            return $this->producaoCooperativista;
+        }
         $this->setProducaoCooperativista(new ProducaoCooperativista(
             anoFiscal: $this->anoFiscal,
             db: $this->db,
@@ -86,6 +89,9 @@ class Cooperado
 
     public function getFrra(): FRRA
     {
+        if ($this->frra) {
+            return $this->frra;
+        }
         $this->setFrra(new FRRA(
             anoFiscal: $this->anoFiscal,
             db: $this->db,
@@ -100,6 +106,9 @@ class Cooperado
 
     public function getInssIrpf(): InssIrpf
     {
+        if ($this->inssIrpf) {
+            return $this->inssIrpf;
+        }
         $this->setInssIrpf(new InssIrpf(
             anoFiscal: $this->anoFiscal,
             db: $this->db,
