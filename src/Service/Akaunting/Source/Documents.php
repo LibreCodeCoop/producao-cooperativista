@@ -69,8 +69,13 @@ class Documents
 
         $begin = $this->getDate()
             ->modify('first day of this month');
-        $end = clone $begin;
-        $end = $end->modify('last day of this month');
+        $today = new DateTime();
+        if ($begin->format('m') <= $today->format('m')) {
+            $end = $today->modify('last day of this month');
+        } else {
+            $end = clone $begin;
+            $end = $end->modify('last day of this month');
+        }
 
         $search = [];
         $search[] = 'type:' . $this->getType();
