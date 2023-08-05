@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Provider\Akaunting;
 
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -32,8 +33,9 @@ class Request
 {
     protected HttpClientInterface $client;
 
-    public function __construct()
-    {
+    public function __construct(
+        private LoggerInterface $logger,
+    ) {
         $this->client = HttpClient::create();
     }
 
@@ -49,12 +51,24 @@ class Request
         if (!empty($body)) {
             $options['body'] = $body;
         }
+        $this->logger->debug(sprintf(
+            "Requisição para a API do Akaunting:\n%s",
+            json_encode([
+                'method' => $method,
+                'endpoint' => rtrim($_ENV['AKAUNTING_API_BASE_URL'], '/') . $endpoint,
+                'options' => $options,
+            ])
+        ));
         $result = $this->client->request(
             $method,
             rtrim($_ENV['AKAUNTING_API_BASE_URL'], '/') . $endpoint,
             $options,
         );
         $response = $result->toArray(false);
+        $this->logger->debug(sprintf(
+            "Resposta da API do Akaunting:\n%s",
+            json_encode($response)
+        ));
 
         return $response;
     }
