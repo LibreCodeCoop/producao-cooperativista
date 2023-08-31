@@ -58,6 +58,8 @@ class ProducaoCooperativista
     private array $dispendios = [];
     /** @var Cooperado[] */
     private array $cooperado = [];
+    private array $categoriesList = [];
+    private array $categoriasDispendiosInternos = [];
     private int $totalCooperados = 0;
     private float $totalNotasClientes = 0;
     private float $totalCustoCliente = 0;
@@ -234,29 +236,20 @@ class ProducaoCooperativista
     }
 
     /**
-     * Dispêndios da LibreCode
+     * Dispêndios internos
      *
-     * Desconsidera-se tudo o que é pago entre o bruto do cooperado e o líquido que o cooperado recebe.
-     *
-     * Exemplos:
-     *
-     * * Produção cooperativista (cliente interno)
-     * * "Produção: externa" (pagamento para quem trabalha diretamente para cliente externo)
-     * * "Imposto: Pessoa Física": IRPF, INSS
-     * * Cliente: Todos os custos dos clientes
-     * * "Dispêndio: Cliente": É algo que o cliente pagou, isto nem expense deveria ser
-     * * "Dispêndio: Plano de saúde": Este valor é reembolsado pelo cooperado então não entra para ser dividido por todos
+     * São todos os dispêndios da cooperativa tirando dispêndios do cliente e do cooperado.
      */
     private function getTotalDispendios(): float
     {
         if ($this->totalDispendios) {
             return $this->totalDispendios;
         }
-        $notDispendio = json_decode($_ENV['AKAUNTING_NAO_DISPENDIOS_CATEGORIES'], true);
-        $this->dispendios = array_filter($this->saidas, function ($i) use ($notDispendio): bool {
+        $dispendiosInternos = $this->getIdsDispendiosInternos();
+        $this->dispendios = array_filter($this->saidas, function ($i) use ($dispendiosInternos): bool {
             if ($i['transaction_of_month'] === $this->dates->getInicioProximoMes()->format('Y-m')) {
                 if ($i['archive'] === 0) {
-                    if (!in_array($i['category_name'], $notDispendio)) {
+                    if (in_array($i['category_id'], $dispendiosInternos)) {
                         return true;
                     }
                 }
@@ -266,6 +259,45 @@ class ProducaoCooperativista
         $this->totalDispendios = array_reduce($this->dispendios, fn ($total, $i) => $total += $i['amount'], 0);
         $this->logger->debug('Total dispêndios: {total}', ['total' => $this->totalDispendios]);
         return $this->totalDispendios;
+    }
+
+    private function getIdsDispendiosInternos(): array
+    {
+        if (!empty($this->categoriasDispendiosInternos)) {
+            return $this->categoriasDispendiosInternos;
+        }
+        $this->categoriasDispendiosInternos = $this->getChildrensCategories((int) $_ENV['AKAUNTING_PARENT_DISPENDIOS_INTERNOS_CATEGORY_ID']);
+        return $this->categoriasDispendiosInternos;
+    }
+
+    private function getChildrensCategories(int $id): array
+    {
+        $childrens = [];
+        foreach ($this->getCategories() as $category) {
+            if ($category['parent_id'] === $id) {
+                $childrens[] = $category['id'];
+                $childrens = array_merge($childrens, $this->getChildrensCategories($category['id']));
+            }
+            if ($category['id'] === $id) {
+                $childrens[] = $category['id'];
+            }
+        }
+        return array_values(array_unique($childrens));
+    }
+
+    private function getCategories(): array
+    {
+        if (!empty($this->categoriesList)) {
+            return $this->categoriesList;
+        }
+        $select = new QueryBuilder($this->db->getConnection());
+        $select->select('*')
+            ->from('categories');
+        $result = $select->executeQuery();
+        while ($row = $result->fetchAssociative()) {
+            $this->categoriesList[] = $row;
+        }
+        return $this->categoriesList;
     }
 
     private function getSaidas(): array
