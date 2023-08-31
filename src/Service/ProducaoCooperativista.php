@@ -59,7 +59,6 @@ class ProducaoCooperativista
     /** @var Cooperado[] */
     private array $cooperado = [];
     private array $categoriesList = [];
-    private array $categoriasDispendiosInternos = [];
     private int $totalCooperados = 0;
     private float $totalNotasClientes = 0;
     private float $totalCustoCliente = 0;
@@ -245,7 +244,7 @@ class ProducaoCooperativista
         if ($this->totalDispendios) {
             return $this->totalDispendios;
         }
-        $dispendiosInternos = $this->getIdsDispendiosInternos();
+        $dispendiosInternos = $this->getChildrensCategories((int) $_ENV['AKAUNTING_PARENT_DISPENDIOS_INTERNOS_CATEGORY_ID']);
         $this->dispendios = array_filter($this->saidas, function ($i) use ($dispendiosInternos): bool {
             if ($i['transaction_of_month'] === $this->dates->getInicioProximoMes()->format('Y-m')) {
                 if ($i['archive'] === 0) {
@@ -259,15 +258,6 @@ class ProducaoCooperativista
         $this->totalDispendios = array_reduce($this->dispendios, fn ($total, $i) => $total += $i['amount'], 0);
         $this->logger->debug('Total dispêndios: {total}', ['total' => $this->totalDispendios]);
         return $this->totalDispendios;
-    }
-
-    private function getIdsDispendiosInternos(): array
-    {
-        if (!empty($this->categoriasDispendiosInternos)) {
-            return $this->categoriasDispendiosInternos;
-        }
-        $this->categoriasDispendiosInternos = $this->getChildrensCategories((int) $_ENV['AKAUNTING_PARENT_DISPENDIOS_INTERNOS_CATEGORY_ID']);
-        return $this->categoriasDispendiosInternos;
     }
 
     private function getChildrensCategories(int $id): array
