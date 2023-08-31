@@ -106,12 +106,17 @@ Após executar uma vez e constatar que baixou todos os dados corretamente, você
 O comando principal é composto pela execução independente de cada um dos comandos abaixo que você provavelmente não precisará usar:
 
 ```bash
-./bin/import get:customers --database
-./bin/import get:nfse --database --ano-mes=2022-09
-./bin/import get:projects --database
-./bin/import get:timesheet --database --year-month=2022-09
-./bin/import get:transactions --database --year-month=2022-09
-./bin/import get:users --database
+Available commands:
+ get
+  get:categories                     Get categories
+  get:customers                      Get customers
+  get:invoices                       Get invoices
+  get:nfse                           Get NFSe
+  get:projects                       Get projects
+  get:taxes                          Get taxes
+  get:timesheets                     Get timesheets
+  get:transactions                   Get transactions
+  get:users                          Get users
 ```
 
 ## Logs
