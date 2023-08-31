@@ -33,6 +33,7 @@ use Doctrine\ORM\Tools\Console\ConsoleRunner as DoctrineOrmConsoleRunner;
 use Doctrine\ORM\Tools\Console\EntityManagerProvider\SingleManagerProvider;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
+use ProducaoCooperativista\Command\GetCategoriesCommand;
 use ProducaoCooperativista\Command\GetCustomersCommand;
 use ProducaoCooperativista\Command\GetInvoicesCommand;
 use ProducaoCooperativista\Command\GetNfseCommand;
@@ -87,6 +88,7 @@ $application->addCommands([
     $container->get(GetProjectsCommand::class),
     $container->get(GetTimesheetsCommand::class),
     $container->get(GetTransactionsCommand::class),
+    $container->get(GetCategoriesCommand::class),
     $container->get(GetTaxesCommand::class),
     $container->get(GetUsersCommand::class),
     $container->get(MakeProducaoCommand::class),

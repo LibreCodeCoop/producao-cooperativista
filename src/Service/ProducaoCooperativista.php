@@ -37,6 +37,7 @@ use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Cofins;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\IrpfRetidoNaNota;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Iss;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Pis;
+use ProducaoCooperativista\Service\Akaunting\Source\Categories;
 use ProducaoCooperativista\Service\Akaunting\Source\Documents;
 use ProducaoCooperativista\Service\Akaunting\Source\Taxes;
 use ProducaoCooperativista\Service\Akaunting\Source\Transactions;
@@ -80,6 +81,7 @@ class ProducaoCooperativista
         private Users $users,
         private Request $request,
         private NumberFormatter $numberFormatter,
+        private Categories $categories,
         private Taxes $taxes,
         public Dates $dates,
     ) {
@@ -156,6 +158,7 @@ class ProducaoCooperativista
         $this->transactions
             ->setDate($this->dates->getInicioProximoMes())
             ->saveList();
+        $this->categories->saveList();
         $this->taxes->saveList();
         $this->users->saveList();
     }
