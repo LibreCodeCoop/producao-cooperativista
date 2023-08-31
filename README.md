@@ -91,7 +91,7 @@ Options:
       --database                               Save to default database
       --previsao                               Previsão de cálculo e não o valor real com base nas NFSe.
       --ano-mes=ANO-MES                        Ano e mês para gerar a produção cooperativista, formato: YYYY-mm
-      --dias-uteis=DIAS-UTEIS                  Total de dias úteis no mês trabalhado
+      --dias-uteis=DIAS-UTEIS                  Total de dias úteis no mês trabalhado. Se não informar, irá calcular com base nos dias úteis de um mês considerando apenas feriados nacionais.
       --dia-util-pagamento=DIA-UTIL-PAGAMENTO  Número ordinal do dia útil quando o pagamento será feito [default: 5]
       --percentual-maximo=PERCENTUAL-MAXIMO    Percentual máximo para pagamento de dispêndios [default: 25]
       --baixar-dados=BAIXAR-DADOS              Acessa todas as bases externas e atualiza o banco de dados local. Valores: 1 = sim, 0 = não. [default: 1]

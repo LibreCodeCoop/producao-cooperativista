@@ -65,7 +65,7 @@ class MakeProducaoCommand extends BaseCommand
                 'dias-uteis',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'Total de dias úteis no mês trabalhado'
+                'Total de dias úteis no mês trabalhado. Se não informar, irá calcular com base nos dias úteis de um mês considerando apenas feriados nacionais.'
             )
             ->addOption(
                 'dia-util-pagamento',
