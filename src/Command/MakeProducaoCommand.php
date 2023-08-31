@@ -92,7 +92,7 @@ class MakeProducaoCommand extends BaseCommand
                 'atualiza-producao',
                 null,
                 InputOption::VALUE_NONE,
-                'Atualiza a produção cooperativista'
+                'Atualiza a produção cooperativista no Akaunting'
             )
             ->addOption(
                 'ods',
