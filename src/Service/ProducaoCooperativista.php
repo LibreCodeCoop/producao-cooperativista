@@ -363,8 +363,8 @@ class ProducaoCooperativista
     private function getEntradasClientes(): array
     {
         $this->atualizaEntradas();
-        $categoriasNotasClientes = json_decode($_ENV['AKAUNTING_NOTAS_CLIENTES_CATEGORIES']);
-        $entradasClientes = array_filter($this->entradas, fn ($i) => in_array($i['category_name'], $categoriasNotasClientes));
+        $categoriasEntradasClientes = $this->getChildrensCategories((int) $_ENV['AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID']);
+        $entradasClientes = array_filter($this->entradas, fn ($i) => in_array($i['category_id'], $categoriasEntradasClientes));
         return $entradasClientes;
     }
 
@@ -399,7 +399,8 @@ class ProducaoCooperativista
         if ($this->custosPorCliente) {
             return $this->custosPorCliente;
         }
-        $this->custosPorCliente = array_filter($this->saidas, fn ($i) => $i['category_id'] === (int) $_ENV['AKAUNTING_DISPENDIOS_CLIENTE_CATEGORY_ID']);
+        $categoriasCustosClientes = $this->getChildrensCategories((int) $_ENV['AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID']);
+        $this->custosPorCliente = array_filter($this->saidas, fn ($i) => in_array($i['category_id'], $categoriasCustosClientes));
         $this->logger->debug('Custos por clientes: {json}', ['json' => json_encode($this->custosPorCliente)]);
         return $this->custosPorCliente;
     }
