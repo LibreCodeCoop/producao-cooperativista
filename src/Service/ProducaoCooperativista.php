@@ -169,6 +169,8 @@ class ProducaoCooperativista
         if ($this->totalSegundosLibreCode) {
             return $this->totalSegundosLibreCode;
         }
+        $cnpjClientesInternos = explode(',', $_ENV['CNPJ_CLIENTES_INTERNOS']);
+        $cnpjClientesInternos = "'" . implode("','", $cnpjClientesInternos) . "'";
         $stmt = $this->db->getConnection()->prepare(
             <<<SQL
             -- Total horas LibreCode
@@ -179,7 +181,7 @@ class ProducaoCooperativista
                 JOIN users u ON u.id = t.user_id
             WHERE t.`begin` >= :inicio
                 AND t.`end` <= :fim
-                AND c.name = 'LibreCode'
+                AND c.vat_id IN ($cnpjClientesInternos)
                 AND u.enabled = 1
             GROUP BY c.name
             SQL
