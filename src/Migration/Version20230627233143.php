@@ -49,6 +49,7 @@ final class Version20230627233143 extends AbstractMigration
         $table->addColumn('billable', 'smallint');
         $table->addColumn('color', 'string', ['length' => 7, 'notnull' => false]);
         $table->addColumn('global_activities', 'smallint');
+        $table->addColumn('time_budget', 'bigint');
         $table->setPrimaryKey(['id']);
     }
 

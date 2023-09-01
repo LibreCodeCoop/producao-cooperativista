@@ -57,4 +57,6 @@ class Projects
     private string $color;
     #[Column(type: 'smallint')]
     private int $globalActivities;
+    #[Column(type: 'bigint')]
+    private ?int $timeBudget;
 }

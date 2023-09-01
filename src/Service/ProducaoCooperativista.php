@@ -26,6 +26,7 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Service;
 
 use DateTime;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
@@ -507,55 +508,53 @@ class ProducaoCooperativista
             return $this->percentualTrabalhadoPorCliente;
         }
         $contabilizaveis = $this->clientesContabilizaveis();
-        $cnpjContabilizaveis = "'" . implode("','", $contabilizaveis) . "'";
-        $stmt = $this->db->getConnection()->prepare(
-            <<<SQL
-            -- Percentual trabalhado por cliente
-            SELECT u.alias,
-                u.tax_number,
-                u.dependents,
-                u.akaunting_contact_id,
-                c.id as customer_id,
-                c.name,
-                c.vat_id as customer_reference,
-                COALESCE(sum(t.duration), 0) * 100 / total_cliente.total AS percentual_trabalhado
-            FROM customers c
-            JOIN projects p ON p.customer_id = c.id
-            JOIN timesheet t ON t.project_id = p.id
-            JOIN users u ON u.id = t.user_id
-            JOIN (
-                -- Total minutos a faturar por cliente
-                SELECT c.id as customer_id,
-                    c.name,
-                    c.vat_id,
-                    CASE WHEN sum(t.duration) > c.time_budget THEN sum(t.duration)
-                            ELSE c.time_budget
-                            END as total
-                FROM customers c
-                JOIN projects p ON p.customer_id = c.id
-                JOIN timesheet t ON t.project_id = p.id AND t.`begin` >= :data_inicio AND t.`end` <= :data_fim
-                JOIN users u2 ON u2.id = t.user_id
-                WHERE c.vat_id IN ($cnpjContabilizaveis)
-                GROUP BY c.id,
-                        c.name,
-                        c.vat_id
-                ) total_cliente ON total_cliente.customer_id = c.id
-            WHERE t.`begin` >= :data_inicio
-            AND t.`end` <= :data_fim
-            GROUP BY u.alias,
-                    u.tax_number,
-                    u.dependents,
-                    u.akaunting_contact_id,
-                    c.id,
-                    c.name,
-                    c.vat_id
-            ORDER BY c.id,
-                    u.alias
-            SQL
-        );
-        $stmt->bindValue('data_inicio', $this->dates->getInicio()->format('Y-m-d'));
-        $stmt->bindValue('data_fim', $this->dates->getFim()->format('Y-m-d H:i:s'));
-        $result = $stmt->executeQuery();
+
+        $qb = new QueryBuilder($this->db->getConnection());
+        $subQuery = new QueryBuilder($this->db->getConnection());
+        $subQuery->select('c.vat_id')
+            ->addSelect('c.id')
+            ->addSelect(str_replace("\n", ' ', <<<SQL
+                CASE WHEN SUM(t.duration) > SUM(p.time_budget) AND SUM(t.duration) > c.time_budget THEN SUM(t.duration)
+                    WHEN SUM(p.time_budget) > c.time_budget THEN SUM(p.time_budget)
+                    ELSE c.time_budget
+                END as total
+                SQL
+            ))
+            ->from('customers', 'c')
+            ->join('c', 'projects', 'p', $subQuery->expr()->eq('p.customer_id', 'c.id'))
+            ->join('p', 'timesheet', 't', $subQuery->expr()->eq('t.project_Id', 'p.id'))
+            ->where($subQuery->expr()->in('c.vat_id', $qb->createNamedParameter($contabilizaveis, ArrayParameterType::STRING)))
+            ->andWhere($subQuery->expr()->gte('t.begin', $qb->createNamedParameter($this->dates->getInicio()->format('Y-m-d'))))
+            ->andWhere($subQuery->expr()->lte('t.begin', $qb->createNamedParameter($this->dates->getFim()->format('Y-m-d H:i:s'))))
+            ->groupBy('c.vat_id')
+            ->addGroupBy('c.id');
+
+        $qb->select('u.alias')
+            ->addSelect('u.tax_number')
+            ->addSelect('u.dependents')
+            ->addSelect('u.akaunting_contact_id')
+            ->addSelect('c.id as customer_id')
+            ->addSelect('c.name')
+            ->addSelect('c.vat_id as customer_reference')
+            ->addSelect('COALESCE(sum(t.duration), 0) * 100 / total_cliente.total as percentual_trabalhado')
+            ->from('customers', 'c')
+            ->join('c', '(' . $subQuery->getSQL() . ')', 'total_cliente', 'c.id = total_cliente.id')
+            ->join('c', 'projects', 'p', $qb->expr()->eq('p.customer_id', 'c.id'))
+            ->join('p', 'timesheet', 't', $qb->expr()->eq('t.project_Id', 'p.id'))
+            ->join('t', 'users', 'u', $qb->expr()->eq('t.user_id', 'u.id'))
+            ->where($qb->expr()->in('c.vat_id', $qb->createNamedParameter($contabilizaveis, ArrayParameterType::STRING)))
+            ->andWhere($qb->expr()->gte('t.begin', $qb->createNamedParameter($this->dates->getInicio()->format('Y-m-d'))))
+            ->andWhere($qb->expr()->lte('t.begin', $qb->createNamedParameter($this->dates->getFim()->format('Y-m-d H:i:s'))))
+            ->groupBy('u.alias')
+            ->addGroupBy('u.tax_number')
+            ->addGroupBy('u.dependents')
+            ->addGroupBy('u.akaunting_contact_id')
+            ->addGroupBy('c.id')
+            ->addGroupBy('c.name')
+            ->addGroupBy('c.vat_id')
+            ->orderBy('c.id')
+            ->addOrderBy('u.alias');
+        $result = $qb->executeQuery();
         $this->percentualTrabalhadoPorCliente = [];
         while ($row = $result->fetchAssociative()) {
             if (!$row['customer_reference']) {
