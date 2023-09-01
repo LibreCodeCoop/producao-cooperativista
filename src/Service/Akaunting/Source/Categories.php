@@ -32,14 +32,14 @@ use ProducaoCooperativista\Provider\Akaunting\Dataset;
 use Psr\Log\LoggerInterface;
 
 /**
- * @method self setCompanyId(int $value)
- * @method int getCompanyId()
  * @method self setName(string $value)
  * @method string getName()
- * @method self setRate(float $value)
- * @method float getRate()
+ * @method self setType(string $value)
+ * @method string getType()
  * @method self setEnabled(int $value)
  * @method int getEnabled()
+ * @method self setParentId(int $value)
+ * @method int getParentId();
  * @method self setMetadata(string $value)
  * @method string getMetadata()
  */
