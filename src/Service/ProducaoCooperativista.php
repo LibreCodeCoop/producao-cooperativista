@@ -510,22 +510,36 @@ class ProducaoCooperativista
         $contabilizaveis = $this->clientesContabilizaveis();
 
         $qb = new QueryBuilder($this->db->getConnection());
+
+        $projetosAtivosNoMes = new QueryBuilder($this->db->getConnection());
+        $projetosAtivosNoMes->select('c.id as customer_id')
+            ->addSelect('sum(p.time_budget) as time_budget')
+            ->from('customers', 'c')
+            ->join('c', 'projects', 'p', $projetosAtivosNoMes->expr()->eq('p.customer_id', 'c.id'))
+            ->where(
+                $projetosAtivosNoMes->expr()->or(
+                    'p.start IS NULL',
+                    $projetosAtivosNoMes->expr()->lte('p.start', $qb->createNamedParameter($this->dates->getFim()->format('Y-m-d H:i:s')))
+                )
+            )
+            ->groupBy('c.id');
+
         $subQuery = new QueryBuilder($this->db->getConnection());
         $subQuery->select('c.vat_id')
             ->addSelect('c.id')
             ->addSelect(str_replace("\n", ' ', <<<SQL
-                CASE WHEN SUM(t.duration) > SUM(p.time_budget) AND SUM(t.duration) > c.time_budget THEN SUM(t.duration)
-                    WHEN SUM(p.time_budget) > c.time_budget THEN SUM(p.time_budget)
+                CASE WHEN SUM(t.duration) > project_time_budget.time_budget AND SUM(t.duration) > c.time_budget THEN SUM(t.duration)
+                    WHEN project_time_budget.time_budget > c.time_budget THEN project_time_budget.time_budget
                     ELSE c.time_budget
                 END as total
                 SQL
             ))
             ->from('customers', 'c')
+            ->join('c', '(' . $projetosAtivosNoMes->getSQL() . ')', 'project_time_budget', $subQuery->expr()->eq('project_time_budget.customer_id', 'c.id'))
             ->join('c', 'projects', 'p', $subQuery->expr()->eq('p.customer_id', 'c.id'))
-            ->join('p', 'timesheet', 't', $subQuery->expr()->eq('t.project_Id', 'p.id'))
-            ->where($subQuery->expr()->in('c.vat_id', $qb->createNamedParameter($contabilizaveis, ArrayParameterType::STRING)))
-            ->andWhere($subQuery->expr()->gte('t.begin', $qb->createNamedParameter($this->dates->getInicio()->format('Y-m-d'))))
-            ->andWhere($subQuery->expr()->lte('t.begin', $qb->createNamedParameter($this->dates->getFim()->format('Y-m-d H:i:s'))))
+            ->join('project_time_budget', 'timesheet', 't', $subQuery->expr()->eq('t.project_Id', 'p.id'))
+            ->where($subQuery->expr()->gte('t.begin', $qb->createNamedParameter($this->dates->getInicio()->format('Y-m-d'))))
+            ->andWhere($subQuery->expr()->lte('t.end', $qb->createNamedParameter($this->dates->getFim()->format('Y-m-d H:i:s'))))
             ->groupBy('c.vat_id')
             ->addGroupBy('c.id');
 
@@ -544,7 +558,7 @@ class ProducaoCooperativista
             ->join('t', 'users', 'u', $qb->expr()->eq('t.user_id', 'u.id'))
             ->where($qb->expr()->in('c.vat_id', $qb->createNamedParameter($contabilizaveis, ArrayParameterType::STRING)))
             ->andWhere($qb->expr()->gte('t.begin', $qb->createNamedParameter($this->dates->getInicio()->format('Y-m-d'))))
-            ->andWhere($qb->expr()->lte('t.begin', $qb->createNamedParameter($this->dates->getFim()->format('Y-m-d H:i:s'))))
+            ->andWhere($qb->expr()->lte('t.end', $qb->createNamedParameter($this->dates->getFim()->format('Y-m-d H:i:s'))))
             ->groupBy('u.alias')
             ->addGroupBy('u.tax_number')
             ->addGroupBy('u.dependents')
