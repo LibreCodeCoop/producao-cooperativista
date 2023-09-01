@@ -20,6 +20,15 @@ Calcular o bruto da produção cooperativista por cooperado com base em dados co
   * Receitas
     * Toda transação com nota fiscal emitida pela LibreCode deve conter o número da nota fiscal no campo `referência`.
     * Sempre que for receita vinda de cliente deve possuir a categoria `Recorrência` ou `Serviço`
+  * Divisão de sobras
+    * Criar uma fatura com categoria `Cliente > Interno > Cooperado > Produção > Distribuição de sobras`
+    * Colocar o cliente como `LibreCode` (é um cliente interno)
+    * Inserir um item "Bruto produção" e remover a descrição padrão
+    * No valor do item, inserir o valor que será dividido
+    * Na nota, colocar o motivo da divisão de sobras
+    * Criar a fatura
+    * Marcar fatura como enviada
+    * Cancelar fatura. Após cancelada, a fatura não será contabilizada no mês mas será considerado o valor dela para distribuição de sobras.
   * Custos
     * Categorizar transação de saída como `Cliente (custo)` quando forem custos de clientes
     * Sempre que for custo reembolsável pelo cliente, adicionar `<cpf/CNPJ>|<setor>` na transação no campo `Referência` para que seja possível identificar qual cliente deverá reembolsar este custo de entrada. Lembrar de acrescentar o setor sempre que necessário.
