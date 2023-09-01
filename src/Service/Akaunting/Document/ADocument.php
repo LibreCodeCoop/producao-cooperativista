@@ -199,6 +199,8 @@ abstract class ADocument
                 $this->items[key($found)] = $items;
             }
             return $this;
+        } else {
+            $this->changed();
         }
         $this->items[] = $item;
         return $this;
