@@ -182,7 +182,6 @@ class ProducaoCooperativista
             WHERE t.`begin` >= :inicio
                 AND t.`end` <= :fim
                 AND c.vat_id IN ($cnpjClientesInternos)
-                AND u.enabled = 1
             GROUP BY c.name
             SQL
         );
@@ -214,7 +213,6 @@ class ProducaoCooperativista
                 JOIN users u ON u.id = t.user_id 
             WHERE t.`begin` >= :inicio
                 AND t.`end` <= :fim
-                AND u.enabled = 1
             SQL
         );
         $result = $stmt->executeQuery([
@@ -537,15 +535,13 @@ class ProducaoCooperativista
                 JOIN projects p ON p.customer_id = c.id
                 JOIN timesheet t ON t.project_id = p.id AND t.`begin` >= :data_inicio AND t.`end` <= :data_fim
                 JOIN users u2 ON u2.id = t.user_id
-                WHERE u2.enabled = 1
-                AND c.vat_id IN ($cnpjContabilizaveis)
+                WHERE c.vat_id IN ($cnpjContabilizaveis)
                 GROUP BY c.id,
                         c.name,
                         c.vat_id
                 ) total_cliente ON total_cliente.customer_id = c.id
             WHERE t.`begin` >= :data_inicio
             AND t.`end` <= :data_fim
-            AND u.enabled = 1
             GROUP BY u.alias,
                     u.tax_number,
                     u.dependents,
@@ -795,16 +791,15 @@ class ProducaoCooperativista
 
     private function getTotalSobrasDistribuidasNoMes(): float
     {
-        $total = array_reduce($this->entradas, function (float $total, array $i): float {
-            if ($i['category_id'] === (int) $_ENV['AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID']) {
-                if ($i['archive'] === 0) {
-                    if ($i['transaction_of_month'] === $this->dates->getInicioProximoMes()->format('Y-m')) {
-                        $total += $i['amount'];
-                    }
-                }
-            }
-            return $total;
-        }, 0);
+        $qb = new QueryBuilder($this->db->getConnection());
+        $qb->select('SUM(i.amount) AS total')
+            ->from('invoices', 'i')
+            ->where($qb->expr()->eq('transaction_of_month', $qb->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))))
+            ->andWhere($qb->expr()->eq('i.type', $qb->createNamedParameter('invoice')))
+            ->andWhere($qb->expr()->eq('i.archive', $qb->createNamedParameter(0), ParameterType::INTEGER))
+            ->andWhere($qb->expr()->eq('i.category_id', $qb->createNamedParameter($_ENV['AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID']), ParameterType::INTEGER));
+        $result = $qb->executeQuery();
+        $total = $result->fetchOne();
         return $total;
     }
 
