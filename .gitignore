@@ -9,3 +9,4 @@ cookies.json
 .php-cs-fixer.cache
 .~lock.*#
 .phpunit.cache
+clover.xml
