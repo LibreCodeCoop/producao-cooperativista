@@ -8,3 +8,4 @@ cookies.json
 /*.ods
 .php-cs-fixer.cache
 .~lock.*#
+.phpunit.cache
