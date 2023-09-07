@@ -527,7 +527,10 @@ class ProducaoCooperativista
         $subQuery = new QueryBuilder($this->db->getConnection());
         $subQuery->select('c.vat_id')
             ->addSelect('c.id')
-            ->addSelect(str_replace("\n", ' ', <<<SQL
+            ->addSelect(str_replace(
+                "\n",
+                ' ',
+                <<<SQL
                 CASE WHEN SUM(t.duration) > project_time_budget.time_budget AND SUM(t.duration) > c.time_budget THEN SUM(t.duration)
                     WHEN project_time_budget.time_budget > c.time_budget THEN project_time_budget.time_budget
                     ELSE c.time_budget
