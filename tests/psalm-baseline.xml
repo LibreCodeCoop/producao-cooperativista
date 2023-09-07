@@ -1,0 +1,467 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<files psalm-version="5.14.1@b9d355e0829c397b9b3b47d0c0ed042a8a70284d">
+  <file src="src/Command/GetCategoriesCommand.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Command/GetCustomersCommand.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Command/GetInvoicesCommand.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Command/GetNfseCommand.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Command/GetProjectsCommand.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Command/GetTaxesCommand.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Command/GetTimesheetsCommand.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Command/GetTransactionsCommand.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Command/GetUsersCommand.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Command/MakeProducaoCommand.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/DB/Database.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/DB/Entity/Categories.php">
+    <UnusedProperty>
+      <code>$enabled</code>
+      <code>$id</code>
+      <code>$metadata</code>
+      <code>$name</code>
+      <code>$parentId</code>
+      <code>$type</code>
+    </UnusedProperty>
+  </file>
+  <file src="src/DB/Entity/Customers.php">
+    <UnusedClass>
+      <code>Customers</code>
+    </UnusedClass>
+  </file>
+  <file src="src/DB/Entity/Invoices.php">
+    <UnusedProperty>
+      <code>$amount</code>
+      <code>$archive</code>
+      <code>$categoryId</code>
+      <code>$categoryName</code>
+      <code>$categoryType</code>
+      <code>$contactId</code>
+      <code>$contactName</code>
+      <code>$contactReference</code>
+      <code>$contactType</code>
+      <code>$currencyCode</code>
+      <code>$customerReference</code>
+      <code>$documentNumber</code>
+      <code>$dueAt</code>
+      <code>$id</code>
+      <code>$issuedAt</code>
+      <code>$metadata</code>
+      <code>$nfse</code>
+      <code>$taxNumber</code>
+      <code>$transactionOfMonth</code>
+      <code>$type</code>
+    </UnusedProperty>
+  </file>
+  <file src="src/DB/Entity/Nfse.php">
+    <UnusedClass>
+      <code>Nfse</code>
+    </UnusedClass>
+  </file>
+  <file src="src/DB/Entity/Projects.php">
+    <UnusedClass>
+      <code>Projects</code>
+    </UnusedClass>
+  </file>
+  <file src="src/DB/Entity/Taxes.php">
+    <UnusedProperty>
+      <code>$enabled</code>
+      <code>$id</code>
+      <code>$metadata</code>
+      <code>$name</code>
+      <code>$rate</code>
+    </UnusedProperty>
+  </file>
+  <file src="src/DB/Entity/Timesheet.php">
+    <UnusedClass>
+      <code>Timesheet</code>
+    </UnusedClass>
+  </file>
+  <file src="src/DB/Entity/Transactions.php">
+    <UnusedProperty>
+      <code>$amount</code>
+      <code>$archive</code>
+      <code>$categoryId</code>
+      <code>$categoryName</code>
+      <code>$categoryType</code>
+      <code>$contactId</code>
+      <code>$contactName</code>
+      <code>$contactReference</code>
+      <code>$contactType</code>
+      <code>$currencyCode</code>
+      <code>$customerReference</code>
+      <code>$id</code>
+      <code>$metadata</code>
+      <code>$nfse</code>
+      <code>$paidAt</code>
+      <code>$reference</code>
+      <code>$taxNumber</code>
+      <code>$transactionOfMonth</code>
+      <code>$type</code>
+    </UnusedProperty>
+  </file>
+  <file src="src/DB/Entity/Users.php">
+    <UnusedProperty>
+      <code>$akauntingContactId</code>
+      <code>$alias</code>
+      <code>$dependents</code>
+      <code>$enabled</code>
+      <code>$id</code>
+      <code>$kimaiUsername</code>
+      <code>$metadata</code>
+      <code>$taxNumber</code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Helper/Dates.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+    <UnusedProperty>
+      <code>$fim</code>
+      <code>$fimProximoMes</code>
+      <code>$inicio</code>
+      <code>$locationHolydays</code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Migration/Version20230627231539.php">
+    <UnusedClass>
+      <code>Version20230627231539</code>
+    </UnusedClass>
+  </file>
+  <file src="src/Migration/Version20230627233140.php">
+    <UnusedClass>
+      <code>Version20230627233140</code>
+    </UnusedClass>
+  </file>
+  <file src="src/Migration/Version20230627233141.php">
+    <UnusedClass>
+      <code>Version20230627233141</code>
+    </UnusedClass>
+  </file>
+  <file src="src/Migration/Version20230627233142.php">
+    <UnusedClass>
+      <code>Version20230627233142</code>
+    </UnusedClass>
+  </file>
+  <file src="src/Migration/Version20230627233143.php">
+    <UnusedClass>
+      <code>Version20230627233143</code>
+    </UnusedClass>
+  </file>
+  <file src="src/Migration/Version20230627233144.php">
+    <UnusedClass>
+      <code>Version20230627233144</code>
+    </UnusedClass>
+  </file>
+  <file src="src/Migration/Version20230627233146.php">
+    <UnusedClass>
+      <code>Version20230627233146</code>
+    </UnusedClass>
+  </file>
+  <file src="src/Migration/Version20230627233147.php">
+    <UnusedClass>
+      <code>Version20230627233147</code>
+    </UnusedClass>
+  </file>
+  <file src="src/Migration/Version20230803185730.php">
+    <UnusedClass>
+      <code>Version20230803185730</code>
+    </UnusedClass>
+  </file>
+  <file src="src/Migration/Version20230831175700.php">
+    <UnusedClass>
+      <code>Version20230831175700</code>
+    </UnusedClass>
+  </file>
+  <file src="src/Provider/Akaunting/Dataset.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Provider/Akaunting/Request.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Service/Akaunting/Document/ADocument.php">
+    <PossiblyUnusedProperty>
+      <code>$amount</code>
+      <code>$anoFiscal</code>
+      <code>$categoryId</code>
+      <code>$contactId</code>
+      <code>$contactName</code>
+      <code>$contactTaxNumber</code>
+      <code>$cooperado</code>
+      <code>$currencyCode</code>
+      <code>$currencyRate</code>
+      <code>$id</code>
+      <code>$issuedAt</code>
+      <code>$status</code>
+    </PossiblyUnusedProperty>
+  </file>
+  <file src="src/Service/Akaunting/Document/FRRA.php">
+    <PossiblyUnusedReturnValue>
+      <code>self</code>
+    </PossiblyUnusedReturnValue>
+  </file>
+  <file src="src/Service/Akaunting/Document/ProducaoCooperativista.php">
+    <InvalidReturnStatement>
+      <code>$return</code>
+    </InvalidReturnStatement>
+    <InvalidReturnType>
+      <code>self</code>
+    </InvalidReturnType>
+    <PossiblyUnusedReturnValue>
+      <code>self</code>
+    </PossiblyUnusedReturnValue>
+  </file>
+  <file src="src/Service/Akaunting/Document/Taxes/Cofins.php">
+    <PossiblyUnusedReturnValue>
+      <code>self</code>
+    </PossiblyUnusedReturnValue>
+  </file>
+  <file src="src/Service/Akaunting/Document/Taxes/InssIrpf.php">
+    <PossiblyUnusedReturnValue>
+      <code>self</code>
+    </PossiblyUnusedReturnValue>
+  </file>
+  <file src="src/Service/Akaunting/Document/Taxes/IrpfRetidoNaNota.php">
+    <PossiblyUnusedReturnValue>
+      <code>self</code>
+    </PossiblyUnusedReturnValue>
+  </file>
+  <file src="src/Service/Akaunting/Document/Taxes/Iss.php">
+    <PossiblyUnusedReturnValue>
+      <code>self</code>
+    </PossiblyUnusedReturnValue>
+  </file>
+  <file src="src/Service/Akaunting/Document/Taxes/Pis.php">
+    <PossiblyUnusedReturnValue>
+      <code>self</code>
+    </PossiblyUnusedReturnValue>
+  </file>
+  <file src="src/Service/Akaunting/Document/Taxes/Tax.php">
+    <FalsableReturnStatement>
+      <code>$percentual</code>
+    </FalsableReturnStatement>
+    <PossiblyUnusedProperty>
+      <code>$totalNotasClientes</code>
+    </PossiblyUnusedProperty>
+  </file>
+  <file src="src/Service/Akaunting/Document/Values.php">
+    <UnusedProperty>
+      <code>$auxilio</code>
+      <code>$baseIrpf</code>
+      <code>$bruto</code>
+      <code>$cooperado</code>
+      <code>$documentNumber</code>
+      <code>$frra</code>
+      <code>$frraDocumentNumber</code>
+      <code>$healthInsurance</code>
+      <code>$inss</code>
+      <code>$irpf</code>
+      <code>$liquido</code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Service/Akaunting/Source/Categories.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+    <PossiblyUnusedReturnValue>
+      <code>array</code>
+    </PossiblyUnusedReturnValue>
+    <UnusedProperty>
+      <code>$companyId</code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Service/Akaunting/Source/Documents.php">
+    <InvalidReturnStatement>
+      <code><![CDATA[$this->list[$this->getType()]]]></code>
+      <code><![CDATA[$this->list[$this->getType()] ?? []]]></code>
+    </InvalidReturnStatement>
+    <InvalidReturnType>
+      <code>array</code>
+    </InvalidReturnType>
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+    <UnusedProperty>
+      <code>$companyId</code>
+      <code>$type</code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Service/Akaunting/Source/Taxes.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+    <UnusedProperty>
+      <code>$companyId</code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Service/Akaunting/Source/Transactions.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+    <UnusedProperty>
+      <code>$categoryId</code>
+      <code>$companyId</code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Service/Cooperado.php">
+    <InvalidNullableReturnType>
+      <code>FRRA</code>
+      <code>InssIrpf</code>
+      <code>ProducaoCooperativista</code>
+    </InvalidNullableReturnType>
+    <NullableReturnStatement>
+      <code><![CDATA[$this->frra]]></code>
+      <code><![CDATA[$this->inssIrpf]]></code>
+      <code><![CDATA[$this->producaoCooperativista]]></code>
+    </NullableReturnStatement>
+    <UnusedProperty>
+      <code>$akauntingContactId</code>
+      <code>$dependentes</code>
+      <code>$name</code>
+      <code>$taxNumber</code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Service/Kimai/Source/Customers.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Service/Kimai/Source/Projects.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Service/Kimai/Source/Timesheets.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Service/Kimai/Source/Users.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+      <code>updateDatabase</code>
+    </PossiblyUnusedMethod>
+    <UnusedDocblockParam>
+      <code>$visible</code>
+    </UnusedDocblockParam>
+  </file>
+  <file src="src/Service/ProducaoCooperativista.php">
+    <FalsableReturnStatement>
+      <code>$total</code>
+    </FalsableReturnStatement>
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+    <UnevaluatedCode>
+      <code><![CDATA[$cooperados = $this->getProducaoCooperativista();]]></code>
+      <code><![CDATA[$producao = $spreadsheet->getSheetByName('mês')
+            ->setTitle($this->dates->getInicio()->format('Y-m'));]]></code>
+      <code>$reader = new \PhpOffice\PhpSpreadsheet\Reader\Ods();</code>
+      <code>$row = 4;</code>
+      <code><![CDATA[$spreadsheet = $reader->load(__DIR__ . '/../assets/base.ods');]]></code>
+      <code><![CDATA[$spreadsheet->createSheet()
+            ->setTitle('Trabalhado por cliente')
+            ->fromArray(['Cooperado', 'Cliente', 'Percentual trabalhado', 'cliente codigo', 'customer id'])
+            ->fromArray($this->getPercentualTrabalhadoPorCliente(), null, 'A2');]]></code>
+      <code><![CDATA[$spreadsheet->createSheet()
+            ->setTitle('Valores por projeto')
+            ->fromArray(['Cliente', 'referência', 'valor do serviço', 'impostos', 'total dos custos', 'base producao'])
+            ->fromArray([]/*$this->getValoresPorProjeto()*/, null, 'A2');]]></code>
+      <code><![CDATA[$spreadsheet->createSheet()
+        ->fromArray(['Código cliente', 'Custo', 'Fornecedor'])
+        ->setTitle('Custo por cliente')
+            ->fromArray($this->getCustosPorCliente(), null, 'A2');]]></code>
+      <code><![CDATA[$spreadsheet->getSheetByName('valores calculados')
+            ->setCellValue('B1', $this->dates->getInicio()->format('Y-m-d H:i:s'))
+            ->setCellValue('B2', $this->dates->getFim()->format('Y-m-d H:i:s'))
+            ->setCellValue('B3', $this->dates->getInicioProximoMes()->format('Y-m-d H:i:s'))
+            ->setCellValue('B4', $this->dates->getFimProximoMes()->format('Y-m-d H:i:s'))
+            ->setCellValue('B5', $this->getTotalCooperados())
+            ->setCellValue('B6', $this->getTotalNotasClientes())
+            ->setCellValue('B7', $this->getTotalCustoCliente())
+            ->setCellValue('B8', $this->getTotalSegundosLibreCode() / 60 / 60)
+            ->setCellValue('B9', $this->percentualLibreCode())
+            ->setCellValue('B10', $this->percentualDispendios())
+            ->setCellValue('B11', $this->getPercentualDesconto());]]></code>
+      <code>$writer = new \PhpOffice\PhpSpreadsheet\Writer\Ods($spreadsheet);</code>
+      <code><![CDATA[$writer->save($this->dates->getInicio()->format('Y-m-d') . '.ods');]]></code>
+      <code><![CDATA[foreach ($cooperados as $cooperado) {
+            $producao->setCellValue('A' . $row, $cooperado->getName());
+            $producao->setCellValue('N' . $row, $cooperado->getName());
+            $producao->setCellValue('O' . $row, 'Produção cooperativista');
+            $producao->setCellValue('P' . $row, $cooperado->getBaseProducao());
+            $producao->setCellValue('Q' . $row, 1);
+            $row++;
+        }]]></code>
+      <code><![CDATA[if ($row < 35) {
+            for ($i = $row;$i<=35;$i++) {
+                $producao->setCellValue('A' . $i, '');
+                $producao->setCellValue('N' . $i, '');
+                $producao->setCellValue('O' . $i, '');
+                $producao->setCellValue('P' . $i, '');
+                $producao->setCellValue('Q' . $i, '');
+            }
+        }]]></code>
+    </UnevaluatedCode>
+    <UnusedProperty>
+      <code>$valoresPorProjeto</code>
+    </UnusedProperty>
+    <UnusedReturnValue>
+      <code>array</code>
+    </UnusedReturnValue>
+    <UnusedVariable>
+      <code>$carry</code>
+      <code>$total</code>
+    </UnusedVariable>
+  </file>
+  <file src="src/Service/Source/Nfse.php">
+    <PossiblyUnusedMethod>
+      <code>__construct</code>
+    </PossiblyUnusedMethod>
+  </file>
+</files>
