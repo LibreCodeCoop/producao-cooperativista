@@ -69,10 +69,10 @@ class Documents
         }
         $this->logger->debug('Baixando dados de invoices');
 
-        $begin = $this->getDate()
+        $begin = (clone $this->getDate())
             ->modify('first day of this month');
-        $this->dates->setInicio($begin);
-        $end = $this->dates->getPrevisaoPagamentoFrra()->modify('last day of this month');
+        $end = (clone $this->dates->getPrevisaoPagamentoFrra())
+            ->modify('last day of this month');
 
         $search = [];
         $search[] = 'type:' . $this->getType();
