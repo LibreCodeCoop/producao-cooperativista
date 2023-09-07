@@ -29,6 +29,7 @@ use DateTime;
 use Exception;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\DB\Entity\Invoices;
+use ProducaoCooperativista\Helper\Dates;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 use ProducaoCooperativista\Provider\Akaunting\Dataset;
 use ProducaoCooperativista\Provider\Akaunting\ParseText;
@@ -55,6 +56,7 @@ class Documents
         private LoggerInterface $logger,
         private ParseText $parseText,
         private Dataset $dataset,
+        private Dates $dates,
     ) {
         $this->type = 'invoice';
         $this->companyId = (int) $_ENV['AKAUNTING_COMPANY_ID'];
@@ -69,13 +71,8 @@ class Documents
 
         $begin = $this->getDate()
             ->modify('first day of this month');
-        $today = new DateTime();
-        if ($begin->format('m') <= $today->format('m')) {
-            $end = $today->modify('last day of this month');
-        } else {
-            $end = clone $begin;
-            $end = $end->modify('last day of this month');
-        }
+        $this->dates->setInicio($begin);
+        $end = $this->dates->getPrevisaoPagamentoFrra()->modify('last day of this month');
 
         $search = [];
         $search[] = 'type:' . $this->getType();
