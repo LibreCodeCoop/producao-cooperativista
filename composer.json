@@ -59,6 +59,7 @@
         "post-update-cmd": [
             "@composer bin all update --ansi",
             "composer dump-autoload"
-        ]
+        ],
+        "test:unit": "vendor-bin/unit/vendor/bin/phpunit -c tests/php/phpunit.xml --color --fail-on-warning --fail-on-risky"
     }
 }

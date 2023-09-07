@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  bootstrap="../../src/bootstrap.php"
+  timeoutForSmallTests="900"
+  timeoutForMediumTests="900"
+  timeoutForLargeTests="900"
+  xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.3/phpunit.xsd"
+  cacheDirectory=".phpunit.cache"
+  >
+  <testsuite name="Produção Cooperativista Tests">
+    <directory suffix="Test.php">.</directory>
+  </testsuite>
+  <coverage>
+    <!-- filters for code coverage -->
+    <report>
+      <!-- and this is where your report will be written -->
+      <clover outputFile="./clover.xml"/>
+    </report>
+  </coverage>
+  <logging>
+  </logging>
+  <source>
+    <include>
+      <directory suffix=".php">../../bin</directory>
+      <directory suffix=".php">../../config</directory>
+      <directory suffix=".php">../../src</directory>
+    </include>
+  </source>
+</phpunit>
