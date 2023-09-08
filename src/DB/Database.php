@@ -54,11 +54,7 @@ class Database
         $config->setMiddlewares([$logMiddleware]);
 
         $this->connection[self::DB_LOCAL] = DriverManager::getConnection([
-            'dbname' => $_ENV['DB_NAME'],
-            'user' => $_ENV['DB_USER'],
-            'password' => $_ENV['DB_PASSWORD'],
-            'host' => $_ENV['DB_HOST'],
-            'driver' => $_ENV['DB_ADAPTER'],
+            'url' => $_ENV['DB_URL'],
         ], $config);
 
         $configOrm = ORMSetup::createAttributeMetadataConfiguration(['src/DB/Entity']);
@@ -70,11 +66,7 @@ class Database
         );
 
         $this->connection[self::DB_AKAUNTING] = DriverManager::getConnection([
-            'dbname' => $_ENV['DB_AKAUNTING_NAME'],
-            'user' => $_ENV['DB_AKAUNTING_USER'],
-            'password' => $_ENV['DB_AKAUNTING_PASSWORD'],
-            'host' => $_ENV['DB_AKAUNTING_HOST'],
-            'driver' => $_ENV['DB_AKAUNTING_ADAPTER'],
+            'url' => $_ENV['DB_URL_AKAUNTING'],
         ], $config);
     }
 
