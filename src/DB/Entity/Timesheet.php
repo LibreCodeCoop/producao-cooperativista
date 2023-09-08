@@ -54,7 +54,7 @@ class Timesheet
     #[Column]
     private float $rate;
     #[Column]
-    private float $internalrate;
+    private float $internalRate;
     #[Column(type: 'smallint')]
     private int $exported;
     #[Column(type: 'smallint')]
