@@ -29,10 +29,13 @@ use Doctrine\ORM\Mapping\Column;
 use Doctrine\ORM\Mapping\Entity;
 use Doctrine\ORM\Mapping\GeneratedValue;
 use Doctrine\ORM\Mapping\Id;
+use ProducaoCooperativista\DB\Entity as DBEntity;
+use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 
 #[Entity]
-class Projects
+class Projects extends DBEntity
 {
+    use MagicGetterSetterTrait;
     #[Id]
     #[Column(insertable: true, options: ['unsigned' => true])]
     #[GeneratedValue(strategy: 'AUTO')]
