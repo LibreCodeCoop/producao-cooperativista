@@ -44,17 +44,17 @@ class Projects
     #[Column(length: 150)]
     private string $name;
     #[Column(nullable: true)]
-    private \DateTime $start;
+    private ?\DateTime $start;
     #[Column(nullable: true)]
-    private \DateTime $end;
+    private ?\DateTime $end;
     #[Column(type: 'text', nullable: true)]
-    private string $comment;
+    private ?string $comment;
     #[Column(type: 'smallint')]
     private int $visible;
     #[Column(type: 'smallint')]
     private int $billable;
     #[Column(nullable: true, length: 7)]
-    private string $color;
+    private ?string $color;
     #[Column(type: 'smallint')]
     private int $globalActivities;
     #[Column(type: 'bigint')]
