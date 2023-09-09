@@ -816,7 +816,7 @@ class ProducaoCooperativista
             ->andWhere($qb->expr()->eq('i.category_id', $qb->createNamedParameter($_ENV['AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID']), ParameterType::INTEGER));
         $result = $qb->executeQuery();
         $total = $result->fetchOne();
-        return $total;
+        return (float) $total;
     }
 
     public function exportToCsv(): string
