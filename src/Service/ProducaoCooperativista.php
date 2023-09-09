@@ -822,6 +822,9 @@ class ProducaoCooperativista
     public function exportToCsv(): string
     {
         $list = $this->getProducaoCooperativista();
+        if (!count($list)) {
+            return '';
+        }
         // header
         $cooperado = current($list);
         $output[] = $this->csvstr(array_keys($cooperado->getProducaoCooperativista()->getValues()->toArray()));
