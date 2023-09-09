@@ -103,6 +103,13 @@ class Documents
         return $entity;
     }
 
+    public function setType(string $value): self
+    {
+        $this->list = [];
+        $this->type = $value;
+        return $this;
+    }
+
     public function saveList(): self
     {
         $this->getList();
