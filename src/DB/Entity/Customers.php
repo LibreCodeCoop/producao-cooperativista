@@ -38,7 +38,6 @@ class Customers extends DBEntity
     use MagicGetterSetterTrait;
     #[Id]
     #[Column(insertable: true, options: ['unsigned' => true])]
-    #[GeneratedValue(strategy: 'AUTO')]
     private int $id;
     #[Column(length: 150)]
     private string $name;

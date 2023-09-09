@@ -38,7 +38,6 @@ class Timesheet extends DBEntity
     use MagicGetterSetterTrait;
     #[Id]
     #[Column(insertable: true, type: 'bigint', options: ['unsigned' => true])]
-    #[GeneratedValue(strategy: 'AUTO')]
     private int $id;
     #[Column(type: 'bigint', options: ['unsigned' => true])]
     private int $activityId;
