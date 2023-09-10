@@ -103,6 +103,7 @@ class Users
 
     public function fromArray(array $array): EntityUsers
     {
+        $array = $this->updateFromUserPreferences($array);
         $array = $this->updateWithDataFromSpreadsheet($array);
         $array = $this->updateWithAkauntingData($array);
         $array = $this->convertFields($array);
@@ -112,6 +113,24 @@ class Users
         }
         $entity->fromArray($array);
         return $entity;
+    }
+
+    private function updateFromUserPreferences(array $item): array
+    {
+        $detailed = $this->doRequestKimai('/api/users/' . $item['id']);
+        $preferences = array_column($detailed['preferences'], 'value', 'name');
+        $item['kimai_username'] = $item['username'];
+        if (!$item['alias']) {
+            $item['alias'] = $item['username'];
+        }
+        $item['email'] = $preferences['email'];
+        if ($preferences['tax_number'] !== '') {
+            $item['tax_number'] = $preferences['tax_number'];
+        }
+        if ($preferences['dependents'] !== '') {
+            $item['dependents'] = (int) $preferences['dependents'];
+        }
+        return $item;
     }
 
     private function updateWithAkauntingData(array $item): array
@@ -124,7 +143,7 @@ class Users
             ->from('contacts', 'c')
             ->where($select->expr()->or(
                 $select->expr()->eq('tax_number', $select->createNamedParameter($item['tax_number'])),
-                $select->expr()->eq('email', $select->createNamedParameter($item['corporate_mail'])),
+                $select->expr()->eq('email', $select->createNamedParameter($item['email'])),
             ))
             ->andWhere('deleted_at IS NULL')
             ->andWhere($select->expr()->in('type', $select->createNamedParameter(['vendor', 'employee'], ArrayParameterType::STRING)))
@@ -135,7 +154,7 @@ class Users
             return $item;
         }
 
-        if ($item['corporate_mail'] === $row['email']
+        if ($item['email'] === $row['email']
             || ($item['tax_number'] === $row['tax_number'])
             || ($item['kimai_username'] === $row['email'])
         ) {
@@ -146,7 +165,10 @@ class Users
 
     private function updateWithDataFromSpreadsheet(array $row): array
     {
-        $username = $row['kimai_username'] = $row['username'];
+        if (isset($row['tax_number'], $row['dependents'])) {
+            return $row;
+        }
+        $username = $row['username'];
         unset($row['username']);
 
         $csv = $this->getSpreadsheet();
@@ -156,15 +178,19 @@ class Users
         }
         $rowFromCsv = current($rowFromCsv);
 
-        if (empty($rowFromCsv['CPF'])) {
-            throw new \Exception('Usuário na planilha não possui CPF');
+        if (empty($row['tax_number'])) {
+            if (empty($rowFromCsv['CPF'])) {
+                throw new \Exception('Usuário na planilha não possui CPF');
+            }
+            $row['tax_number'] = $rowFromCsv['CPF'];
         }
-        if (empty($rowFromCsv['Email corporativo'])) {
-            throw new \Exception('Usuário na planilha não possui email corporativo');
+        if (empty($row['dependents'])) {
+            if (empty($rowFromCsv['Email corporativo'])) {
+                throw new \Exception('Usuário na planilha não possui email corporativo');
+            }
+            $row['dependents'] = $rowFromCsv['Dependentes'] ?? 0;
         }
-        $row['tax_number'] = $rowFromCsv['CPF'];
-        $row['dependents'] = $rowFromCsv['Dependentes'] ?? 0;
-        $row['corporate_mail'] = $rowFromCsv['Email corporativo'] ?? 0;
+        $row['email'] = $rowFromCsv['Email corporativo'] ?? 0;
 
         return $row;
     }
