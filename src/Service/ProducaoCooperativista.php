@@ -120,8 +120,11 @@ class ProducaoCooperativista
             $taxaAdministrativa = $taxaMinima;
         }
 
-        $this->percentualDispendios = $taxaAdministrativa / ($this->getBaseCalculoDispendios()) * 100;
-        return $this->percentualDispendios;
+        if ($this->getBaseCalculoDispendios()) {
+            $this->percentualDispendios = $taxaAdministrativa / ($this->getBaseCalculoDispendios()) * 100;
+            return $this->percentualDispendios;
+        }
+        return 0;
     }
 
     /**
