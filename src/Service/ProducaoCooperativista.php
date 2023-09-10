@@ -56,6 +56,7 @@ class ProducaoCooperativista
     private array $percentualTrabalhadoPorCliente = [];
     private array $entradas = [];
     private array $saidas = [];
+    private array $movimentacao = [];
     private array $dispendios = [];
     /** @var Cooperado[] */
     private array $cooperado = [];
@@ -299,16 +300,24 @@ class ProducaoCooperativista
         if ($this->saidas) {
             return $this->saidas;
         }
+        $movimetnacao = $this->getMovimentacaoFinanceira();
+        $this->saidas = array_filter($movimetnacao, fn ($i) => $i['category_type'] === 'expense');
+        return $this->saidas;
+    }
+
+    private function getMovimentacaoFinanceira(): array
+    {
+        if ($this->movimentacao) {
+            return $this->movimentacao;
+        }
         if ($this->previsao) {
             $stmt = $this->db->getConnection()->prepare(
                 <<<SQL
                 -- Saídas
                 SELECT *
                     FROM invoices i
-                WHERE i.type = 'bill'
-                    AND transaction_of_month = :ano_mes
+                WHERE transaction_of_month = :ano_mes
                     AND archive = 0
-                    AND category_type = 'expense'
                 SQL
             );
         } else {
@@ -319,7 +328,6 @@ class ProducaoCooperativista
                     FROM transactions t
                 WHERE transaction_of_month = :ano_mes
                     AND archive = 0
-                    AND category_type = 'expense'
                 SQL
             );
         }
@@ -331,12 +339,12 @@ class ProducaoCooperativista
             if (empty($row['customer_reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['customer_reference'])) {
                 $errors[] = $row;
             }
-            $this->saidas[] = $row;
+            $this->movimentacao[] = $row;
         }
 
         if (count($errors)) {
             throw new Exception(sprintf(
-                "Código de cliente inválido na transação de saída no Akaunting.\n" .
+                "Código de cliente inválido na movimentação do Akaunting.\n" .
                 "Intervalo: %s a %s\n" .
                 "Dados:\n%s",
                 $this->dates->getInicioProximoMes()->format('Y-m-d'),
@@ -345,8 +353,8 @@ class ProducaoCooperativista
             ));
         }
 
-        $this->logger->debug('Saídas', [$this->saidas]);
-        return $this->saidas;
+        $this->logger->debug('Movimentação', [$this->movimentacao]);
+        return $this->movimentacao;
     }
 
     /**
@@ -444,52 +452,8 @@ class ProducaoCooperativista
         if ($this->entradas) {
             return;
         }
-
-        if ($this->previsao) {
-            $stmt = $this->db->getConnection()->prepare(
-                <<<SQL
-                -- Entradas
-                SELECT 'invoices' as 'table',
-                    i.*
-                FROM invoices i
-                WHERE transaction_of_month = :ano_mes
-                AND i.type = 'invoice'
-                AND archive = 0
-                SQL
-            );
-        } else {
-            $stmt = $this->db->getConnection()->prepare(
-                <<<SQL
-                -- Entradas
-                SELECT 'transactions' as 'table',
-                    t.*
-                FROM transactions t
-                WHERE transaction_of_month = :ano_mes
-                AND t.category_type = 'income'
-                AND archive = 0
-                SQL
-            );
-        }
-        $result = $stmt->executeQuery([
-            'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m'),
-        ]);
-        $errorsSemContactReference = [];
-        while ($row = $result->fetchAssociative()) {
-            if (empty($row['customer_reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['customer_reference'])) {
-                $errorsSemContactReference[] = $row;
-            }
-
-            $this->entradas[] = $row;
-        }
-        if (count($errorsSemContactReference)) {
-            throw new Exception(
-                "Cliente da transação não possui referência de contato válida no Akaunting.\n" .
-                "Dados: \n" .
-                json_encode($errorsSemContactReference, JSON_PRETTY_PRINT)
-            );
-        }
-
-        $this->logger->debug('Entradas no mês', [json_encode($this->entradas)]);
+        $movimetnacao = $this->getMovimentacaoFinanceira();
+        $this->entradas = array_filter($movimetnacao, fn ($i) => $i['category_type'] === 'income');
         return;
     }
 
