@@ -1,0 +1,4 @@
+"id","parent_title","customer_id","name","start","end","comment","visible","billable","color","global_activities","time_budget"
+1,Cliente 01,1,Projeto cliente 01,,,,1,1,,1,180000
+2,Cliente 02,2,Projeto Cliente 02,,,,1,1,,1,0
+3,Cliente interno,3,Projeto Cliente Interno,,,,1,1,,1,0
