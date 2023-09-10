@@ -1,0 +1,4 @@
+"id","name","number","comment","visible","billable","currency","color","vat_id","time_budget"
+1,Cliente 01,"0001",,1,1,BRL,,"00000000000191",0
+2,Cliente 02,"0002",,1,1,BRL,,"00000000000272",180000
+3,Cliente interno,"0003",,1,1,BRL,,"00000000000000",0

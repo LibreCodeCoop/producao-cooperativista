@@ -1,4 +1,3 @@
-#!/usr/bin/env php
 <?php
 /**
  * @copyright Copyright (c) 2023, Vitor Mattos <vitor@php.rio>
@@ -22,10 +21,25 @@
  *
  */
 
-if (PHP_SAPI !== 'cli') {
-    echo 'Warning: Should be invoked via the CLI version of PHP, not the '.PHP_SAPI.' SAPI'.PHP_EOL;
+declare(strict_types=1);
+
+use DI\Container;
+use Symfony\Component\Console\Application;
+
+// $_ENV['DB_URL'] = 'pdo-sqlite:///:memory:';
+// $_ENV['DB_URL_AKAUNTING'] = 'pdo-sqlite:///:memory:';
+
+require __DIR__ . '/../../src/bootstrap.php';
+
+class ApplicationSingleton
+{
+    public static Application $instance;
+    public static Container $container;
+    public function __construct($instance, $container)
+    {
+        self::$instance = $instance;
+        self::$container = $container;
+    }
 }
 
-require __DIR__.'/../src/bootstrap.php';
-
-$application->run();
+new ApplicationSingleton($application, $container);

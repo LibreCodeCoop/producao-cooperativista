@@ -46,7 +46,9 @@ class Entity
                 }
                 $varType = get_debug_type($value);
                 if ($varType !== $propertyType) {
-                    if ($varType !== 'null') {
+                    if ($propertyType === 'array' && $varType === 'string') {
+                        $value = json_decode($value, true);
+                    } elseif ($varType !== 'null') {
                         settype($value, $propertyType);
                     }
                 }

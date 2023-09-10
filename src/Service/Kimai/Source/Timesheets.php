@@ -99,7 +99,7 @@ class Timesheets
                     ->set('duration', $update->createNamedParameter($row['duration'], ParameterType::INTEGER))
                     ->set('description', $update->createNamedParameter($row['description']))
                     ->set('rate', $update->createNamedParameter($row['rate'], Types::FLOAT))
-                    ->set('internalRate', $update->createNamedParameter($row['internalRate'], Types::FLOAT))
+                    ->set('internal_rate', $update->createNamedParameter($row['internalRate'], Types::FLOAT))
                     ->set('exported', $update->createNamedParameter($row['exported'], ParameterType::INTEGER))
                     ->set('billable', $update->createNamedParameter($row['billable'], ParameterType::INTEGER))
                     ->where($update->expr()->eq('id', $update->createNamedParameter($row['id'], ParameterType::INTEGER)))
@@ -117,7 +117,7 @@ class Timesheets
                     'duration' => $insert->createNamedParameter($row['duration'], ParameterType::INTEGER),
                     'description' => $insert->createNamedParameter($row['description']),
                     'rate' => $insert->createNamedParameter($row['rate'], Types::FLOAT),
-                    'internalRate' => $insert->createNamedParameter($row['internalRate'], Types::FLOAT),
+                    'internal_rate' => $insert->createNamedParameter($row['internalRate'], Types::FLOAT),
                     'exported' => $insert->createNamedParameter($row['exported'], ParameterType::INTEGER),
                     'billable' => $insert->createNamedParameter($row['billable'], ParameterType::INTEGER),
                 ])
@@ -130,7 +130,7 @@ class Timesheets
         if (!$date) {
             return null;
         }
-        $date = preg_replace('/-\d{4}$/', '', $date);
+        $date = preg_replace('/[-\+]\d{4}$/', '', $date);
         $date = str_replace('T', ' ', $date);
         $date = DateTime::createFromFormat('Y-m-d H:i:s', $date);
         return $date;

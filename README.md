@@ -20,6 +20,15 @@ Calcular o bruto da produção cooperativista por cooperado com base em dados co
   * Receitas
     * Toda transação com nota fiscal emitida pela LibreCode deve conter o número da nota fiscal no campo `referência`.
     * Sempre que for receita vinda de cliente deve possuir a categoria `Recorrência` ou `Serviço`
+  * Divisão de sobras
+    * Criar uma fatura com categoria `Cliente > Interno > Cooperado > Produção > Distribuição de sobras`
+    * Colocar o cliente como `LibreCode` (é um cliente interno)
+    * Inserir um item "Bruto produção" e remover a descrição padrão
+    * No valor do item, inserir o valor que será dividido
+    * Na nota, colocar o motivo da divisão de sobras
+    * Criar a fatura
+    * Marcar fatura como enviada
+    * Cancelar fatura. Após cancelada, a fatura não será contabilizada no mês mas será considerado o valor dela para distribuição de sobras.
   * Custos
     * Categorizar transação de saída como `Cliente (custo)` quando forem custos de clientes
     * Sempre que for custo reembolsável pelo cliente, adicionar `<cpf/CNPJ>|<setor>` na transação no campo `Referência` para que seja possível identificar qual cliente deverá reembolsar este custo de entrada. Lembrar de acrescentar o setor sempre que necessário.
@@ -87,17 +96,17 @@ Usage:
   make:producao [options]
 
 Options:
-      --csv                                  To output as CSV
-      --database                             Save to default database
-      --previsao                             Previsão de cálculo e não o valor real com base nas NFSe.
-      --ano-mes=ANO-MES                      Ano e mês para gerar a produção cooperativista, formato: YYYY-mm
-      --dias-uteis=DIAS-UTEIS                Total de dias úteis no mês trabalhado [default: 22]
-      --percentual-maximo=PERCENTUAL-MAXIMO  Percentual máximo para pagamento de dispêndios [default: 25]
-      --baixar-dados=BAIXAR-DADOS            Acessa todas as bases externas e atualiza o banco de dados local. Valores: 1 = sim, 0 = não. [default: 1]
-      --cadastrar-producao                   Cadastra a produção cooperativista
-      --ods                                  To output as ods
+      --csv                                    To output as CSV
+      --database                               Save to default database
+      --previsao                               Previsão de cálculo e não o valor real com base nas NFSe.
+      --ano-mes=ANO-MES                        Ano e mês para gerar a produção cooperativista, formato: YYYY-mm
+      --dias-uteis=DIAS-UTEIS                  Total de dias úteis no mês trabalhado. Se não informar, irá calcular com base nos dias úteis de um mês considerando apenas feriados nacionais.
+      --dia-util-pagamento=DIA-UTIL-PAGAMENTO  Número ordinal do dia útil quando o pagamento será feito [default: 5]
+      --percentual-maximo=PERCENTUAL-MAXIMO    Percentual máximo para pagamento de dispêndios [default: 25]
+      --baixar-dados=BAIXAR-DADOS              Acessa todas as bases externas e atualiza o banco de dados local. Valores: 1 = sim, 0 = não. [default: 1]
+      --atualiza-producao                      Atualiza a produção cooperativista no Akaunting
+      --ods                                    To output as ods
 ```
-> OBS: Este comando não salva o cálculo em lugar algum pois estes dados devem ser inseridos no sistema utilizado para gerar a produção de cada mês.
 
 `--baixar-dados=0`
 
@@ -106,12 +115,17 @@ Após executar uma vez e constatar que baixou todos os dados corretamente, você
 O comando principal é composto pela execução independente de cada um dos comandos abaixo que você provavelmente não precisará usar:
 
 ```bash
-./bin/import get:customers --database
-./bin/import get:nfse --database --ano-mes=2022-09
-./bin/import get:projects --database
-./bin/import get:timesheet --database --year-month=2022-09
-./bin/import get:transactions --database --year-month=2022-09
-./bin/import get:users --database
+Available commands:
+ get
+  get:categories                     Get categories
+  get:customers                      Get customers
+  get:invoices                       Get invoices
+  get:nfse                           Get NFSe
+  get:projects                       Get projects
+  get:taxes                          Get taxes
+  get:timesheets                     Get timesheets
+  get:transactions                   Get transactions
+  get:users                          Get users
 ```
 
 ## Logs

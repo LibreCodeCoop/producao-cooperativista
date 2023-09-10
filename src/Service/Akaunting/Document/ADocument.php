@@ -185,8 +185,8 @@ abstract class ADocument
             return $this;
         }
         $item['total'] = ($total > 0 ? $total : $item['price']) * $item['quantity'];
-        $item['price'] = round($item['price']);
-        $item['total'] = round($item['total']);
+        $item['price'] = round($item['price'], 2);
+        $item['total'] = round($item['total'], 2);
         $item['discount'] = $discount;
         $item['order'] = $order;
         $found = array_filter($this->items, function (array $i) use ($item): bool {
@@ -199,6 +199,8 @@ abstract class ADocument
                 $this->items[key($found)] = $items;
             }
             return $this;
+        } else {
+            $this->changed();
         }
         $this->items[] = $item;
         return $this;

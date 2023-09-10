@@ -26,6 +26,7 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Service;
 
 use DateTime;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
@@ -37,6 +38,7 @@ use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Cofins;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\IrpfRetidoNaNota;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Iss;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Pis;
+use ProducaoCooperativista\Service\Akaunting\Source\Categories;
 use ProducaoCooperativista\Service\Akaunting\Source\Documents;
 use ProducaoCooperativista\Service\Akaunting\Source\Taxes;
 use ProducaoCooperativista\Service\Akaunting\Source\Transactions;
@@ -57,6 +59,7 @@ class ProducaoCooperativista
     private array $dispendios = [];
     /** @var Cooperado[] */
     private array $cooperado = [];
+    private array $categoriesList = [];
     private int $totalCooperados = 0;
     private float $totalNotasClientes = 0;
     private float $totalCustoCliente = 0;
@@ -80,6 +83,7 @@ class ProducaoCooperativista
         private Users $users,
         private Request $request,
         private NumberFormatter $numberFormatter,
+        private Categories $categories,
         private Taxes $taxes,
         public Dates $dates,
     ) {
@@ -116,8 +120,11 @@ class ProducaoCooperativista
             $taxaAdministrativa = $taxaMinima;
         }
 
-        $this->percentualDispendios = $taxaAdministrativa / ($this->getBaseCalculoDispendios()) * 100;
-        return $this->percentualDispendios;
+        if ($this->getBaseCalculoDispendios()) {
+            $this->percentualDispendios = $taxaAdministrativa / ($this->getBaseCalculoDispendios()) * 100;
+            return $this->percentualDispendios;
+        }
+        return 0;
     }
 
     /**
@@ -156,6 +163,7 @@ class ProducaoCooperativista
         $this->transactions
             ->setDate($this->dates->getInicioProximoMes())
             ->saveList();
+        $this->categories->saveList();
         $this->taxes->saveList();
         $this->users->saveList();
     }
@@ -165,6 +173,8 @@ class ProducaoCooperativista
         if ($this->totalSegundosLibreCode) {
             return $this->totalSegundosLibreCode;
         }
+        $cnpjClientesInternos = explode(',', $_ENV['CNPJ_CLIENTES_INTERNOS']);
+        $cnpjClientesInternos = "'" . implode("','", $cnpjClientesInternos) . "'";
         $stmt = $this->db->getConnection()->prepare(
             <<<SQL
             -- Total horas LibreCode
@@ -175,8 +185,7 @@ class ProducaoCooperativista
                 JOIN users u ON u.id = t.user_id
             WHERE t.`begin` >= :inicio
                 AND t.`end` <= :fim
-                AND c.name = 'LibreCode'
-                AND u.enabled = 1
+                AND c.vat_id IN ($cnpjClientesInternos)
             GROUP BY c.name
             SQL
         );
@@ -208,7 +217,6 @@ class ProducaoCooperativista
                 JOIN users u ON u.id = t.user_id 
             WHERE t.`begin` >= :inicio
                 AND t.`end` <= :fim
-                AND u.enabled = 1
             SQL
         );
         $result = $stmt->executeQuery([
@@ -231,29 +239,20 @@ class ProducaoCooperativista
     }
 
     /**
-     * Dispêndios da LibreCode
+     * Dispêndios internos
      *
-     * Desconsidera-se tudo o que é pago entre o bruto do cooperado e o líquido que o cooperado recebe.
-     *
-     * Exemplos:
-     *
-     * * Produção cooperativista (cliente interno)
-     * * "Produção: externa" (pagamento para quem trabalha diretamente para cliente externo)
-     * * "Imposto: Pessoa Física": IRPF, INSS
-     * * Cliente: Todos os custos dos clientes
-     * * "Dispêndio: Cliente": É algo que o cliente pagou, isto nem expense deveria ser
-     * * "Dispêndio: Plano de saúde": Este valor é reembolsado pelo cooperado então não entra para ser dividido por todos
+     * São todos os dispêndios da cooperativa tirando dispêndios do cliente e do cooperado.
      */
     private function getTotalDispendios(): float
     {
         if ($this->totalDispendios) {
             return $this->totalDispendios;
         }
-        $notDispendio = json_decode($_ENV['AKAUNTING_NAO_DISPENDIOS_CATEGORIES'], true);
-        $this->dispendios = array_filter($this->saidas, function ($i) use ($notDispendio): bool {
+        $dispendiosInternos = $this->getChildrensCategories((int) $_ENV['AKAUNTING_PARENT_DISPENDIOS_INTERNOS_CATEGORY_ID']);
+        $this->dispendios = array_filter($this->saidas, function ($i) use ($dispendiosInternos): bool {
             if ($i['transaction_of_month'] === $this->dates->getInicioProximoMes()->format('Y-m')) {
                 if ($i['archive'] === 0) {
-                    if (!in_array($i['category_name'], $notDispendio)) {
+                    if (in_array($i['category_id'], $dispendiosInternos)) {
                         return true;
                     }
                 }
@@ -263,6 +262,36 @@ class ProducaoCooperativista
         $this->totalDispendios = array_reduce($this->dispendios, fn ($total, $i) => $total += $i['amount'], 0);
         $this->logger->debug('Total dispêndios: {total}', ['total' => $this->totalDispendios]);
         return $this->totalDispendios;
+    }
+
+    private function getChildrensCategories(int $id): array
+    {
+        $childrens = [];
+        foreach ($this->getCategories() as $category) {
+            if ($category['parent_id'] === $id) {
+                $childrens[] = $category['id'];
+                $childrens = array_merge($childrens, $this->getChildrensCategories($category['id']));
+            }
+            if ($category['id'] === $id) {
+                $childrens[] = $category['id'];
+            }
+        }
+        return array_values(array_unique($childrens));
+    }
+
+    private function getCategories(): array
+    {
+        if (!empty($this->categoriesList)) {
+            return $this->categoriesList;
+        }
+        $select = new QueryBuilder($this->db->getConnection());
+        $select->select('*')
+            ->from('categories');
+        $result = $select->executeQuery();
+        while ($row = $result->fetchAssociative()) {
+            $this->categoriesList[] = $row;
+        }
+        return $this->categoriesList;
     }
 
     private function getSaidas(): array
@@ -338,8 +367,8 @@ class ProducaoCooperativista
     private function getEntradasClientes(): array
     {
         $this->atualizaEntradas();
-        $categoriasNotasClientes = json_decode($_ENV['AKAUNTING_NOTAS_CLIENTES_CATEGORIES']);
-        $entradasClientes = array_filter($this->entradas, fn ($i) => in_array($i['category_name'], $categoriasNotasClientes));
+        $categoriasEntradasClientes = $this->getChildrensCategories((int) $_ENV['AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID']);
+        $entradasClientes = array_filter($this->entradas, fn ($i) => in_array($i['category_id'], $categoriasEntradasClientes));
         return $entradasClientes;
     }
 
@@ -374,7 +403,8 @@ class ProducaoCooperativista
         if ($this->custosPorCliente) {
             return $this->custosPorCliente;
         }
-        $this->custosPorCliente = array_filter($this->saidas, fn ($i) => $i['category_id'] === (int) $_ENV['AKAUNTING_DISPENDIOS_CLIENTE_CATEGORY_ID']);
+        $categoriasCustosClientes = $this->getChildrensCategories((int) $_ENV['AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID']);
+        $this->custosPorCliente = array_filter($this->saidas, fn ($i) => in_array($i['category_id'], $categoriasCustosClientes));
         $this->logger->debug('Custos por clientes: {json}', ['json' => json_encode($this->custosPorCliente)]);
         return $this->custosPorCliente;
     }
@@ -481,57 +511,70 @@ class ProducaoCooperativista
             return $this->percentualTrabalhadoPorCliente;
         }
         $contabilizaveis = $this->clientesContabilizaveis();
-        $cnpjContabilizaveis = "'" . implode("','", $contabilizaveis) . "'";
-        $stmt = $this->db->getConnection()->prepare(
-            <<<SQL
-            -- Percentual trabalhado por cliente
-            SELECT u.alias,
-                u.tax_number,
-                u.dependents,
-                u.akaunting_contact_id,
-                c.id as customer_id,
-                c.name,
-                c.vat_id as customer_reference,
-                COALESCE(sum(t.duration), 0) * 100 / total_cliente.total AS percentual_trabalhado
-            FROM customers c
-            JOIN projects p ON p.customer_id = c.id
-            JOIN timesheet t ON t.project_id = p.id
-            JOIN users u ON u.id = t.user_id
-            JOIN (
-                -- Total minutos a faturar por cliente
-                SELECT c.id as customer_id,
-                    c.name,
-                    c.vat_id,
-                    CASE WHEN sum(t.duration) > c.time_budget THEN sum(t.duration)
-                            ELSE c.time_budget
-                            END as total
-                FROM customers c
-                JOIN projects p ON p.customer_id = c.id
-                JOIN timesheet t ON t.project_id = p.id AND t.`begin` >= :data_inicio AND t.`end` <= :data_fim
-                JOIN users u2 ON u2.id = t.user_id
-                WHERE u2.enabled = 1
-                AND c.vat_id IN ($cnpjContabilizaveis)
-                GROUP BY c.id,
-                        c.name,
-                        c.vat_id
-                ) total_cliente ON total_cliente.customer_id = c.id
-            WHERE t.`begin` >= :data_inicio
-            AND t.`end` <= :data_fim
-            AND u.enabled = 1
-            GROUP BY u.alias,
-                    u.tax_number,
-                    u.dependents,
-                    u.akaunting_contact_id,
-                    c.id,
-                    c.name,
-                    c.vat_id
-            ORDER BY c.id,
-                    u.alias
-            SQL
-        );
-        $stmt->bindValue('data_inicio', $this->dates->getInicio()->format('Y-m-d'));
-        $stmt->bindValue('data_fim', $this->dates->getFim()->format('Y-m-d H:i:s'));
-        $result = $stmt->executeQuery();
+
+        $qb = new QueryBuilder($this->db->getConnection());
+
+        $projetosAtivosNoMes = new QueryBuilder($this->db->getConnection());
+        $projetosAtivosNoMes->select('c.id as customer_id')
+            ->addSelect('sum(p.time_budget) as time_budget')
+            ->from('customers', 'c')
+            ->join('c', 'projects', 'p', $projetosAtivosNoMes->expr()->eq('p.customer_id', 'c.id'))
+            ->where(
+                $projetosAtivosNoMes->expr()->or(
+                    'p.start IS NULL',
+                    $projetosAtivosNoMes->expr()->lte('p.start', $qb->createNamedParameter($this->dates->getFim()->format('Y-m-d H:i:s')))
+                )
+            )
+            ->groupBy('c.id');
+
+        $subQuery = new QueryBuilder($this->db->getConnection());
+        $subQuery->select('c.vat_id')
+            ->addSelect('c.id')
+            ->addSelect(str_replace(
+                "\n",
+                ' ',
+                <<<SQL
+                CASE WHEN SUM(t.duration) > project_time_budget.time_budget AND SUM(t.duration) > c.time_budget THEN SUM(t.duration)
+                    WHEN project_time_budget.time_budget > c.time_budget THEN project_time_budget.time_budget
+                    ELSE c.time_budget
+                END as total
+                SQL
+            ))
+            ->from('customers', 'c')
+            ->join('c', '(' . $projetosAtivosNoMes->getSQL() . ')', 'project_time_budget', $subQuery->expr()->eq('project_time_budget.customer_id', 'c.id'))
+            ->join('c', 'projects', 'p', $subQuery->expr()->eq('p.customer_id', 'c.id'))
+            ->join('project_time_budget', 'timesheet', 't', $subQuery->expr()->eq('t.project_Id', 'p.id'))
+            ->where($subQuery->expr()->gte('t.begin', $qb->createNamedParameter($this->dates->getInicio()->format('Y-m-d'))))
+            ->andWhere($subQuery->expr()->lte('t.end', $qb->createNamedParameter($this->dates->getFim()->format('Y-m-d H:i:s'))))
+            ->groupBy('c.vat_id')
+            ->addGroupBy('c.id');
+
+        $qb->select('u.alias')
+            ->addSelect('u.tax_number')
+            ->addSelect('u.dependents')
+            ->addSelect('u.akaunting_contact_id')
+            ->addSelect('c.id as customer_id')
+            ->addSelect('c.name')
+            ->addSelect('c.vat_id as customer_reference')
+            ->addSelect('COALESCE(sum(t.duration), 0) * 100 / total_cliente.total as percentual_trabalhado')
+            ->from('customers', 'c')
+            ->join('c', '(' . $subQuery->getSQL() . ')', 'total_cliente', 'c.id = total_cliente.id')
+            ->join('c', 'projects', 'p', $qb->expr()->eq('p.customer_id', 'c.id'))
+            ->join('p', 'timesheet', 't', $qb->expr()->eq('t.project_Id', 'p.id'))
+            ->join('t', 'users', 'u', $qb->expr()->eq('t.user_id', 'u.id'))
+            ->where($qb->expr()->in('c.vat_id', $qb->createNamedParameter($contabilizaveis, ArrayParameterType::STRING)))
+            ->andWhere($qb->expr()->gte('t.begin', $qb->createNamedParameter($this->dates->getInicio()->format('Y-m-d'))))
+            ->andWhere($qb->expr()->lte('t.end', $qb->createNamedParameter($this->dates->getFim()->format('Y-m-d H:i:s'))))
+            ->groupBy('u.alias')
+            ->addGroupBy('u.tax_number')
+            ->addGroupBy('u.dependents')
+            ->addGroupBy('u.akaunting_contact_id')
+            ->addGroupBy('c.id')
+            ->addGroupBy('c.name')
+            ->addGroupBy('c.vat_id')
+            ->orderBy('c.id')
+            ->addOrderBy('u.alias');
+        $result = $qb->executeQuery();
         $this->percentualTrabalhadoPorCliente = [];
         while ($row = $result->fetchAssociative()) {
             if (!$row['customer_reference']) {
@@ -767,22 +810,24 @@ class ProducaoCooperativista
 
     private function getTotalSobrasDistribuidasNoMes(): float
     {
-        $total = array_reduce($this->entradas, function (float $total, array $i): float {
-            if ($i['category_id'] === (int) $_ENV['AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID']) {
-                if ($i['archive'] === 0) {
-                    if ($i['transaction_of_month'] === $this->dates->getInicioProximoMes()->format('Y-m')) {
-                        $total += $i['amount'];
-                    }
-                }
-            }
-            return $total;
-        }, 0);
-        return $total;
+        $qb = new QueryBuilder($this->db->getConnection());
+        $qb->select('SUM(i.amount) AS total')
+            ->from('invoices', 'i')
+            ->where($qb->expr()->eq('transaction_of_month', $qb->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))))
+            ->andWhere($qb->expr()->eq('i.type', $qb->createNamedParameter('invoice')))
+            ->andWhere($qb->expr()->eq('i.archive', $qb->createNamedParameter(0), ParameterType::INTEGER))
+            ->andWhere($qb->expr()->eq('i.category_id', $qb->createNamedParameter($_ENV['AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID']), ParameterType::INTEGER));
+        $result = $qb->executeQuery();
+        $total = $result->fetchOne();
+        return (float) $total;
     }
 
     public function exportToCsv(): string
     {
         $list = $this->getProducaoCooperativista();
+        if (!count($list)) {
+            return '';
+        }
         // header
         $cooperado = current($list);
         $output[] = $this->csvstr(array_keys($cooperado->getProducaoCooperativista()->getValues()->toArray()));
@@ -851,7 +896,7 @@ class ProducaoCooperativista
             $row++;
         }
         if ($row < 35) {
-            for ($i = $row;$i<=35;$i++) {
+            for ($i = $row;$i <= 35;$i++) {
                 $producao->setCellValue('A' . $i, '');
                 $producao->setCellValue('N' . $i, '');
                 $producao->setCellValue('O' . $i, '');

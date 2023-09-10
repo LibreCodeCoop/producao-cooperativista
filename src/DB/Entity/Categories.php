@@ -27,34 +27,25 @@ namespace ProducaoCooperativista\DB\Entity;
 
 use Doctrine\ORM\Mapping\Column;
 use Doctrine\ORM\Mapping\Entity;
-use Doctrine\ORM\Mapping\GeneratedValue;
 use Doctrine\ORM\Mapping\Id;
 use ProducaoCooperativista\DB\Entity as DBEntity;
 use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 
 #[Entity]
-class Customers extends DBEntity
+class Categories extends DBEntity
 {
     use MagicGetterSetterTrait;
     #[Id]
     #[Column(insertable: true, options: ['unsigned' => true])]
     private int $id;
-    #[Column(length: 150)]
+    #[Column]
     private string $name;
-    #[Column(length: 50, nullable: true)]
-    private ?string $number;
-    #[Column(type: 'text', nullable: true)]
-    private ?string $comment;
-    #[Column(type: 'smallint')]
-    private int $visible;
-    #[Column(type: 'smallint')]
-    private int $billable;
-    #[Column(length: 3)]
-    private string $currency;
-    #[Column(length: 7, nullable: true)]
-    private ?string $color;
-    #[Column(unique: true, nullable: true)]
-    private ?string $vatId;
-    #[Column(type: 'bigint')]
-    private ?int $timeBudget;
+    #[Column(length: 50)]
+    private string $type;
+    #[Column(type: 'smallint', options: ['default' => 1])]
+    private int $enabled;
+    #[Column(type: 'bigint', nullable: true)]
+    private ?int $parentId;
+    #[Column]
+    private array $metadata;
 }

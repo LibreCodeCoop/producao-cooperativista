@@ -38,7 +38,7 @@ final class Version20230627233142 extends AbstractMigration
     public function up(Schema $schema): void
     {
         $table = $schema->createTable('timesheet');
-        $table->addColumn('id', 'bigint', ['unsigned' => true, 'autoincrement' => true]);
+        $table->addColumn('id', 'bigint', ['unsigned' => true, 'autoincrement' => false]);
         $table->addColumn('activity_id', 'bigint', ['unsigned' => true]);
         $table->addColumn('project_id', 'bigint');
         $table->addColumn('user_id', 'bigint');
@@ -47,7 +47,7 @@ final class Version20230627233142 extends AbstractMigration
         $table->addColumn('duration', 'bigint', ['notnull' => false]);
         $table->addColumn('description', 'text', ['notnull' => false]);
         $table->addColumn('rate', 'float');
-        $table->addColumn('internalRate', 'float');
+        $table->addColumn('internal_rate', 'float');
         $table->addColumn('exported', 'smallint');
         $table->addColumn('billable', 'smallint');
         $table->setPrimaryKey(['id']);

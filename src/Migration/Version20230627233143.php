@@ -38,7 +38,7 @@ final class Version20230627233143 extends AbstractMigration
     public function up(Schema $schema): void
     {
         $table = $schema->createTable('projects');
-        $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => true]);
+        $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => false]);
         $table->addColumn('parent_title', 'string', ['length' => 150]);
         $table->addColumn('customer_id', 'bigint');
         $table->addColumn('name', 'string', ['length' => 150]);
@@ -49,6 +49,7 @@ final class Version20230627233143 extends AbstractMigration
         $table->addColumn('billable', 'smallint');
         $table->addColumn('color', 'string', ['length' => 7, 'notnull' => false]);
         $table->addColumn('global_activities', 'smallint');
+        $table->addColumn('time_budget', 'bigint');
         $table->setPrimaryKey(['id']);
     }
 

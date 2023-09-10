@@ -38,7 +38,7 @@ final class Version20230627233141 extends AbstractMigration
     public function up(Schema $schema): void
     {
         $table = $schema->createTable('customers');
-        $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => true]);
+        $table->addColumn('id', 'integer', ['unsigned' => true, 'autoincrement' => false]);
         $table->addColumn('name', 'string', ['length' => 150]);
         $table->addColumn('number', 'string', ['length' => 50, 'notnull' => false]);
         $table->addColumn('comment', 'text', ['notnull' => false]);

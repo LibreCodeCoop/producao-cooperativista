@@ -25,48 +25,49 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Command;
 
+use ProducaoCooperativista\Service\Akaunting\Source\Categories;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
 
-class BaseCommand extends Command
+#[AsCommand(
+    name: 'get:categories',
+    description: 'Get categories'
+)]
+class GetCategoriesCommand extends BaseCommand
 {
+    public function __construct(
+        private Categories $categories
+    ) {
+        parent::__construct();
+    }
+
     protected function configure(): void
     {
+        parent::configure();
         $this
             ->addOption(
-                'csv',
+                'company',
                 null,
-                InputOption::VALUE_NONE,
-                'To output as CSV'
-            )
-            ->addOption(
-                'database',
-                null,
-                InputOption::VALUE_NONE,
-                'Save to default database'
+                InputOption::VALUE_REQUIRED,
+                'Company id',
+                $_ENV['AKAUNTING_COMPANY_ID']
             );
     }
 
-    protected function toCsv(array $data, array $removeColumns = []): string
+    public function execute(InputInterface $input, OutputInterface $output): int
     {
-        $csv = fopen('php://temp/maxmemory:'. (5 * 1024 * 1024), 'r+');
-        if (!$data) {
-            return '';
+        $list = $this->categories
+            ->setCompanyId((int) $input->getOption('company'))
+            ->getList();
+        if ($input->getOption('csv')) {
+            $output->write($this->toCsv($list));
         }
-
-        $header = array_keys(current($data));
-        $header = array_filter($header, function ($value) use ($removeColumns) {
-            return !in_array($value, $removeColumns);
-        });
-        fputcsv($csv, $header);
-        foreach ($data as $row) {
-            foreach ($removeColumns as $toRemove) {
-                unset($row[$toRemove]);
-            }
-            unset($row['metaFields'], $row['teams']);
-            fputcsv($csv, $row);
+        if ($input->getOption('database')) {
+            $this->categories->saveList();
         }
-        rewind($csv);
-        return stream_get_contents($csv);
+        return Command::SUCCESS;
     }
 }

@@ -29,13 +29,15 @@ use Doctrine\ORM\Mapping\Column;
 use Doctrine\ORM\Mapping\Entity;
 use Doctrine\ORM\Mapping\GeneratedValue;
 use Doctrine\ORM\Mapping\Id;
+use ProducaoCooperativista\DB\Entity as DBEntity;
+use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 
 #[Entity]
-class Projects
+class Projects extends DBEntity
 {
+    use MagicGetterSetterTrait;
     #[Id]
     #[Column(insertable: true, options: ['unsigned' => true])]
-    #[GeneratedValue(strategy: 'AUTO')]
     private int $id;
     #[Column(length: 150)]
     private string $parentTitle;
@@ -44,17 +46,19 @@ class Projects
     #[Column(length: 150)]
     private string $name;
     #[Column(nullable: true)]
-    private \DateTime $start;
+    private ?\DateTime $start;
     #[Column(nullable: true)]
-    private \DateTime $end;
+    private ?\DateTime $end;
     #[Column(type: 'text', nullable: true)]
-    private string $comment;
+    private ?string $comment;
     #[Column(type: 'smallint')]
     private int $visible;
     #[Column(type: 'smallint')]
     private int $billable;
     #[Column(nullable: true, length: 7)]
-    private string $color;
+    private ?string $color;
     #[Column(type: 'smallint')]
     private int $globalActivities;
+    #[Column(type: 'bigint')]
+    private ?int $timeBudget;
 }

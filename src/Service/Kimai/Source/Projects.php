@@ -33,10 +33,12 @@ use Doctrine\DBAL\Types\Types;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Provider\Kimai;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpClient\HttpClient;
 
 class Projects
 {
     use Kimai;
+    private array $list = [];
     public function __construct(
         private Database $db,
         private LoggerInterface $logger
@@ -46,14 +48,15 @@ class Projects
     public function updateDatabase(): void
     {
         $this->logger->debug('Baixando dados de projects');
-        $list = $this->getFromApi();
-        $this->saveList($list);
+        $this->getFromApi();
+        $this->saveList($this->list);
     }
 
     public function getFromApi(): array
     {
-        $list = $this->doRequestKimai('/api/projects');
-        return $list;
+        $this->list = $this->doRequestKimai('/api/projects');
+        $this->populateWithExtraFields();
+        return $this->list;
     }
 
     public function saveList(array $list): void
@@ -83,6 +86,7 @@ class Projects
                     ->set('billable', $update->createNamedParameter($row['billable'], ParameterType::INTEGER))
                     ->set('color', $update->createNamedParameter($row['color']))
                     ->set('global_activities', $update->createNamedParameter($row['globalActivities'], ParameterType::INTEGER))
+                    ->set('time_budget', $update->createNamedParameter($row['time_budget']))
                     ->where($update->expr()->eq('id', $update->createNamedParameter($row['id'], ParameterType::INTEGER)))
                     ->executeStatement();
                 continue;
@@ -100,6 +104,7 @@ class Projects
                     'billable' => $insert->createNamedParameter($row['billable'], ParameterType::INTEGER),
                     'color' => $insert->createNamedParameter($row['color']),
                     'global_activities' => $insert->createNamedParameter($row['globalActivities'], ParameterType::INTEGER),
+                    'time_budget' => $insert->createNamedParameter($row['time_budget'], ParameterType::INTEGER),
                 ])
                 ->executeStatement();
         }
@@ -114,5 +119,26 @@ class Projects
         $date = str_replace('T', ' ', $date);
         $date = DateTime::createFromFormat('Y-m-d', $date);
         return $date;
+    }
+
+    private function populateWithExtraFields(): void
+    {
+        $client = HttpClient::create();
+        foreach ($this->list as $key => $project) {
+            $this->logger->debug('Dados extras do projeto: {name}', ['name' => $project['name']]);
+            $result = $client->request(
+                'GET',
+                rtrim($_ENV['KIMAI_API_BASE_URL'], '/') . '/api/projects/' . $project['id'],
+                [
+                    'headers' => [
+                        'X-AUTH-USER' => $_ENV['KIMAI_AUTH_USER'],
+                        'X-AUTH-TOKEN' => $_ENV['KIMAI_AUTH_TOKEN'],
+                    ],
+                ]
+            );
+            $allFields = $result->toArray();
+            $this->logger->debug('{json}', ['json' => $allFields]);
+            $this->list[$key]['time_budget'] = $allFields['timeBudget'];
+        }
     }
 }
