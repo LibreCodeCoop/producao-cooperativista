@@ -55,6 +55,6 @@ final class MakeProducaoCommandTest extends TestCase
             6,944.13420861443,2706.5180646947,4720.6710430721,3383.1475808684,0,,393.38925358934,0,676.62951617367,202.9888548521,3447.663418457,"Pessoa 01",CPF_PESSOA_01
             7,3776.5368344577,11925.556323473,18882.684172289,13532.590323473,1,,1573.5570143574,0,1417.444,2394.5679889552,13497.115168976,"Pessoa 02",CPF_PESSOA_02
             CSV;
-        $this->assertEquals(rtrim($output->fetch(), "\n"), $expected);
+        $this->assertEquals($expected, rtrim($output->fetch(), "\n"));
     }
 }
