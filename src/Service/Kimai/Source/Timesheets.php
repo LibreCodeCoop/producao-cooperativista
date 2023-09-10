@@ -130,7 +130,7 @@ class Timesheets
         if (!$date) {
             return null;
         }
-        $date = preg_replace('/-\d{4}$/', '', $date);
+        $date = preg_replace('/[-\+]\d{4}$/', '', $date);
         $date = str_replace('T', ' ', $date);
         $date = DateTime::createFromFormat('Y-m-d H:i:s', $date);
         return $date;
