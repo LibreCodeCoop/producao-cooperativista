@@ -49,7 +49,7 @@ class BaseCommand extends Command
 
     protected function toCsv(array $data, array $removeColumns = []): string
     {
-        $csv = fopen('php://temp/maxmemory:'. (5*1024*1024), 'r+');
+        $csv = fopen('php://temp/maxmemory:'. (5 * 1024 * 1024), 'r+');
         if (!$data) {
             return '';
         }

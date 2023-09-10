@@ -896,7 +896,7 @@ class ProducaoCooperativista
             $row++;
         }
         if ($row < 35) {
-            for ($i = $row;$i<=35;$i++) {
+            for ($i = $row;$i <= 35;$i++) {
                 $producao->setCellValue('A' . $i, '');
                 $producao->setCellValue('N' . $i, '');
                 $producao->setCellValue('O' . $i, '');

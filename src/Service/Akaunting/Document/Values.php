@@ -122,7 +122,7 @@ class Values
             - $this->getIrpf()
             + $this->getAuxilio();
         if (!$this->isFrra) {
-            $liquido -=$this->getHealthInsurance();
+            $liquido -= $this->getHealthInsurance();
         }
         $this->setLiquido($liquido);
         $this->updated = self::STATUS_UPDATED;
