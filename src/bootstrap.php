@@ -80,7 +80,7 @@ $containerBuilder->addDefinitions([
     'ProducaoCooperativista\Command\*Command' => \DI\autowire('ProducaoCooperativista\Command\*Command'),
     NumberFormatter::class => \DI\autowire()
         ->constructor(
-            \DI\env('LOCALE') ?? 'pt_BR',
+            \DI\env('LOCALE', 'pt_BR'),
             NumberFormatter::CURRENCY,
         ),
     SingleManagerProvider::class => DI\factory(function (ContainerInterface $c) {
