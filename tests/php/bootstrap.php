@@ -26,8 +26,8 @@ declare(strict_types=1);
 use DI\Container;
 use Symfony\Component\Console\Application;
 
-$_ENV['DB_URL'] = 'pdo-mysql://root:root@mysql/report';
-$_ENV['DB_URL_AKAUNTING'] = 'pdo-mysql://root:root@mysql/akaunting';
+$_ENV['DB_URL'] = 'pdo-mysql://root:root@127.0.0.1:4444/report';
+$_ENV['DB_URL_AKAUNTING'] = 'pdo-mysql://root:root@127.0.0.1:4444/akaunting';
 $_ENV['AKAUNTING_COMPANY_ID'] = 1;
 $_ENV['AKAUNTING_FRRA_MES_PADRAO'] = 12;
 $_ENV['AKAUNTING_RESGATE_SALDO_IRPF_MES_PADRAO'] = 12;
