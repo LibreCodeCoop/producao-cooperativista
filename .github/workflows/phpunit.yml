@@ -49,6 +49,9 @@ jobs:
       - name: Set up dependencies
         run: composer i
 
+      - name: Set up database
+        run: php ./bin/import migrations:migrate -n
+
       - name: PHPUnit
         run: composer run test:unit
 
