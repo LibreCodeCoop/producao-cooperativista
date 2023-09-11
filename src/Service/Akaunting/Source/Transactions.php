@@ -58,7 +58,7 @@ class Transactions
         private ParseText $parseText,
         private Dataset $dataset,
     ) {
-        $this->companyId = (int) $_ENV['AKAUNTING_COMPANY_ID'];
+        $this->companyId = (int) getenv('AKAUNTING_COMPANY_ID');
     }
 
     public function getList(): array
@@ -185,7 +185,7 @@ class Transactions
         } elseif (!empty($row['contact']['tax_number'])) {
             $row['customer_reference'] = $row['contact']['tax_number'];
         } else {
-            $row['customer_reference'] = $_ENV['CNPJ_COMPANY'];
+            $row['customer_reference'] = getenv('CNPJ_COMPANY');
         }
         return $row;
     }

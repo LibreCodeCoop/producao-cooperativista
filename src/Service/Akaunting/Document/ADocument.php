@@ -107,7 +107,7 @@ abstract class ADocument
         protected ?NumberFormatter $numberFormatter = null,
         protected ?Cooperado $cooperado = null,
     ) {
-        $this->itemsIds = json_decode($_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS'], true);
+        $this->itemsIds = json_decode(getenv('AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS'), true);
         $this->setValues(new Values(
             anoFiscal: $anoFiscal,
             cooperado: $cooperado

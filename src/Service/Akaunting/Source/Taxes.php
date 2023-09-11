@@ -55,7 +55,7 @@ class Taxes
         private LoggerInterface $logger,
         private Dataset $dataset,
     ) {
-        $this->companyId = (int) $_ENV['AKAUNTING_COMPANY_ID'];
+        $this->companyId = (int) getenv('AKAUNTING_COMPANY_ID');
     }
 
     public function getList(): array

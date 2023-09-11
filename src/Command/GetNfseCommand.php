@@ -61,21 +61,21 @@ class GetNfseCommand extends BaseCommand
                 null,
                 InputOption::VALUE_REQUIRED,
                 'Login da Prefeitura, CNPJ ou CPF',
-                $_ENV['PREFEITURA_LOGIN'] ?? null
+                getenv('PREFEITURA_LOGIN') ?? null
             )
             ->addOption(
                 'senha',
                 null,
                 InputOption::VALUE_REQUIRED,
                 'Senha da Prefeitura',
-                $_ENV['PREFEITURA_SENHA'] ?? null
+                getenv('PREFEITURA_SENHA') ?? null
             )
             ->addOption(
                 'prefeitura',
                 null,
                 InputOption::VALUE_REQUIRED,
                 'Prefeitura a importar',
-                $_ENV['PREFEITURA'] ?? null
+                getenv('PREFEITURA') ?? null
             );
     }
 

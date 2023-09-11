@@ -125,7 +125,7 @@ class FRRA extends ADocument
         $values = $this->getValues();
         $this
             ->setType('bill')
-            ->setCategoryId((int) $_ENV['AKAUNTING_FRRA_CATEGORY_ID'])
+            ->setCategoryId((int) getenv('AKAUNTING_FRRA_CATEGORY_ID'))
             ->setStatus('draft')
             ->setIssuedAt($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'))
             ->setCurrencyCode('BRL')

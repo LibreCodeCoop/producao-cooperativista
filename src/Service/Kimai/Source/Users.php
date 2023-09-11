@@ -201,15 +201,15 @@ class Users
             return $this->spreadsheetData;
         }
         $config = [
-            'baseUri' => $_ENV['NEXTCLOUD_URL'],
-            'userName' => $_ENV['NEXTCLOUD_USERNAME'],
-            'password' => $_ENV['NEXTCLOUD_PASSWORD']
+            'baseUri' => getenv('NEXTCLOUD_URL'),
+            'userName' => getenv('NEXTCLOUD_USERNAME'),
+            'password' => getenv('NEXTCLOUD_PASSWORD')
         ];
         $prefix = 'remote.php/dav/files/' . $config['userName'] . '/';
         $client = new Client($config);
         $adapter = new WebDAVAdapter($client, $prefix);
         $fileSystem = new Filesystem($adapter);
-        $pathOfFile = $_ENV['NEXTCLOUD_PATH_OF_FILE'];
+        $pathOfFile = getenv('NEXTCLOUD_PATH_OF_FILE');
         if (!$fileSystem->has($pathOfFile)) {
             throw new \Exception(
                 'Planilha com dados de cooperados não encontrada no Nextcloud. Confira as environments de configuração e se a planilha existe.'
