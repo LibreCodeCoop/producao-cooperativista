@@ -18,6 +18,32 @@ jobs:
   phpunit:
     runs-on: ubuntu-latest
 
+    env:
+      DB_URL: pdo-mysql://root:root@127.0.0.1:4444/report
+      DB_URL_AKAUNTING: pdo-mysql://root:root@127.0.0.1:4444/akaunting
+      AKAUNTING_COMPANY_ID: 1
+      AKAUNTING_FRRA_MES_PADRAO: 12
+      AKAUNTING_RESGATE_SALDO_IRPF_MES_PADRAO: 12
+      AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID: 35
+      AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID: 11
+      AKAUNTING_FRRA_CATEGORY_ID: 33
+      AKAUNTING_ADIANTAMENTO_CATEGORY_ID: 34
+      AKAUNTING_PLANO_DE_SAUDE_CATEGORY_ID: 29
+      AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID: 28
+      AKAUNTING_PARENT_DISPENDIOS_INTERNOS_CATEGORY_ID: 16
+      AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID: 45
+      AKAUNTING_IMPOSTOS_COFINS: '{"categoryId":40,"contactId":111,"taxId":1}'
+      AKAUNTING_IMPOSTOS_INSS_IRRF: '{"categoryId":38,"contactId":20,"taxId":2}'
+      AKAUNTING_IMPOSTOS_IRPF_RETIDO: '{"categoryId":42,"contactId":20,"taxId":2}'
+      AKAUNTING_IMPOSTOS_ISS: '{"categoryId":39,"contactId":111,"taxId":4}'
+      AKAUNTING_IMPOSTOS_PIS: '{"categoryId":41,"contactId":111,"taxId":3}'
+      AKAUNTING_IMPOSTOS_ITEM_ID: 14
+      AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS: '{"bruto":26,"INSS":28,"IRRF":29,"Plano":30,"Auxílio":32,"desconto":31,"frra":27}'
+      HOLYDAYS_LIST: br-rj
+      LOCALE: pt_BR
+      CNPJ_CLIENTES_INTERNOS: 00000000000191
+      CNPJ_COMPANY: 00000000000191
+
     strategy:
       matrix:
         php-versions: ['8.2']
@@ -50,6 +76,8 @@ jobs:
         run: composer i
 
       - name: Set up database
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: php ./bin/import migrations:migrate -n
 
       - name: PHPUnit
