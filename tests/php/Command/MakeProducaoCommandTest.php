@@ -37,24 +37,45 @@ final class MakeProducaoCommandTest extends TestCase
         $this->application->setAutoExit(false);
     }
 
-    public function testBla(): void
+    /**
+     * @dataProvider providerScenarios
+     * @runInSeparateProcess
+     */
+    public function testScenarios(string $dataset, string $anoMes, string $expected): void
     {
-        $this->loadDataset('full');
+        $this->loadDataset($dataset);
 
         $input = new ArrayInput([
             'make:producao',
             '--previsao' => true,
             '--baixar-dados' => '0',
-            '--ano-mes' => '2023-08',
+            '--ano-mes' => $anoMes,
             '--csv' => true,
         ]);
         $output = new BufferedOutput();
         $this->application->run($input, $output);
-        $expected = <<<CSV
-            akaunting_contact_id,auxilio,base_irpf,base_producao,bruto,dependentes,document_number,frra,health_insurance,inss,irpf,liquido,name,tax_number
-            6,944.13420861443,2706.5180646947,4720.6710430721,3383.1475808684,0,,393.38925358934,0,676.62951617367,202.9888548521,3447.663418457,"Pessoa 01",CPF_PESSOA_01
-            7,3776.5368344577,11925.556323473,18882.684172289,13532.590323473,1,,1573.5570143574,0,1417.444,2394.5679889552,13497.115168976,"Pessoa 02",CPF_PESSOA_02
-            CSV;
         $this->assertEquals($expected, rtrim($output->fetch(), "\n"));
+    }
+
+    public static function providerScenarios(): array
+    {
+        return [
+            'recebe_tudo' => [
+                'recebe_tudo',
+                '2023-08',
+                <<<CSV
+                akaunting_contact_id,auxilio,base_irpf,base_producao,bruto,dependentes,document_number,frra,health_insurance,inss,irpf,liquido,name,tax_number
+                6,9685,33287.139333333,48425,34704.583333333,0,,4035.4166666667,0,1417.444,9153.9633166667,33818.176016667,"Pessoa 01",CPF_PESSOA_01
+                CSV
+            ],
+            'recebe_metade' => [
+                'recebe_metade',
+                '2023-08',
+                <<<CSV
+                akaunting_contact_id,auxilio,base_irpf,base_producao,bruto,dependentes,document_number,frra,health_insurance,inss,irpf,liquido,name,tax_number
+                6,4842.5,15934.847666667,24212.5,17352.291666667,0,,2017.7083333333,0,1417.444,4382.0831083333,16395.264558333,"Pessoa 01",CPF_PESSOA_01
+                CSV
+            ],
+        ];
     }
 }
