@@ -116,11 +116,11 @@ class Customers
             $this->logger->debug('Dados extras do customer: {name}', ['name' => $customer['name']]);
             $result = $client->request(
                 'GET',
-                rtrim($_ENV['KIMAI_API_BASE_URL'], '/') . '/api/customers/' . $customer['id'],
+                rtrim(getenv('KIMAI_API_BASE_URL'), '/') . '/api/customers/' . $customer['id'],
                 [
                     'headers' => [
-                        'X-AUTH-USER' => $_ENV['KIMAI_AUTH_USER'],
-                        'X-AUTH-TOKEN' => $_ENV['KIMAI_AUTH_TOKEN'],
+                        'X-AUTH-USER' => getenv('KIMAI_AUTH_USER'),
+                        'X-AUTH-TOKEN' => getenv('KIMAI_AUTH_TOKEN'),
                     ],
                 ]
             );

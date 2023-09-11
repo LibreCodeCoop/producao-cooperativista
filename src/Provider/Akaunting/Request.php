@@ -45,8 +45,8 @@ class Request
         $options = [
             'query' => $query,
             'auth_basic' => [
-                'X-AUTH-USER' => $_ENV['AKAUNTING_AUTH_USER'],
-                'X-AUTH-TOKEN' => $_ENV['AKAUNTING_AUTH_TOKEN'],
+                'X-AUTH-USER' => getenv('AKAUNTING_AUTH_USER'),
+                'X-AUTH-TOKEN' => getenv('AKAUNTING_AUTH_TOKEN'),
             ]
         ];
         if (!empty($body)) {
@@ -56,13 +56,13 @@ class Request
             "Requisição para a API do Akaunting:\n%s",
             json_encode([
                 'method' => $method,
-                'endpoint' => rtrim($_ENV['AKAUNTING_API_BASE_URL'], '/') . $endpoint,
+                'endpoint' => rtrim(getenv('AKAUNTING_API_BASE_URL'), '/') . $endpoint,
                 'options' => $options,
             ])
         ));
         $result = $this->client->request(
             $method,
-            rtrim($_ENV['AKAUNTING_API_BASE_URL'], '/') . $endpoint,
+            rtrim(getenv('AKAUNTING_API_BASE_URL'), '/') . $endpoint,
             $options,
         );
         $response = $result->toArray(false);

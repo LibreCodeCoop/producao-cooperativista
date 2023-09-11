@@ -56,6 +56,7 @@ class ProducaoCooperativista
     private array $percentualTrabalhadoPorCliente = [];
     private array $entradas = [];
     private array $saidas = [];
+    private array $movimentacao = [];
     private array $dispendios = [];
     /** @var Cooperado[] */
     private array $cooperado = [];
@@ -173,7 +174,7 @@ class ProducaoCooperativista
         if ($this->totalSegundosLibreCode) {
             return $this->totalSegundosLibreCode;
         }
-        $cnpjClientesInternos = explode(',', $_ENV['CNPJ_CLIENTES_INTERNOS']);
+        $cnpjClientesInternos = explode(',', getenv('CNPJ_CLIENTES_INTERNOS'));
         $cnpjClientesInternos = "'" . implode("','", $cnpjClientesInternos) . "'";
         $stmt = $this->db->getConnection()->prepare(
             <<<SQL
@@ -248,7 +249,7 @@ class ProducaoCooperativista
         if ($this->totalDispendios) {
             return $this->totalDispendios;
         }
-        $dispendiosInternos = $this->getChildrensCategories((int) $_ENV['AKAUNTING_PARENT_DISPENDIOS_INTERNOS_CATEGORY_ID']);
+        $dispendiosInternos = $this->getChildrensCategories((int) getenv('AKAUNTING_PARENT_DISPENDIOS_INTERNOS_CATEGORY_ID'));
         $this->dispendios = array_filter($this->saidas, function ($i) use ($dispendiosInternos): bool {
             if ($i['transaction_of_month'] === $this->dates->getInicioProximoMes()->format('Y-m')) {
                 if ($i['archive'] === 0) {
@@ -299,16 +300,24 @@ class ProducaoCooperativista
         if ($this->saidas) {
             return $this->saidas;
         }
+        $movimetnacao = $this->getMovimentacaoFinanceira();
+        $this->saidas = array_filter($movimetnacao, fn ($i) => $i['category_type'] === 'expense');
+        return $this->saidas;
+    }
+
+    private function getMovimentacaoFinanceira(): array
+    {
+        if ($this->movimentacao) {
+            return $this->movimentacao;
+        }
         if ($this->previsao) {
             $stmt = $this->db->getConnection()->prepare(
                 <<<SQL
                 -- Saídas
                 SELECT *
                     FROM invoices i
-                WHERE i.type = 'bill'
-                    AND transaction_of_month = :ano_mes
+                WHERE transaction_of_month = :ano_mes
                     AND archive = 0
-                    AND category_type = 'expense'
                 SQL
             );
         } else {
@@ -319,7 +328,6 @@ class ProducaoCooperativista
                     FROM transactions t
                 WHERE transaction_of_month = :ano_mes
                     AND archive = 0
-                    AND category_type = 'expense'
                 SQL
             );
         }
@@ -331,12 +339,12 @@ class ProducaoCooperativista
             if (empty($row['customer_reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['customer_reference'])) {
                 $errors[] = $row;
             }
-            $this->saidas[] = $row;
+            $this->movimentacao[] = $row;
         }
 
         if (count($errors)) {
             throw new Exception(sprintf(
-                "Código de cliente inválido na transação de saída no Akaunting.\n" .
+                "Código de cliente inválido na movimentação do Akaunting.\n" .
                 "Intervalo: %s a %s\n" .
                 "Dados:\n%s",
                 $this->dates->getInicioProximoMes()->format('Y-m-d'),
@@ -345,8 +353,8 @@ class ProducaoCooperativista
             ));
         }
 
-        $this->logger->debug('Saídas', [$this->saidas]);
-        return $this->saidas;
+        $this->logger->debug('Movimentação', [$this->movimentacao]);
+        return $this->movimentacao;
     }
 
     /**
@@ -367,7 +375,7 @@ class ProducaoCooperativista
     private function getEntradasClientes(): array
     {
         $this->atualizaEntradas();
-        $categoriasEntradasClientes = $this->getChildrensCategories((int) $_ENV['AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID']);
+        $categoriasEntradasClientes = $this->getChildrensCategories((int) getenv('AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID'));
         $entradasClientes = array_filter($this->entradas, fn ($i) => in_array($i['category_id'], $categoriasEntradasClientes));
         return $entradasClientes;
     }
@@ -403,7 +411,7 @@ class ProducaoCooperativista
         if ($this->custosPorCliente) {
             return $this->custosPorCliente;
         }
-        $categoriasCustosClientes = $this->getChildrensCategories((int) $_ENV['AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID']);
+        $categoriasCustosClientes = $this->getChildrensCategories((int) getenv('AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID'));
         $this->custosPorCliente = array_filter($this->saidas, fn ($i) => in_array($i['category_id'], $categoriasCustosClientes));
         $this->logger->debug('Custos por clientes: {json}', ['json' => json_encode($this->custosPorCliente)]);
         return $this->custosPorCliente;
@@ -444,58 +452,14 @@ class ProducaoCooperativista
         if ($this->entradas) {
             return;
         }
-
-        if ($this->previsao) {
-            $stmt = $this->db->getConnection()->prepare(
-                <<<SQL
-                -- Entradas
-                SELECT 'invoices' as 'table',
-                    i.*
-                FROM invoices i
-                WHERE transaction_of_month = :ano_mes
-                AND i.type = 'invoice'
-                AND archive = 0
-                SQL
-            );
-        } else {
-            $stmt = $this->db->getConnection()->prepare(
-                <<<SQL
-                -- Entradas
-                SELECT 'transactions' as 'table',
-                    t.*
-                FROM transactions t
-                WHERE transaction_of_month = :ano_mes
-                AND t.category_type = 'income'
-                AND archive = 0
-                SQL
-            );
-        }
-        $result = $stmt->executeQuery([
-            'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m'),
-        ]);
-        $errorsSemContactReference = [];
-        while ($row = $result->fetchAssociative()) {
-            if (empty($row['customer_reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['customer_reference'])) {
-                $errorsSemContactReference[] = $row;
-            }
-
-            $this->entradas[] = $row;
-        }
-        if (count($errorsSemContactReference)) {
-            throw new Exception(
-                "Cliente da transação não possui referência de contato válida no Akaunting.\n" .
-                "Dados: \n" .
-                json_encode($errorsSemContactReference, JSON_PRETTY_PRINT)
-            );
-        }
-
-        $this->logger->debug('Entradas no mês', [json_encode($this->entradas)]);
+        $movimetnacao = $this->getMovimentacaoFinanceira();
+        $this->entradas = array_filter($movimetnacao, fn ($i) => $i['category_type'] === 'income');
         return;
     }
 
     private function clientesContabilizaveis(): array
     {
-        $cnpjClientesInternos = explode(',', $_ENV['CNPJ_CLIENTES_INTERNOS']);
+        $cnpjClientesInternos = explode(',', getenv('CNPJ_CLIENTES_INTERNOS'));
         $clientesContabilizaveis = array_column($this->getEntradasClientes(), 'customer_reference');
         $clientesContabilizaveis = array_merge(
             array_values($clientesContabilizaveis),
@@ -619,7 +583,7 @@ class ProducaoCooperativista
         $insert = new QueryBuilder($connection);
         $insert->insert('contacts')
             ->values([
-                'company_id' => $insert->createNamedParameter($_ENV['AKAUNTING_COMPANY_ID'], ParameterType::INTEGER),
+                'company_id' => $insert->createNamedParameter(getenv('AKAUNTING_COMPANY_ID'), ParameterType::INTEGER),
                 'type' => $insert->createNamedParameter('vendor'),
                 'name' => $insert->createNamedParameter($name),
                 'tax_number' => $insert->createNamedParameter($taxNumber),
@@ -731,7 +695,7 @@ class ProducaoCooperativista
     {
         $percentualTrabalhadoPorCliente = $this->getPercentualTrabalhadoPorCliente();
         $sobras = $this->getTotalSobrasDoMes();
-        $cnpjClientesInternos = explode(',', $_ENV['CNPJ_CLIENTES_INTERNOS']);
+        $cnpjClientesInternos = explode(',', getenv('CNPJ_CLIENTES_INTERNOS'));
         foreach ($percentualTrabalhadoPorCliente as $row) {
             if (!in_array($row['customer_reference'], $cnpjClientesInternos)) {
                 continue;
@@ -765,7 +729,7 @@ class ProducaoCooperativista
         $percentualTrabalhadoPorCliente = $this->getPercentualTrabalhadoPorCliente();
         $totalPorCliente = array_column($this->getEntradasClientes(), 'base_producao', 'customer_reference');
         $errorSemCodigoCliente = [];
-        $cnpjClientesInternos = explode(',', $_ENV['CNPJ_CLIENTES_INTERNOS']);
+        $cnpjClientesInternos = explode(',', getenv('CNPJ_CLIENTES_INTERNOS'));
         foreach ($percentualTrabalhadoPorCliente as $row) {
             if (in_array($row['customer_reference'], $cnpjClientesInternos)) {
                 continue;
@@ -816,7 +780,7 @@ class ProducaoCooperativista
             ->where($qb->expr()->eq('transaction_of_month', $qb->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))))
             ->andWhere($qb->expr()->eq('i.type', $qb->createNamedParameter('invoice')))
             ->andWhere($qb->expr()->eq('i.archive', $qb->createNamedParameter(0), ParameterType::INTEGER))
-            ->andWhere($qb->expr()->eq('i.category_id', $qb->createNamedParameter($_ENV['AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID']), ParameterType::INTEGER));
+            ->andWhere($qb->expr()->eq('i.category_id', $qb->createNamedParameter(getenv('AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID')), ParameterType::INTEGER));
         $result = $qb->executeQuery();
         $total = $result->fetchOne();
         return (float) $total;

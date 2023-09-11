@@ -26,9 +26,6 @@ declare(strict_types=1);
 use DI\Container;
 use Symfony\Component\Console\Application;
 
-// $_ENV['DB_URL'] = 'pdo-sqlite:///:memory:';
-// $_ENV['DB_URL_AKAUNTING'] = 'pdo-sqlite:///:memory:';
-
 require __DIR__ . '/../../src/bootstrap.php';
 
 class ApplicationSingleton

@@ -59,7 +59,7 @@ if ((!$loader = $includeIfExists(__DIR__ . '/../vendor/autoload.php')) && (!$loa
     exit(1);
 }
 
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
+$dotenv = Dotenv\Dotenv::createUnsafeImmutable(__DIR__ . '/../');
 $dotenv->safeLoad();
 
 error_reporting(-1);
@@ -80,7 +80,7 @@ $containerBuilder->addDefinitions([
     'ProducaoCooperativista\Command\*Command' => \DI\autowire('ProducaoCooperativista\Command\*Command'),
     NumberFormatter::class => \DI\autowire()
         ->constructor(
-            \DI\env('LOCALE') ?? 'pt_BR',
+            \DI\env('LOCALE', 'pt_BR'),
             NumberFormatter::CURRENCY,
         ),
     SingleManagerProvider::class => DI\factory(function (ContainerInterface $c) {

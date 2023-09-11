@@ -53,7 +53,7 @@ class GetCategoriesCommand extends BaseCommand
                 null,
                 InputOption::VALUE_REQUIRED,
                 'Company id',
-                $_ENV['AKAUNTING_COMPANY_ID']
+                getenv('AKAUNTING_COMPANY_ID')
             );
     }
 

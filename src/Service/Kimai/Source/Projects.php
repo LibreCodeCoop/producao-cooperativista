@@ -128,11 +128,11 @@ class Projects
             $this->logger->debug('Dados extras do projeto: {name}', ['name' => $project['name']]);
             $result = $client->request(
                 'GET',
-                rtrim($_ENV['KIMAI_API_BASE_URL'], '/') . '/api/projects/' . $project['id'],
+                rtrim(getenv('KIMAI_API_BASE_URL'), '/') . '/api/projects/' . $project['id'],
                 [
                     'headers' => [
-                        'X-AUTH-USER' => $_ENV['KIMAI_AUTH_USER'],
-                        'X-AUTH-TOKEN' => $_ENV['KIMAI_AUTH_TOKEN'],
+                        'X-AUTH-USER' => getenv('KIMAI_AUTH_USER'),
+                        'X-AUTH-TOKEN' => getenv('KIMAI_AUTH_TOKEN'),
                     ],
                 ]
             );

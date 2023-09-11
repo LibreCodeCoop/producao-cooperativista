@@ -46,7 +46,7 @@ class Tax extends ADocument
         if ($aPagar > 0) {
             $this
                 ->setItem(
-                    itemId: (int) $_ENV['AKAUNTING_IMPOSTOS_ITEM_ID'],
+                    itemId: (int) getenv('AKAUNTING_IMPOSTOS_ITEM_ID'),
                     name: $this->readableName,
                     description: 'Impostos do mês ' . $this->dates->getInicioProximoMes()->format('Y-m'),
                     price: $aPagar * $this->quantity
@@ -92,7 +92,7 @@ class Tax extends ADocument
 
     protected function setUp(): self
     {
-        $this->taxData = json_decode($_ENV['AKAUNTING_IMPOSTOS_' . $this->whoami]);
+        $this->taxData = json_decode(getenv('AKAUNTING_IMPOSTOS_' . $this->whoami));
         return parent::setUp();
     }
 

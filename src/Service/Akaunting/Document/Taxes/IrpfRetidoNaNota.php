@@ -39,7 +39,7 @@ class IrpfRetidoNaNota extends Tax
         try {
             $this->getDueAt();
         } catch (UnexpectedValueException $e) {
-            $this->changeDueAt(\DateTime::createFromFormat('m', (string) $_ENV['AKAUNTING_RESGATE_SALDO_IRPF_MES_PADRAO']));
+            $this->changeDueAt(\DateTime::createFromFormat('m', (string) getenv('AKAUNTING_RESGATE_SALDO_IRPF_MES_PADRAO')));
         }
         return parent::setUp();
     }
@@ -49,7 +49,7 @@ class IrpfRetidoNaNota extends Tax
         $total = $this->getTotalRetainedOfMonth();
         $this
             ->setItem(
-                itemId: (int) $_ENV['AKAUNTING_IMPOSTOS_ITEM_ID'],
+                itemId: (int) getenv('AKAUNTING_IMPOSTOS_ITEM_ID'),
                 name: $this->readableName,
                 description: 'Impostos retidos do mês ' . $this->dates->getInicioProximoMes()->format('Y-m'),
                 price: $total * $this->quantity

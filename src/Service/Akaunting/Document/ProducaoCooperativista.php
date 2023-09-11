@@ -58,7 +58,7 @@ class ProducaoCooperativista extends ADocument
         $select->select('metadata->>"$.notes" as notes')
             ->from('invoices')
             ->where("type = 'bill'")
-            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_PLANO_DE_SAUDE_CATEGORY_ID'], ParameterType::INTEGER)))
+            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) getenv('AKAUNTING_PLANO_DE_SAUDE_CATEGORY_ID'), ParameterType::INTEGER)))
             ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
         $result = $select->executeQuery();
         $text = $result->fetchOne();
@@ -105,7 +105,7 @@ class ProducaoCooperativista extends ADocument
         $values = $this->getValues();
         $this
             ->setType('bill')
-            ->setCategoryId((int) $_ENV['AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'])
+            ->setCategoryId((int) getenv('AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'))
             ->setStatus('draft')
             ->setIssuedAt($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'))
             ->setCurrencyCode('BRL')
@@ -163,7 +163,7 @@ class ProducaoCooperativista extends ADocument
             ->where("type = 'bill'")
             ->andWhere("category_type = 'expense'")
             ->andWhere("metadata->>'$.status' = 'paid'")
-            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) $_ENV['AKAUNTING_ADIANTAMENTO_CATEGORY_ID'], ParameterType::INTEGER)))
+            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) getenv('AKAUNTING_ADIANTAMENTO_CATEGORY_ID'), ParameterType::INTEGER)))
             ->andWhere($select->expr()->eq('tax_number', $select->createNamedParameter($taxNumber)))
             ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
 

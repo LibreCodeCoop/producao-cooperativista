@@ -108,9 +108,9 @@ class Nfse
         $this->inicio = $inicio;
         $this->fim = $fim;
 
-        $this->login = $login ?? $_ENV['PREFEITURA_LOGIN'];
-        $this->senha = $senha ?? $_ENV['PREFEITURA_SENHA'];
-        $this->prefeitura = $prefeitura ?? $_ENV['PREFEITURA'];
+        $this->login = $login ?? getenv('PREFEITURA_LOGIN');
+        $this->senha = $senha ?? getenv('PREFEITURA_SENHA');
+        $this->prefeitura = $prefeitura ?? getenv('PREFEITURA');
 
         $list = $this->getData();
         return $list;
