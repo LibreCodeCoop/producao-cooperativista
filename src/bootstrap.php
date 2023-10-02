@@ -53,7 +53,7 @@ $includeIfExists = function (string $file): bool {
     return false;
 };
 
-if ((!$loader = $includeIfExists(__DIR__ . '/../vendor/autoload.php')) && (!$loader = $includeIfExists(__DIR__ . '/../../../autoload.php'))) {
+if ((!$includeIfExists(__DIR__ . '/../vendor/autoload.php')) && (!$includeIfExists(__DIR__ . '/../../../autoload.php'))) {
     echo 'You must set up the project dependencies using `composer install`' . PHP_EOL .
         'See https://getcomposer.org/download/ for instructions on installing Composer' . PHP_EOL;
     exit(1);
