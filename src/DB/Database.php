@@ -54,7 +54,7 @@ class Database
         $config->setMiddlewares([$logMiddleware]);
 
         $this->connection[self::DB_LOCAL] = DriverManager::getConnection([
-            'url' => getenv('DB_URL'),
+            'url' => (string) getenv('DB_URL'),
         ], $config);
 
         $configOrm = ORMSetup::createAttributeMetadataConfiguration(['src/DB/Entity']);
@@ -66,7 +66,7 @@ class Database
         );
 
         $this->connection[self::DB_AKAUNTING] = DriverManager::getConnection([
-            'url' => getenv('DB_URL_AKAUNTING'),
+            'url' => (string) getenv('DB_URL_AKAUNTING'),
         ], $config);
     }
 
