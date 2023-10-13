@@ -436,7 +436,7 @@ class ProducaoCooperativista
 
         $percentualDesconto = $this->getPercentualDesconto();
         $custosPorCliente = $this->getCustosPorCliente();
-        $custosPorCliente = array_column($custosPorCliente, 'total_custos', 'customer_reference');
+        $custosPorCliente = array_column($custosPorCliente, 'amount', 'customer_reference');
 
         foreach ($this->entradas as $key => $row) {
             $base = $row['amount'] - ($custosPorCliente[$row['customer_reference']] ?? 0);
