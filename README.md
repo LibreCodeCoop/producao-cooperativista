@@ -25,7 +25,9 @@ Calcular o bruto da produção cooperativista por cooperado com base em dados co
     * Colocar o cliente como `LibreCode` (é um cliente interno)
     * Inserir um item "Bruto produção" e remover a descrição padrão
     * No valor do item, inserir o valor que será dividido
-    * Na nota, colocar o motivo da divisão de sobras
+    * Campo de anotações:
+      * Colocar o motivo da divisão de sobras bem detalhado
+      * Informar se é transaçâo para algum mês específico
     * Criar a fatura
     * Marcar fatura como enviada
     * Cancelar fatura. Após cancelada, a fatura não será contabilizada no mês mas será considerado o valor dela para distribuição de sobras.
@@ -45,13 +47,13 @@ Calcular o bruto da produção cooperativista por cooperado com base em dados co
       > /^Cooperado: .*CPF: (?<CPF>\d+)[,;]? Valor: (R\$ ?)?(?<value>.*)$/i
       > ```
     * Customização da fatura (compra ou venda) ou transação deve ser inserida na descrição. Valores possíveis:
-      | Nome             | Descrição                                                  |
-      | ---------------- | ---------------------------------------------------------- |
-      | NFSe             | Número da NFSe                                             |
-      | Transação do mês | Mês onde esta transação será contabilizada                 |
-      | CNPJ cliente     | CNPJ do cliente de quem será cobrado o valor               |
-      | Setor            | Setor do cliente, quando é um CNPJ com mais de um contrato |
-      | Arquivar         | sim = Arquivar transação e não utilizá-la.                 |
+      | Nome             | Descrição                                                      |
+      | ---------------- | -------------------------------------------------------------- |
+      | NFSe             | Número da NFSe                                                 |
+      | Transação do mês | Mês onde esta transação será contabilizada. Formato: `2023-09` |
+      | CNPJ cliente     | CNPJ do cliente de quem será cobrado o valor                   |
+      | Setor            | Setor do cliente, quando é um CNPJ com mais de um contrato     |
+      | Arquivar         | `sim` = Arquivar transação e não utilizá-la.                   |
 
       Valores customizados precisam ter o nome da propriedade separado do valor com dois pointos, exemplo:
       ```
