@@ -7,7 +7,6 @@
         "doctrine/migrations": "^3.6",
         "doctrine/orm": "^2.15",
         "doctrine/sql-formatter": "^1.1",
-        "league/flysystem-webdav": "^3.15",
         "monolog/monolog": "^3.3",
         "php-di/php-di": "*",
         "phpoffice/phpspreadsheet": "^1.28",
