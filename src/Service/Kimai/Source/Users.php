@@ -26,17 +26,11 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Service\Kimai\Source;
 
 use Doctrine\DBAL\ArrayParameterType;
-use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
-use League\Flysystem\Filesystem;
-use League\Flysystem\WebDAV\WebDAVAdapter;
-use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\DB\Entity\Users as EntityUsers;
 use ProducaoCooperativista\Provider\Kimai;
 use Psr\Log\LoggerInterface;
-use Sabre\DAV\Client;
 
 class Users
 {
@@ -104,7 +98,6 @@ class Users
     public function fromArray(array $array): EntityUsers
     {
         $array = $this->updateFromUserPreferences($array);
-        $array = $this->updateWithDataFromSpreadsheet($array);
         $array = $this->updateWithAkauntingData($array);
         $array = $this->convertFields($array);
         $entity = $this->db->getEntityManager()->find(EntityUsers::class, $array['id']);
@@ -161,90 +154,6 @@ class Users
             $item['akaunting_contact_id'] = $row['id'];
         }
         return $item;
-    }
-
-    private function updateWithDataFromSpreadsheet(array $row): array
-    {
-        if (isset($row['tax_number'], $row['dependents'])) {
-            return $row;
-        }
-        $username = $row['username'];
-        unset($row['username']);
-
-        $csv = $this->getSpreadsheet();
-        $rowFromCsv = array_filter($csv, fn ($i) => $i['Usuário Kimai'] === $username);
-        if (!count($rowFromCsv)) {
-            throw new \Exception('Usuário não encontrado na planilha. Informe o username do kimai deste usuário.');
-        }
-        $rowFromCsv = current($rowFromCsv);
-
-        if (empty($row['tax_number'])) {
-            if (empty($rowFromCsv['CPF'])) {
-                throw new \Exception('Usuário na planilha não possui CPF');
-            }
-            $row['tax_number'] = $rowFromCsv['CPF'];
-        }
-        if (empty($row['dependents'])) {
-            if (empty($rowFromCsv['Email corporativo'])) {
-                throw new \Exception('Usuário na planilha não possui email corporativo');
-            }
-            $row['dependents'] = $rowFromCsv['Dependentes'] ?? 0;
-        }
-        $row['email'] = $rowFromCsv['Email corporativo'] ?? 0;
-
-        return $row;
-    }
-
-    private function getSpreadsheet(): array
-    {
-        if ($this->spreadsheetData) {
-            return $this->spreadsheetData;
-        }
-        $config = [
-            'baseUri' => getenv('NEXTCLOUD_URL'),
-            'userName' => getenv('NEXTCLOUD_USERNAME'),
-            'password' => getenv('NEXTCLOUD_PASSWORD')
-        ];
-        $prefix = 'remote.php/dav/files/' . $config['userName'] . '/';
-        $client = new Client($config);
-        $adapter = new WebDAVAdapter($client, $prefix);
-        $fileSystem = new Filesystem($adapter);
-        $pathOfFile = getenv('NEXTCLOUD_PATH_OF_FILE');
-        if (!$fileSystem->has($pathOfFile)) {
-            throw new \Exception(
-                'Planilha com dados de cooperados não encontrada no Nextcloud. Confira as environments de configuração e se a planilha existe.'
-            );
-        }
-        $fileContent = $fileSystem->read($pathOfFile);
-        $fileXlsx = tempnam(sys_get_temp_dir(), 'xlsx');
-        file_put_contents($fileXlsx, $fileContent);
-        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
-        $spreadsheet = $reader->load($fileXlsx);
-
-        /** @var Csv */
-        $writer = IOFactory::createWriter($spreadsheet, "Csv");
-        $writer->setSheetIndex(0); // Select which sheet to export.
-        $writer->setDelimiter(',');
-
-        $fileCsv = tempnam(sys_get_temp_dir(), 'csv');
-        $writer->save($fileCsv);
-        $handle = fopen($fileCsv, 'r');
-        $cols = fgetcsv($handle, 10000, ',');
-        $cols = array_filter($cols, fn ($i) => !empty($i));
-        while (($row = fgetcsv($handle, 10000, ',')) !== false) {
-            if (empty($row[0])) {
-                break;
-            }
-            $row = array_slice($row, 0, count($cols));
-            $row = array_combine($cols, $row);
-            $row['CPF'] = (string) preg_replace('/\D/', '', (string) $row['CPF']);
-            $row['Dependentes'] = $row['Dependentes'] ? (int) $row['Dependentes'] : null;
-            $row['Email corporativo'] = $row['Email corporativo'];
-            $this->spreadsheetData[] = $row;
-        }
-        fclose($handle);
-
-        return $this->spreadsheetData;
     }
 
     public function saveList(): self
