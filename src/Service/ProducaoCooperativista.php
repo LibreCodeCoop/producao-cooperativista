@@ -70,7 +70,6 @@ class ProducaoCooperativista
     private int $percentualMaximo = 0;
     private float $percentualDispendios = 0;
     private bool $sobrasDistribuidas = false;
-    private bool $previsao = false;
 
     public function __construct(
         private Database $db,
@@ -310,27 +309,15 @@ class ProducaoCooperativista
         if ($this->movimentacao) {
             return $this->movimentacao;
         }
-        if ($this->previsao) {
-            $stmt = $this->db->getConnection()->prepare(
-                <<<SQL
-                -- Saídas
-                SELECT *
-                    FROM invoices i
-                WHERE transaction_of_month = :ano_mes
-                    AND archive = 0
-                SQL
-            );
-        } else {
-            $stmt = $this->db->getConnection()->prepare(
-                <<<SQL
-                -- Saídas
-                SELECT *
-                    FROM transactions t
-                WHERE transaction_of_month = :ano_mes
-                    AND archive = 0
-                SQL
-            );
-        }
+        $stmt = $this->db->getConnection()->prepare(
+            <<<SQL
+            -- Saídas
+            SELECT *
+                FROM invoices i
+            WHERE transaction_of_month = :ano_mes
+                AND archive = 0
+            SQL
+        );
         $result = $stmt->executeQuery([
             'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m'),
         ]);
@@ -610,11 +597,6 @@ class ProducaoCooperativista
     public function setPercentualMaximo(int $percentualMaximo): void
     {
         $this->percentualMaximo = $percentualMaximo;
-    }
-
-    public function setPrevisao(bool $previsao): void
-    {
-        $this->previsao = $previsao;
     }
 
     public function updateProducao(): void

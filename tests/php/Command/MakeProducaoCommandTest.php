@@ -47,7 +47,6 @@ final class MakeProducaoCommandTest extends TestCase
 
         $input = new ArrayInput([
             'make:producao',
-            '--previsao' => true,
             '--baixar-dados' => '0',
             '--ano-mes' => $anoMes,
             '--csv' => true,

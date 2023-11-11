@@ -50,12 +50,6 @@ class MakeProducaoCommand extends BaseCommand
         parent::configure();
         $this
             ->addOption(
-                'previsao',
-                null,
-                InputOption::VALUE_NONE,
-                'Previsão de cálculo e não o valor real com base nas NFSe.'
-            )
-            ->addOption(
                 'ano-mes',
                 null,
                 InputOption::VALUE_REQUIRED,
@@ -110,7 +104,6 @@ class MakeProducaoCommand extends BaseCommand
         }
         $diasUteis = (int) $input->getOption('dias-uteis');
         $percentualMaximo = (int) $input->getOption('percentual-maximo');
-        $previsao = (bool) $input->getOption('previsao');
         $diaUtilPagamento = (int) $input->getOption('dia-util-pagamento');
         $inicio = DateTime::createFromFormat('Y-m', $input->getOption('ano-mes'));
         if (!$inicio instanceof DateTime) {
@@ -124,7 +117,6 @@ class MakeProducaoCommand extends BaseCommand
         $this->producaoCooperativista->dates->setInicio($inicio);
         $this->producaoCooperativista->dates->setDiasUteis($diasUteis);
         $this->producaoCooperativista->setPercentualMaximo($percentualMaximo);
-        $this->producaoCooperativista->setPrevisao($previsao);
 
         if ($input->getOption('atualiza-producao')) {
             $this->producaoCooperativista->updateProducao();
