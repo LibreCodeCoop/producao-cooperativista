@@ -412,10 +412,10 @@ class ProducaoCooperativista
 
     private function calculaBaseProducaoPorEntrada(): self
     {
-        $this->atualizaEntradas();
+        $entradasClientes = $this->getEntradasClientes();
 
-        if (count($this->entradas)) {
-            $current = current($this->entradas);
+        if (count($entradasClientes)) {
+            $current = current($entradasClientes);
             if (!empty($current['base_producao'])) {
                 return $this;
             }
@@ -425,12 +425,16 @@ class ProducaoCooperativista
         $custosPorCliente = $this->getCustosPorCliente();
         $custosPorCliente = array_column($custosPorCliente, 'amount', 'customer_reference');
 
-        foreach ($this->entradas as $key => $row) {
+        foreach ($entradasClientes as $key => $row) {
             $base = $row['amount'] - ($custosPorCliente[$row['customer_reference']] ?? 0);
-            $this->entradas[$key]['base_producao'] = $base - ($base * $percentualDesconto / 100);
+            if (is_float($row['discount_percentage'])) {
+                $this->entradas[$key]['base_producao'] = $base - ($base * $row['discount_percentage'] / 100);
+            } else {
+                $this->entradas[$key]['base_producao'] = $base - ($base * $percentualDesconto / 100);
+            }
         }
 
-        $this->logger->debug('Entradas no mês com base de produção', [json_encode($this->entradas)]);
+        $this->logger->debug('Entradas no mês com base de produção', [json_encode($entradasClientes)]);
         return $this;
     }
 

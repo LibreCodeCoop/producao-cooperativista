@@ -30,6 +30,7 @@ class ParseText
     private array $dictionaryTextParams = [
         'NFSe' => 'nfse',
         'Transação do mês' => 'transaction_of_month',
+        'Percentual desconto fixo' => 'discount_percentage',
         'CNPJ cliente' => 'customer',
         'Setor' => 'sector',
         'setor' => 'sector',
