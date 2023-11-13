@@ -299,8 +299,8 @@ class ProducaoCooperativista
         if ($this->saidas) {
             return $this->saidas;
         }
-        $movimetnacao = $this->getMovimentacaoFinanceira();
-        $this->saidas = array_filter($movimetnacao, fn ($i) => $i['category_type'] === 'expense');
+        $movimentacao = $this->getMovimentacaoFinanceira();
+        $this->saidas = array_filter($movimentacao, fn ($i) => $i['category_type'] === 'expense');
         return $this->saidas;
     }
 
@@ -443,8 +443,8 @@ class ProducaoCooperativista
         if ($this->entradas) {
             return;
         }
-        $movimetnacao = $this->getMovimentacaoFinanceira();
-        $this->entradas = array_filter($movimetnacao, fn ($i) => $i['category_type'] === 'income');
+        $movimentacao = $this->getMovimentacaoFinanceira();
+        $this->entradas = array_filter($movimentacao, fn ($i) => $i['category_type'] === 'income');
         return;
     }
 
