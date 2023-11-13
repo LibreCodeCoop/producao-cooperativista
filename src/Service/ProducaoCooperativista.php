@@ -440,7 +440,7 @@ class ProducaoCooperativista
 
     private function atualizaEntradas(): void
     {
-        if ($this->entradas) {
+        if (!empty($this->entradas)) {
             return;
         }
         $movimentacao = $this->getMovimentacaoFinanceira();
