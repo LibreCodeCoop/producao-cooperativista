@@ -306,7 +306,7 @@ class ProducaoCooperativista
 
     private function getMovimentacaoFinanceira(): array
     {
-        if ($this->movimentacao) {
+        if (!empty($this->movimentacao)) {
             return $this->movimentacao;
         }
         $stmt = $this->db->getConnection()->prepare(
