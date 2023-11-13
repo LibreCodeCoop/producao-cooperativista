@@ -8,7 +8,7 @@ Calcular o bruto da produção cooperativista por cooperado com base em dados co
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | [Kimai](https://www.kimai.org)     | Registro de horas trabalhadas por projeto, emissão de relatório de horas trabalhadas para clientes         |
 | [Akaunting](https://akaunting.com) | Gestão financeira                                                                                          |
-| Site da prefeitura                 | Emissão de NFSe. Hoje o sistema dá suporte oficial apenas as prefeituras dos municípios do Rio e Niteróio. |
+| Site da prefeitura                 | Emissão de NFSe. Hoje o sistema dá suporte oficial apenas as prefeituras dos municípios do Rio e Niterói.  |
 
 ## Ações para que tudo funcione
 * Emissão de notas fiscais
