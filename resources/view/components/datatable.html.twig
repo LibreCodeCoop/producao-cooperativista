@@ -7,6 +7,9 @@
 {% endblock %}
 
 {% block body %}
+    {% if not filterColumns %}
+        {% set filterColumns = ['metadata'] %}
+    {% endif %}
     <table id="example"></table>
     <script>
     $(document).ready( function () {
@@ -21,7 +24,7 @@
                 var columns = [];
                 columnNames = Object.keys(data.data[0]);
                 for (var i in columnNames) {
-                    if (['metadata'].indexOf(columnNames[i]) != -1) {
+                    if ({{ filterColumns|json_encode()|raw }}.indexOf(columnNames[i]) != -1) {
                         continue
                     }
                     columns.push({data: columnNames[i],
