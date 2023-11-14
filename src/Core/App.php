@@ -138,7 +138,6 @@ class App
 
         $controller = self::get($parameters[0]);
 
-        $controller->request = $request;
         $response = $controller->{$parameters[1]}();
 
         $response->prepare($request);
