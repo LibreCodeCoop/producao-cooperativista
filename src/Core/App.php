@@ -113,20 +113,20 @@ class App
                 $application = new Application();
 
                 $application->addCommands([
-                    self::get(GetCustomersCommand::class),
-                    self::get(GetInvoicesCommand::class),
-                    self::get(GetNfseCommand::class),
-                    self::get(GetProjectsCommand::class),
-                    self::get(GetTimesheetsCommand::class),
-                    self::get(GetTransactionsCommand::class),
-                    self::get(GetCategoriesCommand::class),
-                    self::get(GetTaxesCommand::class),
-                    self::get(GetUsersCommand::class),
-                    self::get(MakeProducaoCommand::class),
+                    $c->get(GetCustomersCommand::class),
+                    $c->get(GetInvoicesCommand::class),
+                    $c->get(GetNfseCommand::class),
+                    $c->get(GetProjectsCommand::class),
+                    $c->get(GetTimesheetsCommand::class),
+                    $c->get(GetTransactionsCommand::class),
+                    $c->get(GetCategoriesCommand::class),
+                    $c->get(GetTaxesCommand::class),
+                    $c->get(GetUsersCommand::class),
+                    $c->get(MakeProducaoCommand::class),
                 ]);
 
                 // Doctrine ORM
-                DoctrineOrmConsoleRunner::addCommands($application, self::get(SingleManagerProvider::class));
+                DoctrineOrmConsoleRunner::addCommands($application, $c->get(SingleManagerProvider::class));
 
                 // Doctrine Migrations
                 $dependencyFactory = DoctrineMigrationsConsoleRunner::findDependencyFactory();
