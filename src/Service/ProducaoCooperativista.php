@@ -361,7 +361,7 @@ class ProducaoCooperativista
 
     private function getEntradasClientes(): array
     {
-        $this->atualizaEntradas();
+        $this->getEntradas();
         $categoriasEntradasClientes = $this->getChildrensCategories((int) getenv('AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID'));
         $entradasClientes = array_filter($this->entradas, fn ($i) => in_array($i['category_id'], $categoriasEntradasClientes));
         return $entradasClientes;
@@ -438,14 +438,14 @@ class ProducaoCooperativista
         return $this;
     }
 
-    private function atualizaEntradas(): void
+    private function getEntradas(): void
     {
         if (!empty($this->entradas)) {
             return;
         }
         $movimentacao = $this->getMovimentacaoFinanceira();
         $this->entradas = array_filter($movimentacao, fn ($i) => $i['category_type'] === 'income');
-        return;
+        return $this->entradas;
     }
 
     private function clientesContabilizaveis(): array
@@ -665,7 +665,7 @@ class ProducaoCooperativista
             return $this->cooperado;
         }
 
-        $this->atualizaEntradas();
+        $this->getEntradas();
         $this->getSaidas();
         $this->getCustosPorCliente();
         $this->getTotalDispendios();
