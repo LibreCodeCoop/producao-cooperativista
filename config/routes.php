@@ -25,4 +25,5 @@ declare(strict_types=1);
 
 return [
     ['name' => 'Api\Invoices#index', 'path' => '/api/v1/invoices'],
+    ['name' => 'Invoices#index', 'path' => '/invoices'],
 ];
