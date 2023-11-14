@@ -1,7 +1,7 @@
 /volumes/
 /vendor-bin/**/vendor/
 /vendor/
-/storage/logs/
+/storage/
 .vscode
 .env
 cookies.json

@@ -98,6 +98,17 @@ class App
                 $database = $c->get(Database::class);
                 return new SingleManagerProvider($database->getEntityManager());
             }),
+            \Twig\Loader\FilesystemLoader::class => \DI\autowire()
+                ->constructor(self::$root . '/resources/view'),
+            \Twig\Environment::class => \DI\factory(function (ContainerInterface $c) {
+                $loader = $c->get(\Twig\Loader\FilesystemLoader::class);
+                $cache = filter_var(getenv('APP_DEBUG', true), FILTER_VALIDATE_BOOLEAN)
+                    ? false
+                    : self::$root . '/storage/cache';
+                return new \Twig\Environment($loader, [
+                    'cache' => $cache,
+                ]);
+            }),
             App::class => \DI\autowire(),
         ]);
         self::$container = $containerBuilder->build();
