@@ -134,6 +134,9 @@ class App
                 return $application;
             }),
             App::class => \DI\autowire(),
+            Request::class => \DI\factory(function () {
+                return Request::createFromGlobals();
+            })
         ]);
         self::$container = $containerBuilder->build();
     }
@@ -184,7 +187,7 @@ class App
         $routes = $this->getRouteCollection();
 
         $context = new RequestContext();
-        $request = Request::createFromGlobals();
+        $request = self::$container->get(Request::class);
         $context->fromRequest($request);
 
         $matcher = new UrlMatcher($routes, $context);
