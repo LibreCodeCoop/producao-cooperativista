@@ -109,6 +109,30 @@ class App
                     'cache' => $cache,
                 ]);
             }),
+            Application::class => \DI\factory(function (ContainerInterface $c) {
+                $application = new Application();
+
+                $application->addCommands([
+                    self::get(GetCustomersCommand::class),
+                    self::get(GetInvoicesCommand::class),
+                    self::get(GetNfseCommand::class),
+                    self::get(GetProjectsCommand::class),
+                    self::get(GetTimesheetsCommand::class),
+                    self::get(GetTransactionsCommand::class),
+                    self::get(GetCategoriesCommand::class),
+                    self::get(GetTaxesCommand::class),
+                    self::get(GetUsersCommand::class),
+                    self::get(MakeProducaoCommand::class),
+                ]);
+
+                // Doctrine ORM
+                DoctrineOrmConsoleRunner::addCommands($application, self::get(SingleManagerProvider::class));
+
+                // Doctrine Migrations
+                $dependencyFactory = DoctrineMigrationsConsoleRunner::findDependencyFactory();
+                DoctrineMigrationsConsoleRunner::addCommands($application, $dependencyFactory);
+                return $application;
+            }),
             App::class => \DI\autowire(),
         ]);
         self::$container = $containerBuilder->build();
@@ -177,32 +201,5 @@ class App
 
         $response->prepare($request);
         $response->send();
-    }
-
-    public function runCli(): void
-    {
-        $application = new Application();
-
-        $application->addCommands([
-            self::get(GetCustomersCommand::class),
-            self::get(GetInvoicesCommand::class),
-            self::get(GetNfseCommand::class),
-            self::get(GetProjectsCommand::class),
-            self::get(GetTimesheetsCommand::class),
-            self::get(GetTransactionsCommand::class),
-            self::get(GetCategoriesCommand::class),
-            self::get(GetTaxesCommand::class),
-            self::get(GetUsersCommand::class),
-            self::get(MakeProducaoCommand::class),
-        ]);
-
-        // Doctrine ORM
-        DoctrineOrmConsoleRunner::addCommands($application, self::get(SingleManagerProvider::class));
-
-        // Doctrine Migrations
-        $dependencyFactory = DoctrineMigrationsConsoleRunner::findDependencyFactory();
-        DoctrineMigrationsConsoleRunner::addCommands($application, $dependencyFactory);
-
-        $application->run();
     }
 }
