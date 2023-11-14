@@ -136,7 +136,13 @@ class App
             App::class => \DI\autowire(),
             Request::class => \DI\factory(function () {
                 return Request::createFromGlobals();
-            })
+            }),
+            RequestContext::class => \DI\factory(function () {
+                $context = new RequestContext();
+                $request = self::$container->get(Request::class);
+                $context->fromRequest($request);
+                return $context;
+            }),
         ]);
         self::$container = $containerBuilder->build();
     }
@@ -186,9 +192,7 @@ class App
 
         $routes = $this->getRouteCollection();
 
-        $context = new RequestContext();
-        $request = self::$container->get(Request::class);
-        $context->fromRequest($request);
+        $context = self::get(RequestContext::class);
 
         $matcher = new UrlMatcher($routes, $context);
 
@@ -202,7 +206,7 @@ class App
             $response = new Response('404', Response::HTTP_NOT_FOUND);
         }
 
-        $response->prepare($request);
+        $response->prepare(self::$container->get(Request::class));
         $response->send();
     }
 }
