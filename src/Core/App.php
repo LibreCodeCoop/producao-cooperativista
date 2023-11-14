@@ -147,7 +147,7 @@ class App
             UrlGenerator::class => \DI\factory(function (ContainerInterface $c) {
                 return new UrlGenerator(
                     $c->get(App::class)->getRouteCollection(),
-                    $c->get(Request::class)
+                    $c->get(RequestContext::class)
                 );
             }),
         ]);
