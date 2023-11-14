@@ -28,4 +28,4 @@ if (PHP_SAPI !== 'cli') {
 
 require __DIR__.'/../src/bootstrap.php';
 
-$application->run();
+$application->runCli();

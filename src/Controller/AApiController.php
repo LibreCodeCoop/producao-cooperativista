@@ -23,25 +23,11 @@
 
 declare(strict_types=1);
 
-use ProducaoCooperativista\Core\App;
+namespace ProducaoCooperativista\Controller;
 
-$includeIfExists = function (string $file): bool {
-    if (file_exists($file)) {
-        include $file;
-        return true;
-    }
-    return false;
-};
+use Symfony\Component\HttpFoundation\Request;
 
-if ((!$includeIfExists(__DIR__ . '/../vendor/autoload.php')) && (!$includeIfExists(__DIR__ . '/../../../autoload.php'))) {
-    echo 'You must set up the project dependencies using `composer install`' . PHP_EOL .
-        'See https://getcomposer.org/download/ for instructions on installing Composer' . PHP_EOL;
-    exit(1);
+abstract class AApiController
+{
+    public Request $request;
 }
-
-$dotenv = Dotenv\Dotenv::createUnsafeImmutable(__DIR__ . '/../');
-$dotenv->safeLoad();
-
-error_reporting(-1);
-
-$application = new App();
