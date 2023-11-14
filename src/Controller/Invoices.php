@@ -65,7 +65,6 @@ class Invoices
                         [
                             'ano-mes' => $inicio->format('Y-m')
                         ],
-                        UrlGenerator::ABSOLUTE_URL
                     )
                 ])
         );
