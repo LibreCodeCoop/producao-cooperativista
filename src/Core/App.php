@@ -68,7 +68,7 @@ class App
     public static function init()
     {
         self::$CLI = PHP_SAPI === 'cli';
-        self::$root = __DIR__ . '/../..';
+        self::$root = realpath(__DIR__ . '/../..');
         self::loadContainers();
     }
 
