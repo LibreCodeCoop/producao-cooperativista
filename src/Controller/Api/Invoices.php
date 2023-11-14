@@ -71,7 +71,7 @@ class Invoices
                 break;
         }
         $response = [
-            'data' => $movimentacao,
+            'data' => array_values($movimentacao),
             'metadata' => [
                 'total' => count($movimentacao),
                 'date' => $producaoCooperativista->dates->getInicioProximoMes()->format('Y-m')
