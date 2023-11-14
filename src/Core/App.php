@@ -49,6 +49,8 @@ use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Application;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Exception\ResourceNotFoundException;
 use Symfony\Component\Routing\Matcher\UrlMatcher;
 use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Routing\Route;
@@ -110,6 +112,28 @@ class App
         return self::$container->get($id);
     }
 
+    private function getRouteCollection(): RouteCollection {
+        $routes = new RouteCollection();
+        $routesList = require self::$root . '/config/routes.php';
+        foreach ($routesList as $route) {
+            $name = $route['name'];
+            [$controllerName, $methodName] = explode('#', $name);
+            $controllerName = 'ProducaoCooperativista\Controller\\' . ucfirst($controllerName);
+
+            $routes->add($name, new Route(
+                $route['path'],
+                ['controller' => $controllerName, 'method' => $methodName],
+                $route['requirements'] ?? [],
+                $route['options'] ?? [],
+                $route['host'] ?? null,
+                $route['schemes'] ?? [],
+                $route['methods'] ?? ['GET'],
+                $route['condition'] ?? null
+            ));
+        }
+        return $routes;
+    }
+
     public function runHttp(): void
     {
         if (self::$CLI) {
@@ -117,16 +141,7 @@ class App
             return;
         }
 
-        $routes = new RouteCollection();
-        $routesList = require self::$root . '/config/routes.php';
-        foreach ($routesList as $route) {
-            [$controllerName, $methodName] = explode('#', $route['name']);
-            $controllerName = 'ProducaoCooperativista\Controller\\' . ucfirst($controllerName);
-            $routes->add($route['name'], new Route(
-                $route['url'],
-                [$controllerName, $methodName]
-            ));
-        }
+        $routes = $this->getRouteCollection();
 
         $context = new RequestContext();
         $request = Request::createFromGlobals();
@@ -134,11 +149,15 @@ class App
 
         $matcher = new UrlMatcher($routes, $context);
 
-        $parameters = $matcher->match($context->getPathInfo());
+        try {
+            $parameters = $matcher->match($context->getPathInfo());
 
-        $controller = self::get($parameters[0]);
+            $controller = self::get($parameters['controller']);
 
-        $response = $controller->{$parameters[1]}();
+            $response = $controller->{$parameters['method']}();
+        } catch (ResourceNotFoundException $e) {
+            $response = new Response('404', Response::HTTP_NOT_FOUND);
+        }
 
         $response->prepare($request);
         $response->send();
