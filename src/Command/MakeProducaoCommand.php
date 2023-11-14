@@ -66,14 +66,14 @@ class MakeProducaoCommand extends BaseCommand
                 null,
                 InputOption::VALUE_REQUIRED,
                 'Número ordinal do dia útil quando o pagamento será feito',
-                5
+                getenv('DIA_UTIL_PAGAMENTO')
             )
             ->addOption(
                 'percentual-maximo',
                 null,
                 InputOption::VALUE_REQUIRED,
                 'Percentual máximo para pagamento de dispêndios',
-                25
+                getenv('PERCENTUAL_MAXIMO')
             )
             ->addOption(
                 'baixar-dados',
