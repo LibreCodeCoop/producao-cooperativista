@@ -22,10 +22,13 @@
  *
  */
 
+use ProducaoCooperativista\Core\App;
+
 if (PHP_SAPI !== 'cli') {
     echo 'Warning: Should be invoked via the CLI version of PHP, not the '.PHP_SAPI.' SAPI'.PHP_EOL;
 }
 
 require __DIR__.'/../src/bootstrap.php';
 
+$application = App::get(App::class);
 $application->runCli();

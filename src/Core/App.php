@@ -59,24 +59,24 @@ class App
     /**
      * Is CLI
      */
-    public bool $CLI = false;
-    public string $root;
-    public Container $container;
+    public static bool $CLI = false;
+    public static string $root;
+    private static Container $container;
 
-    public function __construct()
+    public static function init()
     {
-        $this->CLI = PHP_SAPI === 'cli';
-        $this->root = __DIR__ . '/../..';
-        $this->loadContainers();
+        self::$CLI = PHP_SAPI === 'cli';
+        self::$root = __DIR__ . '/../..';
+        self::loadContainers();
     }
 
-    public function loadContainers(): void
+    private static function loadContainers(): void
     {
         $containerBuilder = new \DI\ContainerBuilder();
         $containerBuilder->addDefinitions([
             Logger::class => \DI\autowire()
                 ->constructor('PRODUCAO_COOPERATIVISTA')
-                ->method('pushHandler', new StreamHandler('logs/system.log')),
+                ->method('pushHandler', new StreamHandler(self::$root . '/storage/logs/system.log')),
             LoggerInterface::class => \DI\get(Logger::class),
             Database::class => \DI\autowire(),
             Dates::class => \DI\autowire()
@@ -96,19 +96,29 @@ class App
                 $database = $c->get(Database::class);
                 return new SingleManagerProvider($database->getEntityManager());
             }),
+            App::class => \DI\autowire(),
         ]);
-        $this->container = $containerBuilder->build();
+        self::$container = $containerBuilder->build();
+    }
+
+    /**
+     * @template T
+     * @return mixed|T
+    */
+    public static function get(string $id): mixed
+    {
+        return self::$container->get($id);
     }
 
     public function runHttp(): void
     {
-        if ($this->CLI) {
+        if (self::$CLI) {
             echo 'Warning: Should be invoked via the CLI version of PHP, not the '.PHP_SAPI.' SAPI'.PHP_EOL;
             return;
         }
 
         $routes = new RouteCollection();
-        $routesList = require $this->root . '/config/routes.php';
+        $routesList = require self::$root . '/config/routes.php';
         foreach ($routesList as $route) {
             [$controllerName, $methodName] = explode('#', $route['name']);
             $controllerName = 'ProducaoCooperativista\Controller\\' . ucfirst($controllerName);
@@ -126,7 +136,7 @@ class App
 
         $parameters = $matcher->match($context->getPathInfo());
 
-        $controller = $this->container->get($parameters[0]);
+        $controller = self::get($parameters[0]);
 
         $controller->request = $request;
         $response = $controller->{$parameters[1]}();
@@ -140,21 +150,21 @@ class App
         $application = new Application();
 
         $application->addCommands([
-            $this->container->get(GetCustomersCommand::class),
-            $this->container->get(GetInvoicesCommand::class),
-            $this->container->get(GetNfseCommand::class),
-            $this->container->get(GetProjectsCommand::class),
-            $this->container->get(GetTimesheetsCommand::class),
-            $this->container->get(GetTransactionsCommand::class),
-            $this->container->get(GetCategoriesCommand::class),
-            $this->container->get(GetTaxesCommand::class),
-            $this->container->get(GetUsersCommand::class),
-            $this->container->get(MakeProducaoCommand::class),
+            self::get(GetCustomersCommand::class),
+            self::get(GetInvoicesCommand::class),
+            self::get(GetNfseCommand::class),
+            self::get(GetProjectsCommand::class),
+            self::get(GetTimesheetsCommand::class),
+            self::get(GetTransactionsCommand::class),
+            self::get(GetCategoriesCommand::class),
+            self::get(GetTaxesCommand::class),
+            self::get(GetUsersCommand::class),
+            self::get(MakeProducaoCommand::class),
         ]);
-        
+
         // Doctrine ORM
-        DoctrineOrmConsoleRunner::addCommands($application, $this->container->get(SingleManagerProvider::class));
-        
+        DoctrineOrmConsoleRunner::addCommands($application, self::get(SingleManagerProvider::class));
+
         // Doctrine Migrations
         $dependencyFactory = DoctrineMigrationsConsoleRunner::findDependencyFactory();
         DoctrineMigrationsConsoleRunner::addCommands($application, $dependencyFactory);

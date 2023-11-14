@@ -44,4 +44,4 @@ $dotenv->safeLoad();
 
 error_reporting(-1);
 
-$application = new App();
+App::init();

@@ -23,6 +23,9 @@
 
 declare(strict_types=1);
 
+use ProducaoCooperativista\Core\App;
+
 require_once '../src/bootstrap.php';
 
+$application = App::get(App::class);
 $application->runHttp();

@@ -813,7 +813,7 @@ class ProducaoCooperativista
     {
         throw new Exception('Need to be fixed');
         $reader = new \PhpOffice\PhpSpreadsheet\Reader\Ods();
-        $spreadsheet = $reader->load(__DIR__ . '/../assets/base.ods');
+        $spreadsheet = $reader->load(__DIR__ . '/../../resources/assets/base.ods');
         $spreadsheet->getSheetByName('valores calculados')
             ->setCellValue('B1', $this->dates->getInicio()->format('Y-m-d H:i:s'))
             ->setCellValue('B2', $this->dates->getFim()->format('Y-m-d H:i:s'))

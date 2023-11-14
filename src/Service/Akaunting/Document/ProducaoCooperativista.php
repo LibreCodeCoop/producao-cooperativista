@@ -144,7 +144,7 @@ class ProducaoCooperativista extends ADocument
             $this->setItem(
                 itemId: $this->itemsIds['Plano'],
                 name: 'Plano de saúde',
-                price: - $healthInsurance,
+                price: -$healthInsurance,
                 order: 10
             );
         }
