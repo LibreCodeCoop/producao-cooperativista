@@ -294,7 +294,7 @@ class ProducaoCooperativista
         return $this->categoriesList;
     }
 
-    private function getSaidas(): array
+    public function getSaidas(): array
     {
         if ($this->saidas) {
             return $this->saidas;
@@ -304,7 +304,7 @@ class ProducaoCooperativista
         return $this->saidas;
     }
 
-    private function getMovimentacaoFinanceira(): array
+    public function getMovimentacaoFinanceira(): array
     {
         if (!empty($this->movimentacao)) {
             return $this->movimentacao;
@@ -438,10 +438,10 @@ class ProducaoCooperativista
         return $this;
     }
 
-    private function getEntradas(): void
+    public function getEntradas(): array
     {
         if (!empty($this->entradas)) {
-            return;
+            return $this->entradas;
         }
         $movimentacao = $this->getMovimentacaoFinanceira();
         $this->entradas = array_filter($movimentacao, fn ($i) => $i['category_type'] === 'income');
