@@ -116,7 +116,8 @@ class App
         return self::$container->get($id);
     }
 
-    private function getRouteCollection(): RouteCollection {
+    private function getRouteCollection(): RouteCollection
+    {
         $routes = new RouteCollection();
         $routesList = require self::$root . '/config/routes.php';
         foreach ($routesList as $route) {
