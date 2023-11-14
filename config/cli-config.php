@@ -24,18 +24,14 @@
 declare(strict_types=1);
 
 use Doctrine\ORM\Tools\Console\ConsoleRunner;
-use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
+use ProducaoCooperativista\Core\App;
 use ProducaoCooperativista\DB\Database;
 
 // replace with file to your own project bootstrap
 require_once 'src/bootstrap.php';
 
-
-$logger = new Logger('PRODUCAO_COOPERATIVISTA');
-$logger->pushHandler(new StreamHandler('logs/system.log'));
-
-$database = new Database($logger);
+$database = new Database(App::get(Logger::class));
 
 // replace with mechanism to retrieve EntityManager in your app
 $entityManager = $database->getEntityManager();
