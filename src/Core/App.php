@@ -104,7 +104,11 @@ class App
     }
 
     /**
+     * Returns an entry of the container by its name.
+     *
      * @template T
+     * @param string|class-string<T> $id Entry name or a class name.
+     *
      * @return mixed|T
     */
     public static function get(string $id): mixed
