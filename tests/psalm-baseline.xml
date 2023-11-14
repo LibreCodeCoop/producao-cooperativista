@@ -50,9 +50,19 @@
       <code>__construct</code>
     </PossiblyUnusedMethod>
   </file>
+  <file src="src/Controller/Api/Categorias.php">
+    <UnusedClass>
+      <code>Categorias</code>
+    </UnusedClass>
+  </file>
   <file src="src/Controller/Api/Invoices.php">
     <UnusedClass>
       <code>Invoices</code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/Categorias.php">
+    <UnusedClass>
+      <code>Categorias</code>
     </UnusedClass>
   </file>
   <file src="src/Controller/Invoices.php">

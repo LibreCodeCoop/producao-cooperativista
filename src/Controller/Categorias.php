@@ -23,9 +23,32 @@
 
 declare(strict_types=1);
 
-return [
-    ['name' => 'Api\Invoices#index', 'path' => '/api/v1/invoices'],
-    ['name' => 'Invoices#index', 'path' => '/invoices'],
-    ['name' => 'Api\Categorias#index', 'path' => '/api/v1/categorias'],
-    ['name' => 'Categorias#index', 'path' => '/categorias'],
-];
+namespace ProducaoCooperativista\Controller;
+
+use ProducaoCooperativista\Core\App;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Generator\UrlGenerator;
+
+class Categorias
+{
+    public function __construct(
+        private UrlGenerator $urlGenerator,
+        private Request $request,
+    ) {
+    }
+
+    public function index(): Response
+    {
+        $response = new Response(
+            App::get(\Twig\Environment::class)
+                ->load('categorias.index.html.twig')
+                ->render([
+                    'url' => $this->urlGenerator->generate(
+                        'Api\Categorias#index'
+                    )
+                ])
+        );
+        return $response;
+    }
+}

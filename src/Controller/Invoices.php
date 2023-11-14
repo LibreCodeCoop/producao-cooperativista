@@ -65,7 +65,7 @@ class Invoices
                         [
                             'ano-mes' => $inicio->format('Y-m')
                         ],
-                    )
+                    ),
                 ])
         );
         return $response;

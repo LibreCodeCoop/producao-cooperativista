@@ -264,7 +264,7 @@ class ProducaoCooperativista
         return $this->totalDispendios;
     }
 
-    private function getChildrensCategories(int $id): array
+    public function getChildrensCategories(int $id): array
     {
         $childrens = [];
         foreach ($this->getCategories() as $category) {
@@ -279,7 +279,7 @@ class ProducaoCooperativista
         return array_values(array_unique($childrens));
     }
 
-    private function getCategories(): array
+    public function getCategories(): array
     {
         if (!empty($this->categoriesList)) {
             return $this->categoriesList;
