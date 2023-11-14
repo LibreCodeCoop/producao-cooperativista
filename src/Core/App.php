@@ -121,7 +121,7 @@ class App
             $controllerName = 'ProducaoCooperativista\Controller\\' . ucfirst($controllerName);
 
             $routes->add($name, new Route(
-                $route['path'],
+                $route['path'] ?? '',
                 ['controller' => $controllerName, 'method' => $methodName],
                 $route['requirements'] ?? [],
                 $route['options'] ?? [],
