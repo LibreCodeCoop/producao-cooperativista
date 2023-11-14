@@ -50,10 +50,15 @@
       <code>__construct</code>
     </PossiblyUnusedMethod>
   </file>
-  <file src="src/Core/App.php">
-    <PossiblyUnusedMethod>
-      <code>runHttp</code>
-    </PossiblyUnusedMethod>
+  <file src="src/Controller/Api/Invoices.php">
+    <UnusedClass>
+      <code>Invoices</code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/Invoices.php">
+    <UnusedClass>
+      <code>Invoices</code>
+    </UnusedClass>
   </file>
   <file src="src/DB/Database.php">
     <PossiblyUnusedMethod>
@@ -458,9 +463,6 @@
     <UnusedProperty>
       <code>$valoresPorProjeto</code>
     </UnusedProperty>
-    <UnusedReturnValue>
-      <code>array</code>
-    </UnusedReturnValue>
     <UnusedVariable>
       <code>$carry</code>
       <code>$total</code>
