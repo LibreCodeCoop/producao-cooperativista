@@ -51,6 +51,7 @@ use Symfony\Component\Console\Application;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Exception\ResourceNotFoundException;
+use Symfony\Component\Routing\Generator\UrlGenerator;
 use Symfony\Component\Routing\Matcher\UrlMatcher;
 use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Routing\Route;
@@ -143,6 +144,12 @@ class App
                 $context->fromRequest($request);
                 return $context;
             }),
+            UrlGenerator::class => \DI\factory(function (ContainerInterface $c) {
+                return new UrlGenerator(
+                    $c->get(App::class)->getRouteCollection(),
+                    $c->get(Request::class)
+                );
+            }),
         ]);
         self::$container = $containerBuilder->build();
     }
@@ -160,7 +167,7 @@ class App
         return self::$container->get($id);
     }
 
-    private function getRouteCollection(): RouteCollection
+    public function getRouteCollection(): RouteCollection
     {
         $routes = new RouteCollection();
         $routesList = require self::$root . '/config/routes.php';
