@@ -25,11 +25,11 @@ declare(strict_types=1);
 
 namespace Tests\Php;
 
-use ApplicationSingleton;
 use Doctrine\Common\DataFixtures\Executor\ORMExecutor;
 use Doctrine\Common\DataFixtures\Loader;
 use Doctrine\Common\DataFixtures\Purger\ORMPurger;
 use PHPUnit\Framework\TestCase as FrameworkTestCase;
+use ProducaoCooperativista\Core\App;
 use ProducaoCooperativista\DB\Database;
 use Tests\Php\Fixtures\CsvLoader;
 
@@ -43,7 +43,7 @@ class TestCase extends FrameworkTestCase
         $loader->addFixture($csvLoader);
 
         /** @var Database */
-        $db = ApplicationSingleton::$container->get(Database::class);
+        $db = App::get(Database::class);
         $entityManager = $db->getEntityManager();
         $executor = new ORMExecutor($entityManager, new ORMPurger());
         $executor->execute($loader->getFixtures());

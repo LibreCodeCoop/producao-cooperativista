@@ -52,7 +52,6 @@
   </file>
   <file src="src/Core/App.php">
     <PossiblyUnusedMethod>
-      <code>runCli</code>
       <code>runHttp</code>
     </PossiblyUnusedMethod>
   </file>

@@ -23,6 +23,7 @@
  */
 
 use ProducaoCooperativista\Core\App;
+use Symfony\Component\Console\Application;
 
 if (PHP_SAPI !== 'cli') {
     echo 'Warning: Should be invoked via the CLI version of PHP, not the '.PHP_SAPI.' SAPI'.PHP_EOL;
@@ -30,5 +31,4 @@ if (PHP_SAPI !== 'cli') {
 
 require __DIR__.'/../src/bootstrap.php';
 
-$application = App::get(App::class);
-$application->runCli();
+App::get(Application::class)->run();

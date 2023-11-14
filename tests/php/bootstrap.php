@@ -23,20 +23,4 @@
 
 declare(strict_types=1);
 
-use DI\Container;
-use Symfony\Component\Console\Application;
-
 require __DIR__ . '/../../src/bootstrap.php';
-
-class ApplicationSingleton
-{
-    public static Application $instance;
-    public static Container $container;
-    public function __construct($instance, $container)
-    {
-        self::$instance = $instance;
-        self::$container = $container;
-    }
-}
-
-new ApplicationSingleton($application, $container);
