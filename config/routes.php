@@ -28,4 +28,6 @@ return [
     ['name' => 'Invoices#index', 'path' => '/invoices'],
     ['name' => 'Api\Categorias#index', 'path' => '/api/v1/categorias'],
     ['name' => 'Categorias#index', 'path' => '/categorias'],
+    ['name' => 'Api\Producao#index', 'path' => '/api/v1/producao'],
+    ['name' => 'Producao#index', 'path' => '/producao'],
 ];
