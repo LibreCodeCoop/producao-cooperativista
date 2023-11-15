@@ -23,6 +23,7 @@
 
 declare(strict_types=1);
 
+use ProducaoCooperativista\Core\App;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
@@ -33,7 +34,7 @@ final class MakeProducaoCommandTest extends TestCase
     private Application $application;
     protected function setUp(): void
     {
-        $this->application = ApplicationSingleton::$instance;
+        $this->application = App::get(Application::class);
         $this->application->setAutoExit(false);
     }
 
@@ -47,7 +48,6 @@ final class MakeProducaoCommandTest extends TestCase
 
         $input = new ArrayInput([
             'make:producao',
-            '--previsao' => true,
             '--baixar-dados' => '0',
             '--ano-mes' => $anoMes,
             '--csv' => true,

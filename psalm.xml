@@ -10,7 +10,8 @@
     errorBaseline="tests/psalm-baseline.xml"
 >
     <projectFiles>
-        <file name="bin/import" />
+        <directory name="bin" />
+        <directory name="public" />
         <directory name="src" />
         <ignoreFiles>
             <directory name="vendor" />

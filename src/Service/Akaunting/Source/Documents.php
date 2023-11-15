@@ -93,6 +93,7 @@ class Documents
     {
         $array = array_merge($array, $this->parseText->do((string) $array['notes']));
         $array = $this->defineTransactionOfMonth($array);
+        $array = $this->calculateFixedDiscountPercentage($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
         $entity = $this->db->getEntityManager()->find(Invoices::class, $array['id']);
@@ -142,6 +143,14 @@ class Documents
         if (!array_key_exists('transaction_of_month', $row)) {
             $date = $this->convertDate($row['due_at']);
             $row['transaction_of_month'] = $date->format('Y-m');
+        }
+        return $row;
+    }
+
+    private function calculateFixedDiscountPercentage(array $row): array
+    {
+        if (array_key_exists('discount_percentage', $row)) {
+            $row['discount_percentage'] = (float) $row['discount_percentage'];
         }
         return $row;
     }

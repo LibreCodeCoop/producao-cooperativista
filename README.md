@@ -8,7 +8,7 @@ Calcular o bruto da produção cooperativista por cooperado com base em dados co
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | [Kimai](https://www.kimai.org)     | Registro de horas trabalhadas por projeto, emissão de relatório de horas trabalhadas para clientes         |
 | [Akaunting](https://akaunting.com) | Gestão financeira                                                                                          |
-| Site da prefeitura                 | Emissão de NFSe. Hoje o sistema dá suporte oficial apenas as prefeituras dos municípios do Rio e Niteróio. |
+| Site da prefeitura                 | Emissão de NFSe. Hoje o sistema dá suporte oficial apenas as prefeituras dos municípios do Rio e Niterói.  |
 
 ## Ações para que tudo funcione
 * Emissão de notas fiscais
@@ -21,7 +21,7 @@ Calcular o bruto da produção cooperativista por cooperado com base em dados co
     * Toda transação com nota fiscal emitida pela LibreCode deve conter o número da nota fiscal no campo `referência`.
     * Sempre que for receita vinda de cliente deve possuir a categoria `Recorrência` ou `Serviço`
   * Divisão de sobras
-    * Criar uma fatura com categoria `Cliente > Interno > Cooperado > Produção > Distribuição de sobras`
+    * Criar uma fatura de venda com categoria `Cliente > Interno > Cooperado > Produção > Distribuição de sobras`
     * Colocar o cliente como `LibreCode` (é um cliente interno)
     * Inserir um item "Bruto produção" e remover a descrição padrão
     * No valor do item, inserir o valor que será dividido
@@ -100,7 +100,6 @@ Usage:
 Options:
       --csv                                    To output as CSV
       --database                               Save to default database
-      --previsao                               Previsão de cálculo e não o valor real com base nas NFSe.
       --ano-mes=ANO-MES                        Ano e mês para gerar a produção cooperativista, formato: YYYY-mm
       --dias-uteis=DIAS-UTEIS                  Total de dias úteis no mês trabalhado. Se não informar, irá calcular com base nos dias úteis de um mês considerando apenas feriados nacionais.
       --dia-util-pagamento=DIA-UTIL-PAGAMENTO  Número ordinal do dia útil quando o pagamento será feito [default: 5]

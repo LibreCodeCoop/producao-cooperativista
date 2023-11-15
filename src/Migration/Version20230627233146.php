@@ -44,6 +44,7 @@ final class Version20230627233146 extends AbstractMigration
         $table->addColumn('due_at', 'datetime');
         $table->addColumn('transaction_of_month', 'string');
         $table->addColumn('amount', 'float');
+        $table->addColumn('discount_percentage', 'float', ['notnull' => false]);
         $table->addColumn('currency_code', 'string', ['length' => 14]);
         $table->addColumn('document_number', 'string');
         $table->addColumn('nfse', 'bigint', ['unsigned' => true, 'notnull' => false]);

@@ -23,17 +23,32 @@
 
 declare(strict_types=1);
 
-use Doctrine\ORM\Tools\Console\ConsoleRunner;
-use Monolog\Logger;
+namespace ProducaoCooperativista\Controller;
+
 use ProducaoCooperativista\Core\App;
-use ProducaoCooperativista\DB\Database;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Generator\UrlGenerator;
 
-// replace with file to your own project bootstrap
-require_once 'src/bootstrap.php';
+class Categorias
+{
+    public function __construct(
+        private UrlGenerator $urlGenerator,
+        private Request $request,
+    ) {
+    }
 
-$database = new Database(App::get(Logger::class));
-
-// replace with mechanism to retrieve EntityManager in your app
-$entityManager = $database->getEntityManager();
-
-return ConsoleRunner::createHelperSet($entityManager);
+    public function index(): Response
+    {
+        $response = new Response(
+            App::get(\Twig\Environment::class)
+                ->load('categorias.index.html.twig')
+                ->render([
+                    'url' => $this->urlGenerator->generate(
+                        'Api\Categorias#index'
+                    )
+                ])
+        );
+        return $response;
+    }
+}

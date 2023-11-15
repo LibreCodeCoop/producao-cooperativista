@@ -23,17 +23,9 @@
 
 declare(strict_types=1);
 
-use Doctrine\ORM\Tools\Console\ConsoleRunner;
-use Monolog\Logger;
 use ProducaoCooperativista\Core\App;
-use ProducaoCooperativista\DB\Database;
 
-// replace with file to your own project bootstrap
-require_once 'src/bootstrap.php';
+require_once '../src/bootstrap.php';
 
-$database = new Database(App::get(Logger::class));
-
-// replace with mechanism to retrieve EntityManager in your app
-$entityManager = $database->getEntityManager();
-
-return ConsoleRunner::createHelperSet($entityManager);
+$application = App::get(App::class);
+$application->runHttp();

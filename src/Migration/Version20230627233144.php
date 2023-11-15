@@ -43,6 +43,7 @@ final class Version20230627233144 extends AbstractMigration
         $table->addColumn('paid_at', 'datetime');
         $table->addColumn('transaction_of_month', 'string');
         $table->addColumn('amount', 'float');
+        $table->addColumn('discount_percentage', 'float', ['notnull' => false]);
         $table->addColumn('currency_code', 'string', ['length' => 14]);
         $table->addColumn('reference', 'string', ['notnull' => false]);
         $table->addColumn('nfse', 'bigint', ['unsigned' => true, 'notnull' => false]);

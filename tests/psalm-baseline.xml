@@ -50,6 +50,26 @@
       <code>__construct</code>
     </PossiblyUnusedMethod>
   </file>
+  <file src="src/Controller/Api/Categorias.php">
+    <UnusedClass>
+      <code>Categorias</code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/Api/Invoices.php">
+    <UnusedClass>
+      <code>Invoices</code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/Categorias.php">
+    <UnusedClass>
+      <code>Categorias</code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/Invoices.php">
+    <UnusedClass>
+      <code>Invoices</code>
+    </UnusedClass>
+  </file>
   <file src="src/DB/Database.php">
     <PossiblyUnusedMethod>
       <code>__construct</code>
@@ -83,6 +103,7 @@
       <code>$contactType</code>
       <code>$currencyCode</code>
       <code>$customerReference</code>
+      <code>$discountPercentage</code>
       <code>$documentNumber</code>
       <code>$dueAt</code>
       <code>$id</code>
@@ -131,6 +152,7 @@
       <code>$contactType</code>
       <code>$currencyCode</code>
       <code>$customerReference</code>
+      <code>$discountPercentage</code>
       <code>$id</code>
       <code>$metadata</code>
       <code>$nfse</code>
@@ -389,6 +411,9 @@
     <UnusedDocblockParam>
       <code>$visible</code>
     </UnusedDocblockParam>
+    <UnusedProperty>
+      <code>$spreadsheetData</code>
+    </UnusedProperty>
   </file>
   <file src="src/Service/ProducaoCooperativista.php">
     <PossiblyUnusedMethod>
@@ -400,7 +425,7 @@
             ->setTitle($this->dates->getInicio()->format('Y-m'));]]></code>
       <code>$reader = new \PhpOffice\PhpSpreadsheet\Reader\Ods();</code>
       <code>$row = 4;</code>
-      <code><![CDATA[$spreadsheet = $reader->load(__DIR__ . '/../assets/base.ods');]]></code>
+      <code><![CDATA[$spreadsheet = $reader->load(__DIR__ . '/../../resources/assets/base.ods');]]></code>
       <code><![CDATA[$spreadsheet->createSheet()
             ->setTitle('Trabalhado por cliente')
             ->fromArray(['Cooperado', 'Cliente', 'Percentual trabalhado', 'cliente codigo', 'customer id'])
@@ -448,9 +473,6 @@
     <UnusedProperty>
       <code>$valoresPorProjeto</code>
     </UnusedProperty>
-    <UnusedReturnValue>
-      <code>array</code>
-    </UnusedReturnValue>
     <UnusedVariable>
       <code>$carry</code>
       <code>$total</code>

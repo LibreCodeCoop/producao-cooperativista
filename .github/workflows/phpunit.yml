@@ -86,4 +86,4 @@ jobs:
       - name: Print logs
         if: always()
         run: |
-          cat logs/system.log
+          cat storage/logs/system.log

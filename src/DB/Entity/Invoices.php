@@ -48,6 +48,8 @@ class Invoices extends DBEntity
     private string $transactionOfMonth;
     #[Column]
     private float $amount;
+    #[Column(nullable: true)]
+    private ?float $discountPercentage;
     #[Column(length: 14)]
     private string $currencyCode;
     #[Column]

@@ -70,7 +70,6 @@ class ProducaoCooperativista
     private int $percentualMaximo = 0;
     private float $percentualDispendios = 0;
     private bool $sobrasDistribuidas = false;
-    private bool $previsao = false;
 
     public function __construct(
         private Database $db,
@@ -265,7 +264,7 @@ class ProducaoCooperativista
         return $this->totalDispendios;
     }
 
-    private function getChildrensCategories(int $id): array
+    public function getChildrensCategories(int $id): array
     {
         $childrens = [];
         foreach ($this->getCategories() as $category) {
@@ -280,7 +279,7 @@ class ProducaoCooperativista
         return array_values(array_unique($childrens));
     }
 
-    private function getCategories(): array
+    public function getCategories(): array
     {
         if (!empty($this->categoriesList)) {
             return $this->categoriesList;
@@ -295,42 +294,30 @@ class ProducaoCooperativista
         return $this->categoriesList;
     }
 
-    private function getSaidas(): array
+    public function getSaidas(): array
     {
         if ($this->saidas) {
             return $this->saidas;
         }
-        $movimetnacao = $this->getMovimentacaoFinanceira();
-        $this->saidas = array_filter($movimetnacao, fn ($i) => $i['category_type'] === 'expense');
+        $movimentacao = $this->getMovimentacaoFinanceira();
+        $this->saidas = array_filter($movimentacao, fn ($i) => $i['category_type'] === 'expense');
         return $this->saidas;
     }
 
-    private function getMovimentacaoFinanceira(): array
+    public function getMovimentacaoFinanceira(): array
     {
-        if ($this->movimentacao) {
+        if (!empty($this->movimentacao)) {
             return $this->movimentacao;
         }
-        if ($this->previsao) {
-            $stmt = $this->db->getConnection()->prepare(
-                <<<SQL
-                -- Saídas
-                SELECT *
-                    FROM invoices i
-                WHERE transaction_of_month = :ano_mes
-                    AND archive = 0
-                SQL
-            );
-        } else {
-            $stmt = $this->db->getConnection()->prepare(
-                <<<SQL
-                -- Saídas
-                SELECT *
-                    FROM transactions t
-                WHERE transaction_of_month = :ano_mes
-                    AND archive = 0
-                SQL
-            );
-        }
+        $stmt = $this->db->getConnection()->prepare(
+            <<<SQL
+            -- Saídas
+            SELECT *
+                FROM invoices i
+            WHERE transaction_of_month = :ano_mes
+                AND archive = 0
+            SQL
+        );
         $result = $stmt->executeQuery([
             'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m'),
         ]);
@@ -374,7 +361,7 @@ class ProducaoCooperativista
 
     private function getEntradasClientes(): array
     {
-        $this->atualizaEntradas();
+        $this->getEntradas();
         $categoriasEntradasClientes = $this->getChildrensCategories((int) getenv('AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID'));
         $entradasClientes = array_filter($this->entradas, fn ($i) => in_array($i['category_id'], $categoriasEntradasClientes));
         return $entradasClientes;
@@ -425,10 +412,10 @@ class ProducaoCooperativista
 
     private function calculaBaseProducaoPorEntrada(): self
     {
-        $this->atualizaEntradas();
+        $entradasClientes = $this->getEntradasClientes();
 
-        if (count($this->entradas)) {
-            $current = current($this->entradas);
+        if (count($entradasClientes)) {
+            $current = current($entradasClientes);
             if (!empty($current['base_producao'])) {
                 return $this;
             }
@@ -438,23 +425,27 @@ class ProducaoCooperativista
         $custosPorCliente = $this->getCustosPorCliente();
         $custosPorCliente = array_column($custosPorCliente, 'amount', 'customer_reference');
 
-        foreach ($this->entradas as $key => $row) {
+        foreach ($entradasClientes as $key => $row) {
             $base = $row['amount'] - ($custosPorCliente[$row['customer_reference']] ?? 0);
-            $this->entradas[$key]['base_producao'] = $base - ($base * $percentualDesconto / 100);
+            if (is_float($row['discount_percentage'])) {
+                $this->entradas[$key]['base_producao'] = $base - ($base * $row['discount_percentage'] / 100);
+            } else {
+                $this->entradas[$key]['base_producao'] = $base - ($base * $percentualDesconto / 100);
+            }
         }
 
-        $this->logger->debug('Entradas no mês com base de produção', [json_encode($this->entradas)]);
+        $this->logger->debug('Entradas no mês com base de produção', [json_encode($entradasClientes)]);
         return $this;
     }
 
-    private function atualizaEntradas(): void
+    public function getEntradas(): array
     {
-        if ($this->entradas) {
-            return;
+        if (!empty($this->entradas)) {
+            return $this->entradas;
         }
-        $movimetnacao = $this->getMovimentacaoFinanceira();
-        $this->entradas = array_filter($movimetnacao, fn ($i) => $i['category_type'] === 'income');
-        return;
+        $movimentacao = $this->getMovimentacaoFinanceira();
+        $this->entradas = array_filter($movimentacao, fn ($i) => $i['category_type'] === 'income');
+        return $this->entradas;
     }
 
     private function clientesContabilizaveis(): array
@@ -612,11 +603,6 @@ class ProducaoCooperativista
         $this->percentualMaximo = $percentualMaximo;
     }
 
-    public function setPrevisao(bool $previsao): void
-    {
-        $this->previsao = $previsao;
-    }
-
     public function updateProducao(): void
     {
         $producao = $this->getProducaoCooperativista();
@@ -679,7 +665,7 @@ class ProducaoCooperativista
             return $this->cooperado;
         }
 
-        $this->atualizaEntradas();
+        $this->getEntradas();
         $this->getSaidas();
         $this->getCustosPorCliente();
         $this->getTotalDispendios();
@@ -827,7 +813,7 @@ class ProducaoCooperativista
     {
         throw new Exception('Need to be fixed');
         $reader = new \PhpOffice\PhpSpreadsheet\Reader\Ods();
-        $spreadsheet = $reader->load(__DIR__ . '/../assets/base.ods');
+        $spreadsheet = $reader->load(__DIR__ . '/../../resources/assets/base.ods');
         $spreadsheet->getSheetByName('valores calculados')
             ->setCellValue('B1', $this->dates->getInicio()->format('Y-m-d H:i:s'))
             ->setCellValue('B2', $this->dates->getFim()->format('Y-m-d H:i:s'))

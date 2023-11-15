@@ -15,7 +15,10 @@
         "symfony/console": "^6.2",
         "symfony/css-selector": "^6.2",
         "symfony/http-client": "^6.2",
+        "symfony/http-foundation": "^6.3",
         "symfony/mime": "^6.2",
+        "symfony/routing": "^6.3",
+        "twig/twig": "^3.7",
         "vlucas/phpdotenv": "^5.5"
     },
     "require-dev": {
