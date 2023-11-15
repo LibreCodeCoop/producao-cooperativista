@@ -13,7 +13,6 @@
         <directory name="bin" />
         <directory name="public" />
         <directory name="src" />
-        <file name="bin/import" />
         <ignoreFiles>
             <directory name="vendor" />
         </ignoreFiles>
