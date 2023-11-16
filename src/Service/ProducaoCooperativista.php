@@ -32,6 +32,7 @@ use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
 use NumberFormatter;
 use ProducaoCooperativista\DB\Database;
+use ProducaoCooperativista\Helper\Colors;
 use ProducaoCooperativista\Helper\Dates;
 use ProducaoCooperativista\Provider\Akaunting\Request;
 use ProducaoCooperativista\Service\Akaunting\Document\Taxes\Cofins;
@@ -52,7 +53,6 @@ use Psr\Log\LoggerInterface;
 class ProducaoCooperativista
 {
     private array $custosPorCliente = [];
-    private array $valoresPorProjeto = [];
     private array $percentualTrabalhadoPorCliente = [];
     private array $entradas = [];
     private array $saidas = [];
@@ -68,6 +68,9 @@ class ProducaoCooperativista
     private int $totalSegundosLibreCode = 0;
     private float $baseCalculoDispendios = 0;
     private int $percentualMaximo = 0;
+    private float $taxaMinima = 0;
+    private float $taxaMaxima = 0;
+    private float $taxaAdministrativa = 0;
     private float $percentualDispendios = 0;
     private bool $sobrasDistribuidas = false;
 
@@ -94,7 +97,7 @@ class ProducaoCooperativista
         if (!empty($this->baseCalculoDispendios)) {
             return $this->baseCalculoDispendios;
         }
-        $this->baseCalculoDispendios = $this->getTotalNotasClientes() - $this->getTotalCustoCliente();
+        $this->baseCalculoDispendios = $this->getTotalNotasClientes() - $this->getTotalDispendiosClientes();
         return $this->baseCalculoDispendios;
     }
 
@@ -110,18 +113,18 @@ class ProducaoCooperativista
          * Para a taxa mínima utiliza-se o total de dispêndios apenas pois no total
          * de dispêndios já está sem o custo dos clientes.
          */
-        $taxaMinima = $this->getTotalDispendios();
-        $taxaMaxima = $taxaMinima * 2;
-        if ($this->getBaseCalculoDispendios() * $this->percentualMaximo / 100 >= $taxaMaxima) {
-            $taxaAdministrativa = $taxaMaxima;
-        } elseif ($this->getBaseCalculoDispendios() * $this->percentualMaximo / 100 >= $taxaMinima) {
-            $taxaAdministrativa = $this->getBaseCalculoDispendios() * $this->percentualMaximo / 100;
+        $this->taxaMinima = $this->getTotalDispendiosInternos();
+        $this->taxaMaxima = $this->taxaMinima * 2;
+        if ($this->getBaseCalculoDispendios() * $this->percentualMaximo / 100 >= $this->taxaMaxima) {
+            $this->taxaAdministrativa = $this->taxaMaxima;
+        } elseif ($this->getBaseCalculoDispendios() * $this->percentualMaximo / 100 >= $this->taxaMinima) {
+            $this->taxaAdministrativa = $this->getBaseCalculoDispendios() * $this->percentualMaximo / 100;
         } else {
-            $taxaAdministrativa = $taxaMinima;
+            $this->taxaAdministrativa = $this->taxaMinima;
         }
 
         if ($this->getBaseCalculoDispendios()) {
-            $this->percentualDispendios = $taxaAdministrativa / ($this->getBaseCalculoDispendios()) * 100;
+            $this->percentualDispendios = $this->taxaAdministrativa / ($this->getBaseCalculoDispendios()) * 100;
             return $this->percentualDispendios;
         }
         return 0;
@@ -138,12 +141,22 @@ class ProducaoCooperativista
      */
     private function percentualLibreCode(): float
     {
-        $totalPossivelDeHoras = $this->getTotalCooperados() * 8 * $this->dates->getDiasUteisNoMes();
+        $totalPossivelDeHoras = $this->getTotalHorasPossiveis();
 
-        $totalHorasLibreCode = $this->getTotalSegundosLibreCode() / 60 / 60;
+        $totalHorasLibreCode = $this->getTotalHorasLibreCode();
         $percentualLibreCode = $totalHorasLibreCode * 100 / $totalPossivelDeHoras;
 
         return $percentualLibreCode;
+    }
+
+    private function getTotalHorasPossiveis(): float
+    {
+        return $this->getTotalCooperados() * 8 * $this->dates->getDiasUteisNoMes();
+    }
+
+    private function getTotalHorasLibreCode(): float
+    {
+        return $this->getTotalSegundosLibreCode() / 60 / 60;
     }
 
     public function loadFromExternalSources(DateTime $inicio): void
@@ -243,7 +256,7 @@ class ProducaoCooperativista
      *
      * São todos os dispêndios da cooperativa tirando dispêndios do cliente e do cooperado.
      */
-    private function getTotalDispendios(): float
+    private function getTotalDispendiosInternos(): float
     {
         if ($this->totalDispendios) {
             return $this->totalDispendios;
@@ -373,7 +386,7 @@ class ProducaoCooperativista
      * @throws Exception
      * @return float
      */
-    private function getTotalCustoCliente(): float
+    private function getTotalDispendiosClientes(): float
     {
         if ($this->totalCustoCliente) {
             return $this->totalCustoCliente;
@@ -668,7 +681,7 @@ class ProducaoCooperativista
         $this->getEntradas();
         $this->getSaidas();
         $this->getCustosPorCliente();
-        $this->getTotalDispendios();
+        $this->getTotalDispendiosInternos();
         $this->calculaBaseProducaoPorEntrada();
         $this->cadastraCooperadoQueProduziuNoAkaunting();
         $this->distribuiProducaoExterna();
@@ -748,7 +761,7 @@ class ProducaoCooperativista
         $this->sobrasDistribuidas = true;
     }
 
-    private function getTotalDistribuido(): float
+    private function getTotalBaseProducao(): float
     {
         $baseProducao = array_reduce(
             $this->cooperado,
@@ -763,8 +776,8 @@ class ProducaoCooperativista
         $this->distribuiProducaoExterna();
         return $this->getBaseCalculoDispendios()
             + $this->getTotalSobrasDistribuidasNoMes()
-            - $this->getTotalDispendios()
-            - $this->getTotalDistribuido();
+            - $this->getTotalDispendiosInternos()
+            - $this->getTotalBaseProducao();
     }
 
     private function getTotalSobrasDistribuidasNoMes(): float
@@ -779,6 +792,129 @@ class ProducaoCooperativista
         $result = $qb->executeQuery();
         $total = $result->fetchOne();
         return (float) $total;
+    }
+
+    public function exportData(): array
+    {
+        $this->getProducaoCooperativista();
+        $return = [
+            'percentual_dispendios' => [
+                'valor' => $this->percentualDispendios(),
+                'formula' => <<<FORMULA
+                    <pre>
+                    SE ({base_calculo_dispendios} > 0) &lbrace;
+                        {percentual_dispendios} = {taxa_administrativa} / {base_calculo_dispendios} * 100
+                    &rbrace; SENÃO &lbrace;
+                        {percentual_dispendios} = 0
+                    &rbrace;
+                    </pre>
+                    FORMULA
+            ],
+            'taxa_minima' => [
+                'valor' => $this->taxaMinima,
+                'formula' => '{taxa_minima} = {total_dispendios_internos}'
+            ],
+            'total_dispendios_internos' => [
+                'valor' => $this->getTotalDispendiosInternos(),
+                'formula' => '{total_dispendios_internos} = somatório de itens com categoria de dispêndio interno'
+            ],
+            'taxa_maxima' => [
+                'valor' => $this->taxaMaxima,
+                'formula' => '{taxa_minima} * 2 = {taxa_maxima}'
+            ],
+            'percentual_naximo' => ['valor' => $this->percentualMaximo],
+            'taxa_administrativa' => [
+                'valor' => $this->taxaAdministrativa,
+                'formula' => <<<FORMULA
+                    <pre>
+                    SE ({base_calculo_dispendios} * {percentual_naximo} / 100 >= {taxa_maxima}) &lbrace;
+                        {taxa_administrativa} = {taxa_maxima}
+                    &rbrace; SENÃO SE ({base_calculo_dispendios} * {percentual_naximo} / 100 >= {taxa_maxima}) &lbrace;
+                        {taxa_administrativa} = {base_calculo_dispendios} * {percentual_naximo} / 100
+                    &rbrace; SENÃO &lbrace;
+                        {taxa_administrativa} = {taxa_minima}
+                    &rbrace;
+                    </pre>
+                    FORMULA
+            ],
+            'base_calculo_dispendios' => [
+                'valor' => $this->getBaseCalculoDispendios(),
+                'formula' => '{base_calculo_dispendios} = {total_notas_clientes} - {total_dispendios_clientes}'
+            ],
+            'total_notas_clientes' => [
+                'valor' => $this->getTotalNotasClientes(),
+                'formula' => '{total_notas_clientes} = ' . implode(' + ', array_column($this->getEntradasClientes(), 'amount'))
+            ],
+            'total_dispendios_clientes' => [
+                'valor' => $this->getTotalDispendiosClientes(),
+                'formula' => '{total_dispendios_clientes} = ' . implode(' + ', array_column($this->getCustosPorCliente(), 'amount'))
+            ],
+            'total_sobras_distribuidas' => ['valor' => $this->getTotalSobrasDistribuidasNoMes()],
+            'total_sobras_do_mes' => [
+                'valor' => $this->getTotalSobrasDoMes(),
+                'formula' => '{total_sobras_do_mes} = {base_calculo_dispendios} + {total_sobras_distribuidas} - {total_dispendios_internos} - {base_producao}'
+            ],
+            'base_producao' => ['valor' => $this->getTotalBaseProducao()],
+            'percentual_librecode' => [
+                'valor' => $this->percentualLibreCode(),
+                'formula' => '{percentual_librecode} = {total_horas_librecode} * 100 / {total_horas_possiveis}',
+            ],
+            'total_horas_possiveis' => [
+                'valor' => $this->getTotalHorasPossiveis(),
+                'formula' => '{total_horas_possiveis} = {total_cooperados} * 8 * {dias_uteis_no_mes}'
+            ],
+            'total_cooperados' => ['valor' => $this->getTotalCooperados()],
+            'dias_uteis_no_mes' => ['valor' => $this->dates->getDiasUteisNoMes()],
+            'total_horas_librecode' => [
+                'valor' => $this->getTotalHorasLibreCode(),
+                'formula' => '{total_horas_librecode} = {total_segundos_librecode} / 60 / 60'
+            ],
+            'total_segundos_librecode' => ['valor' => $this->getTotalSegundosLibreCode()],
+            'ano_mes' => ['valor' => $this->dates->getInicio()->format('Y-m')],
+        ];
+        return $this->formatData($return);
+    }
+
+    private function listToNumber(array $list, int $max): array
+    {
+        $total = count($list);
+        $return = [];
+        $distance = floor($max / $total);
+        $current = 0;
+        while(count($return) < $total) {
+            $current += $distance;
+            $return[] = $current;
+        }
+        return $return;
+    }
+
+    private function formatData(array $data): array
+    {
+        $positions = $this->listToNumber(array_keys($data), count(Colors::list));
+        $colorList = array_keys(Colors::list);
+        $sequence = 0;
+        foreach ($data as $key => $value) {
+            if (!empty($data[$key]['formula'])) {
+                preg_match_all('/\{(?<name>\w+)\}/', $value['formula'], $matches, PREG_SET_ORDER, 0);
+                foreach ($matches as $match) {
+                    $value['formula'] = preg_replace(
+                        '/\{' . $match['name'] . '\}/',
+                        '<span class="' . $match['name'] . '">' . $data[$match['name']]['valor'] . '</span>',
+                        $value['formula']
+                    );
+                }
+                $data[$key]['formula'] = preg_replace(['/{/', '/}/'], ['<span class="', '"></span>'], $value['formula']);
+            } else {
+                $data[$key]['formula'] = "<span class=\"$key\">{$data[$key]['valor']}</span>";
+            }
+            if (empty($value['color'])) {
+                $data[$key]['color'] = Colors::list[$colorList[$positions[$sequence]]];
+                $sequence++;
+            }
+            $data[$key]['font_color'] = Colors::colorContrast(...$data[$key]['color']);
+            $data[$key]['label'] = $value['label'] ?? ucfirst(str_replace('_', ' ', $key));
+        }
+        return $data;
     }
 
     public function exportToCsv(): string
@@ -821,7 +957,7 @@ class ProducaoCooperativista
             ->setCellValue('B4', $this->dates->getFimProximoMes()->format('Y-m-d H:i:s'))
             ->setCellValue('B5', $this->getTotalCooperados())
             ->setCellValue('B6', $this->getTotalNotasClientes())
-            ->setCellValue('B7', $this->getTotalCustoCliente())
+            ->setCellValue('B7', $this->getTotalDispendiosClientes())
             ->setCellValue('B8', $this->getTotalSegundosLibreCode() / 60 / 60)
             ->setCellValue('B9', $this->percentualLibreCode())
             ->setCellValue('B10', $this->percentualDispendios())
@@ -831,11 +967,6 @@ class ProducaoCooperativista
         ->fromArray(['Código cliente', 'Custo', 'Fornecedor'])
         ->setTitle('Custo por cliente')
             ->fromArray($this->getCustosPorCliente(), null, 'A2');
-
-        $spreadsheet->createSheet()
-            ->setTitle('Valores por projeto')
-            ->fromArray(['Cliente', 'referência', 'valor do serviço', 'impostos', 'total dos custos', 'base producao'])
-            ->fromArray([]/*$this->getValoresPorProjeto()*/, null, 'A2');
 
         $spreadsheet->createSheet()
             ->setTitle('Trabalhado por cliente')

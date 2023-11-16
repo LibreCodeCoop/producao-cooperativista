@@ -32,7 +32,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class Producao
+class Calculos
 {
     public function __construct(
         private Request $request,
@@ -42,9 +42,9 @@ class Producao
     public function index(): Response
     {
         try {
-            $producaoCooperativista = App::get(ProducaoCooperativista::class);
+            $producao = App::get(ProducaoCooperativista::class);
 
-            $producaoCooperativista->dates->setDiaUtilPagamento(
+            $producao->dates->setDiaUtilPagamento(
                 (int) $this->request->get('dia-util-pagamento', getenv('DIA_UTIL_PAGAMENTO'))
             );
 
@@ -52,26 +52,18 @@ class Producao
             if (!$inicio instanceof DateTime) {
                 throw new \Exception('ano-mes precisa estar no formato YYYY-MM');
             }
-            $producaoCooperativista->dates->setInicio($inicio);
+            $producao->dates->setInicio($inicio);
 
             $diasUteis = (int) $this->request->get('dias-uteis');
-            $producaoCooperativista->dates->setDiasUteis($diasUteis);
+            $producao->dates->setDiasUteis($diasUteis);
 
-            $producaoCooperativista->setPercentualMaximo(
+            $producao->setPercentualMaximo(
                 (int) $this->request->get('percentual-maximo', getenv('PERCENTUAL_MAXIMO'))
             );
 
-            $list = $producaoCooperativista->getProducaoCooperativista();
-            foreach ($list as $cooperado) {
-                $output[] = $cooperado->getProducaoCooperativista()->getValues()->toArray();
-            }
-            $response = [
-                'data' => array_values($output),
-                'metadata' => [
-                    'total' => count($output),
-                    'date' => $producaoCooperativista->dates->getInicioProximoMes()->format('Y-m')
-                ],
-            ];
+            $producao->getProducaoCooperativista();
+
+            $response = $producao->exportData();
             return new JsonResponse($response);
         } catch (\Throwable $e) {
             return new Response(

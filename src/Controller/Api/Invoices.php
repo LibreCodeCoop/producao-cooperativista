@@ -55,8 +55,9 @@ class Invoices
         $diasUteis = (int) $this->request->get('dias-uteis');
         $producaoCooperativista->dates->setDiasUteis($diasUteis);
 
-        $percentualMaximo = (int) $this->request->get('percentual-maximo');
-        $producaoCooperativista->setPercentualMaximo($percentualMaximo);
+        $producaoCooperativista->setPercentualMaximo(
+            (int) $this->request->get('percentual-maximo', getenv('PERCENTUAL_MAXIMO'))
+        );
 
         $type = $this->request->get('type', 'all');
         switch ($type) {

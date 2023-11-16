@@ -30,4 +30,6 @@ return [
     ['name' => 'Categorias#index', 'path' => '/categorias'],
     ['name' => 'Api\Producao#index', 'path' => '/api/v1/producao'],
     ['name' => 'Producao#index', 'path' => '/producao'],
+    ['name' => 'Api\Calculos#index', 'path' => '/api/v1/calculos'],
+    ['name' => 'Calculos#index', 'path' => '/calculos'],
 ];

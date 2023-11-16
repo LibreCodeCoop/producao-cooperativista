@@ -1,0 +1,56 @@
+{% extends "index.html.twig" %}
+
+{% block head %}
+    <script type="text/javascript" language="javascript" src="https://code.jquery.com/jquery-3.7.0.js"></script>
+    <style>
+        :root {
+        {%~ for key, item in data %}
+            --color_background_{{key}}: rgb({{item.color.0}}, {{item.color.1}}, {{item.color.2}});
+            --color_font_{{key}}: rgb({{item.font_color.0}}, {{item.font_color.1}}, {{item.font_color.2}});
+        {%~ endfor %}
+        }
+    {%~ for key, item in data %}
+        .label_{{ key }} {
+            background-color: var(--color_background_{{ key }});
+            color:  var(--color_font_{{ key }});
+            border-width: 0;
+            padding: 3px;
+        }
+        .{{ key }} {
+            background-color: var(--color_background_{{ key }});
+            color:  var(--color_font_{{ key }});
+            border-width: 0;
+            padding: 3px;
+        }
+    {%~ endfor %}
+        .active {
+            border: dashed red;
+            border-width: 3px;
+            padding: 0;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <div>
+    Cálculos <strong>produções de um mês</strong> específico. Para trocar o mês, altere o <strong>ano-mes</strong> na URL desta página.
+    </div>
+    <div id="erros"></div>
+    <table>
+    {%~ for nome, item in data %}
+        <tr>
+            <td class="label_{{nome}}">{{item.label}}</td>
+            <td class="formula_{{nome}}">{{item.formula|raw}}</td>
+        </tr>
+    {%~ endfor %}
+    </table>
+    <script>
+        $(document).ready( function () {
+        {%~ for nome, item in data %}
+            $('.{{nome}},.label_{{nome}}').hover(function() {
+                $('.{{nome}},.label_{{nome}}').toggleClass('active')
+            })
+        {%~ endfor %}
+        })
+    </script>
+{% endblock %}
