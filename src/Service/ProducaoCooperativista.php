@@ -96,7 +96,7 @@ class ProducaoCooperativista
         if (!empty($this->baseCalculoDispendios)) {
             return $this->baseCalculoDispendios;
         }
-        $this->baseCalculoDispendios = $this->getTotalNotasClientes() - $this->getTotalCustoCliente();
+        $this->baseCalculoDispendios = $this->getTotalNotasClientes() - $this->getTotalDispendiosClientes();
         return $this->baseCalculoDispendios;
     }
 
@@ -112,7 +112,7 @@ class ProducaoCooperativista
          * Para a taxa mínima utiliza-se o total de dispêndios apenas pois no total
          * de dispêndios já está sem o custo dos clientes.
          */
-        $this->taxaMinima = $this->getTotalDispendios();
+        $this->taxaMinima = $this->getTotalDispendiosInternos();
         $this->taxaMaxima = $this->taxaMinima * 2;
         if ($this->getBaseCalculoDispendios() * $this->percentualMaximo / 100 >= $this->taxaMaxima) {
             $this->taxaAdministrativa = $this->taxaMaxima;
@@ -140,12 +140,22 @@ class ProducaoCooperativista
      */
     private function percentualLibreCode(): float
     {
-        $totalPossivelDeHoras = $this->getTotalCooperados() * 8 * $this->dates->getDiasUteisNoMes();
+        $totalPossivelDeHoras = $this->getTotalHorasPossiveis();
 
-        $totalHorasLibreCode = $this->getTotalSegundosLibreCode() / 60 / 60;
+        $totalHorasLibreCode = $this->getTotalHorasLibreCode();
         $percentualLibreCode = $totalHorasLibreCode * 100 / $totalPossivelDeHoras;
 
         return $percentualLibreCode;
+    }
+
+    private function getTotalHorasPossiveis(): float
+    {
+        return $this->getTotalCooperados() * 8 * $this->dates->getDiasUteisNoMes();
+    }
+
+    private function getTotalHorasLibreCode(): float
+    {
+        return $this->getTotalSegundosLibreCode() / 60 / 60;
     }
 
     public function loadFromExternalSources(DateTime $inicio): void
@@ -245,7 +255,7 @@ class ProducaoCooperativista
      *
      * São todos os dispêndios da cooperativa tirando dispêndios do cliente e do cooperado.
      */
-    private function getTotalDispendios(): float
+    private function getTotalDispendiosInternos(): float
     {
         if ($this->totalDispendios) {
             return $this->totalDispendios;
@@ -375,7 +385,7 @@ class ProducaoCooperativista
      * @throws Exception
      * @return float
      */
-    private function getTotalCustoCliente(): float
+    private function getTotalDispendiosClientes(): float
     {
         if ($this->totalCustoCliente) {
             return $this->totalCustoCliente;
@@ -670,7 +680,7 @@ class ProducaoCooperativista
         $this->getEntradas();
         $this->getSaidas();
         $this->getCustosPorCliente();
-        $this->getTotalDispendios();
+        $this->getTotalDispendiosInternos();
         $this->calculaBaseProducaoPorEntrada();
         $this->cadastraCooperadoQueProduziuNoAkaunting();
         $this->distribuiProducaoExterna();
@@ -750,7 +760,7 @@ class ProducaoCooperativista
         $this->sobrasDistribuidas = true;
     }
 
-    private function getTotalDistribuido(): float
+    private function getTotalBaseProducao(): float
     {
         $baseProducao = array_reduce(
             $this->cooperado,
@@ -765,8 +775,8 @@ class ProducaoCooperativista
         $this->distribuiProducaoExterna();
         return $this->getBaseCalculoDispendios()
             + $this->getTotalSobrasDistribuidasNoMes()
-            - $this->getTotalDispendios()
-            - $this->getTotalDistribuido();
+            - $this->getTotalDispendiosInternos()
+            - $this->getTotalBaseProducao();
     }
 
     private function getTotalSobrasDistribuidasNoMes(): float
@@ -823,7 +833,7 @@ class ProducaoCooperativista
             ->setCellValue('B4', $this->dates->getFimProximoMes()->format('Y-m-d H:i:s'))
             ->setCellValue('B5', $this->getTotalCooperados())
             ->setCellValue('B6', $this->getTotalNotasClientes())
-            ->setCellValue('B7', $this->getTotalCustoCliente())
+            ->setCellValue('B7', $this->getTotalDispendiosClientes())
             ->setCellValue('B8', $this->getTotalSegundosLibreCode() / 60 / 60)
             ->setCellValue('B9', $this->percentualLibreCode())
             ->setCellValue('B10', $this->percentualDispendios())
