@@ -847,15 +847,29 @@ class ProducaoCooperativista
             ],
             'base_calculo_dispendios' => [
                 'valor' => $this->getBaseCalculoDispendios(),
-                'formula' => '{base_calculo_dispendios} = {total_notas_clientes} - {total_dispendios_clientes}'
+                'formula' => '{base_calculo_dispendios} = {total_notas_clientes} - {total_dispendios_clientes}',
             ],
             'total_notas_clientes' => [
                 'valor' => $this->getTotalNotasClientes(),
-                'formula' => '{total_notas_clientes} = ' . implode(' + ', array_column($this->getEntradasClientes(), 'amount'))
+                'formula' => '{total_notas_clientes} = ' . implode(' + ', array_column($this->getEntradasClientes(), 'amount')) .
+                ' <a href="' .
+                $this->urlGenerator->generate('Invoices#index', [
+                    'ano-mes' => $this->dates->getInicio()->format('Y-m'),
+                    'entrada_cliente' => 'sim',
+                    'type' => 'invoice',
+                ]) .
+                '">notas clientes</a>'
             ],
             'total_dispendios_clientes' => [
                 'valor' => $this->getTotalDispendiosClientes(),
-                'formula' => '{total_dispendios_clientes} = ' . implode(' + ', array_column($this->getCustosPorCliente(), 'amount'))
+                'formula' => '{total_dispendios_clientes} = ' . implode(' + ', array_column($this->getCustosPorCliente(), 'amount')) .
+                ' <a href="' .
+                $this->urlGenerator->generate('Invoices#index', [
+                    'ano-mes' => $this->dates->getInicio()->format('Y-m'),
+                    'entrada_cliente' => 'sim',
+                    'type' => 'bill',
+                ]) .
+                '">dispêndios clientes</a>'
             ],
             'total_sobras_distribuidas' => ['valor' => $this->getTotalSobrasDistribuidasNoMes()],
             'total_sobras_do_mes' => [
