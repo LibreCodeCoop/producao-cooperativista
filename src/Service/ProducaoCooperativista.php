@@ -870,7 +870,8 @@ class ProducaoCooperativista
                 'formula' => '{total_horas_librecode} = {total_segundos_librecode} / 60 / 60'
             ],
             'total_segundos_librecode' => ['valor' => $this->getTotalSegundosLibreCode()],
-            'ano_mes' => ['valor' => $this->dates->getInicio()->format('Y-m')],
+            'transacao_do_mes' => ['valor' => $this->dates->getInicioProximoMes()->format('Y-m')],
+            'ano_mes_trabalhado' => ['valor' => $this->dates->getInicio()->format('Y-m')],
         ];
         return $this->formatData($return);
     }
