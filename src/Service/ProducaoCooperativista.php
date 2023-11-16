@@ -818,7 +818,20 @@ class ProducaoCooperativista
             ],
             'total_dispendios_internos' => [
                 'valor' => $this->getTotalDispendiosInternos(),
-                'formula' => '{total_dispendios_internos} = somatório de itens com categoria de ' .
+                'formula' => '{total_dispendios_internos} = somatório de ' .
+                    '<a href="' .
+                    $this->urlGenerator->generate('Invoices#index', [
+                        'ano-mes' => $this->dates->getInicio()->format('Y-m'),
+                        'dispendio_interno' => 'sim',
+                    ]) .
+                    '">itens</a>' .
+                    ' com ' .
+                    '<a href="' .
+                    $this->urlGenerator->generate('Categorias#index', [
+                        'dispendio_interno' => 'sim',
+                    ]) .
+                    '">categoria</a>' .
+                    ' de ' .
                     '<a href="' .
                     $this->urlGenerator->generate('Invoices#index', [
                         'ano-mes' => $this->dates->getInicio()->format('Y-m'),
