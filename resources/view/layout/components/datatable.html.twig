@@ -76,13 +76,14 @@
                             if (value.length === 0) {
                                 return
                             }
+                            let seletor = '#example_wrapper .dataTables_scrollFoot input[name="' + key + '"]'
                             if (key === 'dtsearch') {
                                 dataTable.dataTable.search(value).draw(false)
                             } else if (key === 'dtpage') {
                                 dataTable.dataTable.page(parseInt(value)).draw(false)
-                            } else if ($('#example_wrapper input[name="' + key + '"]').length > 0) {
-                                $('#example_wrapper input[name="' + key + '"]').val(value)
-                                $('#example_wrapper input[name="' + key + '"]')[0].dispatchEvent(new Event("keyup"))
+                            } else if ($(seletor).length > 0) {
+                                $(seletor).val(value)
+                                $(seletor)[0].dispatchEvent(new Event("keyup"))
                             } else {
                                 console.log(key, value);
                             }
@@ -117,7 +118,6 @@
 
                                 // Event listener for user input
                                 input.addEventListener('keyup', () => {
-                                    console.log(input.name, input.value)
                                     window.history.pushState({}, "", linkify.link())
 
                                     if (column.search() !== this.value) {
