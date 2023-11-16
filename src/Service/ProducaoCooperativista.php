@@ -49,6 +49,7 @@ use ProducaoCooperativista\Service\Kimai\Source\Timesheets;
 use ProducaoCooperativista\Service\Kimai\Source\Users;
 use ProducaoCooperativista\Service\Source\Nfse;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Routing\Generator\UrlGenerator;
 
 class ProducaoCooperativista
 {
@@ -89,6 +90,7 @@ class ProducaoCooperativista
         private Categories $categories,
         private Taxes $taxes,
         public Dates $dates,
+        private UrlGenerator $urlGenerator,
     ) {
     }
 
@@ -816,7 +818,13 @@ class ProducaoCooperativista
             ],
             'total_dispendios_internos' => [
                 'valor' => $this->getTotalDispendiosInternos(),
-                'formula' => '{total_dispendios_internos} = somatório de itens com categoria de dispêndio interno'
+                'formula' => '{total_dispendios_internos} = somatório de itens com categoria de ' .
+                    '<a href="' .
+                    $this->urlGenerator->generate('Invoices#index', [
+                        'ano-mes' => $this->dates->getInicio()->format('Y-m'),
+                        'dispendio_interno' => 'sim',
+                    ]) .
+                    '">dispêndio interno</a>'
             ],
             'taxa_maxima' => [
                 'valor' => $this->taxaMaxima,
