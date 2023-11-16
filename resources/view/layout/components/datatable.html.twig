@@ -10,7 +10,7 @@
     {% if not filterColumns %}
         {% set filterColumns = ['metadata'] %}
     {% endif %}
-    <table id="example"></table>
+    <table id="example"><tfoot><tr></tr></tfoot></table>
     <script>
     $(document).ready( function () {
         function format(string) {
@@ -27,17 +27,110 @@
                     if ({{ filterColumns|json_encode()|raw }}.indexOf(columnNames[i]) != -1) {
                         continue
                     }
-                    columns.push({data: columnNames[i],
-                    title: format(columnNames[i])});
+                    columns.push({
+                        data: columnNames[i],
+                        title: format(columnNames[i])
+                    });
                 }
+
+                // Adiciona footer vazio onde o filtro será incluso
+                $('#example tfoot tr').append('<th></th>'.repeat(columns.length))
+
+                var DataTablesLinkify = function(dataTable) {
+                    this.dataTable = dataTable
+                    this.url = location.protocol+'//'+location.host+location.pathname
+                    // Gera um link com base no contexto
+                    this.link = function() {
+                        let params = new URLSearchParams(window.location.search)
+                        $('#example_wrapper .dataTables_scrollFoot th input').each((i,e) => {
+                            if (e.value.length > 0) {
+                                params.set(e.name, e.value)
+                            } else {
+                                params.delete(e.name)
+                            }
+                        })
+                        if (this.dataTable.search().length > 0 ) {
+                            params.set('dtsearch', this.dataTable.search())
+                        }
+                        if (this.dataTable.page() > 0 ) {
+                            params.set('dtpage', this.dataTable.page())
+                        }
+                        let url = this.url;
+                        if (params.size > 0) {
+                            url += '?' + new URLSearchParams(params).toString()
+                        }
+                        return url
+                    }
+                    //based on http://stackoverflow.com/a/901144/1407478
+                    this.getParam = function(name) {
+                        name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]")
+                        var regex = new RegExp("[\\?&]" + name + "=([^&#]*)")
+                        var results = regex.exec(location.search)
+                        return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "))
+                    }
+                    // Executado após o DataTable ser inicializado para restaurar o contexto da URL
+                    this.restore = function() {
+                        let dataTable = this
+                        urlParams = new URLSearchParams(window.location.search)
+                        urlParams.forEach((value, key) => {
+                            if (value.length === 0) {
+                                return
+                            }
+                            if (key === 'dtsearch') {
+                                dataTable.dataTable.search(value).draw(false)
+                            } else if (key === 'dtpage') {
+                                dataTable.dataTable.page(parseInt(value)).draw(false)
+                            } else if ($('#example_wrapper input[name="' + key + '"]').length > 0) {
+                                $('#example_wrapper input[name="' + key + '"]').val(value)
+                                $('#example_wrapper input[name="' + key + '"]')[0].dispatchEvent(new Event("keyup"))
+                            } else {
+                                console.log(key, value);
+                            }
+                        });
+                    }
+                    return this
+                }
+
                 var table = $('#example').DataTable({
                     scrollX: true,
                     data:    data.data,
                     columns: columns,
-                });
+                    fixedHeader: {
+                        header: false,
+                        footer: true
+                    },
+                    // Filtro no rodapé
+                    initComplete: function () {
+                        linkify = DataTablesLinkify($('#example').DataTable())
+                        $('#example_filter input').keyup(() => {
+                            window.history.pushState({}, "", linkify.link());
+                        })
+                        this.api()
+                            .columns()
+                            .every(function (a) {
+                                let column = this;
+                                // Create input element
+                                let input = document.createElement('input')
+                                input.placeholder = columns[a].title
+                                input.name = columns[a].data
+                                column.footer().replaceChildren(input)
+
+                                // Event listener for user input
+                                input.addEventListener('keyup', () => {
+                                    console.log(input.name, input.value)
+                                    window.history.pushState({}, "", linkify.link())
+
+                                    if (column.search() !== this.value) {
+                                        column.search(input.value).draw()
+                                    }
+                                })
+                            })
+                        linkify.restore()
+                    }
+                })
             },
             error: function (xhr, ajaxOptions, thrownError) {
-                $('#example').html(xhr.responseText);
+                $('#example').html(xhr.responseText)
             },
         });
     })
