@@ -52,7 +52,6 @@ use Psr\Log\LoggerInterface;
 class ProducaoCooperativista
 {
     private array $custosPorCliente = [];
-    private array $valoresPorProjeto = [];
     private array $percentualTrabalhadoPorCliente = [];
     private array $entradas = [];
     private array $saidas = [];
@@ -831,11 +830,6 @@ class ProducaoCooperativista
         ->fromArray(['Código cliente', 'Custo', 'Fornecedor'])
         ->setTitle('Custo por cliente')
             ->fromArray($this->getCustosPorCliente(), null, 'A2');
-
-        $spreadsheet->createSheet()
-            ->setTitle('Valores por projeto')
-            ->fromArray(['Cliente', 'referência', 'valor do serviço', 'impostos', 'total dos custos', 'base producao'])
-            ->fromArray([]/*$this->getValoresPorProjeto()*/, null, 'A2');
 
         $spreadsheet->createSheet()
             ->setTitle('Trabalhado por cliente')
