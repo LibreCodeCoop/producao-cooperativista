@@ -67,6 +67,9 @@ class ProducaoCooperativista
     private int $totalSegundosLibreCode = 0;
     private float $baseCalculoDispendios = 0;
     private int $percentualMaximo = 0;
+    private float $taxaMinima = 0;
+    private float $taxaMaxima = 0;
+    private float $taxaAdministrativa = 0;
     private float $percentualDispendios = 0;
     private bool $sobrasDistribuidas = false;
 
@@ -109,18 +112,18 @@ class ProducaoCooperativista
          * Para a taxa mínima utiliza-se o total de dispêndios apenas pois no total
          * de dispêndios já está sem o custo dos clientes.
          */
-        $taxaMinima = $this->getTotalDispendios();
-        $taxaMaxima = $taxaMinima * 2;
-        if ($this->getBaseCalculoDispendios() * $this->percentualMaximo / 100 >= $taxaMaxima) {
-            $taxaAdministrativa = $taxaMaxima;
-        } elseif ($this->getBaseCalculoDispendios() * $this->percentualMaximo / 100 >= $taxaMinima) {
-            $taxaAdministrativa = $this->getBaseCalculoDispendios() * $this->percentualMaximo / 100;
+        $this->taxaMinima = $this->getTotalDispendios();
+        $this->taxaMaxima = $this->taxaMinima * 2;
+        if ($this->getBaseCalculoDispendios() * $this->percentualMaximo / 100 >= $this->taxaMaxima) {
+            $this->taxaAdministrativa = $this->taxaMaxima;
+        } elseif ($this->getBaseCalculoDispendios() * $this->percentualMaximo / 100 >= $this->taxaMinima) {
+            $this->taxaAdministrativa = $this->getBaseCalculoDispendios() * $this->percentualMaximo / 100;
         } else {
-            $taxaAdministrativa = $taxaMinima;
+            $this->taxaAdministrativa = $this->taxaMinima;
         }
 
         if ($this->getBaseCalculoDispendios()) {
-            $this->percentualDispendios = $taxaAdministrativa / ($this->getBaseCalculoDispendios()) * 100;
+            $this->percentualDispendios = $this->taxaAdministrativa / ($this->getBaseCalculoDispendios()) * 100;
             return $this->percentualDispendios;
         }
         return 0;
