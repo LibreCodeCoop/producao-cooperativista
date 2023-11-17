@@ -1,9 +1,13 @@
 {% extends "layout/index.html.twig" %}
 
 {% block head %}
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.css" />
-    <script type="text/javascript" language="javascript" src="https://code.jquery.com/jquery-3.7.0.js"></script>
-    <script type="text/javascript" language="javascript" src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.js"></script>
+    <link rel="stylesheet" href="//cdn.datatables.net/1.13.7/css/jquery.dataTables.css" />
+    <script type="text/javascript" language="javascript" src="//code.jquery.com/jquery-3.7.0.js"></script>
+    <script type="text/javascript" language="javascript" src="//cdn.datatables.net/1.13.7/js/jquery.dataTables.js"></script>
+    <style>
+        table.dataTable tr.odd { background-color: lightgrey;  border:1px lightgrey;}
+        table.dataTable tr.even{ background-color: white; border:1px lightgrey; }
+    </style>
 {% endblock %}
 
 {% block body %}
@@ -18,6 +22,15 @@
             string = string.replace(/_/g, ' ')
             return string
         }
+        function isJsonArray(str) {
+            try {
+                result = JSON.parse(str);
+                return Object.prototype.toString.call(result) === '[object Array]'
+            } catch (e) {
+                return false;
+            }
+            return true;
+        }
         $.ajax({
             url: '{{ url|raw }}',
             success: function (data) {
@@ -29,7 +42,39 @@
                     }
                     columns.push({
                         data: columnNames[i],
-                        title: format(columnNames[i])
+                        title: format(columnNames[i]),
+                        render: (data, type, row, meta) => {
+                            if (type === 'display') {
+                                if (isJsonArray(data)) {
+                                    var jsonData = JSON.parse(data)
+                                    var table = "<table border=\"1\">\n"
+                                    for(var i=0;i<jsonData.length;i++)
+                                    {
+                                        if (typeof jsonData[i] !== 'object') {
+                                            continue
+                                        }
+                                        // primeira linha
+                                        if (i === 0) {
+                                            table += "<thead>\n<tr>"
+                                            Object.keys(jsonData[i]).forEach(function(key) {
+                                                table += '<th>'+format(key) + '</th>'
+                                            })
+                                            table += "</tr>\n</thead>\n<tbody>\n"
+                                        }
+                                        table += '<tr>'
+                                        Object.keys(jsonData[i]).forEach(function(key) {
+                                            table += '<td>'+jsonData[i][key] + '</td>'
+                                        })
+                                        table += "</tr>\n</tbody>\n"
+                                    }
+                                    table += '</table>'
+                                    if (table.includes('<td>')) {
+                                        data = table
+                                    }
+                                }
+                            }
+                            return data
+                        },
                     });
                 }
 

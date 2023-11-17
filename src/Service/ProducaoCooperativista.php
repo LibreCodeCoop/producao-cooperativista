@@ -474,7 +474,7 @@ class ProducaoCooperativista
         return $clientesContabilizaveis;
     }
 
-    private function getPercentualTrabalhadoPorCliente(): array
+    public function getPercentualTrabalhadoPorCliente(): array
     {
         if (count($this->percentualTrabalhadoPorCliente)) {
             return $this->percentualTrabalhadoPorCliente;

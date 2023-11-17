@@ -62,8 +62,15 @@ class Producao
             );
 
             $list = $producaoCooperativista->getProducaoCooperativista();
+            $trabalhadoPorCliente = $producaoCooperativista->getPercentualTrabalhadoPorCliente();
             foreach ($list as $cooperado) {
-                $output[] = $cooperado->getProducaoCooperativista()->getValues()->toArray();
+                $array = $cooperado->getProducaoCooperativista()->getValues()->toArray();
+                $trabalhado = array_filter($trabalhadoPorCliente, fn($c) => $c['tax_number'] === $array['tax_number']);
+                $array['trabalhado'] = json_encode(array_values(array_map(fn($row) => [
+                    'percentual_trabalhado' => $row['percentual_trabalhado'],
+                    'nome' => $row['name'],
+                ], $trabalhado)));
+                $output[] = $array;
             }
             $response = [
                 'data' => array_values($output),
