@@ -327,7 +327,7 @@ class ProducaoCooperativista
         $stmt = $this->db->getConnection()->prepare(
             <<<SQL
             -- Saídas
-            SELECT *
+            SELECT *, null as base_producao
                 FROM invoices i
             WHERE transaction_of_month = :ano_mes
                 AND archive = 0
