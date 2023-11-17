@@ -264,7 +264,7 @@ class ProducaoCooperativista
             return $this->totalDispendios;
         }
         $dispendiosInternos = $this->getChildrensCategories((int) getenv('AKAUNTING_PARENT_DISPENDIOS_INTERNOS_CATEGORY_ID'));
-        $this->dispendios = array_filter($this->saidas, function ($i) use ($dispendiosInternos): bool {
+        $dispendios = array_filter($this->getSaidas(), function ($i) use ($dispendiosInternos): bool {
             if ($i['transaction_of_month'] === $this->dates->getInicioProximoMes()->format('Y-m')) {
                 if ($i['archive'] === 0) {
                     if (in_array($i['category_id'], $dispendiosInternos)) {
@@ -274,7 +274,7 @@ class ProducaoCooperativista
             }
             return false;
         });
-        $this->totalDispendios = array_reduce($this->dispendios, fn ($total, $i) => $total += $i['amount'], 0);
+        $this->totalDispendios = array_reduce($dispendios, fn ($total, $i) => $total += $i['amount'], 0);
         $this->logger->debug('Total dispêndios: {total}', ['total' => $this->totalDispendios]);
         return $this->totalDispendios;
     }
@@ -311,12 +311,9 @@ class ProducaoCooperativista
 
     public function getSaidas(): array
     {
-        if ($this->saidas) {
-            return $this->saidas;
-        }
         $movimentacao = $this->getMovimentacaoFinanceira();
-        $this->saidas = array_filter($movimentacao, fn ($i) => $i['category_type'] === 'expense');
-        return $this->saidas;
+        $saidas = array_filter($movimentacao, fn ($i) => $i['category_type'] === 'expense');
+        return $saidas;
     }
 
     public function getMovimentacaoFinanceira(): array
@@ -341,7 +338,7 @@ class ProducaoCooperativista
             if (empty($row['customer_reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['customer_reference'])) {
                 $errors[] = $row;
             }
-            $this->movimentacao[] = $row;
+            $this->movimentacao[$row['id']] = $row;
         }
 
         if (count($errors)) {
@@ -356,7 +353,13 @@ class ProducaoCooperativista
         }
 
         $this->logger->debug('Movimentação', [$this->movimentacao]);
+        $this->calculaBaseProducaoPorEntrada();
         return $this->movimentacao;
+    }
+
+    private function setMovimentacao($movimentacao): void
+    {
+        $this->movimentacao[$movimentacao['id']] = $movimentacao;
     }
 
     /**
@@ -376,9 +379,8 @@ class ProducaoCooperativista
 
     private function getEntradasClientes(): array
     {
-        $this->getEntradas();
         $categoriasEntradasClientes = $this->getChildrensCategories((int) getenv('AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID'));
-        $entradasClientes = array_filter($this->entradas, fn ($i) => in_array($i['category_id'], $categoriasEntradasClientes));
+        $entradasClientes = array_filter($this->getEntradas(), fn ($i) => in_array($i['category_id'], $categoriasEntradasClientes));
         return $entradasClientes;
     }
 
@@ -414,7 +416,7 @@ class ProducaoCooperativista
             return $this->custosPorCliente;
         }
         $categoriasCustosClientes = $this->getChildrensCategories((int) getenv('AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID'));
-        $this->custosPorCliente = array_filter($this->saidas, fn ($i) => in_array($i['category_id'], $categoriasCustosClientes));
+        $this->custosPorCliente = array_filter($this->getSaidas(), fn ($i) => in_array($i['category_id'], $categoriasCustosClientes));
         $this->logger->debug('Custos por clientes: {json}', ['json' => json_encode($this->custosPorCliente)]);
         return $this->custosPorCliente;
     }
@@ -440,13 +442,13 @@ class ProducaoCooperativista
         $custosPorCliente = $this->getCustosPorCliente();
         $custosPorCliente = array_column($custosPorCliente, 'amount', 'customer_reference');
 
-        foreach ($entradasClientes as $key => $row) {
+        foreach ($entradasClientes as $row) {
             $base = $row['amount'] - ($custosPorCliente[$row['customer_reference']] ?? 0);
-            if (is_float($row['discount_percentage'])) {
-                $this->entradas[$key]['base_producao'] = $base - ($base * $row['discount_percentage'] / 100);
-            } else {
-                $this->entradas[$key]['base_producao'] = $base - ($base * $percentualDesconto / 100);
+            if (!is_numeric($row['discount_percentage'])) {
+                $row['discount_percentage'] = $percentualDesconto;
             }
+            $row['base_producao'] = $base - ($base * $row['discount_percentage'] / 100);
+            $this->setMovimentacao($row);
         }
 
         $this->logger->debug('Entradas no mês com base de produção', [json_encode($entradasClientes)]);
@@ -455,12 +457,9 @@ class ProducaoCooperativista
 
     public function getEntradas(): array
     {
-        if (!empty($this->entradas)) {
-            return $this->entradas;
-        }
         $movimentacao = $this->getMovimentacaoFinanceira();
-        $this->entradas = array_filter($movimentacao, fn ($i) => $i['category_type'] === 'income');
-        return $this->entradas;
+        $entradas = array_filter($movimentacao, fn ($i) => $i['category_type'] === 'income');
+        return $entradas;
     }
 
     private function clientesContabilizaveis(): array
@@ -680,8 +679,7 @@ class ProducaoCooperativista
             return $this->cooperado;
         }
 
-        $this->getEntradas();
-        $this->getSaidas();
+        $this->getMovimentacaoFinanceira();
         $this->getCustosPorCliente();
         $this->getTotalDispendiosInternos();
         $this->calculaBaseProducaoPorEntrada();
