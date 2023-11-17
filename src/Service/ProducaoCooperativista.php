@@ -884,7 +884,16 @@ class ProducaoCooperativista
                 ]) .
                 '">dispêndios clientes</a>'
             ],
-            'total_sobras_distribuidas' => ['valor' => $this->getTotalSobrasDistribuidasNoMes()],
+            'total_sobras_distribuidas' => [
+                'valor' => $this->getTotalSobrasDistribuidasNoMes(),
+                'formula' => '{total_sobras_distribuidas}' .
+                    ' <a href="' .
+                    $this->urlGenerator->generate('Invoices#index', [
+                        'ano-mes' => $this->dates->getInicio()->format('Y-m'),
+                        'category_name' => 'Distribuição de sobras',
+                    ]) .
+                    '">disrtibuição de sobras</a>'
+            ],
             'total_sobras_do_mes' => [
                 'valor' => $this->getTotalSobrasDoMes(),
                 'formula' => '{total_sobras_do_mes} = {base_calculo_dispendios} + {total_sobras_distribuidas} - {total_dispendios_internos} - {base_producao}'
