@@ -890,6 +890,10 @@ class ProducaoCooperativista
                 'formula' => '{total_sobras_do_mes} = {base_calculo_dispendios} + {total_sobras_distribuidas} - {total_dispendios_internos} - {base_producao}'
             ],
             'base_producao' => ['valor' => $this->getTotalBaseProducao()],
+            'percentual_desconto' => [
+                'valor' => $this->getPercentualDesconto(),
+                'formula' => '{percentual_desconto} = {percentual_dispendios} + {percentual_librecode}'
+            ],
             'percentual_librecode' => [
                 'valor' => $this->percentualLibreCode(),
                 'formula' => '{percentual_librecode} = {total_horas_librecode} * 100 / {total_horas_possiveis}',
