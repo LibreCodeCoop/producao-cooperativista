@@ -919,6 +919,9 @@ class ProducaoCooperativista
         $current = 0;
         while(count($return) < $total) {
             $current += $distance;
+            if ($current >= $max) {
+                $current = $max - 1;
+            }
             $return[] = $current;
         }
         return $return;
