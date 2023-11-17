@@ -67,7 +67,9 @@ class Producao
                 $array = $cooperado->getProducaoCooperativista()->getValues()->toArray();
                 $trabalhado = array_filter($trabalhadoPorCliente, fn($c) => $c['tax_number'] === $array['tax_number']);
                 $array['trabalhado'] = json_encode(array_values(array_map(fn($row) => [
+                    'trabalhado' => $row['trabalhado'] / 60 /60,
                     'percentual_trabalhado' => $row['percentual_trabalhado'],
+                    'total_cliente' => $row['total_cliente'] / 60 / 60,
                     'nome' => $row['name'],
                 ], $trabalhado)));
                 $output[] = $array;

@@ -535,6 +535,8 @@ class ProducaoCooperativista
             ->addSelect('c.name')
             ->addSelect('c.vat_id as customer_reference')
             ->addSelect('COALESCE(sum(t.duration), 0) * 100 / total_cliente.total as percentual_trabalhado')
+            ->addSelect('sum(t.duration) as trabalhado')
+            ->addSelect('total_cliente.total as total_cliente')
             ->from('customers', 'c')
             ->join('c', '(' . $subQuery->getSQL() . ')', 'total_cliente', 'c.id = total_cliente.id')
             ->join('c', 'projects', 'p', $qb->expr()->eq('p.customer_id', 'c.id'))
