@@ -1,8 +1,10 @@
-{% extends "index.html.twig" %}
+{% extends "layout/index.html.twig" %}
+
+{% block title %}Produção{% endblock title %}
 
 {% block body %}
     <div>
     Esta tabela retorna as <strong>produções de um mês</strong> específico. Para trocar o mês, altere o <strong>ano-mes</strong> na URL desta página.
     </div>
-    {{ include('components/datatable.html.twig') }}
+    {{ include('layout/components/datatable.html.twig') }}
 {% endblock %}

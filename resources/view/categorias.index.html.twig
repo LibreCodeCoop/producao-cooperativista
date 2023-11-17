@@ -1,5 +1,7 @@
-{% extends "index.html.twig" %}
+{% extends "layout/index.html.twig" %}
+
+{% block title %}Categorias{% endblock title %}
 
 {% block body %}
-    {{ include('components/datatable.html.twig') }}
+    {{ include('layout/components/datatable.html.twig') }}
 {% endblock %}

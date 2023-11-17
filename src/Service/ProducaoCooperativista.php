@@ -49,6 +49,7 @@ use ProducaoCooperativista\Service\Kimai\Source\Timesheets;
 use ProducaoCooperativista\Service\Kimai\Source\Users;
 use ProducaoCooperativista\Service\Source\Nfse;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Routing\Generator\UrlGenerator;
 
 class ProducaoCooperativista
 {
@@ -89,6 +90,7 @@ class ProducaoCooperativista
         private Categories $categories,
         private Taxes $taxes,
         public Dates $dates,
+        private UrlGenerator $urlGenerator,
     ) {
     }
 
@@ -262,7 +264,7 @@ class ProducaoCooperativista
             return $this->totalDispendios;
         }
         $dispendiosInternos = $this->getChildrensCategories((int) getenv('AKAUNTING_PARENT_DISPENDIOS_INTERNOS_CATEGORY_ID'));
-        $this->dispendios = array_filter($this->saidas, function ($i) use ($dispendiosInternos): bool {
+        $dispendios = array_filter($this->getSaidas(), function ($i) use ($dispendiosInternos): bool {
             if ($i['transaction_of_month'] === $this->dates->getInicioProximoMes()->format('Y-m')) {
                 if ($i['archive'] === 0) {
                     if (in_array($i['category_id'], $dispendiosInternos)) {
@@ -272,7 +274,7 @@ class ProducaoCooperativista
             }
             return false;
         });
-        $this->totalDispendios = array_reduce($this->dispendios, fn ($total, $i) => $total += $i['amount'], 0);
+        $this->totalDispendios = array_reduce($dispendios, fn ($total, $i) => $total += $i['amount'], 0);
         $this->logger->debug('Total dispêndios: {total}', ['total' => $this->totalDispendios]);
         return $this->totalDispendios;
     }
@@ -309,12 +311,9 @@ class ProducaoCooperativista
 
     public function getSaidas(): array
     {
-        if ($this->saidas) {
-            return $this->saidas;
-        }
         $movimentacao = $this->getMovimentacaoFinanceira();
-        $this->saidas = array_filter($movimentacao, fn ($i) => $i['category_type'] === 'expense');
-        return $this->saidas;
+        $saidas = array_filter($movimentacao, fn ($i) => $i['category_type'] === 'expense');
+        return $saidas;
     }
 
     public function getMovimentacaoFinanceira(): array
@@ -325,7 +324,7 @@ class ProducaoCooperativista
         $stmt = $this->db->getConnection()->prepare(
             <<<SQL
             -- Saídas
-            SELECT *
+            SELECT *, null as base_producao
                 FROM invoices i
             WHERE transaction_of_month = :ano_mes
                 AND archive = 0
@@ -339,7 +338,7 @@ class ProducaoCooperativista
             if (empty($row['customer_reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['customer_reference'])) {
                 $errors[] = $row;
             }
-            $this->movimentacao[] = $row;
+            $this->movimentacao[$row['id']] = $row;
         }
 
         if (count($errors)) {
@@ -354,7 +353,13 @@ class ProducaoCooperativista
         }
 
         $this->logger->debug('Movimentação', [$this->movimentacao]);
+        $this->calculaBaseProducaoPorEntrada();
         return $this->movimentacao;
+    }
+
+    private function setMovimentacao($movimentacao): void
+    {
+        $this->movimentacao[$movimentacao['id']] = $movimentacao;
     }
 
     /**
@@ -374,9 +379,8 @@ class ProducaoCooperativista
 
     private function getEntradasClientes(): array
     {
-        $this->getEntradas();
         $categoriasEntradasClientes = $this->getChildrensCategories((int) getenv('AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID'));
-        $entradasClientes = array_filter($this->entradas, fn ($i) => in_array($i['category_id'], $categoriasEntradasClientes));
+        $entradasClientes = array_filter($this->getEntradas(), fn ($i) => in_array($i['category_id'], $categoriasEntradasClientes));
         return $entradasClientes;
     }
 
@@ -412,7 +416,7 @@ class ProducaoCooperativista
             return $this->custosPorCliente;
         }
         $categoriasCustosClientes = $this->getChildrensCategories((int) getenv('AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID'));
-        $this->custosPorCliente = array_filter($this->saidas, fn ($i) => in_array($i['category_id'], $categoriasCustosClientes));
+        $this->custosPorCliente = array_filter($this->getSaidas(), fn ($i) => in_array($i['category_id'], $categoriasCustosClientes));
         $this->logger->debug('Custos por clientes: {json}', ['json' => json_encode($this->custosPorCliente)]);
         return $this->custosPorCliente;
     }
@@ -438,13 +442,13 @@ class ProducaoCooperativista
         $custosPorCliente = $this->getCustosPorCliente();
         $custosPorCliente = array_column($custosPorCliente, 'amount', 'customer_reference');
 
-        foreach ($entradasClientes as $key => $row) {
+        foreach ($entradasClientes as $row) {
             $base = $row['amount'] - ($custosPorCliente[$row['customer_reference']] ?? 0);
-            if (is_float($row['discount_percentage'])) {
-                $this->entradas[$key]['base_producao'] = $base - ($base * $row['discount_percentage'] / 100);
-            } else {
-                $this->entradas[$key]['base_producao'] = $base - ($base * $percentualDesconto / 100);
+            if (!is_numeric($row['discount_percentage'])) {
+                $row['discount_percentage'] = $percentualDesconto;
             }
+            $row['base_producao'] = $base - ($base * $row['discount_percentage'] / 100);
+            $this->setMovimentacao($row);
         }
 
         $this->logger->debug('Entradas no mês com base de produção', [json_encode($entradasClientes)]);
@@ -453,12 +457,9 @@ class ProducaoCooperativista
 
     public function getEntradas(): array
     {
-        if (!empty($this->entradas)) {
-            return $this->entradas;
-        }
         $movimentacao = $this->getMovimentacaoFinanceira();
-        $this->entradas = array_filter($movimentacao, fn ($i) => $i['category_type'] === 'income');
-        return $this->entradas;
+        $entradas = array_filter($movimentacao, fn ($i) => $i['category_type'] === 'income');
+        return $entradas;
     }
 
     private function clientesContabilizaveis(): array
@@ -473,7 +474,7 @@ class ProducaoCooperativista
         return $clientesContabilizaveis;
     }
 
-    private function getPercentualTrabalhadoPorCliente(): array
+    public function getPercentualTrabalhadoPorCliente(): array
     {
         if (count($this->percentualTrabalhadoPorCliente)) {
             return $this->percentualTrabalhadoPorCliente;
@@ -534,6 +535,8 @@ class ProducaoCooperativista
             ->addSelect('c.name')
             ->addSelect('c.vat_id as customer_reference')
             ->addSelect('COALESCE(sum(t.duration), 0) * 100 / total_cliente.total as percentual_trabalhado')
+            ->addSelect('sum(t.duration) as trabalhado')
+            ->addSelect('total_cliente.total as total_cliente')
             ->from('customers', 'c')
             ->join('c', '(' . $subQuery->getSQL() . ')', 'total_cliente', 'c.id = total_cliente.id')
             ->join('c', 'projects', 'p', $qb->expr()->eq('p.customer_id', 'c.id'))
@@ -678,8 +681,7 @@ class ProducaoCooperativista
             return $this->cooperado;
         }
 
-        $this->getEntradas();
-        $this->getSaidas();
+        $this->getMovimentacaoFinanceira();
         $this->getCustosPorCliente();
         $this->getTotalDispendiosInternos();
         $this->calculaBaseProducaoPorEntrada();
@@ -816,7 +818,26 @@ class ProducaoCooperativista
             ],
             'total_dispendios_internos' => [
                 'valor' => $this->getTotalDispendiosInternos(),
-                'formula' => '{total_dispendios_internos} = somatório de itens com categoria de dispêndio interno'
+                'formula' => '{total_dispendios_internos} = somatório de ' .
+                    '<a href="' .
+                    $this->urlGenerator->generate('Invoices#index', [
+                        'ano-mes' => $this->dates->getInicio()->format('Y-m'),
+                        'dispendio_interno' => 'sim',
+                    ]) .
+                    '">itens</a>' .
+                    ' com ' .
+                    '<a href="' .
+                    $this->urlGenerator->generate('Categorias#index', [
+                        'dispendio_interno' => 'sim',
+                    ]) .
+                    '">categoria</a>' .
+                    ' de ' .
+                    '<a href="' .
+                    $this->urlGenerator->generate('Invoices#index', [
+                        'ano-mes' => $this->dates->getInicio()->format('Y-m'),
+                        'dispendio_interno' => 'sim',
+                    ]) .
+                    '">dispêndio interno</a>'
             ],
             'taxa_maxima' => [
                 'valor' => $this->taxaMaxima,
@@ -839,22 +860,49 @@ class ProducaoCooperativista
             ],
             'base_calculo_dispendios' => [
                 'valor' => $this->getBaseCalculoDispendios(),
-                'formula' => '{base_calculo_dispendios} = {total_notas_clientes} - {total_dispendios_clientes}'
+                'formula' => '{base_calculo_dispendios} = {total_notas_clientes} - {total_dispendios_clientes}',
             ],
             'total_notas_clientes' => [
                 'valor' => $this->getTotalNotasClientes(),
-                'formula' => '{total_notas_clientes} = ' . implode(' + ', array_column($this->getEntradasClientes(), 'amount'))
+                'formula' => '{total_notas_clientes} = ' . implode(' + ', array_column($this->getEntradasClientes(), 'amount')) .
+                ' <a href="' .
+                $this->urlGenerator->generate('Invoices#index', [
+                    'ano-mes' => $this->dates->getInicio()->format('Y-m'),
+                    'entrada_cliente' => 'sim',
+                    'type' => 'invoice',
+                ]) .
+                '">notas clientes</a>'
             ],
             'total_dispendios_clientes' => [
                 'valor' => $this->getTotalDispendiosClientes(),
-                'formula' => '{total_dispendios_clientes} = ' . implode(' + ', array_column($this->getCustosPorCliente(), 'amount'))
+                'formula' => '{total_dispendios_clientes} = ' . implode(' + ', array_column($this->getCustosPorCliente(), 'amount')) .
+                ' <a href="' .
+                $this->urlGenerator->generate('Invoices#index', [
+                    'ano-mes' => $this->dates->getInicio()->format('Y-m'),
+                    'entrada_cliente' => 'sim',
+                    'type' => 'bill',
+                ]) .
+                '">dispêndios clientes</a>'
             ],
-            'total_sobras_distribuidas' => ['valor' => $this->getTotalSobrasDistribuidasNoMes()],
+            'total_sobras_distribuidas' => [
+                'valor' => $this->getTotalSobrasDistribuidasNoMes(),
+                'formula' => '{total_sobras_distribuidas}' .
+                    ' <a href="' .
+                    $this->urlGenerator->generate('Invoices#index', [
+                        'ano-mes' => $this->dates->getInicio()->format('Y-m'),
+                        'category_name' => 'Distribuição de sobras',
+                    ]) .
+                    '">disrtibuição de sobras</a>'
+            ],
             'total_sobras_do_mes' => [
                 'valor' => $this->getTotalSobrasDoMes(),
                 'formula' => '{total_sobras_do_mes} = {base_calculo_dispendios} + {total_sobras_distribuidas} - {total_dispendios_internos} - {base_producao}'
             ],
             'base_producao' => ['valor' => $this->getTotalBaseProducao()],
+            'percentual_desconto' => [
+                'valor' => $this->getPercentualDesconto(),
+                'formula' => '{percentual_desconto} = {percentual_dispendios} + {percentual_librecode}'
+            ],
             'percentual_librecode' => [
                 'valor' => $this->percentualLibreCode(),
                 'formula' => '{percentual_librecode} = {total_horas_librecode} * 100 / {total_horas_possiveis}',
@@ -870,7 +918,8 @@ class ProducaoCooperativista
                 'formula' => '{total_horas_librecode} = {total_segundos_librecode} / 60 / 60'
             ],
             'total_segundos_librecode' => ['valor' => $this->getTotalSegundosLibreCode()],
-            'ano_mes' => ['valor' => $this->dates->getInicio()->format('Y-m')],
+            'transacao_do_mes' => ['valor' => $this->dates->getInicioProximoMes()->format('Y-m')],
+            'ano_mes_trabalhado' => ['valor' => $this->dates->getInicio()->format('Y-m')],
         ];
         return $this->formatData($return);
     }
@@ -883,6 +932,9 @@ class ProducaoCooperativista
         $current = 0;
         while(count($return) < $total) {
             $current += $distance;
+            if ($current >= $max) {
+                $current = $max - 1;
+            }
             $return[] = $current;
         }
         return $return;

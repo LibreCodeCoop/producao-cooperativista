@@ -33,16 +33,16 @@ use Symfony\Component\HttpFoundation\Request;
 
 class Invoices
 {
+    private ProducaoCooperativista $producaoCooperativista;
     public function __construct(
         private Request $request,
     ) {
+        $this->producaoCooperativista = App::get(ProducaoCooperativista::class);
     }
 
     public function index(): JsonResponse
     {
-        $producaoCooperativista = App::get(ProducaoCooperativista::class);
-
-        $producaoCooperativista->dates->setDiaUtilPagamento(
+        $this->producaoCooperativista->dates->setDiaUtilPagamento(
             (int) $this->request->get('dia-util-pagamento', getenv('DIA_UTIL_PAGAMENTO'))
         );
 
@@ -50,34 +50,62 @@ class Invoices
         if (!$inicio instanceof DateTime) {
             throw new \Exception('ano-mes precisa estar no formato YYYY-MM');
         }
-        $producaoCooperativista->dates->setInicio($inicio);
+        $this->producaoCooperativista->dates->setInicio($inicio);
 
         $diasUteis = (int) $this->request->get('dias-uteis');
-        $producaoCooperativista->dates->setDiasUteis($diasUteis);
+        $this->producaoCooperativista->dates->setDiasUteis($diasUteis);
 
-        $producaoCooperativista->setPercentualMaximo(
+        $this->producaoCooperativista->setPercentualMaximo(
             (int) $this->request->get('percentual-maximo', getenv('PERCENTUAL_MAXIMO'))
         );
 
         $type = $this->request->get('type', 'all');
         switch ($type) {
             case 'income':
-                $movimentacao = $producaoCooperativista->getEntradas();
+                $movimentacao = $this->producaoCooperativista->getEntradas();
                 break;
             case 'expense':
-                $movimentacao = $producaoCooperativista->getSaidas();
+                $movimentacao = $this->producaoCooperativista->getSaidas();
                 break;
             case 'all':
-                $movimentacao = $producaoCooperativista->getMovimentacaoFinanceira();
+                $movimentacao = $this->producaoCooperativista->getMovimentacaoFinanceira();
                 break;
         }
+
+        $movimentacao = $this->addFlagColumn(
+            $movimentacao,
+            'dispendio_interno',
+            'AKAUNTING_PARENT_DISPENDIOS_INTERNOS_CATEGORY_ID'
+        );
+        $movimentacao = $this->addFlagColumn(
+            $movimentacao,
+            'entrada_cliente',
+            'AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID'
+        );
+        $movimentacao = $this->addFlagColumn(
+            $movimentacao,
+            'custos_clientes',
+            'AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID'
+        );
+
         $response = [
             'data' => array_values($movimentacao),
             'metadata' => [
                 'total' => count($movimentacao),
-                'date' => $producaoCooperativista->dates->getInicioProximoMes()->format('Y-m')
+                'date' => $this->producaoCooperativista->dates->getInicioProximoMes()->format('Y-m')
             ],
         ];
         return new JsonResponse($response);
+    }
+
+    private function addFlagColumn(array $list, string $name, string $environment): array
+    {
+        $ids = $this->producaoCooperativista->getChildrensCategories(
+            (int) getenv($environment)
+        );
+        array_walk($list, function (&$row) use ($name, $ids) {
+            $row[$name] = in_array($row['category_id'], $ids) ? 'sim' : '';
+        });
+        return $list;
     }
 }
