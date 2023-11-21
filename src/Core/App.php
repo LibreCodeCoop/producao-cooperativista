@@ -130,8 +130,11 @@ class App
                 DoctrineOrmConsoleRunner::addCommands($application, $c->get(SingleManagerProvider::class));
 
                 // Doctrine Migrations
+                $currentDir = getcwd();
+                chdir(realpath(__DIR__ . '/../../'));
                 $dependencyFactory = DoctrineMigrationsConsoleRunner::findDependencyFactory();
                 DoctrineMigrationsConsoleRunner::addCommands($application, $dependencyFactory);
+                chdir($currentDir);
                 return $application;
             }),
             App::class => \DI\autowire(),

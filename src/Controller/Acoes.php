@@ -26,50 +26,50 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Controller;
 
 use ProducaoCooperativista\Core\App;
+use Symfony\Component\Console\Application;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGenerator;
 
-class Index
+class Acoes
 {
+    private const LIMPA_BANCO = 'first';
+    private const CRIA_BANCO = 'latest';
+
     public function __construct(
         private UrlGenerator $urlGenerator,
         private Request $request,
     ) {
     }
 
-    public function index(): Response
+    public function zerarBancoLocal(): Response
     {
+        $bufferedOutput = $this->executaMigrations(self::LIMPA_BANCO);
+        $response = $bufferedOutput->fetch();
+        $bufferedOutput = $this->executaMigrations(self::CRIA_BANCO);
+        $response .= $bufferedOutput->fetch();
+
         $response = new Response(
             App::get(\Twig\Environment::class)
-                ->load('index.index.html.twig')
-                ->render([
-                    'relatorios' => [
-                        'calculos' => [
-                            'url' => $this->urlGenerator->generate('Calculos#index'),
-                            'label' => 'Cálculos',
-                        ],
-                        'categorias' => [
-                            'url' => $this->urlGenerator->generate('Categorias#index'),
-                            'label' => 'Categorias',
-                        ],
-                        'invoices' => [
-                            'url' => $this->urlGenerator->generate('Invoices#index'),
-                            'label' => 'Entradas e saídas',
-                        ],
-                        'producao' => [
-                            'url' => $this->urlGenerator->generate('Producao#index'),
-                            'label' => 'Produção',
-                        ],
-                    ],
-                    'acoes' => [
-                        'zerar_banco_local' => [
-                            'url' => $this->urlGenerator->generate('Acoes#zerarBancoLocal'),
-                            'label' => 'Zerar banco local',
-                        ],
-                    ],
-                ])
+                ->load('acoes/zerar_banco_local.html.twig')
+                ->render(compact('response'))
         );
         return $response;
+    }
+
+    private function executaMigrations(string $migration): BufferedOutput
+    {
+        $application = App::get(Application::class);
+        $application->setAutoExit(false);
+        $input = new ArrayInput([
+            'migrations:migrate',
+            '-n' => 0,
+            'version' => $migration,
+        ]);
+        $output = new BufferedOutput();
+        $application->run($input, $output);
+        return $output;
     }
 }

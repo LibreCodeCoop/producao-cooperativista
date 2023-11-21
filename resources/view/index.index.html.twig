@@ -4,10 +4,25 @@
 
 {% block body %}
     <ul>
-    {% for page in pages %}
         <li>
-            <a href="{{ page.url }}">{{page.label}}</a>
+            Relatórios
+            <ul>
+            {% for relatorio in relatorios %}
+                <li>
+                    <a href="{{ relatorio.url }}">{{relatorio.label}}</a>
+                </li>
+            {% endfor %}
+            </ul>
         </li>
-    {% endfor %}
+        <li>
+            Ações
+            <ul>
+            {% for acao in acoes %}
+                <li>
+                    <a href="{{ acao.url }}">{{acao.label}}</a>
+                </li>
+            {% endfor %}
+            </ul>
+        </li>
     </ul>
 {% endblock %}
