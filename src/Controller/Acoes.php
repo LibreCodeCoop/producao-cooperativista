@@ -35,9 +35,6 @@ use Symfony\Component\Routing\Generator\UrlGenerator;
 
 class Acoes
 {
-    private const LIMPA_BANCO = 'first';
-    private const CRIA_BANCO = 'latest';
-
     public function __construct(
         private UrlGenerator $urlGenerator,
         private Request $request,
@@ -46,9 +43,9 @@ class Acoes
 
     public function zerarBancoLocal(): Response
     {
-        $bufferedOutput = $this->executaMigrations(self::LIMPA_BANCO);
+        $bufferedOutput = $this->executaMigrations('first');
         $response = $bufferedOutput->fetch();
-        $bufferedOutput = $this->executaMigrations(self::CRIA_BANCO);
+        $bufferedOutput = $this->executaMigrations('latest');
         $response .= $bufferedOutput->fetch();
 
         $response = new Response(
