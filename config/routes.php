@@ -33,4 +33,5 @@ return [
     ['name' => 'Api\Calculos#index', 'path' => '/api/v1/calculos'],
     ['name' => 'Calculos#index', 'path' => '/calculos'],
     ['name' => 'Index#index', 'path' => '/'],
+    ['name' => 'Acoes#zerarBancoLocal', 'path' => '/acoes/zerar-banco-local'],
 ];

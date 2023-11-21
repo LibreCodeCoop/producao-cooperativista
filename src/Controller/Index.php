@@ -44,7 +44,7 @@ class Index
             App::get(\Twig\Environment::class)
                 ->load('index.index.html.twig')
                 ->render([
-                    'pages' => [
+                    'relatorios' => [
                         'calculos' => [
                             'url' => $this->urlGenerator->generate('Calculos#index'),
                             'label' => 'Cálculos',
@@ -61,7 +61,13 @@ class Index
                             'url' => $this->urlGenerator->generate('Producao#index'),
                             'label' => 'Produção',
                         ],
-                    ]
+                    ],
+                    'acoes' => [
+                        'zerar_banco_local' => [
+                            'url' => $this->urlGenerator->generate('Acoes#zerarBancoLocal'),
+                            'label' => 'Zerar banco local',
+                        ],
+                    ],
                 ])
         );
         return $response;
