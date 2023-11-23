@@ -26,6 +26,7 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Controller;
 
 use ProducaoCooperativista\Core\App;
+use Symfony\Component\Console\Application;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGenerator;
@@ -40,6 +41,8 @@ class Index
 
     public function index(): Response
     {
+        $application = App::get(Application::class);
+
         $response = new Response(
             App::get(\Twig\Environment::class)
                 ->load('index.index.html.twig')
@@ -66,6 +69,10 @@ class Index
                         'zerar_banco_local' => [
                             'url' => $this->urlGenerator->generate('Acoes#zerarBancoLocal'),
                             'label' => 'Zerar banco local',
+                        ],
+                        'executa_producao' => [
+                            'url' => $this->urlGenerator->generate('Acoes#makeProducao'),
+                            'label' => $application->get('make:producao')->getName(),
                         ],
                     ],
                 ])

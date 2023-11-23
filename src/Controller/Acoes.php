@@ -29,6 +29,7 @@ use ProducaoCooperativista\Core\App;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGenerator;
@@ -68,5 +69,54 @@ class Acoes
         $output = new BufferedOutput();
         $application->run($input, $output);
         return $output;
+    }
+
+    public function makeProducao(): Response
+    {
+        $inicio = new \DateTime();
+        $inicio->modify('-2 month');
+
+        $response = new Response(
+            App::get(\Twig\Environment::class)
+                ->load('acoes/make_producao.html.twig')
+                ->render([
+                    'inicio_ano' => $inicio->format('Y'),
+                    'inicio_mes' => $inicio->format('m'),
+                    'url' => $this->urlGenerator->generate('Acoes#doMakeProducao'),
+                ])
+        );
+        return $response;
+    }
+
+    public function doMakeProducao(): Response
+    {
+        $inicio = \DateTime::createFromFormat(
+            'Y-m',
+            $this->request->get('year', '') . '-' . $this->request->get('month', '')
+        );
+        if (!$inicio instanceof \DateTime) {
+            return new RedirectResponse(
+                $this->urlGenerator->generate('Acoes#makeProducao')
+            );
+        }
+
+        $application = App::get(Application::class);
+        $application->setAutoExit(false);
+        $input = new ArrayInput([
+            'make:producao',
+            '--ano-mes' => $inicio->format('Y-m'),
+            '--baixar-dados' => $this->request->get('baixar_dados', '0'),
+            '--atualiza-producao' => (bool) $this->request->get('atualzia_producao', false),
+            '--database' => true,
+        ]);
+        $output = new BufferedOutput();
+        $application->run($input, $output);
+
+        $response = new Response(
+            App::get(\Twig\Environment::class)
+                ->load('acoes/make_producao.html.twig')
+                ->render(compact('response'))
+        );
+        return $response;
     }
 }

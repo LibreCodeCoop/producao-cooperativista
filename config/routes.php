@@ -34,4 +34,6 @@ return [
     ['name' => 'Calculos#index', 'path' => '/calculos'],
     ['name' => 'Index#index', 'path' => '/'],
     ['name' => 'Acoes#zerarBancoLocal', 'path' => '/acoes/zerar-banco-local'],
+    ['name' => 'Acoes#makeProducao', 'path' => '/acoes/make-producao'],
+    ['name' => 'Acoes#doMakeProducao', 'path' => '/acoes/make-producao', 'methods' => 'POST'],
 ];
