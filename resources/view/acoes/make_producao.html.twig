@@ -1,0 +1,41 @@
+{% extends "layout/index.html.twig" %}
+
+{% block title %}Zerar banco local{% endblock title %}
+
+{% block head %}
+    <script type="text/javascript" language="javascript" src="//code.jquery.com/jquery-3.7.0.js"></script>
+{% endblock head %}
+
+{% block body %}
+    <form action="{{ url }}" method="post">
+        <label for="month">Ano/mês</label>
+        <select id="month" name="month">
+        {%~ for j in 1..12 %}
+            <option{% if inicio_mes == j %} selected{% endif %}>{{ "%02d"|format(j) }}</option>
+        {%~ endfor %}
+        </select>
+        <select id="year" name="year">
+        {%~ for j in range(now|date('Y')-1, now|date('Y')+1) %}
+            <option{% if inicio_ano == j %} selected{% endif %}>{{ j }}</option>
+        {%~ endfor %}
+        </select>
+        <br />
+        <span>
+            <label for="baixar_dados">Baixar Dados</label>
+            <select name="baixar_dados" id="baixar_dados">
+                <option value="0">Não</option>
+                <option value="1">Sim</option>
+            </select>
+        </span>
+        <br />
+        <span>
+            <label for="atualiza_producao">Atualiza produção</label>
+            <select name="atualiza_producao" id="atualiza_producao">
+                <option value="0">Não</option>
+                <option value="1">Sim</option>
+            </select>
+        </span>
+        <br />
+        <input type="submit" value="Executa">
+    </form>
+{% endblock %}
