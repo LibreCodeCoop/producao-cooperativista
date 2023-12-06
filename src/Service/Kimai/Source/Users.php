@@ -116,11 +116,11 @@ class Users
         if (!$item['alias']) {
             $item['alias'] = $item['username'];
         }
-        $item['email'] = $preferences['email'];
-        if ($preferences['tax_number'] !== '') {
+        $item['email'] = $preferences['email'] ?? null;
+        if ($preferences['tax_number'] ?? '' !== '') {
             $item['tax_number'] = $preferences['tax_number'];
         }
-        $item['dependents'] = (int) $preferences['dependents'];
+        $item['dependents'] = (int) $preferences['dependents'] ?? 0;
         return $item;
     }
 
