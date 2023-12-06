@@ -89,7 +89,7 @@ class Nfse
 
     public function updateDatabase(DateTime $data): void
     {
-        $this->logger->debug('Baixando dados de nfse');
+        $this->logger->info('Baixando dados de nfse');
         $list = $this->getFromApi($data);
         $this->saveList($list);
     }

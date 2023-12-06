@@ -63,7 +63,7 @@ class Taxes
         if (!empty($this->list)) {
             return $this->list;
         }
-        $this->logger->debug('Baixando dados de impostos');
+        $this->logger->info('Baixando dados de impostos');
 
         $list = $this->dataset->list('/api/taxes', [
             'company_id' => $this->getCompanyId(),

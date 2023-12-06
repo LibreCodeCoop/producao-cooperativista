@@ -66,7 +66,7 @@ class Transactions
         if (!empty($this->list)) {
             return $this->list;
         }
-        $this->logger->debug('Baixando dados de transactions');
+        $this->logger->info('Baixando dados de transactions');
         $begin = $this->getDate()
             ->modify('first day of this month');
         $today = new DateTime();

@@ -164,7 +164,7 @@ class ProducaoCooperativista
     public function loadFromExternalSources(DateTime $inicio): void
     {
         $this->dates->setInicio($inicio);
-        $this->logger->debug('Baixando dados externos');
+        $this->logger->info('Baixando dados externos');
         $this->customers->updateDatabase();
         $this->nfse->updateDatabase($this->dates->getInicioProximoMes());
         $this->projects->updateDatabase();
@@ -209,7 +209,7 @@ class ProducaoCooperativista
             'fim' => $this->dates->getFim()->format('Y-m-d H:i:s'),
         ]);
         $this->totalSegundosLibreCode = (int) $result->fetchOne();
-        $this->logger->debug('Total segundos LibreCode: {total}', ['total' => $this->totalSegundosLibreCode]);
+        $this->logger->info('Total segundos LibreCode: {total}', ['total' => $this->totalSegundosLibreCode]);
         return $this->totalSegundosLibreCode;
     }
 
@@ -249,7 +249,7 @@ class ProducaoCooperativista
             throw new Exception($messagem);
         }
         $this->totalCooperados = (int) $result;
-        $this->logger->debug('Total pessoas no mês: {total}', ['total' => $this->totalCooperados]);
+        $this->logger->info('Total pessoas no mês: {total}', ['total' => $this->totalCooperados]);
         return $this->totalCooperados;
     }
 
@@ -275,7 +275,7 @@ class ProducaoCooperativista
             return false;
         });
         $this->totalDispendios = array_reduce($dispendios, fn ($total, $i) => $total += $i['amount'], 0);
-        $this->logger->debug('Total dispêndios: {total}', ['total' => $this->totalDispendios]);
+        $this->logger->info('Total dispêndios: {total}', ['total' => $this->totalDispendios]);
         return $this->totalDispendios;
     }
 
@@ -400,7 +400,7 @@ class ProducaoCooperativista
             $total += $row['amount'];
             return $total;
         }, 0);
-        $this->logger->debug('Total custos clientes: {total}', ['total' => $this->totalCustoCliente]);
+        $this->logger->info('Total custos clientes: {total}', ['total' => $this->totalCustoCliente]);
         return $this->totalCustoCliente;
     }
 

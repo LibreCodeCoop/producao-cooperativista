@@ -45,7 +45,7 @@ class Customers
 
     public function updateDatabase(): self
     {
-        $this->logger->debug('Baixando dados de customers');
+        $this->logger->info('Baixando dados de customers');
         $this->getFromApi();
         $this->saveList();
         return $this;

@@ -67,7 +67,7 @@ class Documents
         if (isset($this->list[$this->getType()])) {
             return $this->list[$this->getType()];
         }
-        $this->logger->debug('Baixando dados de invoices');
+        $this->logger->info('Baixando dados de invoices');
 
         $begin = (clone $this->getDate())
             ->modify('first day of this month');

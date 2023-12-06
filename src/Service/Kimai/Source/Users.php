@@ -74,7 +74,7 @@ class Users
         if (!empty($this->list)) {
             return $this->list;
         }
-        $this->logger->debug('Importando usuários com visibilidade = {visibilidade}', [
+        $this->logger->info('Importando usuários com visibilidade = {visibilidade}', [
             'visibilidade' => $this->visibilityDataset[$this->visibility],
         ]);
         $list = $this->doRequestKimai('/api/users', [
@@ -85,13 +85,13 @@ class Users
                 $user = $this->fromArray($row);
                 $this->list[] = $user;
             } catch (\Throwable $th) {
-                $this->logger->debug('Falha ao salvar dados de usuário', [
+                $this->logger->info('Falha ao salvar dados de usuário', [
                     'message' => $th->getMessage(),
                     'data' => $row,
                 ]);
             }
         }
-        $this->logger->debug('Dados baixados: {json}', ['json' => json_encode($list)]);
+        $this->logger->info('Dados baixados: {json}', ['json' => json_encode($list)]);
         return $list;
     }
 

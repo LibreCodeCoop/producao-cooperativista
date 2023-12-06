@@ -47,9 +47,10 @@ class Projects
 
     public function updateDatabase(): void
     {
-        $this->logger->debug('Baixando dados de projects');
+        $this->logger->info('Baixando dados de projects');
         $this->getFromApi();
         $this->saveList($this->list);
+        $this->logger->info('Dados de projetos salvos com sucesso. Total: {total}', ['total' => $this->list]);
     }
 
     public function getFromApi(): array

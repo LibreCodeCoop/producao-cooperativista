@@ -63,7 +63,7 @@ class Categories
         if (!empty($this->list)) {
             return $this->list;
         }
-        $this->logger->debug('Baixando dados de impostos');
+        $this->logger->info('Baixando dados de impostos');
 
         $list = $this->dataset->list('/api/categories', [
             'company_id' => $this->getCompanyId(),
