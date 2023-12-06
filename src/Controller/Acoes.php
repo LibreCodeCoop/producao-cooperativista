@@ -83,6 +83,8 @@ class Acoes
                     'inicio_ano' => $inicio->format('Y'),
                     'inicio_mes' => $inicio->format('m'),
                     'url' => $this->urlGenerator->generate('Acoes#doMakeProducao'),
+                    'baixar_dados' => $this->request->get('baixar_dados', 0) ? 1 : 0,
+                    'atualiza_producao' => $this->request->get('atualiza_producao', 0) ? 1 : 0,
                 ])
         );
         return $response;
