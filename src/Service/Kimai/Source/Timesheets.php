@@ -45,7 +45,7 @@ class Timesheets
 
     public function updateDatabase(DateTime $data): void
     {
-        $this->logger->debug('Baixando dados de timesheets');
+        $this->logger->info('Baixando dados de timesheets');
         $list = $this->getFromApi($data);
         $this->saveList($list);
     }
