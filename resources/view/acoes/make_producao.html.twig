@@ -7,35 +7,48 @@
 {% endblock head %}
 
 {% block body %}
-    <form action="{{ url }}" method="post">
-        <label for="month">Ano/mês</label>
-        <select id="month" name="month">
-        {%~ for j in 1..12 %}
-            <option{% if inicio_mes == j %} selected{% endif %}>{{ "%02d"|format(j) }}</option>
-        {%~ endfor %}
-        </select>
-        <select id="year" name="year">
-        {%~ for j in range(now|date('Y')-1, now|date('Y')+1) %}
-            <option{% if inicio_ano == j %} selected{% endif %}>{{ j }}</option>
-        {%~ endfor %}
-        </select>
-        <br />
-        <span>
-            <label for="baixar_dados">Baixar Dados</label>
-            <select name="baixar_dados" id="baixar_dados">
-                <option value="0">Não</option>
-                <option value="1">Sim</option>
+    <form id="form-gera-producao">
+        <fieldset>
+            <legend>Produção realizada em</legend>
+            <label for="month">Ano/mês</label>
+            <select id="year" name="year">
+            {%~ for j in range(now|date('Y')-1, now|date('Y')+1) %}
+                <option{% if inicio_ano == j %} selected{% endif %}>{{ j }}</option>
+            {%~ endfor %}
             </select>
-        </span>
-        <br />
-        <span>
-            <label for="atualiza_producao">Atualiza produção</label>
-            <select name="atualiza_producao" id="atualiza_producao">
-                <option value="0">Não</option>
-                <option value="1">Sim</option>
+            <select id="month" name="month">
+            {%~ for j in 1..12 %}
+                <option{% if inicio_mes == j %} selected{% endif %}>{{ "%02d"|format(j) }}</option>
+            {%~ endfor %}
             </select>
-        </span>
+        </fieldset>
+        <fieldset>
+            <legend>Baixar dados</legend>
+            <input type="radio" id="baixar_dados_nao" name="baixar_dados" value="0"{% if baixar_dados == 0 %} checked{% endif %} /><label for="baixar_dados_nao">Não</label>
+            <input type="radio" id="baixar_dados_sim" name="baixar_dados" value="1"{% if baixar_dados == 0 %} checked{% endif %} /><label for="baixar_dados_sim">Sim</label>
+        </fieldset>
+        <fieldset>
+            <legend>Atualiza produção</legend>
+            <input type="radio" id="atualiza_producao_nao" name="atualiza_producao" value="0"{% if atualiza_producao == 0 %} checked{% endif %} /><label for="atualiza_producao_nao">Não</label>
+            <input type="radio" id="atualiza_producao_sim" name="atualiza_producao" value="1"{% if atualiza_producao == 1 %} checked{% endif %} /><label for="atualiza_producao_sim">Sim</label>
+        </fieldset>
         <br />
-        <input type="submit" value="Executa">
+        <input type="submit" value="Executa" id="submit" />
     </form>
+    <div id="messages"></div>
+    <script>
+        $(document).ready( function () {
+            $('#submit').click( function(e) {
+                e.preventDefault();
+                $('#messages').html('Aguarde...')
+                $.post({
+                    url: '{{ url|raw }}',
+                    data: $('#form-gera-producao').serialize(),
+                    success: function (data) {
+                        $('#messages').html('Sucesso! Volte para a página anterior e veja os relatórios')
+                    }
+                })
+            })
+        })
+    </script>
 {% endblock %}
