@@ -44,8 +44,8 @@ class Users extends DBEntity
     private string $kimaiUsername;
     #[Column(nullable: true, type: 'bigint')]
     private ?int $akauntingContactId;
-    #[Column(length: 20)]
-    private string $taxNumber;
+    #[Column(nullable: true, length: 20)]
+    private ?string $taxNumber;
     #[Column(type: 'smallint')]
     private int $dependents;
     #[Column(type: 'smallint')]
