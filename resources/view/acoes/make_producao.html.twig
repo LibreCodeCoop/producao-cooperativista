@@ -4,6 +4,35 @@
 
 {% block head %}
     <script type="text/javascript" language="javascript" src="//code.jquery.com/jquery-3.7.0.js"></script>
+    <style>
+        .alert {
+            padding: 20px;
+            background-color: #f44336;
+            color: white;
+            opacity: 1;
+            transition: opacity 0.6s;
+            margin-bottom: 15px;
+        }
+
+        .alert.success {background-color: #04AA6D;}
+        .alert.info {background-color: #2196F3;}
+        .alert.warning {background-color: #ff9800;}
+
+        .closebtn {
+            margin-left: 15px;
+            color: white;
+            font-weight: bold;
+            float: right;
+            font-size: 22px;
+            line-height: 20px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .closebtn:hover {
+            color: black;
+        }
+    </style>
 {% endblock head %}
 
 {% block body %}
@@ -37,18 +66,33 @@
     </form>
     <div id="messages"></div>
     <script>
-        $(document).ready( function () {
-            $('#submit').click( function(e) {
-                e.preventDefault();
-                $('#messages').html('Aguarde...')
-                $.post({
-                    url: '{{ url|raw }}',
-                    data: $('#form-gera-producao').serialize(),
-                    success: function (data) {
-                        $('#messages').html('Sucesso! Volte para a página anterior e veja os relatórios')
-                    }
-                })
+        $('#form-gera-producao').submit( function(e) {
+            e.preventDefault()
+
+            const ItemMessage = (type, data) => '<div class="alert ' + type + '">' + '<span class="closebtn">&times;</span>' + data + '</div>';
+
+            $('#messages').html('Aguarde...')
+
+            const eventSource = new EventSource(
+                '{{ url|raw }}?' + $('#form-gera-producao').serialize()
+            )
+            eventSource.addEventListener('info', e => {
+                $('#messages').append(ItemMessage(e.type, JSON.parse(e.data)))
             })
+            eventSource.addEventListener('alert', e => {
+                $('#messages').append(ItemMessage(e.type, JSON.parse(e.data)))
+            })
+            eventSource.addEventListener('done', e => {
+                $('#messages').append(ItemMessage('success', JSON.parse(e.data)))
+                eventSource.close()
+                $('#messages').append('Sucesso! Volte para a página anterior e veja os relatórios')
+            })
+
+            $('#messages').on('click', '.closebtn', function() {
+                $(this).parent().fadeTo(600, 0, function() {
+                    $(this).hide('slow')
+                });
+            });
         })
     </script>
 {% endblock %}

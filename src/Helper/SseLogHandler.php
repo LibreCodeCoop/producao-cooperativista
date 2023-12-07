@@ -23,17 +23,34 @@
 
 declare(strict_types=1);
 
-return [
-    ['name' => 'Api\Invoices#index', 'path' => '/api/v1/invoices'],
-    ['name' => 'Invoices#index', 'path' => '/invoices'],
-    ['name' => 'Api\Categorias#index', 'path' => '/api/v1/categorias'],
-    ['name' => 'Categorias#index', 'path' => '/categorias'],
-    ['name' => 'Api\Producao#index', 'path' => '/api/v1/producao'],
-    ['name' => 'Producao#index', 'path' => '/producao'],
-    ['name' => 'Api\Calculos#index', 'path' => '/api/v1/calculos'],
-    ['name' => 'Calculos#index', 'path' => '/calculos'],
-    ['name' => 'Index#index', 'path' => '/'],
-    ['name' => 'Acoes#zerarBancoLocal', 'path' => '/acoes/zerar-banco-local'],
-    ['name' => 'Acoes#makeProducao', 'path' => '/acoes/make-producao'],
-    ['name' => 'Acoes#doMakeProducao', 'path' => '/acoes/do-make-producao'],
-];
+namespace ProducaoCooperativista\Helper;
+
+use Monolog\Handler\HandlerInterface;
+use Monolog\Handler\HandlerWrapper;
+use Monolog\Level;
+use Monolog\LogRecord;
+
+class SseLogHandler extends HandlerWrapper
+{
+    public function __construct(
+        protected HandlerInterface $handler,
+        protected Sse $sse,
+    ) {
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function handle(LogRecord $record): bool
+    {
+        if ($record->level->value >= Level::Info->value) {
+            if (json_validate($record->message)) {
+                $message = json_decode($record->message);
+                $this->sse->send(strtolower($message->event), $message->data);
+            } else {
+                $this->sse->send(strtolower($record->level->name), $record->message);
+            }
+        }
+        return $this->handler->handle($record);
+    }
+}

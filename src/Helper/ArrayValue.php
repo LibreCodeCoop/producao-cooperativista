@@ -23,17 +23,19 @@
 
 declare(strict_types=1);
 
-return [
-    ['name' => 'Api\Invoices#index', 'path' => '/api/v1/invoices'],
-    ['name' => 'Invoices#index', 'path' => '/invoices'],
-    ['name' => 'Api\Categorias#index', 'path' => '/api/v1/categorias'],
-    ['name' => 'Categorias#index', 'path' => '/categorias'],
-    ['name' => 'Api\Producao#index', 'path' => '/api/v1/producao'],
-    ['name' => 'Producao#index', 'path' => '/producao'],
-    ['name' => 'Api\Calculos#index', 'path' => '/api/v1/calculos'],
-    ['name' => 'Calculos#index', 'path' => '/calculos'],
-    ['name' => 'Index#index', 'path' => '/'],
-    ['name' => 'Acoes#zerarBancoLocal', 'path' => '/acoes/zerar-banco-local'],
-    ['name' => 'Acoes#makeProducao', 'path' => '/acoes/make-producao'],
-    ['name' => 'Acoes#doMakeProducao', 'path' => '/acoes/do-make-producao'],
-];
+namespace ProducaoCooperativista\Helper;
+
+use Stringable;
+
+class ArrayValue implements Stringable
+{
+    public function __construct(
+        public readonly array $array
+    ) {
+    }
+
+    public function __toString()
+    {
+        return json_encode($this->array);
+    }
+}
