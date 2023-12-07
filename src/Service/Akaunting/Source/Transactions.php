@@ -205,7 +205,7 @@ class Transactions
         $row['customer_reference'] = $row['customer_reference'];
         $row['metadata'] = $row;
         $row['nfse'] = !empty($row['nfse']) ? (int) $row['nfse'] : null;
-        $row['tax_number'] = $row['contact']['tax_number'];
+        $row['tax_number'] = $row['contact']['tax_number'] ?? $row['customer_reference'];
         return $row;
     }
 

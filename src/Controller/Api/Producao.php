@@ -83,8 +83,10 @@ class Producao
             ];
             return new JsonResponse($response);
         } catch (\Throwable $e) {
-            return new Response(
-                $e->getMessage(),
+            return new JsonResponse(
+                [
+                    'erro' => $e->getMessage()
+                ],
                 Response::HTTP_FORBIDDEN
             );
         }

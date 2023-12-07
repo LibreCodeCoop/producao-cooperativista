@@ -37,7 +37,13 @@
     <div>
     Cálculos <strong>produções de um mês</strong> específico. Para trocar o mês, altere o <strong>ano-mes</strong> na URL desta página.
     </div>
-    <div id="erros"></div>
+    <div id="erros">
+        <ul>
+            {% for erro in erros %}
+                <li>{{ erro }}</li>
+            {% endfor %}
+        </ul>
+    </div>
     <table>
     {%~ for nome, item in data %}
         <tr>

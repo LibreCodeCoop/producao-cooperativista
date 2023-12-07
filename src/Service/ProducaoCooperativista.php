@@ -306,6 +306,9 @@ class ProducaoCooperativista
         while ($row = $result->fetchAssociative()) {
             $this->categoriesList[] = $row;
         }
+        if (empty($this->categoriesList)) {
+            throw new Exception('Sem categorias');
+        }
         return $this->categoriesList;
     }
 
