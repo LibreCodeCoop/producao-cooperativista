@@ -118,6 +118,8 @@ class MakeProducaoCommand extends BaseCommand
         $this->producaoCooperativista->dates->setDiasUteis($diasUteis);
         $this->producaoCooperativista->setPercentualMaximo($percentualMaximo);
 
+        $this->producaoCooperativista->getProducaoCooperativista();
+
         if ($input->getOption('atualiza-producao')) {
             $this->producaoCooperativista->updateProducao();
         }
