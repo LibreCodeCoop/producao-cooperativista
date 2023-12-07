@@ -86,13 +86,13 @@ class Users
                 $user = $this->fromArray($row);
                 $this->list[] = $user;
             } catch (\Throwable $th) {
-                $this->logger->info('Falha ao salvar dados de usuário', [
+                $this->logger->alert('Falha ao salvar dados de usuário', [
                     'message' => $th->getMessage(),
                     'data' => $row,
                 ]);
             }
         }
-        $this->logger->info('Dados baixados: {json}', ['json' => json_encode($list)]);
+        $this->logger->debug('Dados baixados: {json}', ['json' => json_encode($list)]);
         return $list;
     }
 
@@ -113,7 +113,7 @@ class Users
     private function validate($array): void
     {
         if (empty($array['tax_number'])) {
-            $this->logger->info('Cooperado sem CPF: {cooperado}', [
+            $this->logger->alert('Cooperado sem CPF: {cooperado}', [
                 'cooperado' => $array['alias'],
             ]);
             throw new Exception('Cooperado sem CPF encontrado');
