@@ -91,6 +91,9 @@ class Transactions
             $transaction = $this->fromArray($row);
             $this->list[] = $transaction;
         }
+        $this->logger->info('Dados de transactions salvos com sucesso. Total: {total}', [
+            'total' => count($this->list),
+        ]);
         return $this->list;
     }
 
