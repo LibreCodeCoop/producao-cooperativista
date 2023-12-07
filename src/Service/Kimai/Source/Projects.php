@@ -50,7 +50,7 @@ class Projects
         $this->logger->info('Baixando dados de projects');
         $this->getFromApi();
         $this->saveList($this->list);
-        $this->logger->info('Dados de projetos salvos com sucesso. Total: {total}', ['total' => $this->list]);
+        $this->logger->info('Dados de projetos salvos com sucesso. Total: {total}', ['total' => count($this->list)]);
     }
 
     public function getFromApi(): array
