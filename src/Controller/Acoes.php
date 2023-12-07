@@ -25,11 +25,13 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Controller;
 
+use Monolog\Logger;
 use ProducaoCooperativista\Core\App;
+use ProducaoCooperativista\Helper\ArrayValue;
+use ProducaoCooperativista\Helper\SseLogHandler;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
-use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGenerator;
@@ -39,6 +41,8 @@ class Acoes
     public function __construct(
         private UrlGenerator $urlGenerator,
         private Request $request,
+        private Logger $logger,
+        private SseLogHandler $sseLogHandler,
     ) {
     }
 
@@ -90,16 +94,15 @@ class Acoes
         return $response;
     }
 
-    public function doMakeProducao(): Response
+    public function doMakeProducao(): void
     {
+        $this->logger->pushHandler($this->sseLogHandler);
         $inicio = \DateTime::createFromFormat(
             'Y-m',
             $this->request->get('year', '') . '-' . $this->request->get('month', '')
         );
         if (!$inicio instanceof \DateTime) {
-            return new RedirectResponse(
-                $this->urlGenerator->generate('Acoes#makeProducao')
-            );
+            throw new \BadMethodCallException('The query string year need to be as format Y-m');
         }
 
         $application = App::get(Application::class);
@@ -113,12 +116,6 @@ class Acoes
         ]);
         $output = new BufferedOutput();
         $application->run($input, $output);
-
-        $response = new Response(
-            App::get(\Twig\Environment::class)
-                ->load('acoes/make_producao.html.twig')
-                ->render(compact('response'))
-        );
-        return $response;
+        $this->logger->info(new ArrayValue(['event' => 'done', 'data' =>  'Fim']));
     }
 }

@@ -45,6 +45,7 @@ use ProducaoCooperativista\Command\GetUsersCommand;
 use ProducaoCooperativista\Command\MakeProducaoCommand;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\Helper\Dates;
+use ProducaoCooperativista\Helper\SseLogHandler;
 use ProducaoCooperativista\Service\Source\Nfse;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -80,6 +81,8 @@ class App
         $containerBuilder->addDefinitions([
             StreamHandler::class => \DI\autowire()
                 ->constructor(self::$root . '/storage/logs/system.log'),
+            SseLogHandler::class => \DI\autowire()
+                    ->constructor(\DI\get(StreamHandler::class)),
             Logger::class => \DI\autowire()
                 ->constructor('PRODUCAO_COOPERATIVISTA')
                 ->method('pushHandler', \DI\get(StreamHandler::class))
