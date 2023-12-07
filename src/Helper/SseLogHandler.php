@@ -32,6 +32,10 @@ use Monolog\LogRecord;
 
 class SseLogHandler extends HandlerWrapper
 {
+    private array $filter = [
+        '/doctrine/',
+    ];
+
     public function __construct(
         protected HandlerInterface $handler,
         protected Sse $sse,
@@ -44,13 +48,28 @@ class SseLogHandler extends HandlerWrapper
     public function handle(LogRecord $record): bool
     {
         if ($record->level->value >= Level::Info->value) {
-            if (json_validate($record->message)) {
-                $message = json_decode($record->message);
-                $this->sse->send(strtolower($message->event), $message->data);
-            } else {
-                $this->sse->send(strtolower($record->level->name), $record->message);
+            if (!$this->isBlocked()) {
+                if (json_validate($record->message)) {
+                    $message = json_decode($record->message);
+                    $this->sse->send(strtolower($message->event), $message->data);
+                } else {
+                    $this->sse->send(strtolower($record->level->name), $record->message);
+                }
             }
         }
         return $this->handler->handle($record);
+    }
+
+    private function isBlocked(): bool
+    {
+        $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+        foreach ($trace as $row) {
+            foreach ($this->filter as $pattern) {
+                if (preg_match($pattern, $row['file'])) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
