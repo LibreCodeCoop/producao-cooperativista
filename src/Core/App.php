@@ -31,6 +31,7 @@ use Doctrine\ORM\Tools\Console\ConsoleRunner as DoctrineOrmConsoleRunner;
 use Doctrine\ORM\Tools\Console\EntityManagerProvider\SingleManagerProvider;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
+use Monolog\Processor\PsrLogMessageProcessor;
 use NumberFormatter;
 use ProducaoCooperativista\Command\GetCategoriesCommand;
 use ProducaoCooperativista\Command\GetCustomersCommand;
@@ -77,9 +78,12 @@ class App
     {
         $containerBuilder = new \DI\ContainerBuilder();
         $containerBuilder->addDefinitions([
+            StreamHandler::class => \DI\autowire()
+                ->constructor(self::$root . '/storage/logs/system.log'),
             Logger::class => \DI\autowire()
                 ->constructor('PRODUCAO_COOPERATIVISTA')
-                ->method('pushHandler', new StreamHandler(self::$root . '/storage/logs/system.log')),
+                ->method('pushHandler', \DI\get(StreamHandler::class))
+                ->method('pushProcessor', \DI\get(PsrLogMessageProcessor::class)),
             LoggerInterface::class => \DI\get(Logger::class),
             Database::class => \DI\autowire(),
             Dates::class => \DI\autowire()
