@@ -27,6 +27,7 @@ namespace ProducaoCooperativista\Service\Kimai\Source;
 
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
+use Exception;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\DB\Entity\Users as EntityUsers;
 use ProducaoCooperativista\Provider\Kimai;
@@ -104,8 +105,19 @@ class Users
         if (!$entity instanceof EntityUsers) {
             $entity = new EntityUsers();
         }
+        $this->validate($array);
         $entity->fromArray($array);
         return $entity;
+    }
+
+    private function validate($array): void
+    {
+        if (empty($array['tax_number'])) {
+            $this->logger->info('Cooperado sem CPF: {cooperado}', [
+                'cooperado' => $array['alias'],
+            ]);
+            throw new Exception('Cooperado sem CPF encontrado');
+        }
     }
 
     private function updateFromUserPreferences(array $item): array
