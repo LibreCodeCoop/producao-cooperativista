@@ -48,6 +48,9 @@ class Timesheets
         $this->logger->info('Baixando dados de timesheets');
         $list = $this->getFromApi($data);
         $this->saveList($list);
+        $this->logger->info('Dados de timesheet salvos com sucesso. Total: {total}', [
+            'total' => count($list),
+        ]);
     }
 
     public function getFromApi(DateTime $date, $user = 'all', $exported = 'all'): array

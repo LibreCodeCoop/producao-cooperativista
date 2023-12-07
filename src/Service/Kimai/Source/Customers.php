@@ -48,6 +48,9 @@ class Customers
         $this->logger->info('Baixando dados de customers');
         $this->getFromApi();
         $this->saveList();
+        $this->logger->info('Dados de customers salvos com sucesso. Total: {total}', [
+            'total' => count($this->customers),
+        ]);
         return $this;
     }
 

@@ -67,7 +67,9 @@ class Documents
         if (isset($this->list[$this->getType()])) {
             return $this->list[$this->getType()];
         }
-        $this->logger->info('Baixando dados de invoices');
+        $this->logger->info('Baixando dados do akaunting. Tipo: {tipo}', [
+            'tipo' => $this->getType(),
+        ]);
 
         $begin = (clone $this->getDate())
             ->modify('first day of this month');
@@ -86,6 +88,10 @@ class Documents
             $invoice = $this->fromArray($row);
             $this->list[$this->getType()][] = $invoice;
         }
+        $this->logger->info('Dados de {tipo} salvos com sucesso. Total: {total}', [
+            'total' => count($this->list),
+            'tipo' => $this->getType(),
+        ]);
         return $this->list[$this->getType()] ?? [];
     }
 
