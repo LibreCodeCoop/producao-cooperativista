@@ -29,6 +29,7 @@ use DateTime;
 use ProducaoCooperativista\Core\App;
 use ProducaoCooperativista\Service\ProducaoCooperativista;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 class Categorias
 {
@@ -40,7 +41,16 @@ class Categorias
 
     public function index(): JsonResponse
     {
-        $categorias = $this->producaoCooperativista->getCategories();
+        try {
+            $categorias = $this->producaoCooperativista->getCategories();
+        } catch (\Throwable $th) {
+            return new JsonResponse(
+                [
+                    'error' => $th->getMessage(),
+                ],
+                Response::HTTP_FORBIDDEN
+            );
+        }
 
         $categorias = $this->addFlagColumn(
             $categorias,

@@ -30,6 +30,7 @@ use ProducaoCooperativista\Core\App;
 use ProducaoCooperativista\Service\ProducaoCooperativista;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class Invoices
 {
@@ -60,16 +61,25 @@ class Invoices
         );
 
         $type = $this->request->get('type', 'all');
-        switch ($type) {
-            case 'income':
-                $movimentacao = $this->producaoCooperativista->getEntradas();
-                break;
-            case 'expense':
-                $movimentacao = $this->producaoCooperativista->getSaidas();
-                break;
-            case 'all':
-                $movimentacao = $this->producaoCooperativista->getMovimentacaoFinanceira();
-                break;
+        try {
+            switch ($type) {
+                case 'income':
+                    $movimentacao = $this->producaoCooperativista->getEntradas();
+                    break;
+                case 'expense':
+                    $movimentacao = $this->producaoCooperativista->getSaidas();
+                    break;
+                case 'all':
+                    $movimentacao = $this->producaoCooperativista->getMovimentacaoFinanceira();
+                    break;
+            }
+        } catch (\Throwable $th) {
+            return new JsonResponse(
+                [
+                    'erro' => $th->getMessage()
+                ],
+                Response::HTTP_FORBIDDEN
+            );
         }
 
         $movimentacao = $this->addFlagColumn(

@@ -70,6 +70,11 @@ class Calculos
         $producao->setPercentualMaximo(
             (int) $this->request->get('percentual-maximo', getenv('PERCENTUAL_MAXIMO'))
         );
+        try {
+            $data = $producao->exportData();
+        } catch (\Throwable $th) {
+            $erros = [$th->getMessage()];
+        }
 
         $response = new Response(
             App::get(\Twig\Environment::class)
@@ -81,7 +86,8 @@ class Calculos
                             'ano-mes' => $inicio->format('Y-m')
                         ],
                     ),
-                    'data' => $producao->exportData(),
+                    'data' => $data ?? [],
+                    'erros' => $erros ?? [],
                 ])
         );
         return $response;
