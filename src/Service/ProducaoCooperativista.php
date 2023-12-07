@@ -491,16 +491,13 @@ class ProducaoCooperativista
             ->where(
                 $projetosAtivosNoMes->expr()->or(
                     'p.start IS NULL',
-                    $projetosAtivosNoMes->expr()->and(
-                        $projetosAtivosNoMes->expr()->gte('p.start', $qb->createNamedParameter($this->dates->getInicio()->format('Y-m-d'))),
-                        $projetosAtivosNoMes->expr()->lte('p.start', $qb->createNamedParameter($this->dates->getFim()->format('Y-m-d  H:i:s')))
-                    )
+                    $projetosAtivosNoMes->expr()->lte('p.start', $qb->createNamedParameter($this->dates->getFim()->format('Y-m-d H:i:s')))
                 )
             )
             ->andWhere(
                 $projetosAtivosNoMes->expr()->or(
                     'p.end IS NULL',
-                    $projetosAtivosNoMes->expr()->lte('p.end', $qb->createNamedParameter($this->dates->getFim()->format('Y-m-d H:i:s')))
+                    $projetosAtivosNoMes->expr()->gte('p.end', $qb->createNamedParameter($this->dates->getInicio()->format('Y-m-d')))
                 )
             )
             ->groupBy('c.id');
