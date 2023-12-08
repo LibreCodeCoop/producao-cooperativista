@@ -850,7 +850,7 @@ class ProducaoCooperativista
                     <pre>
                     SE ({base_calculo_dispendios} * {percentual_naximo} / 100 >= {taxa_maxima}) &lbrace;
                         {taxa_administrativa} = {taxa_maxima}
-                    &rbrace; SENÃO SE ({base_calculo_dispendios} * {percentual_naximo} / 100 >= {taxa_maxima}) &lbrace;
+                    &rbrace; SENÃO SE ({base_calculo_dispendios} * {percentual_naximo} / 100 >= {taxa_minima}) &lbrace;
                         {taxa_administrativa} = {base_calculo_dispendios} * {percentual_naximo} / 100
                     &rbrace; SENÃO &lbrace;
                         {taxa_administrativa} = {taxa_minima}
