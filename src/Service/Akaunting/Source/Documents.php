@@ -48,7 +48,7 @@ class Documents
     private ?DateTime $date;
     private string $type;
     private int $companyId;
-    /** @var Invoices[] */
+    /** @var Invoices[][] */
     private array $list = [];
 
     public function __construct(
@@ -89,7 +89,7 @@ class Documents
             $this->list[$this->getType()][] = $invoice;
         }
         $this->logger->info('Dados de {tipo} salvos com sucesso. Total: {total}', [
-            'total' => count($this->list),
+            'total' => count($this->list[$this->getType()]),
             'tipo' => $this->getType(),
         ]);
         return $this->list[$this->getType()] ?? [];
