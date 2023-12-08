@@ -72,6 +72,9 @@ class Categories
             $invoice = $this->fromArray($row);
             $this->list[] = $invoice;
         }
+        $this->logger->info('Dados de categorias salvos com sucesso. Total: {total}', [
+            'total' => count($this->list),
+        ]);
         return $this->list ?? [];
     }
 
