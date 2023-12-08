@@ -94,7 +94,7 @@ class Acoes
         return $response;
     }
 
-    public function doMakeProducao(): void
+    public function doMakeProducao(): Response
     {
         $this->logger->pushHandler($this->sseLogHandler);
         $inicio = \DateTime::createFromFormat(
@@ -117,5 +117,6 @@ class Acoes
         $output = new BufferedOutput();
         $application->run($input, $output);
         $this->logger->info(new ArrayValue(['event' => 'done', 'data' =>  'Fim']));
+        return new Response();
     }
 }
