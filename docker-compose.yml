@@ -1,3 +1,8 @@
+networks:
+  internal:
+    external: true
+    name: internal
+
 services:
   php:
     build:
@@ -7,12 +12,22 @@ services:
       - ./:/app
       - ./.docker/php/wait-for-db.php:/var/www/scripts/wait-for-db.php
     environment:
+      - HOST_UID=${HOST_UID:-1000}
+      - HOST_GID=${HOST_GID:-1000}
       - XDEBUG_CONFIG
       - TZ
+    networks:
+      - internal
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    volumes:
+      - ./:/app:ro
+      - .docker/web/nginx.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - internal
     ports:
-      - 8080:80
-    extra_hosts:
-      - host.docker.internal:host-gateway
+      - 80:80
   mysql:
     image: mysql
     cap_add:
