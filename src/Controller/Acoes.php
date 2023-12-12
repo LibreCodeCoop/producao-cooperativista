@@ -111,7 +111,7 @@ class Acoes
             'make:producao',
             '--ano-mes' => $inicio->format('Y-m'),
             '--baixar-dados' => $this->request->get('baixar_dados', '0'),
-            '--atualiza-producao' => (bool) $this->request->get('atualzia_producao', false),
+            '--atualiza-producao' => (bool) $this->request->get('atualiza_producao', false),
             '--database' => true,
         ]);
         $output = new BufferedOutput();
