@@ -151,7 +151,7 @@ class ProducaoCooperativista extends ADocument
         return $this;
     }
 
-    private function aplicaAdiantamentos(): self
+    public function atualizaAdiantamentos(): self
     {
         $taxNumber = $this->getContactTaxNumber();
 
@@ -161,7 +161,6 @@ class ProducaoCooperativista extends ADocument
             ->addSelect('due_at')
             ->from('invoices')
             ->where("type = 'bill'")
-            ->andWhere("category_type = 'expense'")
             ->andWhere("metadata->>'$.status' = 'paid'")
             ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) getenv('AKAUNTING_ADIANTAMENTO_CATEGORY_ID'), ParameterType::INTEGER)))
             ->andWhere($select->expr()->eq('tax_number', $select->createNamedParameter($taxNumber)))
@@ -169,11 +168,22 @@ class ProducaoCooperativista extends ADocument
 
         $result = $select->executeQuery();
         while ($row = $result->fetchAssociative()) {
+            $this->values->setAdiantamento(array_merge(
+                $this->values->getAdiantamento(),
+                [$row]
+            ));
+        }
+        return $this;
+    }
+
+    private function aplicaAdiantamentos(): self
+    {
+        foreach ($this->values->getAdiantamento() as $adiantamento) {
             $this->setItem(
                 itemId: $this->itemsIds['desconto'],
                 name: 'Adiantamento',
-                description: sprintf('Número: %s, data: %s', $row['document_number'], $row['due_at']),
-                price: -$row['amount'],
+                description: sprintf('Número: %s, data: %s', $adiantamento['document_number'], $adiantamento['due_at']),
+                price: -$adiantamento['amount'],
                 order: 20
             );
         }

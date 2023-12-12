@@ -111,11 +111,14 @@ class Acoes
             'make:producao',
             '--ano-mes' => $inicio->format('Y-m'),
             '--baixar-dados' => $this->request->get('baixar_dados', '0'),
-            '--atualiza-producao' => (bool) $this->request->get('atualzia_producao', false),
+            '--atualiza-producao' => (bool) $this->request->get('atualiza_producao', false),
             '--database' => true,
         ]);
         $output = new BufferedOutput();
-        $application->run($input, $output);
+        $exitCode = $application->run($input, $output);
+        if ($exitCode !== 0) {
+            $this->logger->warning('Erro: {erro}', ['erro' => $output->fetch()]);
+        }
         $this->logger->info(new ArrayValue(['event' => 'done', 'data' =>  'Fim']));
         return new Response();
     }

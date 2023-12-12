@@ -56,6 +56,8 @@ use ProducaoCooperativista\Service\IRPF;
  * @method bool getIsFrra()
  * @method self setLiquido(float $value)
  * @method float getLiquido()
+ * @method self setAdiantamento()
+ * @method array getAdiantamento()
  */
 class Values
 {
@@ -70,6 +72,7 @@ class Values
     private ?float $irpf = 0;
     private ?float $liquido = 0;
     private ?float $healthInsurance = 0;
+    private ?array $adiantamento = [];
     private bool $isFrra = false;
     private const STATUS_NEED_TO_UPDATE = 0;
     private const STATUS_UPDATING = 1;
@@ -120,12 +123,22 @@ class Values
         $liquido = $this->getBruto()
             - $this->getInss()
             - $this->getIrpf()
+            - $this->getTotalAdiantamento()
             + $this->getAuxilio();
         if (!$this->isFrra) {
             $liquido -= $this->getHealthInsurance();
         }
         $this->setLiquido($liquido);
         $this->updated = self::STATUS_UPDATED;
+    }
+
+    private function getTotalAdiantamento(): float
+    {
+        $total = 0;
+        foreach ($this->getAdiantamento() as $linha) {
+            $total += $linha['amount'];
+        }
+        return $total;
     }
 
     /**
@@ -179,6 +192,7 @@ class Values
             'health_insurance' => $this->getHealthInsurance(),
             'inss' => $this->getInss(),
             'irpf' => $this->getIrpf(),
+            'adiantamentos' => array_map(fn ($i) => ['valor' => $i['amount']], $this->getAdiantamento()),
             'liquido' => $this->getLiquido(),
             'name' => $cooperado->getName(),
             'tax_number' => $cooperado->getTaxNumber(),

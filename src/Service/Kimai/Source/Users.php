@@ -28,6 +28,7 @@ namespace ProducaoCooperativista\Service\Kimai\Source;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
+use InvalidArgumentException;
 use ProducaoCooperativista\DB\Database;
 use ProducaoCooperativista\DB\Entity\Users as EntityUsers;
 use ProducaoCooperativista\Provider\Kimai;
@@ -85,6 +86,7 @@ class Users
             try {
                 $user = $this->fromArray($row);
                 $this->list[] = $user;
+            } catch (InvalidArgumentException) {
             } catch (\Throwable $th) {
                 $this->logger->alert('Falha ao salvar dados de usuário', [
                     'message' => $th->getMessage(),
@@ -116,7 +118,7 @@ class Users
             $this->logger->alert('Cooperado sem CPF: {cooperado}', [
                 'cooperado' => $array['alias'],
             ]);
-            throw new Exception('Cooperado sem CPF encontrado');
+            throw new InvalidArgumentException('Cooperado sem CPF encontrado');
         }
     }
 
