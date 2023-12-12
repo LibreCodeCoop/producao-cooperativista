@@ -64,16 +64,16 @@ final class MakeProducaoCommandTest extends TestCase
                 'recebe_tudo',
                 '2023-08',
                 <<<CSV
-                akaunting_contact_id,auxilio,base_irpf,base_producao,bruto,dependentes,document_number,frra,health_insurance,inss,irpf,liquido,name,tax_number
-                6,9685,33287.139333333,48425,34704.583333333,0,,4035.4166666667,0,1417.444,9153.9633166667,33818.176016667,"Pessoa 01",CPF_PESSOA_01
+                akaunting_contact_id,auxilio,base_irpf,base_producao,bruto,dependentes,document_number,frra,health_insurance,inss,irpf,adiantamentos,liquido,name,tax_number
+                6,9685,33287.139333333,48425,34704.583333333,0,,4035.4166666667,0,1417.444,9153.9633166667,0,33818.176016667,"Pessoa 01",CPF_PESSOA_01
                 CSV
             ],
             'recebe_metade' => [
                 'recebe_metade',
                 '2023-08',
                 <<<CSV
-                akaunting_contact_id,auxilio,base_irpf,base_producao,bruto,dependentes,document_number,frra,health_insurance,inss,irpf,liquido,name,tax_number
-                6,4842.5,15934.847666667,24212.5,17352.291666667,0,,2017.7083333333,0,1417.444,4382.0831083333,16395.264558333,"Pessoa 01",CPF_PESSOA_01
+                akaunting_contact_id,auxilio,base_irpf,base_producao,bruto,dependentes,document_number,frra,health_insurance,inss,irpf,adiantamentos,liquido,name,tax_number
+                6,4842.5,15934.847666667,24212.5,17352.291666667,0,,2017.7083333333,0,1417.444,4382.0831083333,0,16395.264558333,"Pessoa 01",CPF_PESSOA_01
                 CSV
             ],
         ];
