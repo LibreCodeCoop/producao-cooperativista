@@ -71,8 +71,6 @@
 
             const ItemMessage = (type, data) => '<div class="alert ' + type + '">' + '<span class="closebtn">&times;</span>' + data + '</div>';
 
-            $('#messages').html('Aguarde...')
-
             const eventSource = new EventSource(
                 '{{ url|raw }}?' + $('#form-gera-producao').serialize()
             )
@@ -85,7 +83,7 @@
             eventSource.addEventListener('done', e => {
                 $('#messages').append(ItemMessage('success', JSON.parse(e.data)))
                 eventSource.close()
-                $('#messages').append('Sucesso! Volte para a página anterior e veja os relatórios')
+                $('#messages').append('Volte para a página anterior e veja os relatórios')
             })
 
             $('#messages').on('click', '.closebtn', function() {
