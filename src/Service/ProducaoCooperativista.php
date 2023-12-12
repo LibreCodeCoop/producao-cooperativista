@@ -689,6 +689,7 @@ class ProducaoCooperativista
         $this->distribuiProducaoExterna();
         $this->distribuiSobras();
         $this->atualizaPlanoDeSaude();
+        $this->atualizaAdiantamentos();
         $this->logger->debug('Produção por cooperado ooperado: {json}', ['json' => json_encode($this->cooperado)]);
         return $this->cooperado;
     }
@@ -697,6 +698,14 @@ class ProducaoCooperativista
     {
         foreach ($this->cooperado as $cooperado) {
             $cooperado->getProducaoCooperativista()->updateHealthInsurance();
+        }
+        return $this;
+    }
+
+    private function atualizaAdiantamentos(): self
+    {
+        foreach ($this->cooperado as $cooperado) {
+            $cooperado->getProducaoCooperativista()->atualizaAdiantamentos();
         }
         return $this;
     }

@@ -65,6 +65,12 @@ class Producao
             $trabalhadoPorCliente = $producaoCooperativista->getPercentualTrabalhadoPorCliente();
             foreach ($list as $cooperado) {
                 $array = $cooperado->getProducaoCooperativista()->getValues()->toArray();
+                if (empty($array['adiantamentos'])) {
+                    $adiantamentos = '';
+                } else {
+                    $adiantamentos = json_encode($array['adiantamentos']);
+                }
+                $array['adiantamentos'] = $adiantamentos;
                 $trabalhado = array_filter($trabalhadoPorCliente, fn ($c) => $c['tax_number'] === $array['tax_number']);
                 $array['trabalhado'] = json_encode(array_values(array_map(fn ($row) => [
                     'trabalhado' => $row['trabalhado'] / 60 / 60,

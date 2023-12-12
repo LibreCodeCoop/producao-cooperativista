@@ -151,7 +151,7 @@ class ProducaoCooperativista extends ADocument
         return $this;
     }
 
-    private function aplicaAdiantamentos(): self
+    public function atualizaAdiantamentos(): self
     {
         $taxNumber = $this->getContactTaxNumber();
 
@@ -168,11 +168,21 @@ class ProducaoCooperativista extends ADocument
 
         $result = $select->executeQuery();
         while ($row = $result->fetchAssociative()) {
+            $this->values->setAdiantamento(array_merge(
+                $this->values->getAdiantamento(),
+                [$row]
+            ));
+        }
+        return $this;
+    }
+
+    private function aplicaAdiantamentos(): self {
+        foreach ($this->values->getAdiantamento() as $adiantamento) {
             $this->setItem(
                 itemId: $this->itemsIds['desconto'],
                 name: 'Adiantamento',
-                description: sprintf('Número: %s, data: %s', $row['document_number'], $row['due_at']),
-                price: -$row['amount'],
+                description: sprintf('Número: %s, data: %s', $adiantamento['document_number'], $adiantamento['due_at']),
+                price: -$adiantamento['amount'],
                 order: 20
             );
         }

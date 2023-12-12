@@ -56,6 +56,8 @@ use ProducaoCooperativista\Service\IRPF;
  * @method bool getIsFrra()
  * @method self setLiquido(float $value)
  * @method float getLiquido()
+ * @method self setAdiantamento()
+ * @method array getAdiantamento()
  */
 class Values
 {
@@ -70,6 +72,7 @@ class Values
     private ?float $irpf = 0;
     private ?float $liquido = 0;
     private ?float $healthInsurance = 0;
+    private ?array $adiantamento = [];
     private bool $isFrra = false;
     private const STATUS_NEED_TO_UPDATE = 0;
     private const STATUS_UPDATING = 1;
@@ -173,6 +176,7 @@ class Values
             'base_irpf' => $this->getBaseIrpf(),
             'base_producao' => $this->getBaseProducao(),
             'bruto' => $this->getBruto(),
+            'adiantamentos' => array_map(fn($i) => ['valor' => $i['amount']], $this->getAdiantamento()),
             'dependentes' => $cooperado->getDependentes(),
             'document_number' => $this->getDocumentNumber(),
             'frra' => $this->getFrra(),
