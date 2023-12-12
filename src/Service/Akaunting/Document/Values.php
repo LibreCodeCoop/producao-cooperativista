@@ -136,7 +136,7 @@ class Values
     {
         $total = 0;
         foreach ($this->getAdiantamento() as $linha) {
-            $total+= $linha['amount'];
+            $total += $linha['amount'];
         }
         return $total;
     }
@@ -192,7 +192,7 @@ class Values
             'health_insurance' => $this->getHealthInsurance(),
             'inss' => $this->getInss(),
             'irpf' => $this->getIrpf(),
-            'adiantamentos' => array_map(fn($i) => ['valor' => $i['amount']], $this->getAdiantamento()),
+            'adiantamentos' => array_map(fn ($i) => ['valor' => $i['amount']], $this->getAdiantamento()),
             'liquido' => $this->getLiquido(),
             'name' => $cooperado->getName(),
             'tax_number' => $cooperado->getTaxNumber(),

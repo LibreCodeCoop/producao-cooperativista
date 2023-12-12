@@ -176,7 +176,8 @@ class ProducaoCooperativista extends ADocument
         return $this;
     }
 
-    private function aplicaAdiantamentos(): self {
+    private function aplicaAdiantamentos(): self
+    {
         foreach ($this->values->getAdiantamento() as $adiantamento) {
             $this->setItem(
                 itemId: $this->itemsIds['desconto'],
