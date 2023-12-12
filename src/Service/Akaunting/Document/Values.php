@@ -123,12 +123,22 @@ class Values
         $liquido = $this->getBruto()
             - $this->getInss()
             - $this->getIrpf()
+            - $this->getTotalAdiantamento()
             + $this->getAuxilio();
         if (!$this->isFrra) {
             $liquido -= $this->getHealthInsurance();
         }
         $this->setLiquido($liquido);
         $this->updated = self::STATUS_UPDATED;
+    }
+
+    private function getTotalAdiantamento(): float
+    {
+        $total = 0;
+        foreach ($this->getAdiantamento() as $linha) {
+            $total+= $linha['amount'];
+        }
+        return $total;
     }
 
     /**
@@ -176,13 +186,13 @@ class Values
             'base_irpf' => $this->getBaseIrpf(),
             'base_producao' => $this->getBaseProducao(),
             'bruto' => $this->getBruto(),
-            'adiantamentos' => array_map(fn($i) => ['valor' => $i['amount']], $this->getAdiantamento()),
             'dependentes' => $cooperado->getDependentes(),
             'document_number' => $this->getDocumentNumber(),
             'frra' => $this->getFrra(),
             'health_insurance' => $this->getHealthInsurance(),
             'inss' => $this->getInss(),
             'irpf' => $this->getIrpf(),
+            'adiantamentos' => array_map(fn($i) => ['valor' => $i['amount']], $this->getAdiantamento()),
             'liquido' => $this->getLiquido(),
             'name' => $cooperado->getName(),
             'tax_number' => $cooperado->getTaxNumber(),
