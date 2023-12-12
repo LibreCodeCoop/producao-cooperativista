@@ -71,6 +71,8 @@
 
             const ItemMessage = (type, data) => '<div class="alert ' + type + '">' + '<span class="closebtn">&times;</span>' + data + '</div>';
 
+            $('#messages').html('')
+
             const eventSource = new EventSource(
                 '{{ url|raw }}?' + $('#form-gera-producao').serialize()
             )
