@@ -82,6 +82,7 @@ class Invoices
             );
         }
 
+        $movimentacao = $this->addUrlToAccount($movimentacao);
         $movimentacao = $this->addFlagColumn(
             $movimentacao,
             'dispendio_interno',
@@ -106,6 +107,26 @@ class Invoices
             ],
         ];
         return new JsonResponse($response);
+    }
+
+    private function addUrlToAccount(array $movimentacao): array
+    {
+        $movimentacao = array_map(function ($row) {
+            if ($row['table'] === 'transaction') {
+                $path = '/banking/transactions/';
+            } elseif ($row['type'] === 'bill') {
+                $path = '/purchases/bills/';
+            } else {
+                $path = '/sales/invoices/';
+            }
+            $row['URL'] = '<a href="' . getenv('AKAUNTING_API_BASE_URL') .
+                '/' . getenv('AKAUNTING_COMPANY_ID') .
+                $path . $row['id'] .
+                '" target="_blank">' .
+                $row['type'] . '</a>';
+            return $row;
+        }, $movimentacao);
+        return $movimentacao;
     }
 
     private function addFlagColumn(array $list, string $name, string $environment): array
