@@ -161,7 +161,6 @@ class ProducaoCooperativista extends ADocument
             ->addSelect('due_at')
             ->from('invoices')
             ->where("type = 'bill'")
-            ->andWhere("category_type = 'expense'")
             ->andWhere("metadata->>'$.status' = 'paid'")
             ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) getenv('AKAUNTING_ADIANTAMENTO_CATEGORY_ID'), ParameterType::INTEGER)))
             ->andWhere($select->expr()->eq('tax_number', $select->createNamedParameter($taxNumber)))
