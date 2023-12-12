@@ -80,6 +80,9 @@
             eventSource.addEventListener('alert', e => {
                 $('#messages').append(ItemMessage(e.type, JSON.parse(e.data)))
             })
+            eventSource.addEventListener('warning', e => {
+                $('#messages').append(ItemMessage(e.type, JSON.parse(e.data)))
+            })
             eventSource.addEventListener('done', e => {
                 $('#messages').append(ItemMessage('success', JSON.parse(e.data)))
                 eventSource.close()
