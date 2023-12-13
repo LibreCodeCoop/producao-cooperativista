@@ -42,6 +42,9 @@ class Request
 
     public function send(string $endpoint, array $body = [], array $query = [], string $method = 'POST'): array
     {
+        if (!str_starts_with($endpoint, 'http')) {
+            $endpoint = rtrim(getenv('AKAUNTING_API_BASE_URL'), '/') . $endpoint;
+        }
         $options = [
             'query' => $query,
             'auth_basic' => [
@@ -56,13 +59,13 @@ class Request
             "Requisição para a API do Akaunting:\n%s",
             json_encode([
                 'method' => $method,
-                'endpoint' => rtrim(getenv('AKAUNTING_API_BASE_URL'), '/') . $endpoint,
+                'endpoint' => $endpoint,
                 'options' => $options,
             ])
         ));
         $result = $this->client->request(
             $method,
-            rtrim(getenv('AKAUNTING_API_BASE_URL'), '/') . $endpoint,
+            $endpoint,
             $options,
         );
         $response = $result->toArray(false);
