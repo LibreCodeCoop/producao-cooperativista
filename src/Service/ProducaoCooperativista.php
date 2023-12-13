@@ -931,7 +931,7 @@ class ProducaoCooperativista
                 $this->urlGenerator->generate('Invoices#index', [
                     'ano-mes' => $this->dates->getInicio()->format('Y-m'),
                     'entrada_cliente' => 'sim',
-                    'type' => 'invoice',
+                    'category_type' => 'income',
                 ]) .
                 '">notas clientes</a>'
             ],
@@ -942,7 +942,7 @@ class ProducaoCooperativista
                 $this->urlGenerator->generate('Invoices#index', [
                     'ano-mes' => $this->dates->getInicio()->format('Y-m'),
                     'entrada_cliente' => 'sim',
-                    'type' => 'bill',
+                    'category_type' => 'income',
                 ]) .
                 '">dispêndios clientes</a>'
             ],
