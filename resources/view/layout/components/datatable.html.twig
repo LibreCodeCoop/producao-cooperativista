@@ -171,7 +171,7 @@
                                 input.addEventListener('keyup', () => {
                                     window.history.pushState({}, "", linkify.link())
 
-                                    if (column.search() !== this.value) {
+                                    if (column.search() !== input.value) {
                                         column.search(input.value).draw()
                                     }
                                 })
