@@ -193,10 +193,10 @@ abstract class ADocument
             return $i['name'] === $item['name'] && $i['description'] === $item['description'];
         });
         if ($found) {
-            $items = array_merge($this->items[key($found)], $item);
-            if (array_diff($this->items[key($found)], $items)) {
+            $mergedItem = array_merge($this->items[key($found)], $item);
+            if (array_diff($this->items[key($found)], $mergedItem)) {
                 $this->changed();
-                $this->items[key($found)] = $items;
+                $this->items[key($found)] = $mergedItem;
             }
             return $this;
         } else {
