@@ -52,7 +52,9 @@ class FRRA extends ADocument
                 $this->whoami . '_' .
                 $cooperado->getTaxNumber() .
                 '-' .
-                $this->dates->getPrevisaoPagamentoFrra()->format('Y-m')
+                $this->dates->getPrevisaoPagamentoFrra()
+                    ->modify('-2 month')
+                    ->format('Y-m')
             );
         }
         return $this->documentNumber;
