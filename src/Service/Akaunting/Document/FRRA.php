@@ -96,7 +96,7 @@ class FRRA extends ADocument
                         return $total;
                     }
                 }
-                $total += $item['price'];
+                $total += $item['total'];
             }
             return $total;
         }, 0);
