@@ -193,10 +193,10 @@ abstract class ADocument
             return $i['name'] === $item['name'] && $i['description'] === $item['description'];
         });
         if ($found) {
-            $items = array_merge($this->items[key($found)], $item);
-            if (array_diff($this->items[key($found)], $items)) {
+            $mergedItem = array_merge($this->items[key($found)], $item);
+            if (array_diff($this->items[key($found)], $mergedItem)) {
                 $this->changed();
-                $this->items[key($found)] = $items;
+                $this->items[key($found)] = $mergedItem;
             }
             return $this;
         } else {
@@ -249,12 +249,12 @@ abstract class ADocument
             ->setItem(
                 code: 'INSS',
                 name: 'INSS',
-                price: $values->getInss() * -1
+                price: abs($values->getInss()) * -1
             )
             ->setItem(
                 code: 'IRRF',
                 name: 'IRRF',
-                price: $values->getIrpf() * -1
+                price: abs($values->getIrpf()) * -1
             );
         return $this;
     }

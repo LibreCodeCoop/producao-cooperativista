@@ -31,7 +31,7 @@ use UnexpectedValueException;
 
 class FRRA extends ADocument
 {
-    protected string $whoami = 'FRRA';
+    protected string $whoami = 'PDC';
 
     protected function setUp(): self
     {
@@ -49,10 +49,12 @@ class FRRA extends ADocument
         if (empty($this->documentNumber)) {
             $cooperado = $this->getCooperado();
             $this->setDocumentNumber(
-                'FRRA_' .
+                $this->whoami . '_' .
                 $cooperado->getTaxNumber() .
                 '-' .
-                $this->dates->getPrevisaoPagamentoFrra()->format('Y-m')
+                $this->dates->getPrevisaoPagamentoFrra()
+                    ->modify('-2 month')
+                    ->format('Y-m')
             );
         }
         return $this->documentNumber;
