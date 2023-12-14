@@ -249,12 +249,12 @@ abstract class ADocument
             ->setItem(
                 code: 'INSS',
                 name: 'INSS',
-                price: $values->getInss() * -1
+                price: abs($values->getInss()) * -1
             )
             ->setItem(
                 code: 'IRRF',
                 name: 'IRRF',
-                price: $values->getIrpf() * -1
+                price: abs($values->getIrpf()) * -1
             );
         return $this;
     }
