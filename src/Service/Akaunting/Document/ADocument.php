@@ -179,7 +179,13 @@ abstract class ADocument
         }
         $item['name'] = $name;
         $item['description'] = $description;
-        $item['quantity'] = $quantity ? $quantity : ($price > 0 ? 1 : -1);
+        if ($total < 0 || $price < 0) {
+            $item['quantity'] = -1;
+        } elseif (empty($quantity)) {
+            $item['quantity'] = 1;
+        } else {
+            $item['quantity'] = $quantity;
+        }
         $item['price'] = abs($price);
         if (!$item['price']) {
             return $this;
