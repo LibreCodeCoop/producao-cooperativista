@@ -62,6 +62,7 @@ class Cooperado
 
     public function __construct(
         private ?int $anoFiscal,
+        private ?int $mes,
         private Database $db,
         private Dates $dates,
         private NumberFormatter $numberFormatter,
@@ -77,6 +78,7 @@ class Cooperado
         }
         $this->setProducaoCooperativista(new ProducaoCooperativista(
             anoFiscal: $this->anoFiscal,
+            mes: $this->mes,
             db: $this->db,
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
@@ -94,6 +96,7 @@ class Cooperado
         }
         $this->setFrra(new FRRA(
             anoFiscal: $this->anoFiscal,
+            mes: $this->mes,
             db: $this->db,
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
@@ -111,6 +114,7 @@ class Cooperado
         }
         $this->setInssIrpf(new InssIrpf(
             anoFiscal: $this->anoFiscal,
+            mes: $this->mes,
             db: $this->db,
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,

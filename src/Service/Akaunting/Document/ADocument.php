@@ -103,13 +103,15 @@ abstract class ADocument
         protected Dates $dates,
         protected Documents $documents,
         protected Request $request,
-        protected ?int $anoFiscal = null,
+        protected int $anoFiscal = null,
+        protected int $mes = null,
         protected ?NumberFormatter $numberFormatter = null,
         protected ?Cooperado $cooperado = null,
     ) {
         $this->itemsIds = json_decode(getenv('AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS'), true);
         $this->setValues(new Values(
             anoFiscal: $anoFiscal,
+            mes: $mes,
             cooperado: $cooperado
         ));
         $this->setUp();

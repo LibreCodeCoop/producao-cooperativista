@@ -81,7 +81,8 @@ class Values
 
 
     public function __construct(
-        private ?int $anoFiscal,
+        private int $anoFiscal,
+        private int $mes,
         private ?Cooperado $cooperado
     ) {
     }
@@ -166,7 +167,10 @@ class Values
     public function calculaImpostos(): void
     {
         $inss = new INSS();
-        $irpf = new IRPF($this->anoFiscal);
+        $irpf = new IRPF(
+            $this->anoFiscal,
+            $this->mes
+        );
 
         $this->setInss($inss->calcula($this->getBruto()));
         $this->setBaseIrpf($irpf->calculaBase(
