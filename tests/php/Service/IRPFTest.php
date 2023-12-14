@@ -44,6 +44,17 @@ final class IRPFTest extends TestCase
     {
         return [
             # Primeira tabela do ano
+            ## Base negativa
+            [
+                'ano' => 2023,
+                'mes' => 1,
+                'base' => -1000,
+                'faixa' => [
+                    'aliquota' => 0,
+                    'deducao' => 0,
+                ],
+            ],
+            # Primeira tabela do ano
             ## Mínima
             [
                 'ano' => 2023,

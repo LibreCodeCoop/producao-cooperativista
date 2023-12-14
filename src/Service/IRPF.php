@@ -141,6 +141,9 @@ class IRPF
     }
 
     public function getFaixa(float $base): array {
+        if ($base < 0) {
+            $base = 0;
+        }
         foreach ($this->tabela['aliquotas'] as $aliquota) {
             if ($base >= $aliquota['min']) {
                 if ($base <= $aliquota['max'] || is_null($aliquota['max'])) {
