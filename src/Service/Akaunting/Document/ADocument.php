@@ -437,7 +437,9 @@ abstract class ADocument
                 itemId: $item['item_id'],
                 name: $item['name'],
                 description: $item['description'] ?? '',
-                price: $item['price']
+                price: $item['price'] ?? 0,
+                total: $item['total'] ?? 0,
+                quantity: $item['quantity'] ?? null,
             );
         }
         return $this;
