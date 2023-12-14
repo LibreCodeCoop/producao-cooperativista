@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service\Akaunting\Document;
 
+use DateTime;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use UnexpectedValueException;
@@ -179,10 +180,11 @@ class ProducaoCooperativista extends ADocument
     private function aplicaAdiantamentos(): self
     {
         foreach ($this->values->getAdiantamento() as $adiantamento) {
+            $dueAt = new DateTime($adiantamento['due_at']);
             $this->setItem(
                 itemId: $this->itemsIds['desconto'],
                 name: 'Adiantamento',
-                description: sprintf('Número: %s, data: %s', $adiantamento['document_number'], $adiantamento['due_at']),
+                description: sprintf('Número: %s, data: %s', $adiantamento['document_number'], $dueAt->format('Y-m-d')),
                 price: abs($adiantamento['amount']) * -1,
                 order: 20
             );
