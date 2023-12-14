@@ -183,7 +183,7 @@ class ProducaoCooperativista extends ADocument
                 itemId: $this->itemsIds['desconto'],
                 name: 'Adiantamento',
                 description: sprintf('Número: %s, data: %s', $adiantamento['document_number'], $adiantamento['due_at']),
-                price: -$adiantamento['amount'],
+                price: abs($adiantamento['amount']) * -1,
                 order: 20
             );
         }
