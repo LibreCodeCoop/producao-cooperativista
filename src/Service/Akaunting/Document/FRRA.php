@@ -25,8 +25,6 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service\Akaunting\Document;
 
-use Doctrine\DBAL\ParameterType;
-use Doctrine\DBAL\Query\QueryBuilder;
 use UnexpectedValueException;
 
 class FRRA extends ADocument
