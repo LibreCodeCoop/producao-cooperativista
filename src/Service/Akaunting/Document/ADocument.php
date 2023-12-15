@@ -103,8 +103,8 @@ abstract class ADocument
         protected Dates $dates,
         protected Documents $documents,
         protected Request $request,
-        protected int $anoFiscal = null,
-        protected int $mes = null,
+        protected ?int $anoFiscal = null,
+        protected ?int $mes = null,
         protected ?NumberFormatter $numberFormatter = null,
         protected ?Cooperado $cooperado = null,
     ) {
