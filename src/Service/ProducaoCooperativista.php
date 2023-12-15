@@ -676,16 +676,13 @@ class ProducaoCooperativista
     {
         $producao = $this->getProducaoCooperativista();
         foreach ($producao as $cooperado) {
-            $cooperado
-                ->getProducaoCooperativista()
-                ->save();
-
-            $valueFrra = $cooperado->getProducaoCooperativista()
-                ->getValues()
-                ->getFrra();
+            $producaoCooperativista = $cooperado->getProducaoCooperativista();
+            $producaoCooperativista->save();
 
             $frra = $cooperado->getFrra();
-            $frra->getValues()->setBaseProducao($valueFrra);
+            $frra->getValues()->setFrra(
+                $producaoCooperativista->getValues()->getFrra()
+            );
             $frra->save();
         }
 
