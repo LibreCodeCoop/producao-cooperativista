@@ -235,6 +235,10 @@ abstract class ADocument
         foreach ($items as &$item) {
             unset($item['order']);
         }
+        $dueAt = $this->getDueAt()->format('Y-m-d\TH:i:s');
+        if ($this->getIssuedAt() > $dueAt) {
+            $this->setIssuedAt($dueAt);
+        }
         return [
             'type' => $this->getType(),
             'category_id' => $this->getCategoryId(),
@@ -242,7 +246,7 @@ abstract class ADocument
             'search' => $this->getSearch(),
             'status' => $this->getStatus(),
             'issued_at' => $this->getIssuedAt(),
-            'due_at' => $this->getDueAt()->format('Y-m-d H:i:s'),
+            'due_at' => $dueAt,
             'id' => $this->getId(),
             'currency_code' => $this->getCurrencyCode(),
             'currency_rate' => $this->getCurrencyRate(),

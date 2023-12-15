@@ -175,6 +175,9 @@ class ProducaoCooperativista extends ADocument
             )
             ->setTaxes()
             ->coletaInvoiceNaoPago();
+        if ($this->getDueAt()->format('Y-m-d H:i:s') < $this->getIssuedAt()) {
+            $this->setIssuedAt($this->getDueAt()->format('Y-m-d H:i:s'));
+        }
         return $this;
     }
 
