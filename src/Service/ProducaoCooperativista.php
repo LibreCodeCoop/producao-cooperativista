@@ -396,6 +396,9 @@ class ProducaoCooperativista
             }
             $this->movimentacao[$row['id']] = $row;
         }
+        if (empty($this->movimentacao)) {
+            throw new Exception('Sem transações');
+        }
 
         if (count($errors)) {
             throw new Exception(sprintf(
