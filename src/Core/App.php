@@ -89,8 +89,7 @@ class App
                 ->method('pushProcessor', \DI\get(PsrLogMessageProcessor::class)),
             LoggerInterface::class => \DI\get(Logger::class),
             Database::class => \DI\autowire(),
-            Dates::class => \DI\autowire()
-                ->constructorParameter('locationHolydays', \DI\env('HOLYDAYS_LIST', 'br-national')),
+            Dates::class => \DI\autowire(),
             'ProducaoCooperativista\Service\Kimai\Source\*' => \DI\autowire('ProducaoCooperativista\Service\Kimai\Source\*'),
             'ProducaoCooperativista\Provider\Akaunting\*' => \DI\autowire('ProducaoCooperativista\Provider\Akaunting\*'),
             'ProducaoCooperativista\Service\Akaunting\Source\*' => \DI\autowire('ProducaoCooperativista\Service\Akaunting\Source\*'),
