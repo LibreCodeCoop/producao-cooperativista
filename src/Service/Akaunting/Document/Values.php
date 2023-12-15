@@ -52,8 +52,8 @@ use ProducaoCooperativista\Service\IRPF;
  * @method float getInss()
  * @method self setIrpf(float $value)
  * @method float getIrpf()
- * @method self setIsFrra(bool $value)
- * @method bool getIsFrra()
+ * @method self setLockFrra(bool $value)
+ * @method bool getLockFrra()
  * @method self setLiquido(float $value)
  * @method float getLiquido()
  * @method self setAdiantamento()
@@ -73,7 +73,7 @@ class Values
     private ?float $liquido = 0;
     private ?float $healthInsurance = 0;
     private ?array $adiantamento = [];
-    private bool $isFrra = false;
+    private bool $lockFrra = false;
     private const STATUS_NEED_TO_UPDATE = 0;
     private const STATUS_UPDATING = 1;
     private const STATUS_UPDATED = 2;
@@ -112,25 +112,33 @@ class Values
         return $this;
     }
 
-    private function calculaLiquido(): void
+    public function setUpdated(): self
+    {
+        $this->updated = self::STATUS_UPDATED;
+        return $this;
+    }
+
+    public function calculaLiquido(): void
     {
         $this->updated = self::STATUS_UPDATING;
 
-        if (!$this->isFrra) {
+        if (!$this->lockFrra) {
             $this->setFrra($this->getBaseProducao() * (1 / 12));
         }
         $this->setAuxilio($this->getBaseProducao() * 0.2);
-        $this->setBruto($this->getBaseProducao() - $this->getAuxilio() - $this->getFrra());
+        $this->setBruto(
+            $this->getBaseProducao()
+            - $this->getAuxilio()
+            - $this->getFrra()
+        );
         $liquido = $this->getBruto()
             - $this->getInss()
             - $this->getIrpf()
+            - $this->getHealthInsurance()
             - $this->getTotalAdiantamento()
             + $this->getAuxilio();
-        if (!$this->isFrra) {
-            $liquido -= $this->getHealthInsurance();
-        }
         $this->setLiquido($liquido);
-        $this->updated = self::STATUS_UPDATED;
+        $this->setUpdated();
     }
 
     private function getTotalAdiantamento(): float
@@ -145,12 +153,15 @@ class Values
     /**
      * When change the base all values will be set to zero
      */
-    public function setBaseProducao(float $baseProducao): self
+    public function setBaseProducao(float $baseProducao, bool $reset = true): self
     {
         if ($baseProducao !== $this->baseProducao) {
             $this->updated = self::STATUS_NEED_TO_UPDATE;
         }
         $this->baseProducao = $baseProducao;
+        if (!$reset) {
+            return $this;
+        }
 
         $this->auxilio = 0;
         $this->baseIrpf = 0;
@@ -179,6 +190,7 @@ class Values
             $this->getCooperado()->getDependentes()
         ));
         $this->setIrpf($irpf->calcula($this->getBaseIrpf(), $this->getCooperado()->getDependentes()));
+        $this->calculaLiquido();
     }
 
     public function toArray(): array

@@ -33,7 +33,7 @@ class FRRA extends ADocument
 
     protected function setUp(): self
     {
-        $this->getValues()->setIsFrra(true);
+        $this->getValues()->setLockFrra(true);
         try {
             $this->getDueAt();
         } catch (UnexpectedValueException $e) {

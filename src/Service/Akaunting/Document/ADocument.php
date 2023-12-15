@@ -219,6 +219,11 @@ abstract class ADocument
         return $this->items;
     }
 
+    public function getItemsIds(): array
+    {
+        return $this->itemsIds;
+    }
+
     public function toArray(): array
     {
         $notes = [];
