@@ -74,7 +74,7 @@ class Tax extends ADocument
     {
         $retido = $this->getTotalRetainedOfMonth();
         $percentualImposto = $this->getPercentualDoImposto();
-        $totalNotas = $this->getTotalNotasClientes();
+        $totalNotas = $this->getTotalPagoNotasClientes();
         $totalImpostoAPagar = $totalNotas * $percentualImposto / 100;
         $diferenca = $totalImpostoAPagar - $retido;
         return $diferenca;
