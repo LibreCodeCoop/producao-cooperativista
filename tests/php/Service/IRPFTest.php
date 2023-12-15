@@ -135,6 +135,7 @@ final class IRPFTest extends TestCase
     public static function providerCalculaBase(): array
     {
         return [
+            [2023, 5, 300, 0, 0, 'simplificada'],
             [2023, 5, 1000, 0, 472, 'simplificada'],
             [2023, 5, 3000, 0, 2400, 'tradicional'],
             [2023, 5, 9000, 0, 7582.556, 'tradicional'],

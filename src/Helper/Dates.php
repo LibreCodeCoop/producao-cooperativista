@@ -63,16 +63,21 @@ class Dates
 
     private function calculaPrevisaoPagamentoFrra(): void
     {
-        if ((int) $this->now->format('m') === $this->pagamentoFrraMesPadrao) {
-            $ano = $this->now->modify('+1 year')->format('Y');
+        if ((int) $this->hoje()->format('m') === $this->pagamentoFrraMesPadrao) {
+            $ano = $this->hoje()->modify('+1 year')->format('Y');
         } else {
-            $ano = $this->now->format('Y');
+            $ano = $this->hoje()->format('Y');
         }
         $this->previsaoPagamentoFrra = \DateTime::createFromFormat('Y-m', $ano . '-' . (string) $this->pagamentoFrraMesPadrao)
             ->modify('first day of this month')
             ->setTime(00, 00, 00);
         $carbon = Carbon::parse($this->previsaoPagamentoFrra);
         $this->previsaoPagamentoFrra = $carbon->addBusinessDays($this->pagamentoNoDiaUtil);
+    }
+
+    public function hoje(): DateTime
+    {
+        return $this->now;
     }
 
     public function setInicio(DateTime $inicio): void

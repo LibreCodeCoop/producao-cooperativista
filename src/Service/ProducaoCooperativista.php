@@ -681,12 +681,22 @@ class ProducaoCooperativista
         foreach ($producao as $cooperado) {
             $producaoCooperativista = $cooperado->getProducaoCooperativista();
             $producaoCooperativista->save();
+            $this->logger->info('Produção do cooperado {nome} criada. Número: {numero}. Líquido: {liquido}', [
+                'nome' => $cooperado->getName(),
+                'numero' => $producaoCooperativista->getDocumentNumber(),
+                'liquido' => $producaoCooperativista->getValues()->getLiquido(),
+            ]);
 
             $frra = $cooperado->getFrra();
             $frra->getValues()->setFrra(
                 $producaoCooperativista->getValues()->getFrra()
-            );
+            )->setUpdated();
             $frra->save();
+            $this->logger->info('FRRA do cooperado {nome} criada. Número: {numero}. Líquido: {liquido}', [
+                'nome' => $cooperado->getName(),
+                'numero' => $frra->getDocumentNumber(),
+                'liquido' => $frra->getValues()->getLiquido(),
+            ]);
         }
 
         $inssIrpf = new IrpfRetidoNaNota(
