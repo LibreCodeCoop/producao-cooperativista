@@ -50,7 +50,7 @@ class FRRA extends ProducaoCooperativista
                 $this->whoami . '_' .
                 $cooperado->getTaxNumber() .
                 '-' .
-                $this->dates->getPrevisaoPagamentoFrra()
+                (clone $this->dates->getPrevisaoPagamentoFrra())
                     ->modify('-2 month')
                     ->format('Y-m')
             );
