@@ -30,15 +30,16 @@ class INSS
     private float $baseMaxima = 7087.22;
     private float $aliquotaProducaoInterna = 0.10;
     private float $aliquotaProducaoExterna = 0.20;
-    public const PRODUCAO_INTERNA = 1;
-    public const PRODUCAO_EXTERNA = 2;
     public function __construct(
-        private int $tipoProducao = self::PRODUCAO_EXTERNA
+        private TipoProducao $tipoProducao = TipoProducao::PRODUCAO_EXTERNA,
     ) {
     }
 
     public function calcula(float $base): float
     {
+        if ($base <= 0) {
+            return 0;
+        }
         if ($this->producaoInterna()) {
             if ($base > $this->baseMaxima) {
                 return $this->baseMaxima * $this->aliquotaProducaoInterna;
@@ -56,11 +57,11 @@ class INSS
 
     private function producaoExterna(): bool
     {
-        return $this->tipoProducao === self::PRODUCAO_EXTERNA;
+        return $this->tipoProducao === TipoProducao::PRODUCAO_EXTERNA;
     }
 
     private function producaoInterna(): bool
     {
-        return $this->tipoProducao === self::PRODUCAO_INTERNA;
+        return $this->tipoProducao === TipoProducao::PRODUCAO_INTERNA;
     }
 }
