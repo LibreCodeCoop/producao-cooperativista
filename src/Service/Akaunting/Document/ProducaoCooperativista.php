@@ -46,7 +46,6 @@ class ProducaoCooperativista extends ADocument
 
     protected function somaItensExtras(): void
     {
-        $this->getValues()->calculaLiquido();
         $extras = array_reduce($this->getItems(), function (float $total, array $item) {
             $exclude = [
                 $this->getItemsIds()['Auxílio'],
