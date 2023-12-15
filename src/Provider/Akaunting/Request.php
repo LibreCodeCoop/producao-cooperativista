@@ -96,6 +96,6 @@ class Request
                 ));
             }
         }
-        throw new Exception($response);
+        throw new Exception($response['message']);
     }
 }
