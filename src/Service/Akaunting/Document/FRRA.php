@@ -25,17 +25,15 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service\Akaunting\Document;
 
-use Doctrine\DBAL\ParameterType;
-use Doctrine\DBAL\Query\QueryBuilder;
 use UnexpectedValueException;
 
-class FRRA extends ADocument
+class FRRA extends ProducaoCooperativista
 {
     protected string $whoami = 'PDC';
 
     protected function setUp(): self
     {
-        $this->getValues()->setIsFrra(true);
+        $this->getValues()->setLockFrra(true);
         try {
             $this->getDueAt();
         } catch (UnexpectedValueException $e) {
@@ -74,49 +72,18 @@ class FRRA extends ADocument
     private function update(): self
     {
         $description = sprintf('Referente ao ano/mês: %s', $this->dates->getInicio()->format('Y-m'));
-        // Get current FRRA item
-        $current = array_filter($this->items, function ($item) use ($description) {
-            if ($item['description'] === $description) {
-                if ($item['item_id'] === $this->itemsIds['frra']) {
-                    return true;
-                }
-            }
-            return false;
-        });
-        $current = current($current);
-        // Sum all items that isn't taxes and isn't current FRRA because the current FRRA could be a different value
-        $total = array_reduce($this->items, function (float $total, array $item) use ($current) {
-            $taxesIds = [
-                $this->itemsIds['INSS'],
-                $this->itemsIds['IRRF'],
-            ];
-            if (!in_array($item['item_id'], $taxesIds)) {
-                if ($current && $item['item_id'] === $current['item_id']) {
-                    if (empty($current['description']) || $item['description'] === $current['description']) {
-                        return $total;
-                    }
-                }
-                $total += $item['price'];
-            }
-            return $total;
-        }, 0);
 
         $values = $this->getValues();
-        // Backup of current FRRA to don't lost this value after update "baseProducao"
-        $currentFrra = $values->getBaseProducao();
-
-        // Update the "baseProducao" with total of items that isn't tax
-        $values->setBaseProducao($total + $currentFrra);
+        $currentFrra = $values->getFrra();
 
         $this
             ->setItem(
                 code: 'frra',
                 name: 'FRRA',
                 description: $description,
-                price: $values->getBaseProducao()
-            )
-            ->setTaxes()
-            ->setNote('Base de cálculo', $this->numberFormatter->format($values->getBaseProducao()));
+                price: $currentFrra
+            );
+
         parent::save();
         return $this;
     }
@@ -141,7 +108,7 @@ class FRRA extends ADocument
                 code: 'frra',
                 name: 'FRRA',
                 description: sprintf('Referente ao ano/mês: %s', $this->dates->getInicio()->format('Y-m')),
-                price: $values->getBaseProducao()
+                price: $values->getFrra()
             )
             ->setTaxes();
         parent::save();

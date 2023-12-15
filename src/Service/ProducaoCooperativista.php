@@ -348,18 +348,18 @@ class ProducaoCooperativista
             UNION
             SELECT 'invoice_transaction' AS 'table',
                 i.id,
-                t.type,
-                t.transaction_of_month,
-                t.discount_percentage,
-                t.amount,
-                t.customer_reference,
-                t.contact_name,
-                t.contact_type,
-                t.category_id,
-                t.category_name,
-                t.category_type,
-                t.archive,
-                t.metadata
+                i.type,
+                i.transaction_of_month,
+                i.discount_percentage,
+                i.amount,
+                i.customer_reference,
+                i.contact_name,
+                i.contact_type,
+                i.category_id,
+                i.category_name,
+                i.category_type,
+                i.archive,
+                i.metadata
             FROM transactions t
             JOIN invoices i ON t.metadata->>'$.document_id' = i.id
             WHERE t.transaction_of_month = :ano_mes
@@ -395,6 +395,9 @@ class ProducaoCooperativista
                 $errors[] = $row;
             }
             $this->movimentacao[$row['id']] = $row;
+        }
+        if (empty($this->movimentacao)) {
+            throw new Exception('Sem transações');
         }
 
         if (count($errors)) {
@@ -676,16 +679,13 @@ class ProducaoCooperativista
     {
         $producao = $this->getProducaoCooperativista();
         foreach ($producao as $cooperado) {
-            $cooperado
-                ->getProducaoCooperativista()
-                ->save();
-
-            $valueFrra = $cooperado->getProducaoCooperativista()
-                ->getValues()
-                ->getFrra();
+            $producaoCooperativista = $cooperado->getProducaoCooperativista();
+            $producaoCooperativista->save();
 
             $frra = $cooperado->getFrra();
-            $frra->getValues()->setBaseProducao($valueFrra);
+            $frra->getValues()->setFrra(
+                $producaoCooperativista->getValues()->getFrra()
+            );
             $frra->save();
         }
 
@@ -783,6 +783,7 @@ class ProducaoCooperativista
         if (!isset($this->cooperado[$taxNumber])) {
             $this->cooperado[$taxNumber] = new Cooperado(
                 anoFiscal: (int) $this->dates->getInicio()->format('Y'),
+                mes: (int) $this->dates->getInicio()->format('m'),
                 db: $this->db,
                 dates: $this->dates,
                 numberFormatter: $this->numberFormatter,
@@ -1043,7 +1044,7 @@ class ProducaoCooperativista
         // body
         foreach ($list as $cooperado) {
             $toCsv = $cooperado->getProducaoCooperativista()->getValues()->toArray();
-            $toCsv['adiantamentos'] = array_reduce($toCsv['adiantamentos'], fn ($c, $i) => $c += $i['valor'], 0);
+            $toCsv['adiantamento'] = array_reduce($toCsv['adiantamento'], fn ($c, $i) => $c += $i['amount'], 0);
             $output[] = $this->csvstr($toCsv);
         }
         $output = implode("\n", $output);

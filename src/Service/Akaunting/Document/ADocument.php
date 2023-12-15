@@ -104,12 +104,14 @@ abstract class ADocument
         protected Documents $documents,
         protected Request $request,
         protected ?int $anoFiscal = null,
+        protected ?int $mes = null,
         protected ?NumberFormatter $numberFormatter = null,
         protected ?Cooperado $cooperado = null,
     ) {
         $this->itemsIds = json_decode(getenv('AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS'), true);
         $this->setValues(new Values(
             anoFiscal: $anoFiscal,
+            mes: $mes,
             cooperado: $cooperado
         ));
         $this->setUp();
@@ -179,7 +181,13 @@ abstract class ADocument
         }
         $item['name'] = $name;
         $item['description'] = $description;
-        $item['quantity'] = $quantity ? $quantity : ($price > 0 ? 1 : -1);
+        if ($total < 0 || $price < 0) {
+            $item['quantity'] = -1;
+        } elseif (empty($quantity)) {
+            $item['quantity'] = 1;
+        } else {
+            $item['quantity'] = $quantity;
+        }
         $item['price'] = abs($price);
         if (!$item['price']) {
             return $this;
@@ -211,6 +219,11 @@ abstract class ADocument
         return $this->items;
     }
 
+    public function getItemsIds(): array
+    {
+        return $this->itemsIds;
+    }
+
     public function toArray(): array
     {
         $notes = [];
@@ -222,6 +235,10 @@ abstract class ADocument
         foreach ($items as &$item) {
             unset($item['order']);
         }
+        $dueAt = $this->getDueAt()->format('Y-m-d\TH:i:s');
+        if ($this->getIssuedAt() > $dueAt) {
+            $this->setIssuedAt($dueAt);
+        }
         return [
             'type' => $this->getType(),
             'category_id' => $this->getCategoryId(),
@@ -229,7 +246,7 @@ abstract class ADocument
             'search' => $this->getSearch(),
             'status' => $this->getStatus(),
             'issued_at' => $this->getIssuedAt(),
-            'due_at' => $this->getDueAt()->format('Y-m-d H:i:s'),
+            'due_at' => $dueAt,
             'id' => $this->getId(),
             'currency_code' => $this->getCurrencyCode(),
             'currency_rate' => $this->getCurrencyRate(),
@@ -431,7 +448,9 @@ abstract class ADocument
                 itemId: $item['item_id'],
                 name: $item['name'],
                 description: $item['description'] ?? '',
-                price: $item['price']
+                price: $item['price'] ?? 0,
+                total: $item['total'] ?? 0,
+                quantity: $item['quantity'] ?? null,
             );
         }
         return $this;

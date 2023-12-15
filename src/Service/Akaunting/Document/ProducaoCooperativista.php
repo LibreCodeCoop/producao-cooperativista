@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service\Akaunting\Document;
 
+use DateTime;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use UnexpectedValueException;
@@ -34,12 +35,53 @@ class ProducaoCooperativista extends ADocument
     protected string $whoami = 'PDC';
     public function save(): self
     {
+        $this->somaItensExtras();
         $this->populateProducaoCooperativistaWithDefault();
         parent::save();
         $this->getCooperado()
             ->getInssIrpf()
             ->saveFromDocument($this);
         return $this;
+    }
+
+    protected function somaItensExtras(): void
+    {
+        $this->getValues()->calculaLiquido();
+        $extras = array_reduce($this->getItems(), function (float $total, array $item) {
+            $exclude = [
+                $this->getItemsIds()['Auxílio'],
+                $this->getItemsIds()['bruto'],
+            ];
+            if (!in_array($item['item_id'], $exclude) && $item['total'] > 0) {
+                $total += $item['total'];
+            }
+            return $total;
+        }, 0);
+
+        // FRRA do mês não deve ser calculado em cima dos extras para
+        // para evitar de calcular FRRA em cima de FRRA
+        // Trava o cálculo do FRRA para que ele não seja alterado
+        $this->getValues()->setLockFrra(true);
+
+        // Adiciona os itens extras para calcular os impostos
+        $baseProducao = $this->getValues()->getBaseProducao();
+        $this->getValues()->setBaseProducao(
+            $baseProducao
+            + $extras,
+            false
+        );
+
+        $this->getValues()->calculaImpostos();
+
+        // Tira os itens extras do bruto para não impactar no somatório dos
+        // itens no Akaunting
+        $this->getValues()->setBruto(
+            $this->getValues()->getBruto()
+            - $extras
+        );
+        // Marca os valores como atualizados para que o bruto não seja
+        // recalculado
+        $this->getValues()->setUpdated();
     }
 
     protected function setUp(): self
@@ -133,6 +175,9 @@ class ProducaoCooperativista extends ADocument
             )
             ->setTaxes()
             ->coletaInvoiceNaoPago();
+        if ($this->getDueAt()->format('Y-m-d H:i:s') < $this->getIssuedAt()) {
+            $this->setIssuedAt($this->getDueAt()->format('Y-m-d H:i:s'));
+        }
         return $this;
     }
 
@@ -179,11 +224,12 @@ class ProducaoCooperativista extends ADocument
     private function aplicaAdiantamentos(): self
     {
         foreach ($this->values->getAdiantamento() as $adiantamento) {
+            $dueAt = new DateTime($adiantamento['due_at']);
             $this->setItem(
                 itemId: $this->itemsIds['desconto'],
                 name: 'Adiantamento',
-                description: sprintf('Número: %s, data: %s', $adiantamento['document_number'], $adiantamento['due_at']),
-                price: -$adiantamento['amount'],
+                description: sprintf('Número: %s, data: %s', $adiantamento['document_number'], $dueAt->format('Y-m-d')),
+                price: abs($adiantamento['amount']) * -1,
                 order: 20
             );
         }
