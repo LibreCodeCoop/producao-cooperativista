@@ -348,18 +348,18 @@ class ProducaoCooperativista
             UNION
             SELECT 'invoice_transaction' AS 'table',
                 i.id,
-                t.type,
-                t.transaction_of_month,
-                t.discount_percentage,
-                t.amount,
-                t.customer_reference,
-                t.contact_name,
-                t.contact_type,
-                t.category_id,
-                t.category_name,
-                t.category_type,
-                t.archive,
-                t.metadata
+                i.type,
+                i.transaction_of_month,
+                i.discount_percentage,
+                i.amount,
+                i.customer_reference,
+                i.contact_name,
+                i.contact_type,
+                i.category_id,
+                i.category_name,
+                i.category_type,
+                i.archive,
+                i.metadata
             FROM transactions t
             JOIN invoices i ON t.metadata->>'$.document_id' = i.id
             WHERE t.transaction_of_month = :ano_mes
