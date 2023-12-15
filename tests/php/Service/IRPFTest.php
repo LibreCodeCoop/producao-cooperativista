@@ -160,11 +160,24 @@ final class IRPFTest extends TestCase
     public static function providerCalculaImposto(): array
     {
         return [
+            # Sem dependetne
             [2023, 5, 1000, 0, 0, 'simplificada'],
             [2023, 5, 3000, 0, 21.6, 'tradicional'],
             [2023, 5, 9000, 0, 1200.24, 'tradicional'],
             [2023, 5, 2600, 0, 0, 'simplificada'],
             [2023, 4, 2600, 0, 13.2, 'tradicional'],
+            # Com 1 dependente
+            [2023, 5, 1000, 1, 0, 'simplificada'],
+            [2023, 5, 3000, 1, 7.38, 'tradicional'],
+            [2023, 5, 9000, 1, 1148.11, 'tradicional'],
+            [2023, 5, 2600, 1, 0, 'simplificada'],
+            [2023, 4, 2600, 1, 0, 'tradicional'],
+            # Com 2 dependentes
+            [2023, 5, 1000, 2, 0, 'simplificada'],
+            [2023, 5, 3000, 2, 0, 'tradicional'],
+            [2023, 5, 9000, 2, 1095.97, 'tradicional'],
+            [2023, 5, 2600, 2, 0, 'simplificada'],
+            [2023, 4, 2600, 2, 0, 'tradicional'],
         ];
     }
 }
