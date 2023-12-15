@@ -63,7 +63,8 @@ class ProducaoCooperativista
     private array $cooperado = [];
     private array $categoriesList = [];
     private int $totalCooperados = 0;
-    private float $totalNotasClientes = 0;
+    private float $totalPagoNotasClientes = 0;
+    private float $totalBrutoNotasClientes = 0;
     private float $totalCustoCliente = 0;
     private float $totalDispendios = 0;
     private int $totalSegundosLibreCode = 0;
@@ -99,7 +100,7 @@ class ProducaoCooperativista
         if (!empty($this->baseCalculoDispendios)) {
             return $this->baseCalculoDispendios;
         }
-        $this->baseCalculoDispendios = $this->getTotalNotasClientes() - $this->getTotalDispendiosClientes();
+        $this->baseCalculoDispendios = $this->getTotalPagoNotasClientes() - $this->getTotalDispendiosClientes();
         return $this->baseCalculoDispendios;
     }
 
@@ -332,6 +333,15 @@ class ProducaoCooperativista
                 t.transaction_of_month,
                 t.discount_percentage,
                 t.amount,
+                (
+                    SELECT SUM(price) as total
+                    FROM JSON_TABLE(
+                        i.metadata,
+                        '$.items.data[*]' COLUMNS (
+                            price DOUBLE PATH '$.price'
+                        )
+                    ) price
+                ) bruto,
                 t.customer_reference,
                 t.contact_name,
                 t.contact_type,
@@ -352,6 +362,15 @@ class ProducaoCooperativista
                 i.transaction_of_month,
                 i.discount_percentage,
                 i.amount,
+                (
+                    SELECT SUM(price) as total
+                    FROM JSON_TABLE(
+                        i.metadata,
+                        '$.items.data[*]' COLUMNS (
+                            price DOUBLE PATH '$.price'
+                        )
+                    ) price
+                ) bruto,
                 i.customer_reference,
                 i.contact_name,
                 i.contact_type,
@@ -371,6 +390,15 @@ class ProducaoCooperativista
                 i.transaction_of_month,
                 i.discount_percentage,
                 i.amount,
+                (
+                    SELECT SUM(price) as total
+                    FROM JSON_TABLE(
+                        i.metadata,
+                        '$.items.data[*]' COLUMNS (
+                            price DOUBLE PATH '$.price'
+                        )
+                    ) price
+                ) bruto,
                 i.customer_reference,
                 i.contact_name,
                 i.contact_type,
@@ -422,18 +450,33 @@ class ProducaoCooperativista
     }
 
     /**
-     * Retorna valor total de notas em um mês
+     * Retorna valor total pago de notas em um mês
      *
      * @throws Exception
      */
-    private function getTotalNotasClientes(): float
+    private function getTotalPagoNotasClientes(): float
     {
-        if ($this->totalNotasClientes) {
-            return $this->totalNotasClientes;
+        if ($this->totalPagoNotasClientes) {
+            return $this->totalPagoNotasClientes;
         }
 
-        $this->totalNotasClientes = array_reduce($this->getEntradasClientes(), fn ($total, $i) => $total + $i['amount'], 0);
-        return $this->totalNotasClientes;
+        $this->totalPagoNotasClientes = array_reduce($this->getEntradasClientes(), fn ($total, $i) => $total + $i['amount'], 0);
+        return $this->totalPagoNotasClientes;
+    }
+
+    /**
+     * Retorna valor total bruto de notas em um mês
+     *
+     * @throws Exception
+     */
+    private function getTotalBrutoNotasClientes(): float
+    {
+        if ($this->totalBrutoNotasClientes) {
+            return $this->totalBrutoNotasClientes;
+        }
+
+        $this->totalBrutoNotasClientes = array_reduce($this->getEntradasClientes(), fn ($total, $i) => $total + $i['bruto'], 0);
+        return $this->totalBrutoNotasClientes;
     }
 
     private function getEntradasClientes(): array
@@ -713,7 +756,7 @@ class ProducaoCooperativista
             documents: $this->documents,
             request: $this->request,
         );
-        $cofins->setTotalNotasClientes($this->getTotalNotasClientes());
+        $cofins->setTotalBrutoNotasClientes($this->getTotalBrutoNotasClientes());
         $cofins->saveMonthTaxes();
 
         $pis = new Pis(
@@ -722,7 +765,7 @@ class ProducaoCooperativista
             documents: $this->documents,
             request: $this->request,
         );
-        $pis->setTotalNotasClientes($this->getTotalNotasClientes());
+        $pis->setTotalBrutoNotasClientes($this->getTotalBrutoNotasClientes());
         $pis->saveMonthTaxes();
 
         $iss = new Iss(
@@ -731,7 +774,7 @@ class ProducaoCooperativista
             documents: $this->documents,
             request: $this->request,
         );
-        $iss->setTotalNotasClientes($this->getTotalNotasClientes());
+        $iss->setTotalBrutoNotasClientes($this->getTotalBrutoNotasClientes());
         $iss->saveMonthTaxes();
     }
 
@@ -936,7 +979,7 @@ class ProducaoCooperativista
                 'formula' => '{base_calculo_dispendios} = {total_notas_clientes} - {total_dispendios_clientes}',
             ],
             'total_notas_clientes' => [
-                'valor' => $this->getTotalNotasClientes(),
+                'valor' => $this->getTotalPagoNotasClientes(),
                 'formula' => '{total_notas_clientes} = ' . implode(' + ', array_column($this->getEntradasClientes(), 'amount')) .
                 ' <a href="' .
                 $this->urlGenerator->generate('Invoices#index', [
@@ -1083,7 +1126,7 @@ class ProducaoCooperativista
             ->setCellValue('B3', $this->dates->getInicioProximoMes()->format('Y-m-d H:i:s'))
             ->setCellValue('B4', $this->dates->getFimProximoMes()->format('Y-m-d H:i:s'))
             ->setCellValue('B5', $this->getTotalCooperados())
-            ->setCellValue('B6', $this->getTotalNotasClientes())
+            ->setCellValue('B6', $this->getTotalPagoNotasClientes())
             ->setCellValue('B7', $this->getTotalDispendiosClientes())
             ->setCellValue('B8', $this->getTotalSegundosLibreCode() / 60 / 60)
             ->setCellValue('B9', $this->percentualLibreCode())

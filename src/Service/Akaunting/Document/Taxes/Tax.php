@@ -38,7 +38,7 @@ class Tax extends ADocument
     protected string $readableName = 'Tax';
     protected int $quantity = 1;
     protected string $type = 'bill';
-    protected float $totalNotasClientes;
+    protected float $totalBrutoNotasClientes;
 
     public function saveMonthTaxes(): self
     {
@@ -74,7 +74,7 @@ class Tax extends ADocument
     {
         $retido = $this->getTotalRetainedOfMonth();
         $percentualImposto = $this->getPercentualDoImposto();
-        $totalNotas = $this->getTotalNotasClientes();
+        $totalNotas = $this->getTotalBrutoNotasClientes();
         $totalImpostoAPagar = $totalNotas * $percentualImposto / 100;
         $diferenca = $totalImpostoAPagar - $retido;
         return $diferenca;
