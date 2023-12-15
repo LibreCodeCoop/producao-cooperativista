@@ -64,6 +64,7 @@ class ProducaoCooperativista
     private array $categoriesList = [];
     private int $totalCooperados = 0;
     private float $totalPagoNotasClientes = 0;
+    private float $totalBrutoNotasClientes = 0;
     private float $totalCustoCliente = 0;
     private float $totalDispendios = 0;
     private int $totalSegundosLibreCode = 0;
@@ -332,6 +333,15 @@ class ProducaoCooperativista
                 t.transaction_of_month,
                 t.discount_percentage,
                 t.amount,
+                (
+                    SELECT SUM(price) as total
+                    FROM JSON_TABLE(
+                        i.metadata,
+                        '$.items.data[*]' COLUMNS (
+                            price DOUBLE PATH '$.price'
+                        )
+                    ) price
+                ) bruto,
                 t.customer_reference,
                 t.contact_name,
                 t.contact_type,
@@ -352,6 +362,15 @@ class ProducaoCooperativista
                 i.transaction_of_month,
                 i.discount_percentage,
                 i.amount,
+                (
+                    SELECT SUM(price) as total
+                    FROM JSON_TABLE(
+                        i.metadata,
+                        '$.items.data[*]' COLUMNS (
+                            price DOUBLE PATH '$.price'
+                        )
+                    ) price
+                ) bruto,
                 i.customer_reference,
                 i.contact_name,
                 i.contact_type,
@@ -371,6 +390,15 @@ class ProducaoCooperativista
                 i.transaction_of_month,
                 i.discount_percentage,
                 i.amount,
+                (
+                    SELECT SUM(price) as total
+                    FROM JSON_TABLE(
+                        i.metadata,
+                        '$.items.data[*]' COLUMNS (
+                            price DOUBLE PATH '$.price'
+                        )
+                    ) price
+                ) bruto,
                 i.customer_reference,
                 i.contact_name,
                 i.contact_type,
@@ -434,6 +462,21 @@ class ProducaoCooperativista
 
         $this->totalPagoNotasClientes = array_reduce($this->getEntradasClientes(), fn ($total, $i) => $total + $i['amount'], 0);
         return $this->totalPagoNotasClientes;
+    }
+
+    /**
+     * Retorna valor total bruto de notas em um mês
+     *
+     * @throws Exception
+     */
+    private function getTotalBrutoNotasClientes(): float
+    {
+        if ($this->totalBrutoNotasClientes) {
+            return $this->totalBrutoNotasClientes;
+        }
+
+        $this->totalBrutoNotasClientes = array_reduce($this->getEntradasClientes(), fn ($total, $i) => $total + $i['bruto'], 0);
+        return $this->totalBrutoNotasClientes;
     }
 
     private function getEntradasClientes(): array
@@ -713,7 +756,7 @@ class ProducaoCooperativista
             documents: $this->documents,
             request: $this->request,
         );
-        $cofins->setTotalNotasClientes($this->getTotalPagoNotasClientes());
+        $cofins->setTotalBrutoNotasClientes($this->getTotalBrutoNotasClientes());
         $cofins->saveMonthTaxes();
 
         $pis = new Pis(
@@ -722,7 +765,7 @@ class ProducaoCooperativista
             documents: $this->documents,
             request: $this->request,
         );
-        $pis->setTotalNotasClientes($this->getTotalPagoNotasClientes());
+        $pis->setTotalBrutoNotasClientes($this->getTotalBrutoNotasClientes());
         $pis->saveMonthTaxes();
 
         $iss = new Iss(
@@ -731,7 +774,7 @@ class ProducaoCooperativista
             documents: $this->documents,
             request: $this->request,
         );
-        $iss->setTotalNotasClientes($this->getTotalPagoNotasClientes());
+        $iss->setTotalBrutoNotasClientes($this->getTotalBrutoNotasClientes());
         $iss->saveMonthTaxes();
     }
 

@@ -45,7 +45,7 @@ class Iss extends Tax
     private function pegaValorAPagar(): float
     {
         $percentualImposto = $this->getPercentualDoImposto();
-        $totalNotas = $this->getTotalPagoNotasClientes();
+        $totalNotas = $this->getTotalBrutoNotasClientes();
         $totalImpostoAPagar = $totalNotas * $percentualImposto / 100;
         return $totalImpostoAPagar;
     }
