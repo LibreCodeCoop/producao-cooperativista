@@ -44,9 +44,13 @@ class ParseText
             return $return;
         }
         $explodedText = explode("\n", $text);
+        $explodedText = array_map('trim', $explodedText);
         $pattern = '/^(?<paramName>' . implode('|', array_keys($this->dictionaryTextParams)) . '): (?<paramValue>.*)$/i';
         foreach ($explodedText as $row) {
             if (!preg_match($pattern, $row, $matches)) {
+                continue;
+            }
+            if (!array_key_exists($matches['paramName'], $this->dictionaryTextParams)) {
                 continue;
             }
             $return[$this->dictionaryTextParams[$matches['paramName']]] = strtolower(trim($matches['paramValue']));
