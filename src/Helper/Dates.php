@@ -55,6 +55,7 @@ class Dates
     public function __construct(
         private string $locationHolydays = 'br-national',
         private int $pagamentoFrraMesPadrao = 12,
+        private DateTime $now = new DateTime(),
     ) {
         BusinessDay::enable('Carbon\Carbon', $this->locationHolydays);
         $this->calculaPrevisaoPagamentoFrra();
@@ -62,7 +63,12 @@ class Dates
 
     private function calculaPrevisaoPagamentoFrra(): void
     {
-        $this->previsaoPagamentoFrra = \DateTime::createFromFormat('m', (string) $this->pagamentoFrraMesPadrao)
+        if ((int) $this->now->format('m') === $this->pagamentoFrraMesPadrao) {
+            $ano = $this->now->modify('+1 year')->format('Y');
+        } else {
+            $ano = $this->now->format('Y');
+        }
+        $this->previsaoPagamentoFrra = \DateTime::createFromFormat('Y-m', $ano . '-' . (string) $this->pagamentoFrraMesPadrao)
             ->modify('first day of this month')
             ->setTime(00, 00, 00);
         $carbon = Carbon::parse($this->previsaoPagamentoFrra);
