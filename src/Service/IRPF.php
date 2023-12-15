@@ -162,7 +162,11 @@ class IRPF
             $this->tipoDeducao = 'tradicional';
             $deducao = $this->calculaDeducaoTradicional($inss, $dependentes);
         }
-        return $bruto - $deducao;
+        $base = $bruto - $deducao;
+        if ($base < 0) {
+            $base = 0;
+        }
+        return $base;
     }
 
     private function calculaDeducaoFavoravel(float $inss, int $dependentes): float
