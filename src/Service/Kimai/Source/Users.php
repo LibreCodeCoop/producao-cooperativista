@@ -134,7 +134,7 @@ class Users
         if ($preferences['tax_number'] ?? '' !== '') {
             $item['tax_number'] = $preferences['tax_number'];
         }
-        $item['dependents'] = (int) $preferences['dependents'] ?? 0;
+        $item['dependents'] = (int) ($preferences['dependents'] ?? 0);
         return $item;
     }
 
