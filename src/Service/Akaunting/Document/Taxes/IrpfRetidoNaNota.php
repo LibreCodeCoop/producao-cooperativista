@@ -47,6 +47,9 @@ class IrpfRetidoNaNota extends Tax
     public function saveMonthTaxes(): self
     {
         $total = $this->getTotalRetainedOfMonth();
+        if ($total === 0) {
+            return $this;
+        }
         $this
             ->setItem(
                 itemId: (int) getenv('AKAUNTING_IMPOSTOS_ITEM_ID'),

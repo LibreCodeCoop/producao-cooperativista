@@ -43,15 +43,16 @@ class Tax extends ADocument
     public function saveMonthTaxes(): self
     {
         $aPagar = $this->pegaValorAPagar();
-        if ($aPagar > 0) {
-            $this
-                ->setItem(
-                    itemId: (int) getenv('AKAUNTING_IMPOSTOS_ITEM_ID'),
-                    name: $this->readableName,
-                    description: 'Impostos do mês ' . $this->dates->getInicioProximoMes()->format('Y-m'),
-                    price: $aPagar * $this->quantity
-                );
+        if ($aPagar === 0) {
+            return $this;
         }
+        $this
+            ->setItem(
+                itemId: (int) getenv('AKAUNTING_IMPOSTOS_ITEM_ID'),
+                name: $this->readableName,
+                description: 'Impostos do mês ' . $this->dates->getInicioProximoMes()->format('Y-m'),
+                price: $aPagar * $this->quantity
+            );
         $this->save();
         return $this;
     }
