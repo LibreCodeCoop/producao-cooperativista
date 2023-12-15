@@ -84,6 +84,7 @@ class FRRA extends ProducaoCooperativista
                 price: $currentFrra
             );
 
+        $this->beforeSave();
         parent::save();
         return $this;
     }
@@ -111,7 +112,18 @@ class FRRA extends ProducaoCooperativista
                 price: $values->getFrra()
             )
             ->setTaxes();
+        $this->beforeSave();
         parent::save();
+        return $this;
+    }
+
+    private function beforeSave(): self
+    {
+        // Apenas aplica FRRA sob bruto de produção na Produção Cooperativista
+        // paga em dezembro.
+        if ($this->dates->getPrevisaoPagamentoFrra()->format('Y-m-d') !== $this->dates->hoje()->format('Y-m-d')) {
+            $this->getValues()->setFrra(0);
+        }
         return $this;
     }
 }

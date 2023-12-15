@@ -62,6 +62,8 @@ class ProducaoCooperativista extends ADocument
         // Trava o cálculo do FRRA para que ele não seja alterado
         $this->getValues()->setLockFrra(true);
 
+        $bruto = $this->getValues()->getBruto();
+
         // Adiciona os itens extras para calcular os impostos
         $baseProducao = $this->getValues()->getBaseProducao();
         $this->getValues()->setBaseProducao(
@@ -73,11 +75,17 @@ class ProducaoCooperativista extends ADocument
         $this->getValues()->calculaImpostos();
 
         // Tira os itens extras do bruto para não impactar no somatório dos
-        // itens no Akaunting
-        $this->getValues()->setBruto(
-            $this->getValues()->getBruto()
-            - $extras
-        );
+        // itens no Akaunting. Isto só deve ser feito se o bruto não for zero.
+        //
+        // Caso em que o bruto foi zero que gerou esta observação:
+        // Criado nota de FRRA de dezembro, não tem bruto ainda, só os FRRA de
+        // cada mês, logo, o cálculo será errado se subtrair os extras do bruto.
+        if ($bruto !== 0) {
+            $this->getValues()->setBruto(
+                $this->getValues()->getBruto()
+                - $extras
+            );
+        }
         // Marca os valores como atualizados para que o bruto não seja
         // recalculado
         $this->getValues()->setUpdated();
