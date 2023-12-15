@@ -125,7 +125,7 @@ class IRPF
         $tabelasDoAnoBase = $this->tabelaProgressiva[$this->anoBase];
         $aliquotasDoMes = array_filter(
             $tabelasDoAnoBase,
-            fn($t) => $this->isOnMonthInterval($t)
+            fn ($t) => $this->isOnMonthInterval($t)
         );
         return current($aliquotasDoMes);
     }
@@ -140,7 +140,8 @@ class IRPF
         return false;
     }
 
-    public function getFaixa(float $base): array {
+    public function getFaixa(float $base): array
+    {
         if ($base < 0) {
             $base = 0;
         }
