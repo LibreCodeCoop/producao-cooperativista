@@ -1044,7 +1044,7 @@ class ProducaoCooperativista
         // body
         foreach ($list as $cooperado) {
             $toCsv = $cooperado->getProducaoCooperativista()->getValues()->toArray();
-            $toCsv['adiantamentos'] = array_reduce($toCsv['adiantamentos'], fn ($c, $i) => $c += $i['valor'], 0);
+            $toCsv['adiantamento'] = array_reduce($toCsv['adiantamento'], fn ($c, $i) => $c += $i['valor'], 0);
             $output[] = $this->csvstr($toCsv);
         }
         $output = implode("\n", $output);

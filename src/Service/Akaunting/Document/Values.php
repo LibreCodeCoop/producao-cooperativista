@@ -196,7 +196,7 @@ class Values
             'health_insurance' => $this->getHealthInsurance(),
             'inss' => $this->getInss(),
             'irpf' => $this->getIrpf(),
-            'adiantamentos' => array_map(fn ($i) => ['valor' => $i['amount']], $this->getAdiantamento()),
+            'adiantamento' => array_map(fn ($i) => ['amount' => $i['amount']], $this->getAdiantamento()),
             'liquido' => $this->getLiquido(),
             'name' => $cooperado->getName(),
             'tax_number' => $cooperado->getTaxNumber(),
