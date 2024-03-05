@@ -85,6 +85,7 @@ class Nfse
         private Database $db,
         private LoggerInterface $logger
     ) {
+        $this->cookiesFile = realpath(__DIR__ . '/../../..') . '/' . $this->cookiesFile;
     }
 
     public function updateDatabase(DateTime $data): void
