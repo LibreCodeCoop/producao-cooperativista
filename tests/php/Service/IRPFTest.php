@@ -29,6 +29,14 @@ use Tests\Php\TestCase;
 
 final class IRPFTest extends TestCase
 {
+    public function testTabelaInexistente(): void {
+        $this->expectException(InvalidArgumentException::class);
+        $ano = new DateTime();
+        $ano = (int) $ano->format('Y');
+        $ano++;
+        new IRPF($ano, 1);
+    }
+
     /**
      * @dataProvider providerGetFaixa
      */
