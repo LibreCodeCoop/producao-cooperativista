@@ -25,6 +25,8 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service;
 
+use InvalidArgumentException;
+
 /**
  * Calculadora de teste: https://www27.receita.fazenda.gov.br/simulador-irpf/
  */
@@ -122,6 +124,9 @@ class IRPF
 
     private function filtraTabelaProgressiva(): array
     {
+        if (!array_key_exists($this->anoBase, $this->tabelaProgressiva)) {
+            throw new InvalidArgumentException('Ano base inexistente: '. $this->anoBase . '. Atualize o arquivo IRPF.php');
+        }
         $tabelasDoAnoBase = $this->tabelaProgressiva[$this->anoBase];
         $aliquotasDoMes = array_filter(
             $tabelasDoAnoBase,
