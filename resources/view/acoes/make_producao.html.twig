@@ -82,6 +82,9 @@
             eventSource.addEventListener('alert', e => {
                 $('#messages').append(ItemMessage(e.type, JSON.parse(e.data)))
             })
+            eventSource.addEventListener('error', e => {
+                $('#messages').append(ItemMessage(e.type, JSON.parse(e.data)))
+            })
             eventSource.addEventListener('warning', e => {
                 $('#messages').append(ItemMessage(e.type, JSON.parse(e.data)))
             })
@@ -90,6 +93,10 @@
                 eventSource.close()
                 $('#messages').append('Volte para a página anterior e veja os relatórios')
             })
+            eventSource.onerror = function(event) {
+                $('#messages').append(ItemMessage('alert', 'Erro no servidor. Confira os logs, aplicação abortada.'))
+                eventSource.close()
+            }
 
             $('#messages').on('click', '.closebtn', function() {
                 $(this).parent().fadeTo(600, 0, function() {

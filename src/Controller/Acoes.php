@@ -117,7 +117,7 @@ class Acoes
         $output = new BufferedOutput();
         $exitCode = $application->run($input, $output);
         if ($exitCode !== 0) {
-            $this->logger->warning('Erro: {erro}', ['erro' => $output->fetch()]);
+            $this->logger->error('Erro: {erro}', ['erro' => $output->fetch()]);
         }
         $this->logger->info(new ArrayValue(['event' => 'done', 'data' =>  'Fim']));
         return new Response();
