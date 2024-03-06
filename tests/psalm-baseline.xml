@@ -1,32 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<files psalm-version="5.15.0@5c774aca4746caf3d239d9c8cadb9f882ca29352">
+<files psalm-version="5.22.2@d768d914152dbbf3486c36398802f74e80cfde48">
   <file src="src/Service/Akaunting/Document/ProducaoCooperativista.php">
     <InvalidReturnStatement>
-      <code>$return</code>
+      <code><![CDATA[$return]]></code>
     </InvalidReturnStatement>
     <InvalidReturnType>
-      <code>self</code>
+      <code><![CDATA[self]]></code>
     </InvalidReturnType>
   </file>
   <file src="src/Service/Akaunting/Document/Taxes/Tax.php">
     <FalsableReturnStatement>
-      <code>$percentual</code>
+      <code><![CDATA[$percentual]]></code>
     </FalsableReturnStatement>
-  </file>
-  <file src="src/Service/Akaunting/Source/Documents.php">
-    <InvalidReturnStatement>
-      <code><![CDATA[$this->list[$this->getType()]]]></code>
-      <code><![CDATA[$this->list[$this->getType()] ?? []]]></code>
-    </InvalidReturnStatement>
-    <InvalidReturnType>
-      <code>array</code>
-    </InvalidReturnType>
   </file>
   <file src="src/Service/Cooperado.php">
     <InvalidNullableReturnType>
-      <code>FRRA</code>
-      <code>InssIrpf</code>
-      <code>ProducaoCooperativista</code>
+      <code><![CDATA[FRRA]]></code>
+      <code><![CDATA[InssIrpf]]></code>
+      <code><![CDATA[ProducaoCooperativista]]></code>
     </InvalidNullableReturnType>
     <NullableReturnStatement>
       <code><![CDATA[$this->frra]]></code>
