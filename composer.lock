@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f8aed97196ceb33afec38c832a06b36c",
+    "content-hash": "ff3b791b8ab989474200a73898570c59",
     "packages": [
         {
             "name": "carbonphp/carbon-doctrine-types",
@@ -1434,6 +1434,61 @@
                 "source": "https://github.com/laravel/serializable-closure"
             },
             "time": "2023-11-08T14:08:06+00:00"
+        },
+        {
+            "name": "librecodecoop/impostos",
+            "version": "v0.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/LibreCodeCoop/impostos.git",
+                "reference": "593a528e878f8a3a9f6282ad14b4df67a2c8ae08"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/LibreCodeCoop/impostos/zipball/593a528e878f8a3a9f6282ad14b4df67a2c8ae08",
+                "reference": "593a528e878f8a3a9f6282ad14b4df67a2c8ae08",
+                "shasum": ""
+            },
+            "require-dev": {
+                "bamarni/composer-bin-plugin": "^1.8"
+            },
+            "bin": [
+                "bin/import"
+            ],
+            "type": "library",
+            "extra": {
+                "bamarni-bin": {
+                    "bin-links": false,
+                    "target-directory": "vendor-bin",
+                    "forward-command": true
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Impostos\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "AGPL-3.0-or-later"
+            ],
+            "description": "Cálculo de impostos de INSS e IRPF",
+            "keywords": [
+                "INSS",
+                "IRPF",
+                "impostos"
+            ],
+            "support": {
+                "issues": "https://github.com/LibreCodeCoop/impostos/issues",
+                "source": "https://github.com/LibreCodeCoop/impostos/tree/v0.0.1"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/librecodecoop",
+                    "type": "github"
+                }
+            ],
+            "time": "2024-03-06T01:27:13+00:00"
         },
         {
             "name": "maennchen/zipstream-php",

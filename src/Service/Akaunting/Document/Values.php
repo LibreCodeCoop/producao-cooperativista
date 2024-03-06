@@ -25,9 +25,9 @@ declare(strict_types=1);
 
 namespace ProducaoCooperativista\Service\Akaunting\Document;
 
+use Impostos\Service\INSS;
+use Impostos\Service\IRPF;
 use ProducaoCooperativista\Service\Cooperado;
-use ProducaoCooperativista\Service\INSS;
-use ProducaoCooperativista\Service\IRPF;
 
 /**
  * @method self setAuxilio(float $value)
@@ -177,7 +177,7 @@ class Values
 
     public function calculaImpostos(): void
     {
-        $inss = new INSS();
+        $inss = new INSS($this->anoFiscal);
         $irpf = new IRPF(
             $this->anoFiscal,
             $this->mes
