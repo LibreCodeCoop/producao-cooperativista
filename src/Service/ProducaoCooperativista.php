@@ -995,8 +995,8 @@ class ProducaoCooperativista
                 ' <a href="' .
                 $this->urlGenerator->generate('Invoices#index', [
                     'ano-mes' => $this->dates->getInicio()->format('Y-m'),
-                    'entrada_cliente' => 'sim',
-                    'category_type' => 'income',
+                    'custos_clientes' => 'sim',
+                    'category_type' => 'expense',
                 ]) .
                 '">dispêndios clientes</a>'
             ],
