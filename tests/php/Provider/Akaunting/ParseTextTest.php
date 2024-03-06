@@ -23,14 +23,13 @@
 
 declare(strict_types=1);
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use ProducaoCooperativista\Provider\Akaunting\ParseText;
 use Tests\Php\TestCase;
 
 final class ParseTextTest extends TestCase
 {
-    /**
-     * @dataProvider providerDo
-     */
+    #[DataProvider('providerDo')]
     public function testDo(string $text, array $expected): void
     {
         $parseText = new ParseText();

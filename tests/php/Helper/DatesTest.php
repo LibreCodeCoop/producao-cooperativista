@@ -24,14 +24,13 @@
 declare(strict_types=1);
 
 use Carbon\Carbon;
+use PHPUnit\Framework\Attributes\DataProvider;
 use ProducaoCooperativista\Helper\Dates;
 use Tests\Php\TestCase;
 
 final class DatesTest extends TestCase
 {
-    /**
-     * @dataProvider providerCalculaPrevisaoPagamentoFrra()
-     */
+    #[DataProvider('providerCalculaPrevisaoPagamentoFrra')]
     public function testCalculaPrevisaoPagamentoFrra(string $now, int $diaUtil, string $expected): void
     {
         $today = new DateTime($now);

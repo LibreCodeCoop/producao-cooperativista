@@ -23,6 +23,8 @@
 
 declare(strict_types=1);
 
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use ProducaoCooperativista\Core\App;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -38,10 +40,8 @@ final class MakeProducaoCommandTest extends TestCase
         $this->application->setAutoExit(false);
     }
 
-    /**
-     * @dataProvider providerScenarios
-     * @runInSeparateProcess
-     */
+    #[DataProvider('providerScenarios')]
+    #[RunInSeparateProcess]
     public function testScenarios(string $dataset, string $anoMes, string $expected): void
     {
         $this->loadDataset($dataset);
