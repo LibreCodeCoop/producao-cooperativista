@@ -60,6 +60,10 @@ class Index
                             'url' => $this->urlGenerator->generate('Invoices#index'),
                             'label' => 'Entradas e saídas',
                         ],
+                        'capital-social-summarized' => [
+                            'url' => $this->urlGenerator->generate('CapitalSocialSummarized#index'),
+                            'label' => 'Capital social',
+                        ],
                         'producao' => [
                             'url' => $this->urlGenerator->generate('Producao#index'),
                             'label' => 'Produção',
