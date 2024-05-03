@@ -313,6 +313,74 @@ class ProducaoCooperativista
         return $this->categoriesList;
     }
 
+    public function getCapitalSocial(): array
+    {
+        $stmt = $this->db->getConnection(Database::DB_AKAUNTING)->prepare(
+            <<<SQL
+            SELECT * FROM (
+            -- Transactions
+            SELECT contact_id, c.name, amount,
+                paid_at AS due_at,
+                t.id,
+                'transaction' as 'table'
+            FROM transactions t
+            join contacts c on c.id = t.contact_id
+            WHERE category_id = 25
+            and document_id is null
+            AND t.deleted_at IS NULL
+            UNION
+            -- Documents
+            SELECT contact_id, contact_Name, amount, due_at,
+                d.id,
+                'documents' as 'table'
+            FROM documents d
+            WHERE d.category_id = 25
+            AND d.deleted_at IS NULL
+            UNION
+            -- Documents with items
+            SELECT d.contact_id, d.contact_Name, di.price, d.due_at,
+                d.id,
+                'documents_item' as 'table'
+            FROM document_items as di
+            JOIN documents as d on di.document_id = d.id
+            where di.item_id = 11
+            AND d.deleted_at IS NULL
+            AND di.deleted_at IS NULL
+            ) x
+            ORDER BY x.name, x.due_at
+            SQL
+        );
+        $result = $stmt->executeQuery();
+        $return = [];
+        while ($row = $result->fetchAssociative()) {
+            $return[] = $row;
+        }
+        if (empty($return)) {
+            throw new Exception('Sem capital social');
+        }
+        return $return;
+    }
+
+    public function getCapitalSocialSummarized(): array
+    {
+        $capitalSocial = $this->getCapitalSocial();
+        $return = [];
+        foreach ($capitalSocial as $row) {
+            $return[$row['name']] = [
+                'nome' => '<a href="' .
+                    $this->urlGenerator->generate('CapitalSocial#index', [
+                        'name' => $row['name'],
+                    ]) .
+                    '">' . $row['name'] . '</a>',
+                'total' => $row['amount'] + ($return[$row['name']]['total'] ?? 0),
+            ];
+        }
+        if (empty($return)) {
+            throw new Exception('Sem capital social');
+        }
+        return $return;
+    }
+
     public function getSaidas(): array
     {
         $movimentacao = $this->getMovimentacaoFinanceira();
