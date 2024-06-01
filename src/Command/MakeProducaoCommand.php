@@ -134,9 +134,6 @@ class MakeProducaoCommand extends BaseCommand
                 $this->producaoCooperativista->exportToCsv()
             );
         }
-        if ($input->getOption('ods')) {
-            $this->producaoCooperativista->exportToOds();
-        }
         return Command::SUCCESS;
     }
 }
