@@ -62,7 +62,7 @@ class Producao
             );
 
             $list = $producaoCooperativista->getProducaoCooperativista();
-            $trabalhadoPorCliente = $producaoCooperativista->getPercentualTrabalhadoPorCliente();
+            $trabalhadoPorCliente = $producaoCooperativista->getPercentualTrabalhadoPorClienteInterno();
             foreach ($list as $cooperado) {
                 $array = $cooperado->getProducaoCooperativista()->getValues()->toArray();
                 if (empty($array['adiantamento'])) {
@@ -72,12 +72,18 @@ class Producao
                 }
                 $array['adiantamento'] = $adiantamento;
                 $trabalhado = array_filter($trabalhadoPorCliente, fn ($c) => $c['tax_number'] === $array['tax_number']);
-                $array['trabalhado'] = json_encode(array_values(array_map(fn ($row) => [
-                    'trabalhado' => $row['trabalhado'] / 60 / 60,
-                    'percentual_trabalhado' => $row['percentual_trabalhado'],
-                    'total_cliente' => $row['total_cliente'] / 60 / 60,
-                    'nome' => $row['name'],
-                ], $trabalhado)));
+                $array['trabalhado'] = json_encode(array_values(array_map(function($row) {
+                    $minutosTrabalhados = $row['trabalhado'] / 60 / 60;
+                    $minutosTrabalhados = floor($minutosTrabalhados);
+                    $segundosTrabalados = ($row['trabalhado'] / 60 / 60 - $minutosTrabalhados) * 100;
+                    $segundosTrabalados = floor($segundosTrabalados * 60 / 100);
+                    return [
+                        'trabalhado' => $minutosTrabalhados . ':' . $segundosTrabalados,
+                        'percentual_trabalhado' => $row['percentual_trabalhado'],
+                        'total_cliente' => $row['total_cliente'] / 60 / 60,
+                        'nome' => $row['name'],
+                    ];
+                }, $trabalhado)));
                 $output[] = $array;
             }
             $response = [
