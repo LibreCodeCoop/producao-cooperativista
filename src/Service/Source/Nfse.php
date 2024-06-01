@@ -91,6 +91,10 @@ class Nfse
     public function updateDatabase(DateTime $data): void
     {
         $this->logger->info('Baixando dados de NFSe');
+        if (!getenv('PREFEITURA_LOGIN')) {
+            $this->logger->warning('Dados de NFSe não foram baixados da prefeitura, dados de login não informados.');
+            return;
+        }
         $list = $this->getFromApi($data);
         $this->saveList($list);
         $this->logger->info('Dados de NFSe salvos com sucesso. Total: {total}', [
