@@ -72,7 +72,7 @@ class ProducaoCooperativista
     private float $taxaMinima = 0;
     private float $taxaMaxima = 0;
     private float $taxaAdministrativa = 0;
-    private float $percentualDispendios = 0;
+    private float $percentualAdministrativo = 0;
     private bool $sobrasDistribuidas = false;
 
     public function __construct(
@@ -97,28 +97,30 @@ class ProducaoCooperativista
     /**
      * Valor reservado de cada projeto para pagar os dispêndios
      */
-    private function percentualDispendios(): float
+    private function percentualAdministrativo(): float
     {
-        if ($this->percentualDispendios) {
-            return $this->percentualDispendios;
+        if ($this->percentualAdministrativo) {
+            return $this->percentualAdministrativo;
         }
         /**
          * Para a taxa mínima utiliza-se o total de dispêndios apenas pois no total
          * de dispêndios já está sem o custo dos clientes.
          */
+        $faturamento = $this->getTotalPagoNotasClientes();
+        $valorSeguranca = $faturamento * $this->percentualMaximo / 100;
         $this->taxaMinima = $this->getTotalDispendios();
         $this->taxaMaxima = $this->taxaMinima * 2;
-        if ($this->taxaMinima * $this->percentualMaximo / 100 >= $this->taxaMaxima) {
-            $this->taxaAdministrativa = $this->taxaMaxima;
-        } elseif ($this->taxaMinima * $this->percentualMaximo / 100 >= $this->taxaMinima) {
-            $this->taxaAdministrativa = $this->taxaMinima * $this->percentualMaximo / 100;
-        } else {
+        if ($this->taxaMinima >= $valorSeguranca) {
             $this->taxaAdministrativa = $this->taxaMinima;
+        } elseif ($this->taxaMaxima >= $valorSeguranca) {
+            $this->taxaAdministrativa = $valorSeguranca;
+        } else {
+            $this->taxaAdministrativa = $this->taxaMaxima;
         }
 
         if ($this->taxaMinima) {
-            $this->percentualDispendios = $this->taxaAdministrativa / ($this->taxaMinima) * 100;
-            return $this->percentualDispendios;
+            $this->percentualAdministrativo = ($this->taxaMinima) * 100 / $faturamento;
+            return $this->percentualAdministrativo;
         }
         return 0;
     }
@@ -552,7 +554,7 @@ class ProducaoCooperativista
             }
         }
 
-        $percentualDispendio = $this->percentualDispendios();
+        $percentualDispendio = $this->percentualAdministrativo();
         $custosPorCliente = $this->getCustosPorCliente();
         $custosPorCliente = array_column($custosPorCliente, 'amount', 'customer_reference');
 
@@ -995,20 +997,32 @@ class ProducaoCooperativista
                 'valor' => $this->taxaMaxima,
                 'formula' => '{taxa_maxima} = {taxa_minima} * 2'
             ],
-            'percentual_naximo' => ['valor' => $this->percentualMaximo],
+            'percentual_seguranca' => ['valor' => $this->percentualMaximo],
+            'valor_seguranca' => [
+                'valor' => $this->getTotalPagoNotasClientes() * $this->percentualMaximo / 100,
+                'formula' => '{valor_seguranca} = {total_notas_clientes} * {percentual_seguranca} / 100',
+            ],
             'taxa_administrativa' => [
                 'valor' => $this->taxaAdministrativa,
                 'formula' => <<<FORMULA
                     <pre>
-                    SE ({total_dispendios} * {percentual_naximo} / 100 >= {taxa_maxima}) &lbrace;
-                        {taxa_administrativa} = {taxa_maxima}
-                    &rbrace; SENÃO SE ({total_dispendios} * {percentual_naximo} / 100 >= {taxa_minima}) &lbrace;
-                        {taxa_administrativa} = {total_dispendios} * {percentual_naximo} / 100
-                    &rbrace; SENÃO &lbrace;
+                    SE ({taxa_minima} >= {valor_seguranca} &lbrace;
                         {taxa_administrativa} = {taxa_minima}
+                    &rbrace; SENÃO SE ({taxa_maxima} >= {valor_seguranca}) &lbrace;
+                        {taxa_administrativa} = {valor_seguranca}
+                    &rbrace; SENÃO &lbrace;
+                        {taxa_administrativa} = {taxa_maxima}
                     &rbrace;
                     </pre>
                     FORMULA
+            ],
+            'percentual_administrativo' => [
+                'valor' => $this->percentualAdministrativo(),
+                'formula' => '{percentual_administrativo} = {taxa_administrativa} * 100 / {total_notas_clientes}',
+            ],
+            'reserva' => [
+                'valor' => $this->taxaAdministrativa - $this->taxaMinima,
+                'formula' => '{reserva} = {taxa_administrativa} - {taxa_minima}',
             ],
             'total_notas_clientes' => [
                 'valor' => $this->getTotalPagoNotasClientes(),
