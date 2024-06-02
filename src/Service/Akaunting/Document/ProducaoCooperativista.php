@@ -142,7 +142,7 @@ class ProducaoCooperativista extends ADocument
                 'PDC_' .
                 $this->getCooperado()->getTaxNumber() .
                 '-' .
-                $this->dates->getInicio()->format('Y-m')
+                $this->dates->getInicioProximoMes()->format('Y-m')
             );
         }
         return $this->documentNumber;
@@ -160,6 +160,7 @@ class ProducaoCooperativista extends ADocument
             ->setCurrencyCode('BRL')
             ->setNote('Data geração', $this->dates->getDataProcessamento()->format('Y-m-d'))
             ->setNote('Produção realizada no mês', $this->dates->getInicio()->format('Y-m'))
+            ->setNote('Competência', $this->dates->getInicioProximoMes()->format('Y-m'))
             ->setNote('Notas dos clientes pagas no mês', $this->dates->getInicioProximoMes()->format('Y-m'))
             ->setNote('Dia útil padrão de pagamento', sprintf('%sº', $this->dates->getPagamentoNoDiaUtil()))
             ->setNote('Previsão de pagamento no dia', $this->dates->getDataPagamento()->format('Y-m-d'))
