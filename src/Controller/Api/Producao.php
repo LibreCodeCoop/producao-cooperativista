@@ -72,7 +72,7 @@ class Producao
                 }
                 $array['adiantamento'] = $adiantamento;
                 $trabalhado = array_filter($trabalhadoPorCliente, fn ($c) => $c['tax_number'] === $array['tax_number']);
-                $array['trabalhado'] = json_encode(array_values(array_map(function($row) {
+                $array['trabalhado'] = json_encode(array_values(array_map(function ($row) {
                     $minutosTrabalhados = $row['trabalhado'] / 60 / 60;
                     $minutosTrabalhados = floor($minutosTrabalhados);
                     $segundosTrabalados = ($row['trabalhado'] / 60 / 60 - $minutosTrabalhados) * 100;

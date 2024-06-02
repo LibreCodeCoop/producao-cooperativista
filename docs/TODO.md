@@ -1,0 +1,1 @@
+* Considerar campo de exclusão das faturas de compra e venda
