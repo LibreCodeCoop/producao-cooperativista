@@ -1,19 +1,25 @@
 networks:
   internal:
+    driver: bridge
+  external:
     external: true
-    name: internal
 
 services:
   php:
     extends:
       file: docker-compose.yml
       service: php
+    networks:
+      - internal
+      - external
   nginx:
     extends:
       file: docker-compose.yml
       service: nginx
     ports:
-      - 80:80
+      - 8080:80
+    networks:
+      - internal
   mysql:
     image: mysql
     cap_add:
