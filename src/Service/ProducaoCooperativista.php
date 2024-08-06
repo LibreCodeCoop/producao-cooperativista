@@ -968,7 +968,8 @@ class ProducaoCooperativista
     {
         $this->distribuiProducaoExterna();
         return $this->getTotalPagoNotasClientes()
-            - $this->getTotalDispendios();
+            - $this->getTotalDispendios()
+            + $this->getTotalSobrasDistribuidasNoMes();
     }
 
     private function getTotalSobrasDistribuidasNoMes(): float
@@ -1085,7 +1086,7 @@ class ProducaoCooperativista
             ],
             'total_sobras_do_mes' => [
                 'valor' => $this->getTotalSobrasDoMes(),
-                'formula' => '{total_sobras_do_mes} = {total_notas_clientes} - {taxa_administrativa}'
+                'formula' => '{total_sobras_do_mes} = {total_notas_clientes} - {taxa_administrativa} + {total_sobras_distribuidas}'
             ],
             'base_producao' => ['valor' => $this->getTotalBaseProducao()],
             'total_horas_trabalhadas' => ['valor' => $this->getTotalHorasTrabalhadas()],
