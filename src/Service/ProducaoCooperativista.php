@@ -753,7 +753,9 @@ class ProducaoCooperativista
 
     private function cadastraCooperadoQueProduziuNoAkaunting(): void
     {
-        $produzidoNoMes = $this->getPercentualTrabalhadoPorClienteExterno();
+        $interno = $this->getPercentualTrabalhadoPorClienteInterno();
+        $externo = $this->getPercentualTrabalhadoPorClienteExterno();
+        $produzidoNoMes =  $interno + $externo;
         $exists = [];
         foreach ($produzidoNoMes as $row) {
             if (empty($row['akaunting_contact_id'])) {
