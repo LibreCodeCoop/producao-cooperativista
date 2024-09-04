@@ -62,7 +62,7 @@ class Producao
             );
 
             $list = $producaoCooperativista->getProducaoCooperativista();
-            $trabalhadoPorCliente = $producaoCooperativista->getTrabalhadoPorClienteInterno();
+            $trabalhadoPorCliente = $producaoCooperativista->getTrabalhadoPorCliente();
             foreach ($list as $cooperado) {
                 $array = $cooperado->getProducaoCooperativista()->getValues()->toArray();
                 if (empty($array['adiantamento'])) {

@@ -127,11 +127,9 @@ class ProducaoCooperativista
 
     private function getTotalHorasTrabalhadas(): float
     {
-        $interno = $this->getTrabalhadoPorClienteInterno();
-        $externo = $this->getTrabalhadoPorClienteExterno();
-        $totalInterno = array_sum(array_column($interno, 'trabalhado'));
-        $totalExterno = array_sum(array_column($externo, 'trabalhado'));
-        return ($totalInterno + $totalExterno) / 60 / 60;
+        $trabalhado = $this->getTrabalhadoPorCliente();
+        $totalTrabalhado = array_sum(array_column($trabalhado, 'trabalhado'));
+        return $totalTrabalhado / 60 / 60;
     }
 
     private function getTotalHorasPossiveis(): float
@@ -761,11 +759,20 @@ class ProducaoCooperativista
         return $this->trabalhadoPorClienteExterno;
     }
 
-    private function cadastraCooperadoQueProduziuNoAkaunting(): void
+    public function getTrabalhadoPorCliente(): array
     {
         $interno = $this->getTrabalhadoPorClienteInterno();
         $externo = $this->getTrabalhadoPorClienteExterno();
-        $produzidoNoMes =  $interno + $externo;
+        $produzidoNoMes =  $interno;
+        foreach ($externo as $data) {
+            $produzidoNoMes[] = $data;
+        }
+        return $produzidoNoMes;
+    }
+
+    private function cadastraCooperadoQueProduziuNoAkaunting(): void
+    {
+        $produzidoNoMes =  $this->getTrabalhadoPorCliente();
         $exists = [];
         foreach ($produzidoNoMes as $row) {
             if (empty($row['akaunting_contact_id'])) {
@@ -885,7 +892,7 @@ class ProducaoCooperativista
 
         $this->getMovimentacaoFinanceira();
         $this->cadastraCooperadoQueProduziuNoAkaunting();
-        $this->distribuiProducaoExterna();
+        $this->distribuiProducao();
         $this->distribuiSobras();
         $this->atualizaPlanoDeSaude();
         $this->atualizaAdiantamentos();
@@ -936,16 +943,16 @@ class ProducaoCooperativista
         return $this->cooperado[$taxNumber];
     }
 
-    private function distribuiProducaoExterna(): void
+    private function distribuiProducao(): void
     {
         if ($this->sobrasDistribuidas) {
             return;
         }
-        $trabalhadoPorClienteExterno = $this->getTrabalhadoPorClienteExterno();
+        $trabalhadoPorCliente = $this->getTrabalhadoPorCliente();
         $totalPorCliente = array_column($this->getEntradasClientes(), 'base_producao', 'customer_reference');
         $errorSemCodigoCliente = [];
         $cnpjClientesInternos = explode(',', getenv('CNPJ_CLIENTES_INTERNOS'));
-        foreach ($trabalhadoPorClienteExterno as $row) {
+        foreach ($trabalhadoPorCliente as $row) {
             if (in_array($row['customer_reference'], $cnpjClientesInternos)) {
                 continue;
             }
@@ -980,7 +987,7 @@ class ProducaoCooperativista
 
     private function getTotalSobrasDoMes(): float
     {
-        $this->distribuiProducaoExterna();
+        $this->distribuiProducao();
         return $this->getTotalPagoNotasClientes()
             - $this->getTotalDispendios()
             + $this->getTotalSobrasDistribuidasNoMes();
