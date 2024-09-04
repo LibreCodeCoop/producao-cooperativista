@@ -125,11 +125,11 @@ class ProducaoCooperativista
         return 0;
     }
 
-    private function getTotalHorasTrabalhadas(): float
+    private function getTotalTrabalhado(): float
     {
         $trabalhado = $this->getTrabalhadoPorCliente();
         $totalTrabalhado = array_sum(array_column($trabalhado, 'trabalhado'));
-        return $totalTrabalhado / 60 / 60;
+        return $totalTrabalhado;
     }
 
     private function getTotalHorasPossiveis(): float
@@ -1111,7 +1111,7 @@ class ProducaoCooperativista
                 'formula' => '{total_sobras_do_mes} = {total_notas_clientes} - {taxa_administrativa} + {total_sobras_distribuidas}'
             ],
             'base_producao' => ['valor' => $this->getTotalBaseProducao()],
-            'total_horas_trabalhadas' => ['valor' => $this->getTotalHorasTrabalhadas()],
+            'total_horas_trabalhadas' => ['valor' => $this->getTotalTrabalhado() / 60 / 60],
             'total_horas_possiveis' => [
                 'valor' => $this->getTotalHorasPossiveis(),
                 'formula' => '{total_horas_possiveis} = {total_cooperados} * 8 * {dias_uteis_no_mes}'
