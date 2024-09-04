@@ -74,6 +74,7 @@ class ProducaoCooperativista
     private float $taxaAdministrativa = 0;
     private float $percentualAdministrativo = 0;
     private bool $sobrasDistribuidas = false;
+    private bool $producaoDistribuida = false;
 
     public function __construct(
         private Database $db,
@@ -920,6 +921,9 @@ class ProducaoCooperativista
 
     private function distribuiSobras(): void
     {
+        if ($this->sobrasDistribuidas) {
+            return;
+        }
         $percentualTrabalhadoPorCliente = $this->getTrabalhadoPorClienteInterno();
         $sobras = $this->getTotalSobrasDoMes();
         foreach ($percentualTrabalhadoPorCliente as $row) {
@@ -927,6 +931,7 @@ class ProducaoCooperativista
             $values = $this->getCooperado($row['tax_number'])->getProducaoCooperativista()->getValues();
             $values->setBaseProducao($values->getBaseProducao() + $aReceberDasSobras);
         }
+        $this->sobrasDistribuidas = true;
     }
 
     private function getCooperado(string $taxNumber): Cooperado
@@ -947,7 +952,7 @@ class ProducaoCooperativista
 
     private function distribuiProducao(): void
     {
-        if ($this->sobrasDistribuidas) {
+        if ($this->producaoDistribuida) {
             return;
         }
         $trabalhadoPorCliente = $this->getTrabalhadoPorCliente();
@@ -970,7 +975,7 @@ class ProducaoCooperativista
                 json_encode($errorSemCodigoCliente, JSON_PRETTY_PRINT)
             );
         }
-        $this->sobrasDistribuidas = true;
+        $this->producaoDistribuida = true;
     }
 
     private function getTotalBaseProducao(): float
