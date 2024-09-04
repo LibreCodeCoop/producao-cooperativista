@@ -89,6 +89,12 @@ class MakeProducaoCommand extends BaseCommand
                 'Atualiza a produção cooperativista no Akaunting'
             )
             ->addOption(
+                'pesos',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Pesos finais para cálculo da produção'
+            )
+            ->addOption(
                 'ods',
                 null,
                 InputOption::VALUE_NONE,
@@ -117,6 +123,11 @@ class MakeProducaoCommand extends BaseCommand
         $this->producaoCooperativista->dates->setInicio($inicio);
         $this->producaoCooperativista->dates->setDiasUteis($diasUteis);
         $this->producaoCooperativista->setPercentualMaximo($percentualMaximo);
+        $pesos = json_decode($input->getOption('pesos'), true);
+        if (!is_array($pesos)) {
+            $pesos = [];
+        }
+        $this->producaoCooperativista->updatePesos($pesos);
 
         try {
             $this->producaoCooperativista->getProducaoCooperativista();

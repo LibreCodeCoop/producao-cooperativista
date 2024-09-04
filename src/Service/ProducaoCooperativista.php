@@ -608,6 +608,7 @@ class ProducaoCooperativista
         $qb->select('u.alias')
             ->addSelect('u.tax_number')
             ->addSelect('u.dependents')
+            ->addSelect('u.peso')
             ->addSelect('u.akaunting_contact_id')
             ->addSelect("'Interno' as name")
             ->addSelect('COALESCE(sum(t.duration), 0) * 100 / total_cliente.total as percentual_trabalhado')
@@ -624,6 +625,7 @@ class ProducaoCooperativista
             ->groupBy('u.alias')
             ->addGroupBy('u.tax_number')
             ->addGroupBy('u.dependents')
+            ->addGroupBy('u.peso')
             ->addGroupBy('u.akaunting_contact_id')
             ->addGroupBy('total_cliente.total')
             ->orderBy('u.alias');
@@ -634,6 +636,7 @@ class ProducaoCooperativista
                 ->setName($row['alias'])
                 ->setDependentes($row['dependents'])
                 ->setTaxNumber($row['tax_number'])
+                ->setWeight($row['peso'] ?? 0)
                 ->setAkauntingContactId($row['akaunting_contact_id']);
             $row['base_producao'] = 0;
             $row['percentual_trabalhado'] = (float) $row['percentual_trabalhado'];
@@ -708,6 +711,7 @@ class ProducaoCooperativista
         $qb->select('u.alias')
             ->addSelect('u.tax_number')
             ->addSelect('u.dependents')
+            ->addSelect('u.peso')
             ->addSelect('u.akaunting_contact_id')
             ->addSelect('c.id as customer_id')
             ->addSelect('c.name')
@@ -726,6 +730,7 @@ class ProducaoCooperativista
             ->groupBy('u.alias')
             ->addGroupBy('u.tax_number')
             ->addGroupBy('u.dependents')
+            ->addGroupBy('u.peso')
             ->addGroupBy('u.akaunting_contact_id')
             ->addGroupBy('c.id')
             ->addGroupBy('c.name')
@@ -742,6 +747,7 @@ class ProducaoCooperativista
                 ->setName($row['alias'])
                 ->setDependentes($row['dependents'])
                 ->setTaxNumber($row['tax_number'])
+                ->setWeight($row['peso'] ?? 0)
                 ->setAkauntingContactId($row['akaunting_contact_id']);
             $row['base_producao'] = 0;
             $row['percentual_trabalhado'] = (float) $row['percentual_trabalhado'];
@@ -797,6 +803,11 @@ class ProducaoCooperativista
     public function setPercentualMaximo(int $percentualMaximo): void
     {
         $this->percentualMaximo = $percentualMaximo;
+    }
+
+    public function updatePesos(array $pesos): void
+    {
+        $this->users->updatePesos($pesos);
     }
 
     public function updateProducao(): void

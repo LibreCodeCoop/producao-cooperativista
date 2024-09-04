@@ -47,6 +47,8 @@ use ProducaoCooperativista\Service\Akaunting\Source\Documents;
  * @method self setInssIrpf(InssIrpf $value)
  * @method self setTaxNumber(string $value)
  * @method string getTaxNumber()
+ * @method self setWeight(float $value)
+ * @method float getWeight()
  */
 class Cooperado
 {
@@ -56,6 +58,7 @@ class Cooperado
     private ?int $dependentes = 0;
     private ?string $name = '';
     private ?string $taxNumber = '';
+    private ?float $weight = 1;
     private ?ProducaoCooperativista $producaoCooperativista = null;
     private ?FRRA $frra = null;
     private ?InssIrpf $inssIrpf = null;
