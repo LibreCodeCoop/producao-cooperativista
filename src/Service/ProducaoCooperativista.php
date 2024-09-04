@@ -54,8 +54,8 @@ use Symfony\Component\Routing\Generator\UrlGenerator;
 class ProducaoCooperativista
 {
     private array $custosPorCliente = [];
-    private array $percentualTrabalhadoPorClienteExterno = [];
-    private array $percentualTrabalhadoPorClienteInterno = [];
+    private array $trabalhadoPorClienteExterno = [];
+    private array $trabalhadoPorClienteInterno = [];
     private array $entradas = [];
     private array $saidas = [];
     private array $movimentacao = [];
@@ -127,8 +127,8 @@ class ProducaoCooperativista
 
     private function getTotalHorasTrabalhadas(): float
     {
-        $interno = $this->getPercentualTrabalhadoPorClienteInterno();
-        $externo = $this->getPercentualTrabalhadoPorClienteExterno();
+        $interno = $this->getTrabalhadoPorClienteInterno();
+        $externo = $this->getTrabalhadoPorClienteExterno();
         $totalInterno = array_sum(array_column($interno, 'trabalhado'));
         $totalExterno = array_sum(array_column($externo, 'trabalhado'));
         return ($totalInterno + $totalExterno) / 60 / 60;
@@ -586,10 +586,10 @@ class ProducaoCooperativista
         return $cnpjClientesInternos;
     }
 
-    public function getPercentualTrabalhadoPorClienteInterno(): array
+    public function getTrabalhadoPorClienteInterno(): array
     {
-        if (count($this->percentualTrabalhadoPorClienteInterno)) {
-            return $this->percentualTrabalhadoPorClienteInterno;
+        if (count($this->trabalhadoPorClienteInterno)) {
+            return $this->trabalhadoPorClienteInterno;
         }
         $clientesInternos = $this->clientesInternos();
 
@@ -630,7 +630,7 @@ class ProducaoCooperativista
             ->addGroupBy('total_cliente.total')
             ->orderBy('u.alias');
         $result = $qb->executeQuery();
-        $this->percentualTrabalhadoPorClienteInterno = [];
+        $this->trabalhadoPorClienteInterno = [];
         while ($row = $result->fetchAssociative()) {
             $this->getCooperado($row['tax_number'])
                 ->setName($row['alias'])
@@ -640,10 +640,10 @@ class ProducaoCooperativista
                 ->setAkauntingContactId($row['akaunting_contact_id']);
             $row['base_producao'] = 0;
             $row['percentual_trabalhado'] = (float) $row['percentual_trabalhado'];
-            $this->percentualTrabalhadoPorClienteInterno[] = $row;
+            $this->trabalhadoPorClienteInterno[] = $row;
         }
-        $this->logger->debug('Trabalhado por cliente: {json}', ['json' => json_encode($this->percentualTrabalhadoPorClienteInterno)]);
-        return $this->percentualTrabalhadoPorClienteInterno;
+        $this->logger->debug('Trabalhado por cliente: {json}', ['json' => json_encode($this->trabalhadoPorClienteInterno)]);
+        return $this->trabalhadoPorClienteInterno;
     }
 
     private function clientesContabilizaveis(): array
@@ -658,10 +658,10 @@ class ProducaoCooperativista
         return $clientesContabilizaveis;
     }
 
-    public function getPercentualTrabalhadoPorClienteExterno(): array
+    public function getTrabalhadoPorClienteExterno(): array
     {
-        if (count($this->percentualTrabalhadoPorClienteExterno)) {
-            return $this->percentualTrabalhadoPorClienteExterno;
+        if (count($this->trabalhadoPorClienteExterno)) {
+            return $this->trabalhadoPorClienteExterno;
         }
         $contabilizaveis = $this->clientesContabilizaveis();
 
@@ -738,7 +738,7 @@ class ProducaoCooperativista
             ->orderBy('c.id')
             ->addOrderBy('u.alias');
         $result = $qb->executeQuery();
-        $this->percentualTrabalhadoPorClienteExterno = [];
+        $this->trabalhadoPorClienteExterno = [];
         while ($row = $result->fetchAssociative()) {
             if (!$row['customer_reference']) {
                 continue;
@@ -751,16 +751,16 @@ class ProducaoCooperativista
                 ->setAkauntingContactId($row['akaunting_contact_id']);
             $row['base_producao'] = 0;
             $row['percentual_trabalhado'] = (float) $row['percentual_trabalhado'];
-            $this->percentualTrabalhadoPorClienteExterno[] = $row;
+            $this->trabalhadoPorClienteExterno[] = $row;
         }
-        $this->logger->debug('Trabalhado por cliente: {json}', ['json' => json_encode($this->percentualTrabalhadoPorClienteExterno)]);
-        return $this->percentualTrabalhadoPorClienteExterno;
+        $this->logger->debug('Trabalhado por cliente: {json}', ['json' => json_encode($this->trabalhadoPorClienteExterno)]);
+        return $this->trabalhadoPorClienteExterno;
     }
 
     private function cadastraCooperadoQueProduziuNoAkaunting(): void
     {
-        $interno = $this->getPercentualTrabalhadoPorClienteInterno();
-        $externo = $this->getPercentualTrabalhadoPorClienteExterno();
+        $interno = $this->getTrabalhadoPorClienteInterno();
+        $externo = $this->getTrabalhadoPorClienteExterno();
         $produzidoNoMes =  $interno + $externo;
         $exists = [];
         foreach ($produzidoNoMes as $row) {
@@ -907,7 +907,7 @@ class ProducaoCooperativista
 
     private function distribuiSobras(): void
     {
-        $percentualTrabalhadoPorCliente = $this->getPercentualTrabalhadoPorClienteInterno();
+        $percentualTrabalhadoPorCliente = $this->getTrabalhadoPorClienteInterno();
         $sobras = $this->getTotalSobrasDoMes();
         foreach ($percentualTrabalhadoPorCliente as $row) {
             $aReceberDasSobras = ($sobras * $row['percentual_trabalhado'] / 100);
@@ -937,11 +937,11 @@ class ProducaoCooperativista
         if ($this->sobrasDistribuidas) {
             return;
         }
-        $percentualTrabalhadoPorClienteExterno = $this->getPercentualTrabalhadoPorClienteExterno();
+        $trabalhadoPorClienteExterno = $this->getTrabalhadoPorClienteExterno();
         $totalPorCliente = array_column($this->getEntradasClientes(), 'base_producao', 'customer_reference');
         $errorSemCodigoCliente = [];
         $cnpjClientesInternos = explode(',', getenv('CNPJ_CLIENTES_INTERNOS'));
-        foreach ($percentualTrabalhadoPorClienteExterno as $row) {
+        foreach ($trabalhadoPorClienteExterno as $row) {
             if (in_array($row['customer_reference'], $cnpjClientesInternos)) {
                 continue;
             }
