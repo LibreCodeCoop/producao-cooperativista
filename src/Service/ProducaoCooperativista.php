@@ -772,14 +772,8 @@ class ProducaoCooperativista
     private function validaClientes(): void
     {
         $totalPorCliente = array_column($this->getEntradasClientes(), 'base_producao', 'customer_reference');
-        $errorSemCodigoCliente = [];
-        foreach ($this->trabalhadoPorCliente as $data) {
-            if (!isset($totalPorCliente[$data['customer_reference']])) {
-                $errorSemCodigoCliente[] = $data;
-                continue;
-            }
-        }
 
+        $errorSemCodigoCliente = array_filter($this->trabalhadoPorCliente, fn ($i) => !isset($totalPorCliente[$i['customer_reference']]));
         if (count($errorSemCodigoCliente)) {
             throw new Exception(
                 "O customer_reference trabalhado no Kimai não possui faturamento no mês " . $this->dates->getInicioProximoMes()->format('Y-m-d'). ".\n" .
