@@ -54,8 +54,7 @@ use Symfony\Component\Routing\Generator\UrlGenerator;
 class ProducaoCooperativista
 {
     private array $custosPorCliente = [];
-    private array $trabalhadoPorClienteExterno = [];
-    private array $trabalhadoPorClienteInterno = [];
+    private array $trabalhadoPorCliente = [];
     private array $entradas = [];
     private array $saidas = [];
     private array $movimentacao = [];
@@ -587,8 +586,9 @@ class ProducaoCooperativista
 
     public function getTrabalhadoPorClienteInterno(): array
     {
-        if (count($this->trabalhadoPorClienteInterno)) {
-            return $this->trabalhadoPorClienteInterno;
+        $entradas = array_filter($this->trabalhadoPorCliente, fn ($i) => $i['type'] === 'interno');
+        if (count($entradas)) {
+            return $entradas;
         }
         $clientesInternos = $this->clientesInternos();
 
@@ -611,7 +611,7 @@ class ProducaoCooperativista
             ->addSelect('u.akaunting_contact_id')
             ->addSelect('c.id as customer_id')
             ->addSelect("c.name")
-            ->addSelect("'Interno' as type")
+            ->addSelect("'interno' as type")
             ->addSelect('c.vat_id as customer_reference')
             ->addSelect('COALESCE(sum(t.duration), 0) * 100 / total_cliente.total as percentual_trabalhado')
             ->addSelect('sum(t.duration) as trabalhado')
@@ -632,7 +632,6 @@ class ProducaoCooperativista
             ->addGroupBy('total_cliente.total')
             ->orderBy('u.alias');
         $result = $qb->executeQuery();
-        $this->trabalhadoPorClienteInterno = [];
         while ($row = $result->fetchAssociative()) {
             $cooperado = $this->getCooperado($row['tax_number']);
             $cooperado
@@ -644,10 +643,10 @@ class ProducaoCooperativista
                 ->setTrabalhado($cooperado->getTrabalhado() + $row['trabalhado']);
             $row['base_producao'] = 0;
             $row['percentual_trabalhado'] = (float) $row['percentual_trabalhado'];
-            $this->trabalhadoPorClienteInterno[] = $row;
+            $this->trabalhadoPorCliente[] = $row;
         }
-        $this->logger->debug('Trabalhado por cliente: {json}', ['json' => json_encode($this->trabalhadoPorClienteInterno)]);
-        return $this->trabalhadoPorClienteInterno;
+        $this->logger->debug('Trabalhado por cliente: {json}', ['json' => json_encode($this->trabalhadoPorCliente)]);
+        return $this->trabalhadoPorCliente;
     }
 
     private function clientesContabilizaveis(): array
@@ -664,8 +663,9 @@ class ProducaoCooperativista
 
     public function getTrabalhadoPorClienteExterno(): array
     {
-        if (count($this->trabalhadoPorClienteExterno)) {
-            return $this->trabalhadoPorClienteExterno;
+        $entradas = array_filter($this->trabalhadoPorCliente, fn ($i) => $i['type'] === 'externo');
+        if (count($entradas)) {
+            return $entradas;
         }
         $contabilizaveis = $this->clientesContabilizaveis();
 
@@ -719,7 +719,7 @@ class ProducaoCooperativista
             ->addSelect('u.akaunting_contact_id')
             ->addSelect('c.id as customer_id')
             ->addSelect('c.name')
-            ->addSelect("'Externo' as type")
+            ->addSelect("'externo' as type")
             ->addSelect('c.vat_id as customer_reference')
             ->addSelect('COALESCE(sum(t.duration), 0) * 100 / total_cliente.total as percentual_trabalhado')
             ->addSelect('sum(t.duration) as trabalhado')
@@ -743,7 +743,6 @@ class ProducaoCooperativista
             ->orderBy('c.id')
             ->addOrderBy('u.alias');
         $result = $qb->executeQuery();
-        $this->trabalhadoPorClienteExterno = [];
         while ($row = $result->fetchAssociative()) {
             if (!$row['customer_reference']) {
                 continue;
@@ -756,28 +755,45 @@ class ProducaoCooperativista
                 ->setAkauntingContactId($row['akaunting_contact_id']);
             $row['base_producao'] = 0;
             $row['percentual_trabalhado'] = (float) $row['percentual_trabalhado'];
-            $this->trabalhadoPorClienteExterno[] = $row;
+            $this->trabalhadoPorCliente[] = $row;
         }
-        $this->logger->debug('Trabalhado por cliente: {json}', ['json' => json_encode($this->trabalhadoPorClienteExterno)]);
-        return $this->trabalhadoPorClienteExterno;
+        $this->logger->debug('Trabalhado por cliente: {json}', ['json' => json_encode($this->trabalhadoPorCliente)]);
+        return $this->trabalhadoPorCliente;
     }
 
     public function getTrabalhadoPorCliente(): array
     {
-        $interno = $this->getTrabalhadoPorClienteInterno();
-        $externo = $this->getTrabalhadoPorClienteExterno();
-        $produzidoNoMes =  $interno;
-        foreach ($externo as $data) {
-            $produzidoNoMes[] = $data;
+        $this->getTrabalhadoPorClienteInterno();
+        $this->getTrabalhadoPorClienteExterno();
+        $this->validaClientes();
+        return $this->trabalhadoPorCliente;
+    }
+
+    private function validaClientes(): void
+    {
+        $totalPorCliente = array_column($this->getEntradasClientes(), 'base_producao', 'customer_reference');
+        $errorSemCodigoCliente = [];
+        foreach ($this->trabalhadoPorCliente as $data) {
+            if (!isset($totalPorCliente[$data['customer_reference']])) {
+                $errorSemCodigoCliente[] = $data;
+                continue;
+            }
         }
-        return $produzidoNoMes;
+
+        if (count($errorSemCodigoCliente)) {
+            throw new Exception(
+                "O customer_reference trabalhado no Kimai não possui faturamento no mês " . $this->dates->getInicioProximoMes()->format('Y-m-d'). ".\n" .
+                "Dados:\n" .
+                json_encode($errorSemCodigoCliente, JSON_PRETTY_PRINT)
+            );
+        }
     }
 
     private function cadastraCooperadoQueProduziuNoAkaunting(): void
     {
-        $produzidoNoMes =  $this->getTrabalhadoPorCliente();
+        $trabalhadoPorCliente =  $this->getTrabalhadoPorCliente();
         $exists = [];
-        foreach ($produzidoNoMes as $row) {
+        foreach ($trabalhadoPorCliente as $row) {
             if (empty($row['akaunting_contact_id'])) {
                 if (in_array($row['tax_number'], $exists)) {
                     continue;
@@ -957,23 +973,11 @@ class ProducaoCooperativista
         }
         $trabalhadoPorCliente = $this->getTrabalhadoPorCliente();
         $totalPorCliente = array_column($this->getEntradasClientes(), 'base_producao', 'customer_reference');
-        $errorSemCodigoCliente = [];
         foreach ($trabalhadoPorCliente as $row) {
-            if (!isset($totalPorCliente[$row['customer_reference']])) {
-                $errorSemCodigoCliente[] = $row;
-                continue;
-            }
             $brutoCliente = $totalPorCliente[$row['customer_reference']];
             $aReceber = $brutoCliente * $row['percentual_trabalhado'] / 100;
             $values = $this->getCooperado($row['tax_number'])->getProducaoCooperativista()->getValues();
             $values->setBaseProducao($values->getBaseProducao() + $aReceber);
-        }
-        if (count($errorSemCodigoCliente)) {
-            throw new Exception(
-                "O customer_reference trabalhado no Kimai não possui faturamento no mês " . $this->dates->getInicioProximoMes()->format('Y-m-d'). ".\n" .
-                "Dados:\n" .
-                json_encode($errorSemCodigoCliente, JSON_PRETTY_PRINT)
-            );
         }
         $this->producaoDistribuida = true;
     }
