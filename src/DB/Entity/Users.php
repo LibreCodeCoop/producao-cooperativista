@@ -46,6 +46,8 @@ class Users extends DBEntity
     private ?int $akauntingContactId;
     #[Column(nullable: true, length: 20)]
     private ?string $taxNumber;
+    #[Column(nullable: true, type: 'float')]
+    private ?float $peso;
     #[Column(type: 'smallint')]
     private int $dependents;
     #[Column(type: 'smallint')]
