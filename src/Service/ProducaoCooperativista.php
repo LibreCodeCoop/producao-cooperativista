@@ -880,9 +880,6 @@ class ProducaoCooperativista
         }
 
         $this->getMovimentacaoFinanceira();
-        $this->getCustosPorCliente();
-        $this->getTotalDispendiosInternos();
-        $this->calculaBaseProducaoPorEntrada();
         $this->cadastraCooperadoQueProduziuNoAkaunting();
         $this->distribuiProducaoExterna();
         $this->distribuiSobras();
