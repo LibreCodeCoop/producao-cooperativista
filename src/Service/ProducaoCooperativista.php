@@ -633,12 +633,14 @@ class ProducaoCooperativista
         $result = $qb->executeQuery();
         $this->trabalhadoPorClienteInterno = [];
         while ($row = $result->fetchAssociative()) {
-            $this->getCooperado($row['tax_number'])
+            $cooperado = $this->getCooperado($row['tax_number']);
+            $cooperado
                 ->setName($row['alias'])
                 ->setDependentes($row['dependents'])
                 ->setTaxNumber($row['tax_number'])
                 ->setWeight($row['peso'] ?? 0)
-                ->setAkauntingContactId($row['akaunting_contact_id']);
+                ->setAkauntingContactId($row['akaunting_contact_id'])
+                ->setTrabalhado($cooperado->getTrabalhado() + $row['trabalhado']);
             $row['base_producao'] = 0;
             $row['percentual_trabalhado'] = (float) $row['percentual_trabalhado'];
             $this->trabalhadoPorClienteInterno[] = $row;
@@ -951,11 +953,7 @@ class ProducaoCooperativista
         $trabalhadoPorCliente = $this->getTrabalhadoPorCliente();
         $totalPorCliente = array_column($this->getEntradasClientes(), 'base_producao', 'customer_reference');
         $errorSemCodigoCliente = [];
-        $cnpjClientesInternos = explode(',', getenv('CNPJ_CLIENTES_INTERNOS'));
         foreach ($trabalhadoPorCliente as $row) {
-            if (in_array($row['customer_reference'], $cnpjClientesInternos)) {
-                continue;
-            }
             if (!isset($totalPorCliente[$row['customer_reference']])) {
                 $errorSemCodigoCliente[] = $row;
                 continue;
