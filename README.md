@@ -4,11 +4,11 @@ Calcular o bruto da produção cooperativista por cooperado com base em dados co
 
 ## Requisitos
 
-| Sistema                            | Descrição                                                                                                  |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| [Kimai](https://www.kimai.org)     | Registro de horas trabalhadas por projeto, emissão de relatório de horas trabalhadas para clientes         |
-| [Akaunting](https://akaunting.com) | Gestão financeira                                                                                          |
-| Site da prefeitura                 | Emissão de NFSe. Hoje o sistema dá suporte oficial apenas as prefeituras dos municípios do Rio e Niterói.  |
+| Sistema                            | Descrição                                                                                                 |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| [Kimai](https://www.kimai.org)     | Registro de horas trabalhadas por projeto, emissão de relatório de horas trabalhadas para clientes        |
+| [Akaunting](https://akaunting.com) | Gestão financeira                                                                                         |
+| Site da prefeitura                 | Emissão de NFSe. Hoje o sistema dá suporte oficial apenas as prefeituras dos municípios do Rio e Niterói. |
 
 ## Ações para que tudo funcione
 * Emissão de notas fiscais
@@ -47,13 +47,14 @@ Calcular o bruto da produção cooperativista por cooperado com base em dados co
       > /^Cooperado: .*CPF: (?<CPF>\d+)[,;]? Valor: (R\$ ?)?(?<value>.*)$/i
       > ```
     * Customização da fatura (compra ou venda) ou transação deve ser inserida na descrição. Valores possíveis:
-      | Nome             | Descrição                                                      |
-      | ---------------- | -------------------------------------------------------------- |
-      | NFSe             | Número da NFSe                                                 |
-      | Transação do mês | Mês onde esta transação será contabilizada. Formato: `2023-09` |
-      | CNPJ cliente     | CNPJ do cliente de quem será cobrado o valor                   |
-      | Setor            | Setor do cliente, quando é um CNPJ com mais de um contrato     |
-      | Arquivar         | `sim` = Arquivar transação e não utilizá-la.                   |
+      | Nome                     | Descrição                                                                                                                                                                         |
+      | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+      | NFSe                     | Número da NFSe, necessário para fazer ligação com a Nota Fiscal coletada da Prefeitura. Não estamos utilizando este recurso.                                                      |
+      | Transação do mês         | Mês onde esta transação será contabilizada. Formato: `2023-09`                                                                                                                    |
+      | CNPJ cliente             | CNPJ do cliente de quem será cobrado o valor                                                                                                                                      |
+      | Setor                    | Setor do cliente, quando é um CNPJ com mais de um contrato                                                                                                                        |
+      | Arquivar                 | `sim` = Arquivar transação e não utilizá-la.                                                                                                                                      |
+      | Percentual desconto fixo | Ignora a taxa administrativa (somatório de todas as despesas do mês incluindo valor de NFSe e custos da coop do mês) e aplica apenas este perentual de desconto no valor da nota. |
 
       Valores customizados precisam ter o nome da propriedade separado do valor com dois pointos, exemplo:
       ```
