@@ -119,7 +119,7 @@ class ProducaoCooperativista
         }
 
         if ($this->taxaMinima) {
-            $this->percentualAdministrativo = ($this->taxaMinima) * 100 / $faturamento;
+            $this->percentualAdministrativo = ($this->taxaAdministrativa) * 100 / $faturamento;
             return $this->percentualAdministrativo;
         }
         return 0;
