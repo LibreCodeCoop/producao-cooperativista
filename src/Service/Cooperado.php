@@ -49,6 +49,8 @@ use ProducaoCooperativista\Service\Akaunting\Source\Documents;
  * @method string getTaxNumber()
  * @method self setWeight(float $value)
  * @method float getWeight()
+ * @method self setPesoFinal()
+ * @method float getPesoFinal()
  * @method self setTrabalhado(int $value)
  * @method int getTrabalhado()
  */
@@ -61,6 +63,7 @@ class Cooperado
     private ?string $name = '';
     private ?string $taxNumber = '';
     private ?float $weight = 1;
+    private ?float $pesoFinal = 0;
     private ?int $trabalhado = 0;
     private ?ProducaoCooperativista $producaoCooperativista = null;
     private ?FRRA $frra = null;

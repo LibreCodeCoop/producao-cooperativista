@@ -63,7 +63,7 @@ class ProducaoCooperativista
     private array $cooperado = [];
     private array $categoriesList = [];
     private int $totalCooperados = 0;
-    private float $totalPagoNotasClientes = 0;
+    private float $totalNotasClientes = 0;
     private float $totalBrutoNotasClientes = 0;
     private float $totalCustoCliente = 0;
     private float $totalDispendios = 0;
@@ -72,7 +72,6 @@ class ProducaoCooperativista
     private float $taxaMaxima = 0;
     private float $taxaAdministrativa = 0;
     private float $percentualAdministrativo = 0;
-    private bool $sobrasDistribuidas = false;
     private bool $producaoDistribuida = false;
 
     public function __construct(
@@ -106,7 +105,7 @@ class ProducaoCooperativista
          * Para a taxa mínima utiliza-se o total de dispêndios apenas pois no total
          * de dispêndios já está sem o custo dos clientes.
          */
-        $faturamento = $this->getTotalPagoNotasClientes();
+        $faturamento = $this->getTotalNotasClientes();
         $valorSeguranca = $faturamento * $this->percentualMaximo / 100;
         $this->taxaMinima = $this->getTotalDispendios();
         $this->taxaMaxima = $this->taxaMinima * 2;
@@ -467,14 +466,14 @@ class ProducaoCooperativista
      *
      * @throws Exception
      */
-    private function getTotalPagoNotasClientes(): float
+    private function getTotalNotasClientes(): float
     {
-        if ($this->totalPagoNotasClientes) {
-            return $this->totalPagoNotasClientes;
+        if ($this->totalNotasClientes) {
+            return $this->totalNotasClientes;
         }
 
-        $this->totalPagoNotasClientes = array_reduce($this->getEntradasClientes(), fn ($total, $i) => $total + $i['amount'], 0);
-        return $this->totalPagoNotasClientes;
+        $this->totalNotasClientes = array_reduce($this->getEntradasClientes(), fn ($total, $i) => $total + $i['amount'], 0);
+        return $this->totalNotasClientes;
     }
 
     /**
@@ -492,10 +491,17 @@ class ProducaoCooperativista
         return $this->totalBrutoNotasClientes;
     }
 
-    private function getEntradasClientes(): array
+    private function getEntradasClientes(?bool $percentualAdministrativoFixo = null): array
     {
         $categoriasEntradasClientes = $this->getChildrensCategories((int) getenv('AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID'));
         $entradasClientes = array_filter($this->getEntradas(), fn ($i) => in_array($i['category_id'], $categoriasEntradasClientes));
+        if (is_bool($percentualAdministrativoFixo)) {
+            $entradasClientes = array_filter(
+                $entradasClientes,
+                fn ($i) =>
+                $i['percentual_administrativo_fixo'] === $percentualAdministrativoFixo
+            );
+        }
         return $entradasClientes;
     }
 
@@ -511,10 +517,7 @@ class ProducaoCooperativista
             return $this->totalCustoCliente;
         }
         $custosPorCliente = $this->getCustosPorCliente();
-        $this->totalCustoCliente = array_reduce($custosPorCliente, function ($total, $row): float {
-            $total += $row['amount'];
-            return $total;
-        }, 0);
+        $this->totalCustoCliente = array_sum($custosPorCliente);
         $this->logger->info('Total custos clientes: {total}', ['total' => $this->totalCustoCliente]);
         return $this->totalCustoCliente;
     }
@@ -532,13 +535,22 @@ class ProducaoCooperativista
      */
     private function getCustosPorCliente(): array
     {
-        if ($this->custosPorCliente) {
-            return $this->custosPorCliente;
+        if (!$this->custosPorCliente) {
+            $categoriasCustosClientes = $this->getChildrensCategories((int) getenv('AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID'));
+            $custosPorCliente = array_filter($this->getSaidas(), fn ($i) => in_array($i['category_id'], $categoriasCustosClientes));
+            foreach ($custosPorCliente as $row) {
+                $this->custosPorCliente[$row['customer_reference']][] = $row;
+            }
+
+            $this->logger->debug('Custos por clientes: {json}', ['json' => json_encode($this->custosPorCliente)]);
         }
-        $categoriasCustosClientes = $this->getChildrensCategories((int) getenv('AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID'));
-        $this->custosPorCliente = array_filter($this->getSaidas(), fn ($i) => in_array($i['category_id'], $categoriasCustosClientes));
-        $this->logger->debug('Custos por clientes: {json}', ['json' => json_encode($this->custosPorCliente)]);
-        return $this->custosPorCliente;
+        $custosPorCliente = [];
+        foreach ($this->custosPorCliente as $customerReference => $data) {
+            $custosPorCliente[$customerReference] = array_sum(
+                array_column($data, 'amount')
+            );
+        }
+        return $custosPorCliente;
     }
 
     private function calculaBaseProducaoPorEntrada(): self
@@ -554,11 +566,11 @@ class ProducaoCooperativista
 
         $percentualDispendio = $this->percentualAdministrativo();
         $custosPorCliente = $this->getCustosPorCliente();
-        $custosPorCliente = array_column($custosPorCliente, 'amount', 'customer_reference');
 
         foreach ($entradasClientes as $row) {
             $base = $row['amount'] - ($custosPorCliente[$row['customer_reference']] ?? 0);
-            if (!is_numeric($row['discount_percentage'])) {
+            $row['percentual_administrativo_fixo'] = is_numeric($row['discount_percentage']);
+            if (!$row['percentual_administrativo_fixo']) {
                 $row['discount_percentage'] = $percentualDispendio;
             }
             $row['base_producao'] = $base - ($base * $row['discount_percentage'] / 100);
@@ -918,7 +930,6 @@ class ProducaoCooperativista
         $this->getMovimentacaoFinanceira();
         $this->cadastraCooperadoQueProduziuNoAkaunting();
         $this->distribuiProducao();
-        $this->distribuiSobras();
         $this->atualizaPlanoDeSaude();
         $this->atualizaAdiantamentos();
         $this->logger->debug('Produção por cooperado ooperado: {json}', ['json' => json_encode($this->cooperado)]);
@@ -943,17 +954,19 @@ class ProducaoCooperativista
 
     private function distribuiSobras(): void
     {
-        if ($this->sobrasDistribuidas) {
-            return;
+        $aDistribuir = $this->getTotalSobrasDoMes();
+
+        $trabalhadoPorClienteInterno = $this->getTrabalhadoPorClienteInterno();
+        $pesoTotal = 0;
+        foreach ($trabalhadoPorClienteInterno as $data) {
+            $pesoTotal += $this->getCooperado($data['tax_number'])->getPesoFinal();
         }
-        $percentualTrabalhadoPorCliente = $this->getTrabalhadoPorClienteInterno();
-        $sobras = $this->getTotalSobrasDoMes();
-        foreach ($percentualTrabalhadoPorCliente as $row) {
-            $aReceberDasSobras = ($sobras * $row['percentual_trabalhado'] / 100);
-            $values = $this->getCooperado($row['tax_number'])->getProducaoCooperativista()->getValues();
-            $values->setBaseProducao($values->getBaseProducao() + $aReceberDasSobras);
+        foreach ($trabalhadoPorClienteInterno as $data) {
+            $cooperado = $this->getCooperado($data['tax_number']);
+            $aReceber = ($cooperado->getPesoFinal() / $pesoTotal) * $aDistribuir;
+            $values = $cooperado->getProducaoCooperativista()->getValues();
+            $values->setBaseProducao($values->getBaseProducao() + $aReceber);
         }
-        $this->sobrasDistribuidas = true;
     }
 
     private function getCooperado(string $taxNumber): Cooperado
@@ -977,18 +990,46 @@ class ProducaoCooperativista
         if ($this->producaoDistribuida) {
             return;
         }
+        $this->distribuiProducaoDescontoFixo();
+
+        $entradas = $this->getEntradasClientes(percentualAdministrativoFixo: false);
+        $aDistribuir = array_sum(array_column($entradas, 'base_producao'));
+
         $trabalhadoPorCliente = $this->getTrabalhadoPorCliente();
-        $totalPorCliente = array_column($this->getEntradasClientes(), 'base_producao', 'customer_reference');
+        $pesoTotal = 0;
         foreach ($trabalhadoPorCliente as $row) {
+            $cooperado = $this->getCooperado($row['tax_number']);
+            $pesoFinal = $cooperado->getPesoFinal() + $row['trabalhado'] * $row['peso'];
+            $cooperado->setPesoFinal($pesoFinal);
+            $pesoTotal += $pesoFinal;
+        }
+
+        foreach ($this->cooperado as $cooperado) {
+            $aReceber = ($cooperado->getPesoFinal() / $pesoTotal) * $aDistribuir;
+            $values = $cooperado->getProducaoCooperativista()->getValues();
+            $values->setBaseProducao($values->getBaseProducao() + $aReceber);
+        }
+        $this->distribuiSobras();
+        $this->producaoDistribuida = true;
+    }
+
+    private function distribuiProducaoDescontoFixo(): void
+    {
+        $trabalhadoPorCliente = $this->getTrabalhadoPorCliente();
+        $entradas = $this->getEntradasClientes(percentualAdministrativoFixo: true);
+        $totalPorCliente = array_column($entradas, 'base_producao', 'customer_reference');
+        foreach ($trabalhadoPorCliente as $row) {
+            if (!isset($totalPorCliente[$row['customer_reference']])) {
+                continue;
+            }
             $brutoCliente = $totalPorCliente[$row['customer_reference']];
             $aReceber = $brutoCliente * $row['percentual_trabalhado'] / 100;
             $values = $this->getCooperado($row['tax_number'])->getProducaoCooperativista()->getValues();
             $values->setBaseProducao($values->getBaseProducao() + $aReceber);
         }
-        $this->producaoDistribuida = true;
     }
 
-    private function getTotalBaseProducao(): float
+    private function getBaseProducao(): float
     {
         $baseProducao = array_reduce(
             $this->cooperado,
@@ -1000,10 +1041,13 @@ class ProducaoCooperativista
 
     private function getTotalSobrasDoMes(): float
     {
-        $this->distribuiProducao();
-        return $this->getTotalPagoNotasClientes()
-            - $this->getTotalDispendios()
-            + $this->getTotalSobrasDistribuidasNoMes();
+        $totalNotasClientes = $this->getTotalNotasClientes();
+        $totalDispendios = $this->getTotalDispendios();
+        $totalBaseProducao = $this->getBaseProducao();
+        $sobras = $totalNotasClientes
+            - $totalDispendios
+            - $totalBaseProducao;
+        return $sobras;
     }
 
     private function getTotalSobrasDistribuidasNoMes(): float
@@ -1034,7 +1078,7 @@ class ProducaoCooperativista
             ],
             'percentual_seguranca' => ['valor' => $this->percentualMaximo],
             'valor_seguranca' => [
-                'valor' => $this->getTotalPagoNotasClientes() * $this->percentualMaximo / 100,
+                'valor' => $this->getTotalNotasClientes() * $this->percentualMaximo / 100,
                 'formula' => '{valor_seguranca} = {total_notas_clientes} * {percentual_seguranca} / 100',
             ],
             'taxa_administrativa' => [
@@ -1060,7 +1104,7 @@ class ProducaoCooperativista
                 'formula' => '{reserva} = {taxa_administrativa} - {taxa_minima}',
             ],
             'total_notas_clientes' => [
-                'valor' => $this->getTotalPagoNotasClientes(),
+                'valor' => $this->getTotalNotasClientes(),
                 'formula' => '{total_notas_clientes} = ' . implode(' + ', array_column($this->getEntradasClientes(), 'amount')) .
                 ' <a href="' .
                 $this->urlGenerator->generate('Invoices#index', [
@@ -1119,10 +1163,13 @@ class ProducaoCooperativista
                     '">disrtibuição de sobras</a>'
             ],
             'total_sobras_do_mes' => [
-                'valor' => $this->getTotalSobrasDoMes(),
-                'formula' => '{total_sobras_do_mes} = {total_notas_clientes} - {taxa_administrativa} + {total_sobras_distribuidas}'
+                'valor' => abs(round($this->getTotalSobrasDoMes(), 2)),
+                'formula' => '{total_sobras_do_mes} = {total_notas_clientes} - {total_dispendios} - {base_producao}'
             ],
-            'base_producao' => ['valor' => $this->getTotalBaseProducao()],
+            'base_producao' => [
+                'valor' => $this->getBaseProducao() + $this->getTotalSobrasDistribuidasNoMes(),
+                'formula' => '{base_producao} = {total_notas_clientes} - {total_dispendios} + {total_sobras_distribuidas}'
+            ],
             'total_horas_trabalhadas' => ['valor' => $this->getTotalTrabalhado() / 60 / 60],
             'total_horas_possiveis' => [
                 'valor' => $this->getTotalHorasPossiveis(),
