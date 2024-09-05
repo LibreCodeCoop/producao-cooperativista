@@ -344,6 +344,7 @@ class ProducaoCooperativista
                 t.type,
                 t.transaction_of_month,
                 t.discount_percentage,
+                CASE WHEN i.discount_percentage > 0 THEN true ELSE false END as percentual_administrativo_fixo,
                 t.amount,
                 (
                     SELECT SUM(price) as total
@@ -373,6 +374,7 @@ class ProducaoCooperativista
                 i.type,
                 i.transaction_of_month,
                 i.discount_percentage,
+                CASE WHEN i.discount_percentage > 0 THEN true ELSE false END as percentual_administrativo_fixo,
                 i.amount,
                 (
                     SELECT SUM(price) as total
@@ -401,6 +403,7 @@ class ProducaoCooperativista
                 i.type,
                 i.transaction_of_month,
                 i.discount_percentage,
+                CASE WHEN i.discount_percentage > 0 THEN true ELSE false END as percentual_administrativo_fixo,
                 i.amount,
                 (
                     SELECT SUM(price) as total
@@ -434,6 +437,7 @@ class ProducaoCooperativista
             if (empty($row['customer_reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['customer_reference'])) {
                 $errors[] = $row;
             }
+
             $this->movimentacao[$row['id']] = $row;
         }
         if (empty($this->movimentacao)) {
@@ -569,7 +573,6 @@ class ProducaoCooperativista
 
         foreach ($entradasClientes as $row) {
             $base = $row['amount'] - ($custosPorCliente[$row['customer_reference']] ?? 0);
-            $row['percentual_administrativo_fixo'] = is_numeric($row['discount_percentage']);
             if (!$row['percentual_administrativo_fixo']) {
                 $row['discount_percentage'] = $percentualDispendio;
             }
