@@ -105,9 +105,23 @@ class ProducaoCooperativista
          * Para a taxa mínima utiliza-se o total de dispêndios apenas pois no total
          * de dispêndios já está sem o custo dos clientes.
          */
-        $faturamento = $this->getTotalNotasClientes();
-        $valorSeguranca = $faturamento * $this->percentualMaximo / 100;
-        $this->taxaMinima = $this->getTotalDispendios();
+        $entradasClientes = $this->getEntradasClientes();
+        // Remove as notas que tem percentual administrativo fixo
+        $entradasComPercentualMovel = array_filter($entradasClientes, fn ($i) => $i['percentual_desconto_fixo'] === false);
+        $entradasComPercentualFixo = array_filter($entradasClientes, fn ($i) => $i['percentual_desconto_fixo'] === true);
+        // Soma todas as notas sem perecentual administrativo fixo
+        $totalNotasParaPercentualMovel = array_reduce($entradasComPercentualMovel, fn ($total, $i) => $total + $i['amount'], 0);
+        $valorSeguranca = $totalNotasParaPercentualMovel * $this->percentualMaximo / 100;
+
+        $custosPorCliente = $this->getCustosPorCliente();
+        $clientesComDescontoFixo = array_column($entradasComPercentualFixo, 'customer_reference');
+        // Remove as faturas com desconto fixo para poder considerar apenas as que devem receber desconto variável
+        $custosPorClienteComPercentualVariavel = array_filter($custosPorCliente, function ($i) use ($clientesComDescontoFixo) {
+            return !in_array($i, $clientesComDescontoFixo);
+        }, ARRAY_FILTER_USE_KEY);
+
+        $this->taxaMinima = array_sum($custosPorClienteComPercentualVariavel) + $this->getTotalDispendiosInternos();
+
         $this->taxaMaxima = $this->taxaMinima * 2;
         if ($this->taxaMinima >= $valorSeguranca) {
             $this->taxaAdministrativa = $this->taxaMinima;
@@ -118,7 +132,7 @@ class ProducaoCooperativista
         }
 
         if ($this->taxaMinima) {
-            $this->percentualAdministrativo = ($this->taxaAdministrativa) * 100 / $faturamento;
+            $this->percentualAdministrativo = ($this->taxaAdministrativa) * 100 / $totalNotasParaPercentualMovel;
             return $this->percentualAdministrativo;
         }
         return 0;
@@ -344,7 +358,7 @@ class ProducaoCooperativista
                 t.type,
                 t.transaction_of_month,
                 t.discount_percentage,
-                CASE WHEN i.discount_percentage > 0 THEN true ELSE false END as percentual_administrativo_fixo,
+                CASE WHEN i.discount_percentage > 0 THEN 1 ELSE 0 END as percentual_desconto_fixo,
                 t.amount,
                 (
                     SELECT SUM(price) as total
@@ -374,7 +388,7 @@ class ProducaoCooperativista
                 i.type,
                 i.transaction_of_month,
                 i.discount_percentage,
-                CASE WHEN i.discount_percentage > 0 THEN true ELSE false END as percentual_administrativo_fixo,
+                CASE WHEN i.discount_percentage > 0 THEN 1 ELSE 0 END as percentual_desconto_fixo,
                 i.amount,
                 (
                     SELECT SUM(price) as total
@@ -403,7 +417,7 @@ class ProducaoCooperativista
                 i.type,
                 i.transaction_of_month,
                 i.discount_percentage,
-                CASE WHEN i.discount_percentage > 0 THEN true ELSE false END as percentual_administrativo_fixo,
+                CASE WHEN i.discount_percentage > 0 THEN 1 ELSE 0 END as percentual_desconto_fixo,
                 i.amount,
                 (
                     SELECT SUM(price) as total
@@ -437,6 +451,7 @@ class ProducaoCooperativista
             if (empty($row['customer_reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['customer_reference'])) {
                 $errors[] = $row;
             }
+            $row['percentual_desconto_fixo'] = (bool) $row['percentual_desconto_fixo'];
 
             $this->movimentacao[$row['id']] = $row;
         }
@@ -495,15 +510,15 @@ class ProducaoCooperativista
         return $this->totalBrutoNotasClientes;
     }
 
-    private function getEntradasClientes(?bool $percentualAdministrativoFixo = null): array
+    private function getEntradasClientes(?bool $percentualDescontoFixo = null): array
     {
         $categoriasEntradasClientes = $this->getChildrensCategories((int) getenv('AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID'));
         $entradasClientes = array_filter($this->getEntradas(), fn ($i) => in_array($i['category_id'], $categoriasEntradasClientes));
-        if (is_bool($percentualAdministrativoFixo)) {
+        if (is_bool($percentualDescontoFixo)) {
             $entradasClientes = array_filter(
                 $entradasClientes,
                 fn ($i) =>
-                $i['percentual_administrativo_fixo'] === $percentualAdministrativoFixo
+                $i['percentual_desconto_fixo'] === $percentualDescontoFixo
             );
         }
         return $entradasClientes;
@@ -573,7 +588,7 @@ class ProducaoCooperativista
 
         foreach ($entradasClientes as $row) {
             $base = $row['amount'] - ($custosPorCliente[$row['customer_reference']] ?? 0);
-            if (!$row['percentual_administrativo_fixo']) {
+            if (!$row['percentual_desconto_fixo']) {
                 $row['discount_percentage'] = $percentualDispendio;
             }
             $row['base_producao'] = $base - ($base * $row['discount_percentage'] / 100);
@@ -995,7 +1010,7 @@ class ProducaoCooperativista
         }
         $this->distribuiProducaoDescontoFixo();
 
-        $entradas = $this->getEntradasClientes(percentualAdministrativoFixo: false);
+        $entradas = $this->getEntradasClientes(percentualDescontoFixo: false);
         $aDistribuir = array_sum(array_column($entradas, 'base_producao'));
 
         $trabalhadoPorCliente = $this->getTrabalhadoPorCliente();
@@ -1019,7 +1034,7 @@ class ProducaoCooperativista
     private function distribuiProducaoDescontoFixo(): void
     {
         $trabalhadoPorCliente = $this->getTrabalhadoPorCliente();
-        $entradas = $this->getEntradasClientes(percentualAdministrativoFixo: true);
+        $entradas = $this->getEntradasClientes(percentualDescontoFixo: true);
         $totalPorCliente = array_column($entradas, 'base_producao', 'customer_reference');
         foreach ($trabalhadoPorCliente as $row) {
             if (!isset($totalPorCliente[$row['customer_reference']])) {
