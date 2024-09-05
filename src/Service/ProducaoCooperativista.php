@@ -674,6 +674,7 @@ class ProducaoCooperativista
         $projetosAtivosNoMes = new QueryBuilder($this->db->getConnection());
         $projetosAtivosNoMes->select('c.id as customer_id')
             ->addSelect('sum(p.time_budget) as time_budget')
+            ->addSelect('p.id AS project_id')
             ->from('customers', 'c')
             ->join('c', 'projects', 'p', $projetosAtivosNoMes->expr()->eq('p.customer_id', 'c.id'))
             ->where(
@@ -688,11 +689,14 @@ class ProducaoCooperativista
                     $projetosAtivosNoMes->expr()->gte('p.end', $qb->createNamedParameter($this->dates->getInicio()->format('Y-m-d')))
                 )
             )
-            ->groupBy('c.id');
+            ->andWhere($projetosAtivosNoMes->expr()->gt('p.time_budget', '0'))
+            ->groupBy('c.id')
+            ->addGroupBy('p.id');
 
         $subQuery = new QueryBuilder($this->db->getConnection());
         $subQuery->select('c.vat_id')
             ->addSelect('c.id')
+            ->addSelect('project_time_budget.project_id')
             ->addSelect(str_replace(
                 "\n",
                 ' ',
@@ -705,11 +709,15 @@ class ProducaoCooperativista
             ))
             ->from('customers', 'c')
             ->join('c', '(' . $projetosAtivosNoMes->getSQL() . ')', 'project_time_budget', $subQuery->expr()->eq('project_time_budget.customer_id', 'c.id'))
-            ->join('c', 'projects', 'p', $subQuery->expr()->eq('p.customer_id', 'c.id'))
+            ->join('c', 'projects', 'p', $subQuery->expr()->and(
+                $subQuery->expr()->eq('p.customer_id', 'c.id'),
+                $subQuery->expr()->eq('project_time_budget.project_id', 'p.id'),
+            ))
             ->join('project_time_budget', 'timesheet', 't', $subQuery->expr()->eq('t.project_Id', 'p.id'))
             ->where($subQuery->expr()->gte('t.begin', $qb->createNamedParameter($this->dates->getInicio()->format('Y-m-d'))))
             ->andWhere($subQuery->expr()->lte('t.end', $qb->createNamedParameter($this->dates->getFim()->format('Y-m-d H:i:s'))))
             ->groupBy('c.vat_id')
+            ->addGroupBy('project_time_budget.project_id')
             ->addGroupBy('c.id');
 
         $qb->select('u.alias')
@@ -726,7 +734,10 @@ class ProducaoCooperativista
             ->addSelect('total_cliente.total as total_cliente')
             ->from('customers', 'c')
             ->join('c', '(' . $subQuery->getSQL() . ')', 'total_cliente', 'c.id = total_cliente.id')
-            ->join('c', 'projects', 'p', $qb->expr()->eq('p.customer_id', 'c.id'))
+            ->join('c', 'projects', 'p', $qb->expr()->and(
+                $qb->expr()->eq('p.customer_id', 'c.id'),
+                $qb->expr()->eq('total_cliente.project_id', 'p.id')
+            ))
             ->join('p', 'timesheet', 't', $qb->expr()->eq('t.project_Id', 'p.id'))
             ->join('t', 'users', 'u', $qb->expr()->eq('t.user_id', 'u.id'))
             ->where($qb->expr()->in('c.vat_id', $qb->createNamedParameter($contabilizaveis, ArrayParameterType::STRING)))
@@ -740,6 +751,7 @@ class ProducaoCooperativista
             ->addGroupBy('c.id')
             ->addGroupBy('c.name')
             ->addGroupBy('c.vat_id')
+            ->addGroupBy('total_cliente.total')
             ->orderBy('c.id')
             ->addOrderBy('u.alias');
         $result = $qb->executeQuery();
