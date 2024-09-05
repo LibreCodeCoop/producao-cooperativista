@@ -47,7 +47,7 @@ final class Version20230627233144 extends AbstractMigration
         $table->addColumn('currency_code', 'string', ['length' => 14]);
         $table->addColumn('reference', 'string', ['notnull' => false]);
         $table->addColumn('nfse', 'bigint', ['unsigned' => true, 'notnull' => false]);
-        $table->addColumn('tax_number', 'string');
+        $table->addColumn('tax_number', 'string', ['notnull' => false]);
         $table->addColumn('customer_reference', 'string', ['notnull' => false]);
         $table->addColumn('contact_id', 'bigint');
         $table->addColumn('contact_reference', 'string', ['notnull' => false]);
