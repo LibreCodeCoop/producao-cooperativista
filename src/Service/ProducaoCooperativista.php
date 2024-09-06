@@ -106,11 +106,9 @@ class ProducaoCooperativista
          * de dispêndios já está sem o custo dos clientes.
          */
         $entradasClientes = $this->getEntradasClientes();
-        // Remove as notas que tem percentual administrativo fixo
-        $entradasComPercentualMovel = array_filter($entradasClientes, fn ($i) => $i['percentual_desconto_fixo'] === false);
         $entradasComPercentualFixo = array_filter($entradasClientes, fn ($i) => $i['percentual_desconto_fixo'] === true);
         // Soma todas as notas sem perecentual administrativo fixo
-        $totalNotasParaPercentualMovel = array_reduce($entradasComPercentualMovel, fn ($total, $i) => $total + $i['amount'], 0);
+        $totalNotasParaPercentualMovel = $this->totalNotasPercentualMovel();
         $valorSeguranca = $totalNotasParaPercentualMovel * $this->percentualMaximo / 100;
 
         $custosPorCliente = $this->getCustosPorCliente();
@@ -136,6 +134,16 @@ class ProducaoCooperativista
             return $this->percentualAdministrativo;
         }
         return 0;
+    }
+
+    private function totalNotasPercentualMovel(): float
+    {
+        $entradasClientes = $this->getEntradasClientes();
+        // Remove as notas que tem percentual administrativo fixo
+        $entradasComPercentualMovel = array_filter($entradasClientes, fn ($i) => $i['percentual_desconto_fixo'] === false);
+        // Soma todas as notas sem perecentual administrativo fixo
+        $totalNotasParaPercentualMovel = array_reduce($entradasComPercentualMovel, fn ($total, $i) => $total + $i['amount'], 0);
+        return $totalNotasParaPercentualMovel;
     }
 
     private function getTotalTrabalhado(): float
@@ -1092,8 +1100,11 @@ class ProducaoCooperativista
             ],
             'percentual_seguranca' => ['valor' => $this->percentualMaximo],
             'valor_seguranca' => [
-                'valor' => $this->getTotalNotasClientes() * $this->percentualMaximo / 100,
-                'formula' => '{valor_seguranca} = {total_notas_clientes} * {percentual_seguranca} / 100',
+                'valor' => $this->totalNotasPercentualMovel() * $this->percentualMaximo / 100,
+                'formula' => '{valor_seguranca} = {total_notas_percentual_movel} * {percentual_seguranca} / 100',
+            ],
+            'total_notas_percentual_movel' => [
+                'valor' => $this->totalNotasPercentualMovel(),
             ],
             'taxa_administrativa' => [
                 'valor' => $this->taxaAdministrativa,
