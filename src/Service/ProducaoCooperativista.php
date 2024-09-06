@@ -1185,8 +1185,8 @@ class ProducaoCooperativista
                 'formula' => '{total_sobras_do_mes} = {total_notas_clientes} - {total_dispendios} - {base_producao}'
             ],
             'base_producao' => [
-                'valor' => $this->getBaseProducao() + $this->getTotalSobrasDistribuidasNoMes(),
-                'formula' => '{base_producao} = {total_notas_clientes} - {total_dispendios} + {total_sobras_distribuidas}'
+                'valor' => $this->getBaseProducao(),
+                'formula' => '{base_producao} <br> = ' . $this->getFormulaBaseProducao(),
             ],
             'total_horas_trabalhadas' => ['valor' => $this->getTotalTrabalhado() / 60 / 60],
             'total_horas_possiveis' => [
@@ -1199,6 +1199,27 @@ class ProducaoCooperativista
             'ano_mes_trabalhado' => ['valor' => $this->dates->getInicio()->format('Y-m')],
         ];
         return $this->formatData($return);
+    }
+
+    private function getFormulaBaseProducao(): string
+    {
+        $entradasClientes = $this->getEntradasClientes();
+
+        $custosPorCliente = $this->getCustosPorCliente();
+
+        $formula = [];
+        foreach ($entradasClientes as $row) {
+            if (isset($custosPorCliente[$row['customer_reference']])) {
+                $base = "({$row['amount']} - {$custosPorCliente[$row['customer_reference']]})";
+            } else {
+                $base = $row['amount'];
+            }
+            if (!$row['percentual_desconto_fixo']) {
+                $row['discount_percentage'] = '{percentual_administrativo}';
+            }
+            $formula[] = "($base - ($base * {$row['discount_percentage']} / 100))";
+        }
+        return implode("<br /> + ", $formula);
     }
 
     private function listToNumber(array $list, int $max): array
