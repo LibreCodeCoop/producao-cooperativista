@@ -972,7 +972,7 @@ class ProducaoCooperativista
 
     private function distribuiSobras(): void
     {
-        $aDistribuir = $this->getTotalSobrasDoMes();
+        $aDistribuir = $this->getTotalSobrasDoMes() + $this->getTotalSobrasDistribuidasNoMes();
 
         $trabalhadoPorClienteInterno = $this->getTrabalhadoPorClienteInterno();
         $pesoTotal = 0;
