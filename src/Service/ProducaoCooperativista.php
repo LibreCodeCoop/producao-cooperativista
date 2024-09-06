@@ -583,13 +583,13 @@ class ProducaoCooperativista
             }
         }
 
-        $percentualDispendio = $this->percentualAdministrativo();
+        $percentualAdministrativo = $this->percentualAdministrativo();
         $custosPorCliente = $this->getCustosPorCliente();
 
         foreach ($entradasClientes as $row) {
             $base = $row['amount'] - ($custosPorCliente[$row['customer_reference']] ?? 0);
             if (!$row['percentual_desconto_fixo']) {
-                $row['discount_percentage'] = $percentualDispendio;
+                $row['discount_percentage'] = $percentualAdministrativo;
             }
             $row['base_producao'] = $base - ($base * $row['discount_percentage'] / 100);
             $this->setMovimentacao($row);
