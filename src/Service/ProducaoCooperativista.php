@@ -1049,11 +1049,7 @@ class ProducaoCooperativista
 
     private function getBaseProducao(): float
     {
-        $baseProducao = array_reduce(
-            $this->cooperado,
-            fn ($carry, $cooperado) => $carry += $cooperado->getProducaoCooperativista()->getValues()->getBaseProducao(),
-            0
-        );
+        $baseProducao = array_sum(array_column($this->getEntradasClientes(), 'base_producao'));
         return $baseProducao;
     }
 
