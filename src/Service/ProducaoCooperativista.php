@@ -486,7 +486,7 @@ class ProducaoCooperativista
         }
 
         $this->logger->debug('Movimentação', [$this->movimentacao]);
-        $this->calculaBaseProducaoPorEntrada();
+        $this->calculaBaseProducao();
         return $this->movimentacao;
     }
 
@@ -589,7 +589,7 @@ class ProducaoCooperativista
         return $custosPorCliente;
     }
 
-    private function calculaBaseProducaoPorEntrada(): self
+    private function calculaBaseProducao(): self
     {
         $entradasClientes = $this->getEntradasClientes();
 
