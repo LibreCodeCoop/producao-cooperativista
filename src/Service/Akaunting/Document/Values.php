@@ -205,7 +205,6 @@ class Values
             'dependentes' => $cooperado->getDependentes(),
             'document_number' => $this->getDocumentNumber(),
             'peso' => $cooperado->getWeight(),
-            'peso_final' => $cooperado->getPesoFinal(),
             'frra' => $this->getFrra(),
             'health_insurance' => $this->getHealthInsurance(),
             'inss' => $this->getInss(),

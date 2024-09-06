@@ -1037,7 +1037,7 @@ class ProducaoCooperativista
 
         $trabalhadoPorCliente = $this->getTrabalhadoPorCliente();
         $pesoTotal = 0;
-        $cooperadoQueRecebeDoDescontoVariavel = [];
+        $cooperados = [];
         foreach ($trabalhadoPorCliente as $row) {
             if (in_array($row['customer_reference'], $clientesDescontoFixo)) {
                 continue;
@@ -1045,11 +1045,11 @@ class ProducaoCooperativista
             $cooperado = $this->getCooperado($row['tax_number']);
             $pesoFinal = $cooperado->getPesoFinal() + $row['trabalhado'] * $row['peso'];
             $cooperado->setPesoFinal($pesoFinal);
-            $cooperadoQueRecebeDoDescontoVariavel[] = $cooperado;
+            $cooperados[$row['tax_number']] = $cooperado;
             $pesoTotal += $pesoFinal;
         }
 
-        foreach ($cooperadoQueRecebeDoDescontoVariavel as $cooperado) {
+        foreach ($cooperados as $cooperado) {
             $aReceber = ($cooperado->getPesoFinal() / $pesoTotal) * $aDistribuir;
             $values = $cooperado->getProducaoCooperativista()->getValues();
             $values->setBaseProducao($values->getBaseProducao() + $aReceber);
@@ -1060,17 +1060,28 @@ class ProducaoCooperativista
 
     private function distribuiProducaoDescontoFixo(): void
     {
-        $trabalhadoPorCliente = $this->getTrabalhadoPorCliente();
         $entradas = $this->getEntradasClientes(percentualDescontoFixo: true);
         $totalPorCliente = array_column($entradas, 'base_producao', 'customer_reference');
-        foreach ($trabalhadoPorCliente as $row) {
-            if (!isset($totalPorCliente[$row['customer_reference']])) {
-                continue;
+        $trabalhadoPorCliente = $this->getTrabalhadoPorCliente();
+        foreach ($totalPorCliente as $customerReference => $aDistribuir) {
+            $pesoTotal = 0;
+            $pesosCooperados = [];
+            foreach ($trabalhadoPorCliente as $row) {
+                if ($row['customer_reference'] !== $customerReference) {
+                    continue;
+                }
+                if (!isset($pesosCooperados[$row['tax_number']])) {
+                    $pesosCooperados[$row['tax_number']] = 0;
+                }
+                $pesosCooperados[$row['tax_number']]+= $row['trabalhado'] * $row['peso'];
+                $pesoTotal += $pesosCooperados[$row['tax_number']];
             }
-            $brutoCliente = $totalPorCliente[$row['customer_reference']];
-            $aReceber = $brutoCliente * $row['percentual_trabalhado'] / 100;
-            $values = $this->getCooperado($row['tax_number'])->getProducaoCooperativista()->getValues();
-            $values->setBaseProducao($values->getBaseProducao() + $aReceber);
+            foreach ($pesosCooperados as $taxNumber => $pesoCooperado) {
+                $cooperado = $this->getCooperado((string) $taxNumber);
+                $aReceber = ($pesoCooperado / $pesoTotal) * $aDistribuir;
+                $values = $cooperado->getProducaoCooperativista()->getValues();
+                $values->setBaseProducao($values->getBaseProducao() + $aReceber);
+            }
         }
     }
 
