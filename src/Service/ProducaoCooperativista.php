@@ -1088,46 +1088,12 @@ class ProducaoCooperativista
 
     public function exportData(): array
     {
+        $entradasClientes = $this->getEntradasClientes();
+        $entradasComPercentualFixo = array_filter($entradasClientes, fn ($i) => $i['percentual_desconto_fixo'] === true);
+        $clientesComDescontoFixo = array_column($entradasComPercentualFixo, 'customer_reference');
+        $custosPorCliente = $this->getCustosPorCliente();
         $this->getProducaoCooperativista();
         $return = [
-            'taxa_minima' => [
-                'valor' => $this->taxaMinima,
-                'formula' => '{taxa_minima} = {total_dispendios}'
-            ],
-            'taxa_maxima' => [
-                'valor' => $this->taxaMaxima,
-                'formula' => '{taxa_maxima} = {taxa_minima} * 2'
-            ],
-            'percentual_seguranca' => ['valor' => $this->percentualMaximo],
-            'valor_seguranca' => [
-                'valor' => $this->totalNotasPercentualMovel() * $this->percentualMaximo / 100,
-                'formula' => '{valor_seguranca} = {total_notas_percentual_movel} * {percentual_seguranca} / 100',
-            ],
-            'total_notas_percentual_movel' => [
-                'valor' => $this->totalNotasPercentualMovel(),
-            ],
-            'taxa_administrativa' => [
-                'valor' => $this->taxaAdministrativa,
-                'formula' => <<<FORMULA
-                    <pre>
-                    SE ({taxa_minima} >= {valor_seguranca} &lbrace;
-                        {taxa_administrativa} = {taxa_minima}
-                    &rbrace; SENÃO SE ({taxa_maxima} >= {valor_seguranca}) &lbrace;
-                        {taxa_administrativa} = {valor_seguranca}
-                    &rbrace; SENÃO &lbrace;
-                        {taxa_administrativa} = {taxa_maxima}
-                    &rbrace;
-                    </pre>
-                    FORMULA
-            ],
-            'percentual_administrativo' => [
-                'valor' => $this->percentualAdministrativo(),
-                'formula' => '{percentual_administrativo} = {taxa_administrativa} * 100 / {total_notas_clientes}',
-            ],
-            'reserva' => [
-                'valor' => $this->taxaAdministrativa - $this->taxaMinima,
-                'formula' => '{reserva} = {taxa_administrativa} - {taxa_minima}',
-            ],
             'total_notas_clientes' => [
                 'valor' => $this->getTotalNotasClientes(),
                 'formula' => '{total_notas_clientes} = ' . implode(' + ', array_column($this->getEntradasClientes(), 'amount')) .
@@ -1138,6 +1104,10 @@ class ProducaoCooperativista
                     'category_type' => 'income',
                 ]) .
                 '">notas clientes</a>'
+            ],
+            'total_notas_percentual_movel' => [
+                'valor' => $this->totalNotasPercentualMovel(),
+                'formula' => '{total_notas_percentual_movel} = ' .implode(' + ', array_column(array_filter($this->getEntradasClientes(), fn ($i) => $i['percentual_desconto_fixo'] === false), 'amount'))
             ],
             'total_dispendios_clientes' => [
                 'valor' => $this->getTotalDispendiosClientes(),
@@ -1177,6 +1147,53 @@ class ProducaoCooperativista
                 'valor' => $this->getTotalDispendios(),
                 'formula' => '{total_dispendios} = {total_dispendios_clientes} + {total_dispendios_internos}',
             ],
+            'custos_por_cliente_com_custo_fixo' => [
+                'valor' => array_sum(array_filter($custosPorCliente, function ($i) use ($clientesComDescontoFixo) {
+                    return !in_array($i, $clientesComDescontoFixo);
+                }, ARRAY_FILTER_USE_KEY)),
+                'formula' => implode(' + ', array_filter($custosPorCliente, function ($i) use ($clientesComDescontoFixo) {
+                    return !in_array($i, $clientesComDescontoFixo);
+                }, ARRAY_FILTER_USE_KEY))
+            ],
+            'taxa_minima' => [
+                'valor' => $this->taxaMinima,
+                'formula' => '{taxa_minima} = {custos_por_cliente_com_custo_fixo} + {total_dispendios_internos}',
+            ],
+            'taxa_maxima' => [
+                'valor' => $this->taxaMaxima,
+                'formula' => '{taxa_maxima} = {taxa_minima} * 2'
+            ],
+            'percentual_seguranca' => ['valor' => $this->percentualMaximo],
+            'valor_seguranca' => [
+                'valor' => $this->totalNotasPercentualMovel() * $this->percentualMaximo / 100,
+                'formula' => '{valor_seguranca} = {total_notas_percentual_movel} * {percentual_seguranca} / 100',
+            ],
+            'taxa_administrativa' => [
+                'valor' => $this->taxaAdministrativa,
+                'formula' => <<<FORMULA
+                    <pre>
+                    SE ({taxa_minima} >= {valor_seguranca} &lbrace;
+                        {taxa_administrativa} = {taxa_minima}
+                    &rbrace; SENÃO SE ({taxa_maxima} >= {valor_seguranca}) &lbrace;
+                        {taxa_administrativa} = {valor_seguranca}
+                    &rbrace; SENÃO &lbrace;
+                        {taxa_administrativa} = {taxa_maxima}
+                    &rbrace;
+                    </pre>
+                    FORMULA
+            ],
+            'percentual_administrativo' => [
+                'valor' => $this->percentualAdministrativo(),
+                'formula' => '{percentual_administrativo} = {taxa_administrativa} * 100 / {total_notas_percentual_movel}',
+            ],
+            'reserva' => [
+                'valor' => $this->taxaAdministrativa - $this->taxaMinima,
+                'formula' => '{reserva} = {taxa_administrativa} - {taxa_minima}',
+            ],
+            'base_producao' => [
+                'valor' => $this->getBaseProducao(),
+                'formula' => '{base_producao} <br> = ' . $this->getFormulaBaseProducao(),
+            ],
             'total_sobras_distribuidas' => [
                 'valor' => $this->getTotalSobrasDistribuidasNoMes(),
                 'formula' => '{total_sobras_distribuidas}' .
@@ -1190,10 +1207,6 @@ class ProducaoCooperativista
             'total_sobras_do_mes' => [
                 'valor' => abs(round($this->getTotalSobrasDoMes(), 2)),
                 'formula' => '{total_sobras_do_mes} = {total_notas_clientes} - {total_dispendios} - {base_producao}'
-            ],
-            'base_producao' => [
-                'valor' => $this->getBaseProducao(),
-                'formula' => '{base_producao} <br> = ' . $this->getFormulaBaseProducao(),
             ],
             'total_horas_trabalhadas' => ['valor' => $this->getTotalTrabalhado() / 60 / 60],
             'total_horas_possiveis' => [
