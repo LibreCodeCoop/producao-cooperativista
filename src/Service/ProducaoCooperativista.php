@@ -1030,19 +1030,26 @@ class ProducaoCooperativista
         }
         $this->distribuiProducaoDescontoFixo();
 
-        $entradas = $this->getEntradasClientes(percentualDescontoFixo: false);
-        $aDistribuir = array_sum(array_column($entradas, 'base_producao'));
+        $aDistribuir = $this->getBaseProducao();
+
+        $entradas = $this->getEntradasClientes(percentualDescontoFixo: true);
+        $clientesDescontoFixo = array_column($entradas, 'customer_reference');
 
         $trabalhadoPorCliente = $this->getTrabalhadoPorCliente();
         $pesoTotal = 0;
+        $cooperadoQueRecebeDoDescontoVariavel = [];
         foreach ($trabalhadoPorCliente as $row) {
+            if (in_array($row['customer_reference'], $clientesDescontoFixo)) {
+                continue;
+            }
             $cooperado = $this->getCooperado($row['tax_number']);
             $pesoFinal = $cooperado->getPesoFinal() + $row['trabalhado'] * $row['peso'];
             $cooperado->setPesoFinal($pesoFinal);
+            $cooperadoQueRecebeDoDescontoVariavel[] = $cooperado;
             $pesoTotal += $pesoFinal;
         }
 
-        foreach ($this->cooperado as $cooperado) {
+        foreach ($cooperadoQueRecebeDoDescontoVariavel as $cooperado) {
             $aReceber = ($cooperado->getPesoFinal() / $pesoTotal) * $aDistribuir;
             $values = $cooperado->getProducaoCooperativista()->getValues();
             $values->setBaseProducao($values->getBaseProducao() + $aReceber);
