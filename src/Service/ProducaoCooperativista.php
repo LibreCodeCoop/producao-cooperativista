@@ -1139,15 +1139,6 @@ class ProducaoCooperativista
 
     public function exportData(): array
     {
-        $entradasClientes = $this->getEntradasClientes();
-        $entradasComPercentualFixo = array_filter($entradasClientes, fn ($i) => $i['percentual_desconto_fixo'] === true);
-
-        $totalPercentualDescontoFixoFormula = [];
-        foreach ($entradasComPercentualFixo as $row) {
-            $totalPercentualDescontoFixoFormula[] = "({$row['amount']} * {$row['discount_percentage']} / 100)";
-        }
-        $totalPercentualDescontoFixoFormula = implode(' + ', $totalPercentualDescontoFixoFormula);
-
         $this->getProducaoCooperativista();
         $return = [
             'total_notas_clientes' => [
@@ -1171,7 +1162,7 @@ class ProducaoCooperativista
             ],
             'total_percentual_desconto_fixo' => [
                 'valor' => $this->totalPercentualDescontoFixo(),
-                'formula' => '{total_percentual_desconto_fixo} = ' . $totalPercentualDescontoFixoFormula,
+                'formula' => '{total_percentual_desconto_fixo} = ' . $this->getFormulaTotalPercentualDescontoFixo(),
             ],
             'total_sobras_clientes_percentual_fixo' => [
                 'valor' => $this->getTotalSobrasClientesPercentualFixo(),
@@ -1278,6 +1269,18 @@ class ProducaoCooperativista
             'ano_mes_trabalhado' => ['valor' => $this->dates->getInicio()->format('Y-m')],
         ];
         return $this->formatData($return);
+    }
+
+    private function getFormulaTotalPercentualDescontoFixo(): string
+    {
+        $entradasClientes = $this->getEntradasClientes();
+        $entradasComPercentualFixo = array_filter($entradasClientes, fn ($i) => $i['percentual_desconto_fixo'] === true);
+        $totalPercentualDescontoFixoFormula = [];
+        foreach ($entradasComPercentualFixo as $row) {
+            $totalPercentualDescontoFixoFormula[] = "({$row['amount']} * {$row['discount_percentage']} / 100)";
+        }
+        $totalPercentualDescontoFixoFormula = implode(' + ', $totalPercentualDescontoFixoFormula);
+        return $totalPercentualDescontoFixoFormula;
     }
 
     private function getFormulaBaseProducao(): string
