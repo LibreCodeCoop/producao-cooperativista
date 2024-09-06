@@ -1091,18 +1091,35 @@ class ProducaoCooperativista
         return $baseProducao;
     }
 
+    private function getTotalSobrasClientesPercentualFixo(): float
+    {
+        $entradasClientes = $this->getEntradasClientes();
+        $entradasComPercentualFixo = array_filter($entradasClientes, fn ($i) => $i['percentual_desconto_fixo'] === true);
+        $total = 0;
+        foreach ($entradasComPercentualFixo as $row) {
+            $metadata = json_decode($entradasComPercentualFixo[1278]['metadata'], true);
+            $taxTotal = array_sum(array_column($metadata['item_taxes']['data'], 'amount'));
+            $taxToPay = $row['bruto'] - $taxTotal - $row['amount'];
+            $total+= $row['amount'] * $row['discount_percentage'] / 100 - $taxToPay;
+        }
+        return $total;
+    }
+
     private function getTotalSobrasDoMes(): float
     {
         $totalNotasClientes = $this->getTotalNotasClientes();
         $totalDispendiosClientes = $this->getTotalDispendiosClientes();
         $totalDispendiosInternos = $this->getTotalDispendiosInternos();
         $totalPercentualDescontoFixo = $this->totalPercentualDescontoFixo();
+        $totalSobrasClientesPercentualFixo = $this->getTotalSobrasClientesPercentualFixo();
         $totalBaseProducao = $this->getBaseProducao();
         $sobras = $totalNotasClientes
             - $totalDispendiosClientes
             - $totalDispendiosInternos
             - $totalPercentualDescontoFixo
-            - $totalBaseProducao;
+            - $totalBaseProducao
+            - ($this->taxaAdministrativa - $this->taxaMinima)
+            + $totalSobrasClientesPercentualFixo;
         return $sobras;
     }
 
@@ -1155,6 +1172,9 @@ class ProducaoCooperativista
             'total_percentual_desconto_fixo' => [
                 'valor' => $this->totalPercentualDescontoFixo(),
                 'formula' => '{total_percentual_desconto_fixo} = ' . $totalPercentualDescontoFixoFormula,
+            ],
+            'total_sobras_clientes_percentual_fixo' => [
+                'valor' => $this->getTotalSobrasClientesPercentualFixo(),
             ],
             'total_dispendios_clientes' => [
                 'valor' => $this->getTotalDispendiosClientes(),
@@ -1225,13 +1245,17 @@ class ProducaoCooperativista
                 'valor' => $this->percentualAdministrativo(),
                 'formula' => '{percentual_administrativo} = {taxa_administrativa} * 100 / {total_notas_para_percentual_movel_sem_custo_cliente}',
             ],
+            'base_producao' => [
+                'valor' => $this->getBaseProducao(),
+                'formula' => '{base_producao} <br> = ' . $this->getFormulaBaseProducao(),
+            ],
             'reserva' => [
                 'valor' => $this->taxaAdministrativa - $this->taxaMinima,
                 'formula' => '{reserva} = {taxa_administrativa} - {taxa_minima}',
             ],
-            'base_producao' => [
-                'valor' => $this->getBaseProducao(),
-                'formula' => '{base_producao} <br> = ' . $this->getFormulaBaseProducao(),
+            'total_sobras_do_mes' => [
+                'valor' => abs(round($this->getTotalSobrasDoMes(), 2)),
+                'formula' => '{total_sobras_do_mes} = {total_notas_clientes} - {total_percentual_desconto_fixo} - {total_dispendios_clientes} - {total_dispendios_internos} - {base_producao} - {reserva} + {total_sobras_clientes_percentual_fixo}'
             ],
             'total_sobras_distribuidas' => [
                 'valor' => $this->getTotalSobrasDistribuidasNoMes(),
@@ -1242,10 +1266,6 @@ class ProducaoCooperativista
                         'category_name' => 'Distribuição de sobras',
                     ]) .
                     '">disrtibuição de sobras</a>'
-            ],
-            'total_sobras_do_mes' => [
-                'valor' => abs(round($this->getTotalSobrasDoMes(), 2)),
-                'formula' => '{total_sobras_do_mes} = {total_notas_clientes} - {total_percentual_desconto_fixo} - {total_dispendios_clientes} - {total_dispendios_internos} - {base_producao}'
             ],
             'total_horas_trabalhadas' => ['valor' => $this->getTotalTrabalhado() / 60 / 60],
             'total_horas_possiveis' => [
