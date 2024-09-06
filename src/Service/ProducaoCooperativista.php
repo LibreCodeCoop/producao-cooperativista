@@ -545,20 +545,15 @@ class ProducaoCooperativista
      * @throws Exception
      * @return float
      */
-    private function getTotalDispendiosClientes(): float
+    private function getTotalDispendiosClientesPercentualMovel(): float
     {
         if ($this->totalCustoCliente) {
             return $this->totalCustoCliente;
         }
-        $custosPorCliente = $this->getCustosPorCliente();
+        $custosPorCliente = $this->getCustosPorCliente(percentualDescontoFixo: false);
         $this->totalCustoCliente = array_sum($custosPorCliente);
         $this->logger->info('Total custos clientes: {total}', ['total' => $this->totalCustoCliente]);
         return $this->totalCustoCliente;
-    }
-
-    private function getTotalDispendios(): float
-    {
-        return $this->getTotalDispendiosClientes() + $this->getTotalDispendiosInternos();
     }
 
     /**
@@ -567,11 +562,18 @@ class ProducaoCooperativista
      * @throws Exception
      * @return array
      */
-    private function getCustosPorCliente(): array
+    private function getCustosPorCliente(?bool $percentualDescontoFixo = null): array
     {
         if (!$this->custosPorCliente) {
             $categoriasCustosClientes = $this->getChildrensCategories((int) getenv('AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID'));
             $custosPorCliente = array_filter($this->getSaidas(), fn ($i) => in_array($i['category_id'], $categoriasCustosClientes));
+            if (is_bool($percentualDescontoFixo)) {
+                $custosPorCliente = array_filter(
+                    $custosPorCliente,
+                    fn ($i) =>
+                    $i['percentual_desconto_fixo'] === $percentualDescontoFixo
+                );
+            }
             foreach ($custosPorCliente as $row) {
                 $this->custosPorCliente[$row['customer_reference']][] = $row;
             }
@@ -1108,13 +1110,13 @@ class ProducaoCooperativista
     private function getTotalSobrasDoMes(): float
     {
         $totalNotasClientes = $this->getTotalNotasClientes();
-        $totalDispendiosClientes = $this->getTotalDispendiosClientes();
+        $totalDispendiosClientesPercentualMovel = $this->getTotalDispendiosClientesPercentualMovel();
         $totalDispendiosInternos = $this->getTotalDispendiosInternos();
         $totalPercentualDescontoFixo = $this->totalPercentualDescontoFixo();
         $totalSobrasClientesPercentualFixo = $this->getTotalSobrasClientesPercentualFixo();
         $totalBaseProducao = $this->getBaseProducao();
         $sobras = $totalNotasClientes
-            - $totalDispendiosClientes
+            - $totalDispendiosClientesPercentualMovel
             - $totalDispendiosInternos
             - $totalPercentualDescontoFixo
             - $totalBaseProducao
@@ -1167,9 +1169,9 @@ class ProducaoCooperativista
             'total_sobras_clientes_percentual_fixo' => [
                 'valor' => $this->getTotalSobrasClientesPercentualFixo(),
             ],
-            'total_dispendios_clientes' => [
-                'valor' => $this->getTotalDispendiosClientes(),
-                'formula' => '{total_dispendios_clientes} = ' . implode(' + ', array_column($this->getCustosPorCliente(), 'amount')) .
+            'total_dispendios_clientes_percentual_movel' => [
+                'valor' => $this->getTotalDispendiosClientesPercentualMovel(),
+                'formula' => '{total_dispendios_clientes_percentual_movel} = ' . implode(' + ', array_column($this->getCustosPorCliente(), 'amount')) .
                 ' <a href="' .
                 $this->urlGenerator->generate('Invoices#index', [
                     'ano-mes' => $this->dates->getInicio()->format('Y-m'),
@@ -1180,7 +1182,7 @@ class ProducaoCooperativista
             ],
             'total_notas_para_percentual_movel_sem_custo_cliente' => [
                 'valor' => $this->totalNotasParaPercentualMovelSemCustoCliente(),
-                'formula' => '{total_notas_para_percentual_movel_sem_custo_cliente} = {total_notas_percentual_movel} - {total_dispendios_clientes}',
+                'formula' => '{total_notas_para_percentual_movel_sem_custo_cliente} = {total_notas_percentual_movel} - {total_dispendios_clientes_percentual_movel}',
             ],
             'total_dispendios_internos' => [
                 'valor' => $this->getTotalDispendiosInternos(),
@@ -1246,7 +1248,7 @@ class ProducaoCooperativista
             ],
             'total_sobras_do_mes' => [
                 'valor' => abs(round($this->getTotalSobrasDoMes(), 2)),
-                'formula' => '{total_sobras_do_mes} = {total_notas_clientes} - {total_percentual_desconto_fixo} - {total_dispendios_clientes} - {total_dispendios_internos} - {base_producao} - {reserva} + {total_sobras_clientes_percentual_fixo}'
+                'formula' => '{total_sobras_do_mes} = {total_notas_clientes} - {total_percentual_desconto_fixo} - {total_dispendios_clientes_percentual_movel} - {total_dispendios_internos} - {base_producao} - {reserva} + {total_sobras_clientes_percentual_fixo}'
             ],
             'total_sobras_distribuidas' => [
                 'valor' => $this->getTotalSobrasDistribuidasNoMes(),
