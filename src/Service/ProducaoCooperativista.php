@@ -101,24 +101,12 @@ class ProducaoCooperativista
         if ($this->percentualAdministrativo) {
             return $this->percentualAdministrativo;
         }
-        /**
-         * Para a taxa mínima utiliza-se o total de dispêndios apenas pois no total
-         * de dispêndios já está sem o custo dos clientes.
-         */
-        $entradasClientes = $this->getEntradasClientes();
-        $entradasComPercentualFixo = array_filter($entradasClientes, fn ($i) => $i['percentual_desconto_fixo'] === true);
-        // Soma todas as notas sem perecentual administrativo fixo
-        $totalNotasParaPercentualMovel = $this->totalNotasPercentualMovel();
-        $valorSeguranca = $totalNotasParaPercentualMovel * $this->percentualMaximo / 100;
 
-        $custosPorCliente = $this->getCustosPorCliente();
-        $clientesComDescontoFixo = array_column($entradasComPercentualFixo, 'customer_reference');
-        // Remove as faturas com desconto fixo para poder considerar apenas as que devem receber desconto variável
-        $custosPorClienteComPercentualVariavel = array_filter($custosPorCliente, function ($i) use ($clientesComDescontoFixo) {
-            return !in_array($i, $clientesComDescontoFixo);
-        }, ARRAY_FILTER_USE_KEY);
+        $totalNotasParaPercentualMovelSemCustoCliente = $this->totalNotasParaPercentualMovelSemCustoCliente();
 
-        $this->taxaMinima = array_sum($custosPorClienteComPercentualVariavel) + $this->getTotalDispendiosInternos();
+        $valorSeguranca = $totalNotasParaPercentualMovelSemCustoCliente * $this->percentualMaximo / 100;
+
+        $this->taxaMinima = $this->getTotalDispendiosInternos();
 
         $this->taxaMaxima = $this->taxaMinima * 2;
         if ($this->taxaMinima >= $valorSeguranca) {
@@ -130,7 +118,7 @@ class ProducaoCooperativista
         }
 
         if ($this->taxaMinima) {
-            $this->percentualAdministrativo = ($this->taxaAdministrativa) * 100 / $totalNotasParaPercentualMovel;
+            $this->percentualAdministrativo = ($this->taxaAdministrativa) * 100 / $totalNotasParaPercentualMovelSemCustoCliente;
             return $this->percentualAdministrativo;
         }
         return 0;
@@ -144,6 +132,25 @@ class ProducaoCooperativista
         // Soma todas as notas sem perecentual administrativo fixo
         $totalNotasParaPercentualMovel = array_reduce($entradasComPercentualMovel, fn ($total, $i) => $total + $i['amount'], 0);
         return $totalNotasParaPercentualMovel;
+    }
+
+    private function totalPercentualDescontoFixo(): float
+    {
+        $entradasClientes = $this->getEntradasClientes();
+        $entradasComPercentualFixo = array_filter($entradasClientes, fn ($i) => $i['percentual_desconto_fixo'] === true);
+        $total = 0;
+        foreach ($entradasComPercentualFixo as $row) {
+            $total+= $row['amount'] * $row['discount_percentage'] / 100;
+        }
+        return $total;
+    }
+
+    private function totalNotasParaPercentualMovelSemCustoCliente(): float
+    {
+        $totalNotasParaPercentualMovel = $this->totalNotasPercentualMovel();
+        $custosPorCliente = $this->getCustosPorCliente();
+        $totalNotasParaPercentualMovelSemCustoCliente = $totalNotasParaPercentualMovel - array_sum($custosPorCliente);
+        return $totalNotasParaPercentualMovelSemCustoCliente;
     }
 
     private function getTotalTrabalhado(): float
@@ -595,7 +602,12 @@ class ProducaoCooperativista
         $custosPorCliente = $this->getCustosPorCliente();
 
         foreach ($entradasClientes as $row) {
-            $base = $row['amount'] - ($custosPorCliente[$row['customer_reference']] ?? 0);
+            if (isset($custosPorCliente[$row['customer_reference']])) {
+                $base = $row['amount'] - $custosPorCliente[$row['customer_reference']];
+                unset($custosPorCliente[$row['customer_reference']]);
+            } else {
+                $base = $row['amount'];
+            }
             if (!$row['percentual_desconto_fixo']) {
                 $row['discount_percentage'] = $percentualAdministrativo;
             }
@@ -1064,10 +1076,14 @@ class ProducaoCooperativista
     private function getTotalSobrasDoMes(): float
     {
         $totalNotasClientes = $this->getTotalNotasClientes();
-        $totalDispendios = $this->getTotalDispendios();
+        $totalDispendiosClientes = $this->getTotalDispendiosClientes();
+        $totalDispendiosInternos = $this->getTotalDispendiosInternos();
+        $totalPercentualDescontoFixo = $this->totalPercentualDescontoFixo();
         $totalBaseProducao = $this->getBaseProducao();
         $sobras = $totalNotasClientes
-            - $totalDispendios
+            - $totalDispendiosClientes
+            - $totalDispendiosInternos
+            - $totalPercentualDescontoFixo
             - $totalBaseProducao;
         return $sobras;
     }
@@ -1090,8 +1106,13 @@ class ProducaoCooperativista
     {
         $entradasClientes = $this->getEntradasClientes();
         $entradasComPercentualFixo = array_filter($entradasClientes, fn ($i) => $i['percentual_desconto_fixo'] === true);
-        $clientesComDescontoFixo = array_column($entradasComPercentualFixo, 'customer_reference');
-        $custosPorCliente = $this->getCustosPorCliente();
+
+        $totalPercentualDescontoFixoFormula = [];
+        foreach ($entradasComPercentualFixo as $row) {
+            $totalPercentualDescontoFixoFormula[] = "({$row['amount']} * {$row['discount_percentage']} / 100)";
+        }
+        $totalPercentualDescontoFixoFormula = implode(' + ', $totalPercentualDescontoFixoFormula);
+
         $this->getProducaoCooperativista();
         $return = [
             'total_notas_clientes' => [
@@ -1105,9 +1126,17 @@ class ProducaoCooperativista
                 ]) .
                 '">notas clientes</a>'
             ],
+            'total_notas_percentual_fixo' => [
+                'valor' => array_sum(array_column(array_filter($this->getEntradasClientes(), fn ($i) => $i['percentual_desconto_fixo'] === true), 'amount')),
+                'formula' => '{total_notas_percentual_fixo} = ' .implode(' + ', array_column(array_filter($this->getEntradasClientes(), fn ($i) => $i['percentual_desconto_fixo'] === true), 'amount'))
+            ],
             'total_notas_percentual_movel' => [
                 'valor' => $this->totalNotasPercentualMovel(),
-                'formula' => '{total_notas_percentual_movel} = ' .implode(' + ', array_column(array_filter($this->getEntradasClientes(), fn ($i) => $i['percentual_desconto_fixo'] === false), 'amount'))
+                'formula' => '{total_notas_percentual_movel} = {total_notas_clientes} - {total_notas_percentual_fixo}'
+            ],
+            'total_percentual_desconto_fixo' => [
+                'valor' => $this->totalPercentualDescontoFixo(),
+                'formula' => '{total_percentual_desconto_fixo} = ' . $totalPercentualDescontoFixoFormula,
             ],
             'total_dispendios_clientes' => [
                 'valor' => $this->getTotalDispendiosClientes(),
@@ -1119,6 +1148,10 @@ class ProducaoCooperativista
                     'category_type' => 'expense',
                 ]) .
                 '">dispêndios clientes</a>'
+            ],
+            'total_notas_para_percentual_movel_sem_custo_cliente' => [
+                'valor' => $this->totalNotasParaPercentualMovelSemCustoCliente(),
+                'formula' => '{total_notas_para_percentual_movel_sem_custo_cliente} = {total_notas_percentual_movel} - {total_dispendios_clientes}',
             ],
             'total_dispendios_internos' => [
                 'valor' => $this->getTotalDispendiosInternos(),
@@ -1143,21 +1176,9 @@ class ProducaoCooperativista
                     ]) .
                     '">dispêndio interno</a>'
             ],
-            'total_dispendios' => [
-                'valor' => $this->getTotalDispendios(),
-                'formula' => '{total_dispendios} = {total_dispendios_clientes} + {total_dispendios_internos}',
-            ],
-            'custos_por_cliente_com_custo_fixo' => [
-                'valor' => array_sum(array_filter($custosPorCliente, function ($i) use ($clientesComDescontoFixo) {
-                    return !in_array($i, $clientesComDescontoFixo);
-                }, ARRAY_FILTER_USE_KEY)),
-                'formula' => implode(' + ', array_filter($custosPorCliente, function ($i) use ($clientesComDescontoFixo) {
-                    return !in_array($i, $clientesComDescontoFixo);
-                }, ARRAY_FILTER_USE_KEY))
-            ],
             'taxa_minima' => [
                 'valor' => $this->taxaMinima,
-                'formula' => '{taxa_minima} = {custos_por_cliente_com_custo_fixo} + {total_dispendios_internos}',
+                'formula' => '{taxa_minima} = {total_dispendios_internos}',
             ],
             'taxa_maxima' => [
                 'valor' => $this->taxaMaxima,
@@ -1165,8 +1186,8 @@ class ProducaoCooperativista
             ],
             'percentual_seguranca' => ['valor' => $this->percentualMaximo],
             'valor_seguranca' => [
-                'valor' => $this->totalNotasPercentualMovel() * $this->percentualMaximo / 100,
-                'formula' => '{valor_seguranca} = {total_notas_percentual_movel} * {percentual_seguranca} / 100',
+                'valor' => $this->totalNotasParaPercentualMovelSemCustoCliente() * $this->percentualMaximo / 100,
+                'formula' => '{valor_seguranca} = {total_notas_para_percentual_movel_sem_custo_cliente} * {percentual_seguranca} / 100',
             ],
             'taxa_administrativa' => [
                 'valor' => $this->taxaAdministrativa,
@@ -1184,7 +1205,7 @@ class ProducaoCooperativista
             ],
             'percentual_administrativo' => [
                 'valor' => $this->percentualAdministrativo(),
-                'formula' => '{percentual_administrativo} = {taxa_administrativa} * 100 / {total_notas_percentual_movel}',
+                'formula' => '{percentual_administrativo} = {taxa_administrativa} * 100 / {total_notas_para_percentual_movel_sem_custo_cliente}',
             ],
             'reserva' => [
                 'valor' => $this->taxaAdministrativa - $this->taxaMinima,
@@ -1206,7 +1227,7 @@ class ProducaoCooperativista
             ],
             'total_sobras_do_mes' => [
                 'valor' => abs(round($this->getTotalSobrasDoMes(), 2)),
-                'formula' => '{total_sobras_do_mes} = {total_notas_clientes} - {total_dispendios} - {base_producao}'
+                'formula' => '{total_sobras_do_mes} = {total_notas_clientes} - {total_percentual_desconto_fixo} - {total_dispendios_clientes} - {total_dispendios_internos} - {base_producao}'
             ],
             'total_horas_trabalhadas' => ['valor' => $this->getTotalTrabalhado() / 60 / 60],
             'total_horas_possiveis' => [
@@ -1231,6 +1252,7 @@ class ProducaoCooperativista
         foreach ($entradasClientes as $row) {
             if (isset($custosPorCliente[$row['customer_reference']])) {
                 $base = "({$row['amount']} - {$custosPorCliente[$row['customer_reference']]})";
+                unset($custosPorCliente[$row['customer_reference']]);
             } else {
                 $base = $row['amount'];
             }
