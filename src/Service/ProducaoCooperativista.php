@@ -1035,10 +1035,7 @@ class ProducaoCooperativista
         }
         $this->distribuiProducaoDescontoFixo();
 
-        $aDistribuir = $this->getBaseProducao();
-
-        $entradas = $this->getEntradasClientes(percentualDescontoFixo: true);
-        $clientesDescontoFixo = array_column($entradas, 'customer_reference');
+        $clientesDescontoFixo = array_column($this->getEntradasClientes(percentualDescontoFixo: true), 'customer_reference');
 
         $trabalhadoPorCliente = $this->getTrabalhadoPorCliente();
         $pesoTotal = 0;
@@ -1047,9 +1044,17 @@ class ProducaoCooperativista
             if (in_array($row['customer_reference'], $clientesDescontoFixo)) {
                 continue;
             }
+            if (!isset($totalTempoContratado[$row['customer_reference']])) {
+                $totalTempoContratado[$row['customer_reference']] = 0;
+            }
+            if (!isset($totalTempoTrabalhado[$row['customer_reference']])) {
+                $totalTempoTrabalhado[$row['customer_reference']] = 0;
+            }
+            $totalTempoContratado[$row['customer_reference']] += $row['total_cliente'];
+            $totalTempoTrabalhado[$row['customer_reference']] += $row['trabalhado'];
             $cooperado = $this->getCooperado($row['tax_number']);
             $pesoFinal = $cooperado->getPesoFinal() + $row['trabalhado'] * $row['peso'];
-            if (!is_numeric($row['peso']) || $row['peso'] <= 0)  {
+            if (!is_numeric($row['peso']) || $row['peso'] <= 0) {
                 throw new Exception(
                     "Cooperado com peso não numérico ou <= 0\n" .
                     "Dados:\n" .
@@ -1059,6 +1064,16 @@ class ProducaoCooperativista
             $cooperado->setPesoFinal($pesoFinal);
             $cooperados[$row['tax_number']] = $cooperado;
             $pesoTotal += $pesoFinal;
+        }
+
+        $totalTempoContratado = array_sum($totalTempoContratado);
+        $totalTempoTrabalhado = array_sum($totalTempoTrabalhado);
+
+        $totalBasePorCliente = array_column($this->getEntradasClientes(percentualDescontoFixo: false), 'base_producao', 'customer_reference');
+        $aDistribuir = array_sum($totalBasePorCliente);
+
+        if ($totalTempoTrabalhado < $totalTempoContratado) {
+            $aDistribuir = $totalTempoTrabalhado * $aDistribuir / $totalTempoContratado;
         }
 
         foreach ($cooperados as $cooperado) {
