@@ -140,7 +140,7 @@ class ProducaoCooperativista
         $entradasComPercentualFixo = array_filter($entradasClientes, fn ($i) => $i['percentual_desconto_fixo'] === true);
         $total = 0;
         foreach ($entradasComPercentualFixo as $row) {
-            $total+= $row['amount'] * $row['discount_percentage'] / 100;
+            $total += $row['amount'] * $row['discount_percentage'] / 100;
         }
         return $total;
     }
@@ -1075,7 +1075,7 @@ class ProducaoCooperativista
                 if (!isset($pesosCooperados[$row['tax_number']])) {
                     $pesosCooperados[$row['tax_number']] = 0;
                 }
-                $pesosCooperados[$row['tax_number']]+= $row['trabalhado'] * $row['peso'];
+                $pesosCooperados[$row['tax_number']] += $row['trabalhado'] * $row['peso'];
                 $pesoTotal += $pesosCooperados[$row['tax_number']];
             }
             foreach ($pesosCooperados as $taxNumber => $pesoCooperado) {
@@ -1102,7 +1102,7 @@ class ProducaoCooperativista
             $metadata = json_decode($entradasComPercentualFixo[1278]['metadata'], true);
             $taxTotal = array_sum(array_column($metadata['item_taxes']['data'], 'amount'));
             $taxToPay = $row['bruto'] - $taxTotal - $row['amount'];
-            $total+= $row['amount'] * $row['discount_percentage'] / 100 - $taxToPay;
+            $total += $row['amount'] * $row['discount_percentage'] / 100 - $taxToPay;
         }
         return $total;
     }
