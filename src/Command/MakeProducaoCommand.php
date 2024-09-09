@@ -123,7 +123,7 @@ class MakeProducaoCommand extends BaseCommand
         $this->producaoCooperativista->dates->setInicio($inicio);
         $this->producaoCooperativista->dates->setDiasUteis($diasUteis);
         $this->producaoCooperativista->setPercentualMaximo($percentualMaximo);
-        $pesos = json_decode($input->getOption('pesos'), true);
+        $pesos = json_decode((string) $input->getOption('pesos'), true);
         if (!is_array($pesos)) {
             $pesos = [];
         }
