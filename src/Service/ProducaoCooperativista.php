@@ -1046,6 +1046,13 @@ class ProducaoCooperativista
             }
             $cooperado = $this->getCooperado($row['tax_number']);
             $pesoFinal = $cooperado->getPesoFinal() + $row['trabalhado'] * $row['peso'];
+            if (!is_numeric($row['peso']) || $row['peso'] <= 0)  {
+                throw new Exception(
+                    "Cooperado com peso não numérico ou <= 0\n" .
+                    "Dados:\n" .
+                    json_encode($row, JSON_PRETTY_PRINT)
+                );
+            }
             $cooperado->setPesoFinal($pesoFinal);
             $cooperados[$row['tax_number']] = $cooperado;
             $pesoTotal += $pesoFinal;
