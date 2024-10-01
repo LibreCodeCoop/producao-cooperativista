@@ -1124,7 +1124,7 @@ class ProducaoCooperativista
         $entradasComPercentualFixo = array_filter($entradasClientes, fn ($i) => $i['percentual_desconto_fixo'] === true);
         $total = 0;
         foreach ($entradasComPercentualFixo as $row) {
-            $metadata = json_decode($entradasComPercentualFixo[1278]['metadata'], true);
+            $metadata = json_decode($row['metadata'], true);
             $taxTotal = array_sum(array_column($metadata['item_taxes']['data'], 'amount'));
             $taxToPay = $row['bruto'] - $taxTotal - $row['amount'];
             $total += $row['amount'] * $row['discount_percentage'] / 100 - $taxToPay;
