@@ -375,14 +375,16 @@ class ProducaoCooperativista
                 t.discount_percentage,
                 CASE WHEN i.discount_percentage > 0 THEN 1 ELSE 0 END as percentual_desconto_fixo,
                 t.amount,
-                (
-                    SELECT SUM(price) as total
-                    FROM JSON_TABLE(
-                        i.metadata,
-                        '$.items.data[*]' COLUMNS (
-                            price DOUBLE PATH '$.price'
-                        )
-                    ) price
+                COALESCE(
+                    (
+                        SELECT SUM(price) as total
+                        FROM JSON_TABLE(
+                            i.metadata,
+                            '$.items.data[*]' COLUMNS (
+                                price DOUBLE PATH '$.price'
+                            )
+                        ) price
+                    ), t.amount
                 ) bruto,
                 t.customer_reference,
                 t.contact_name,
@@ -405,14 +407,16 @@ class ProducaoCooperativista
                 i.discount_percentage,
                 CASE WHEN i.discount_percentage > 0 THEN 1 ELSE 0 END as percentual_desconto_fixo,
                 i.amount,
-                (
-                    SELECT SUM(price) as total
-                    FROM JSON_TABLE(
-                        i.metadata,
-                        '$.items.data[*]' COLUMNS (
-                            price DOUBLE PATH '$.price'
-                        )
-                    ) price
+                COALESCE(
+                    (
+                        SELECT SUM(price) as total
+                        FROM JSON_TABLE(
+                            i.metadata,
+                            '$.items.data[*]' COLUMNS (
+                                price DOUBLE PATH '$.price'
+                            )
+                        ) price
+                    ), i.amount
                 ) bruto,
                 i.customer_reference,
                 i.contact_name,
@@ -434,14 +438,16 @@ class ProducaoCooperativista
                 i.discount_percentage,
                 CASE WHEN i.discount_percentage > 0 THEN 1 ELSE 0 END as percentual_desconto_fixo,
                 i.amount,
-                (
-                    SELECT SUM(price) as total
-                    FROM JSON_TABLE(
-                        i.metadata,
-                        '$.items.data[*]' COLUMNS (
-                            price DOUBLE PATH '$.price'
-                        )
-                    ) price
+                COALESCE(
+                    (
+                        SELECT SUM(price) as total
+                        FROM JSON_TABLE(
+                            i.metadata,
+                            '$.items.data[*]' COLUMNS (
+                                price DOUBLE PATH '$.price'
+                            )
+                        ) price
+                    ), i.amount
                 ) bruto,
                 i.customer_reference,
                 i.contact_name,
