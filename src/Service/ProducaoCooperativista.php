@@ -1124,6 +1124,12 @@ class ProducaoCooperativista
         return $baseProducao;
     }
 
+    /**
+     * Caso o cliente tenha retido algum imposto indevidamente ou deixado de
+     * pagar algum imposto, isto deve ser levado em consideração para calcular
+     * sobras. Além do amount que é o líquido, é preciso tirar os impostos que
+     * não foram retidos e que teremos de pagar.
+     */
     private function getTotalSobrasClientesPercentualFixo(): float
     {
         $entradasClientes = $this->getEntradasClientes();
