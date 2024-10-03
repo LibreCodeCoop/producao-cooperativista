@@ -1193,7 +1193,15 @@ class ProducaoCooperativista
             ],
             'total_notas_percentual_fixo' => [
                 'valor' => array_sum(array_column(array_filter($this->getEntradasClientes(), fn ($i) => $i['percentual_desconto_fixo'] === true), 'amount')),
-                'formula' => '{total_notas_percentual_fixo} = ' .implode(' + ', array_column(array_filter($this->getEntradasClientes(), fn ($i) => $i['percentual_desconto_fixo'] === true), 'amount'))
+                'formula' => '{total_notas_percentual_fixo} = ' .implode(' + ', array_column(array_filter($this->getEntradasClientes(), fn ($i) => $i['percentual_desconto_fixo'] === true), 'amount')) .
+                ' <a href="' .
+                $this->urlGenerator->generate('Invoices#index', [
+                    'ano-mes' => $this->dates->getInicio()->format('Y-m'),
+                    'entrada_cliente' => 'sim',
+                    'category_type' => 'income',
+                    'percentual_desconto_fixo' => 'true',
+                ]) .
+                '">notas clientes</a>',
             ],
             'total_notas_percentual_movel' => [
                 'valor' => $this->totalNotasPercentualMovel(),
@@ -1285,7 +1293,7 @@ class ProducaoCooperativista
             ],
             'total_sobras_do_mes' => [
                 'valor' => abs(round($this->getTotalSobrasDoMes(), 2)),
-                'formula' => '{total_sobras_do_mes} = {total_notas_clientes} - {total_percentual_desconto_fixo} - {total_dispendios_clientes_percentual_movel} - {total_dispendios_internos} - {base_producao} - {reserva} + {total_sobras_clientes_percentual_fixo}'
+                'formula' => '{total_sobras_do_mes} = {total_notas_clientes} - {total_dispendios_clientes_percentual_movel} - {total_dispendios_internos} - {base_producao} - {reserva} - {total_percentual_desconto_fixo} + {total_sobras_clientes_percentual_fixo}'
             ],
             'total_sobras_distribuidas' => [
                 'valor' => $this->getTotalSobrasDistribuidasNoMes(),
