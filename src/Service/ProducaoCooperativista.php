@@ -1035,12 +1035,11 @@ class ProducaoCooperativista
                 continue;
             }
             if (!isset($totalTempoContratado[$row['customer_reference']])) {
-                $totalTempoContratado[$row['customer_reference']] = 0;
+                $totalTempoContratado[$row['customer_reference']] = $row['total_cliente'];
             }
             if (!isset($totalTempoTrabalhado[$row['customer_reference']])) {
                 $totalTempoTrabalhado[$row['customer_reference']] = 0;
             }
-            $totalTempoContratado[$row['customer_reference']] += $row['total_cliente'];
             $totalTempoTrabalhado[$row['customer_reference']] += $row['trabalhado'];
             $cooperado = $this->getCooperado($row['tax_number']);
             $pesoFinal = $cooperado->getPesoFinal() + $row['trabalhado'] * $row['peso'];
