@@ -1280,8 +1280,8 @@ class ProducaoCooperativista
                 'formula' => '{total_sobras_do_mes} = {total_notas_clientes} - {total_dispendios_clientes_percentual_movel} - {total_dispendios_internos} - {base_producao} - {reserva} - {total_percentual_desconto_fixo} + {total_sobras_clientes_percentual_fixo}'
             ],
             'total_sobras_distribuidas' => [
-                'valor' => $this->getTotalSobrasDistribuidasNoMes(),
-                'formula' => '{total_sobras_distribuidas}' .
+                'valor' => $this->getTotalSobrasDistribuidasNoMes() + abs(round($this->getTotalSobrasDoMes(), 2)),
+                'formula' => '{total_sobras_distribuidas} + {total_sobras_do_mes}' .
                     ' <a href="' .
                     $this->urlGenerator->generate('Invoices#index', [
                         'ano-mes' => $this->dates->getInicio()->format('Y-m'),
