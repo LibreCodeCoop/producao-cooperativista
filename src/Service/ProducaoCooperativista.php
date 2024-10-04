@@ -198,31 +198,15 @@ class ProducaoCooperativista
         if ($this->totalCooperados) {
             return $this->totalCooperados;
         }
-        $stmt = $this->db->getConnection()->prepare(
-            <<<SQL
-            -- Total pessoas que registraram horas no mês
-            SELECT count(distinct t.user_id) as total_cooperados
-                FROM timesheet t
-                JOIN users u ON u.id = t.user_id 
-            WHERE t.`begin` >= :inicio
-                AND t.`end` <= :fim
-            SQL
-        );
-        $result = $stmt->executeQuery([
-            'inicio' => $this->dates->getInicio()->format('Y-m-d'),
-            'fim' => $this->dates->getFim()->format('Y-m-d'),
-        ]);
-        $result = $result->fetchOne();
 
-        if (!$result) {
-            $messagem = sprintf(
-                'Sem registro de horas no Kimai entre os dias %s e %s.',
-                $this->dates->getInicio()->format(('Y-m-d')),
-                $this->dates->getFim()->format(('Y-m-d'))
-            );
-            throw new Exception($messagem);
-        }
-        $this->totalCooperados = (int) $result;
+        $externo = $this->getTrabalhadoPorClienteExterno();
+        $interno = $this->getTrabalhadoPorClienteInterno();
+        $total = array_unique(array_merge(
+            array_column($interno, 'alias', 'tax_number'),
+            array_column($externo, 'alias', 'tax_number')
+        ));
+
+        $this->totalCooperados = count($total);
         $this->logger->info('Total pessoas no mês: {total}', ['total' => $this->totalCooperados]);
         return $this->totalCooperados;
     }
