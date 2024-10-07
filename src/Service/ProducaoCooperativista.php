@@ -1165,8 +1165,8 @@ class ProducaoCooperativista
         $return = [
             'total_notas_clientes' => [
                 'valor' => $this->getTotalNotasClientes(),
-                'formula' => '{total_notas_clientes} = ' . implode(' + ', array_column($this->getEntradasClientes(), 'amount')) .
-                ' <a href="' .
+                'formula' => '{total_notas_clientes} = ' . $this->getFormulaTotalNotasClientes() .
+                ' Relatório: <a href="' .
                 $this->urlGenerator->generate('Invoices#index', [
                     'ano-mes' => $this->dates->getInicio()->format('Y-m'),
                     'entrada_cliente' => 'sim',
@@ -1280,7 +1280,14 @@ class ProducaoCooperativista
             ],
             'total_sobras_distribuidas' => [
                 'valor' => $this->getTotalSobrasDistribuidasNoMes() + abs(round($this->getTotalSobrasDoMes(), 2)),
-                'formula' => '{total_sobras_distribuidas} + {total_sobras_do_mes}' .
+                'formula' => '{total_sobras_distribuidas} = ' .
+                    ' <a href="' .
+                    $this->urlGenerator->generate('Invoices#index', [
+                        'ano-mes' => $this->dates->getInicio()->format('Y-m'),
+                        'category_name' => 'Distribuição de sobras',
+                    ]) .
+                    '" title="Distribuição de sobras">' . $this->getTotalSobrasDistribuidasNoMes() . '</a>' .
+                    ' + {total_sobras_do_mes}' .
                     ' <a href="' .
                     $this->urlGenerator->generate('Invoices#index', [
                         'ano-mes' => $this->dates->getInicio()->format('Y-m'),
@@ -1322,10 +1329,20 @@ class ProducaoCooperativista
         $formula = [];
         foreach ($entradasClientes as $row) {
             if (isset($custosPorCliente[$row['customer_reference']])) {
-                $base = "({$row['amount']} - {$custosPorCliente[$row['customer_reference']]})";
+                $base = '(<a href="'.
+                    $this->urlGenerator->generate('Invoices#index', [
+                        'ano-mes' => $this->dates->getInicio()->format('Y-m'),
+                        'id' => $row['id'],
+                    ]).
+                    '" title="'.$row['contact_name'].'">' . $row['amount'] . "</a> - {$custosPorCliente[$row['customer_reference']]})";
                 unset($custosPorCliente[$row['customer_reference']]);
             } else {
-                $base = $row['amount'];
+                $base = '<a href="'.
+                    $this->urlGenerator->generate('Invoices#index', [
+                        'ano-mes' => $this->dates->getInicio()->format('Y-m'),
+                        'id' => $row['id'],
+                    ]).
+                    '" title="'.$row['contact_name'].'">' . $row['amount'] . '</a>';
             }
             if (!$row['percentual_desconto_fixo']) {
                 $row['discount_percentage'] = '{percentual_administrativo}';
@@ -1333,6 +1350,21 @@ class ProducaoCooperativista
             $formula[] = "($base - ($base * {$row['discount_percentage']} / 100))";
         }
         return implode("<br /> + ", $formula);
+    }
+
+    private function getFormulaTotalNotasClientes(): string
+    {
+        $entradasClientes = $this->getEntradasClientes();
+        $formula = [];
+        foreach ($entradasClientes as $row) {
+            $formula[] = '<a href="'.
+                $this->urlGenerator->generate('Invoices#index', [
+                    'ano-mes' => $this->dates->getInicio()->format('Y-m'),
+                    'id' => $row['id'],
+                ]).
+                '" title="'.$row['contact_name'].'">' . $row['amount'] . '</a>';
+        }
+        return implode(' + ', $formula);
     }
 
     private function listToNumber(array $list, int $max): array
