@@ -134,17 +134,6 @@ class ProducaoCooperativista
         return $totalNotasParaPercentualMovel;
     }
 
-    private function totalPercentualDescontoFixo(): float
-    {
-        $entradasClientes = $this->getEntradasClientes();
-        $entradasComPercentualFixo = array_filter($entradasClientes, fn ($i) => $i['percentual_desconto_fixo'] === true);
-        $total = 0;
-        foreach ($entradasComPercentualFixo as $row) {
-            $total += $row['amount'] * $row['discount_percentage'] / 100;
-        }
-        return $total;
-    }
-
     private function totalNotasParaPercentualMovelSemCustoCliente(): float
     {
         $totalNotasParaPercentualMovel = $this->totalNotasPercentualMovel();
@@ -1105,6 +1094,17 @@ class ProducaoCooperativista
     {
         $baseProducao = array_sum(array_column($this->getEntradasClientes(), 'base_producao'));
         return $baseProducao;
+    }
+
+    private function totalPercentualDescontoFixo(): float
+    {
+        $entradasClientes = $this->getEntradasClientes();
+        $entradasComPercentualFixo = array_filter($entradasClientes, fn ($i) => $i['percentual_desconto_fixo'] === true);
+        $total = 0;
+        foreach ($entradasComPercentualFixo as $row) {
+            $total += $row['amount'] * $row['discount_percentage'] / 100;
+        }
+        return $total;
     }
 
     /**
