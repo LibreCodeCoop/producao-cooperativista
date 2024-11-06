@@ -660,6 +660,7 @@ class ProducaoCooperativista
             ->addGroupBy('u.dependents')
             ->addGroupBy('u.peso')
             ->addGroupBy('u.akaunting_contact_id')
+            ->addGroupBy('c.id')
             ->addGroupBy('total_cliente.total')
             ->orderBy('u.alias');
         $result = $qb->executeQuery();
