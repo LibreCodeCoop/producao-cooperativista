@@ -71,7 +71,7 @@ class FRRA extends ProducaoCooperativista
 
     private function update(): self
     {
-        $description = sprintf('Referente ao ano/mês: %s', $this->dates->getInicio()->format('Y-m'));
+        $description = sprintf('Referente ao ano/mês: %s', $this->dates->getInicioProximoMes()->format('Y-m'));
 
         $values = $this->getValues();
         $currentFrra = $values->getFrra();
