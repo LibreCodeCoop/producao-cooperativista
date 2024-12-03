@@ -307,6 +307,51 @@ class ProducaoCooperativista
         return $return;
     }
 
+    public function getTrabalhadoSummarized(): array
+    {
+        $qb = new QueryBuilder($this->db->getConnection());
+
+        $clientesInternos = $this->clientesInternos();
+        $subQuery = new QueryBuilder($this->db->getConnection());
+        $subQuery
+            ->select('c.id')
+            ->addSelect(str_replace(
+                "\n",
+                ' ',
+                'CASE WHEN ' . $qb->expr()->in('c.vat_id', $qb->createNamedParameter($clientesInternos, ArrayParameterType::STRING)) .' THEN \'interno\' ELSE \'externo\' END AS tipo'
+            ))
+            ->from('customers', 'c');
+
+        $qb
+            ->addSelect('u.alias AS nome')
+            ->addSelect('u.tax_number')
+            ->addSelect("SEC_TO_TIME(SUM(t.duration)) AS total_horas")
+            ->addSelect('customer_tipo.tipo')
+            ->from('timesheet', 't')
+            ->join('t', 'users', 'u', 'u.id = t.user_id')
+            ->join('t', 'projects', 'p', 'p.id = t.project_id')
+            ->join('p', 'customers', 'c', 'c.id = p.customer_id')
+            ->join(
+                'c',
+                '(' . $subQuery->getSQL() . ')',
+                'customer_tipo',
+                'customer_tipo.id = p.customer_id'
+            )
+            ->where($qb->expr()->gte('t.begin', $qb->createNamedParameter($this->dates->getInicio()->format('Y-m-d'))))
+            ->andWhere($qb->expr()->lte('t.end', $qb->createNamedParameter($this->dates->getFim()->format('Y-m-d H:i:s'))))
+            ->groupBy('u.alias')
+            ->addGroupBy('u.tax_number')
+            ->addGroupBy('customer_tipo.tipo')
+            ->orderBy('u.alias');
+
+        $result = $qb->executeQuery();
+        $return = [];
+        while ($row = $result->fetchAssociative()) {
+            $return[] = $row;
+        }
+        return $return;
+    }
+
     public function getCapitalSocialSummarized(): array
     {
         $capitalSocial = $this->getCapitalSocial();
@@ -1179,7 +1224,7 @@ class ProducaoCooperativista
                     'entrada_cliente' => 'sim',
                     'category_type' => 'income',
                 ]) .
-                '">notas clientes</a>'
+                '" target="_blank">notas clientes</a>'
             ],
             'total_notas_percentual_fixo' => [
                 'valor' => array_sum(array_column(array_filter($this->getEntradasClientes(), fn ($i) => $i['percentual_desconto_fixo'] === true), 'amount')),
@@ -1191,7 +1236,7 @@ class ProducaoCooperativista
                     'category_type' => 'income',
                     'percentual_desconto_fixo' => 'true',
                 ]) .
-                '">notas clientes</a>',
+                '" target="_blank">notas clientes</a>',
             ],
             'total_notas_percentual_movel' => [
                 'valor' => $this->totalNotasPercentualMovel(),
@@ -1213,7 +1258,7 @@ class ProducaoCooperativista
                     'custos_clientes' => 'sim',
                     'category_type' => 'expense',
                 ]) .
-                '">dispêndios clientes</a>'
+                '" target="_blank">dispêndios clientes</a>'
             ],
             'total_notas_para_percentual_movel_sem_custo_cliente' => [
                 'valor' => $this->totalNotasParaPercentualMovelSemCustoCliente(),
@@ -1227,20 +1272,20 @@ class ProducaoCooperativista
                         'ano-mes' => $this->dates->getInicio()->format('Y-m'),
                         'dispendio_interno' => 'sim',
                     ]) .
-                    '">itens</a>' .
+                    '" target="_blank">itens</a>' .
                     ' com ' .
                     '<a href="' .
                     $this->urlGenerator->generate('Categorias#index', [
                         'dispendio_interno' => 'sim',
                     ]) .
-                    '">categoria</a>' .
+                    '" target="_blank">categoria</a>' .
                     ' de ' .
                     '<a href="' .
                     $this->urlGenerator->generate('Invoices#index', [
                         'ano-mes' => $this->dates->getInicio()->format('Y-m'),
                         'dispendio_interno' => 'sim',
                     ]) .
-                    '">dispêndio interno</a>'
+                    '" target="_blank">dispêndio interno</a>'
             ],
             'taxa_minima' => [
                 'valor' => $this->taxaMinima,
@@ -1293,21 +1338,29 @@ class ProducaoCooperativista
                         'ano-mes' => $this->dates->getInicio()->format('Y-m'),
                         'category_name' => 'Distribuição de sobras',
                     ]) .
-                    '" title="Distribuição de sobras">' . $this->getTotalSobrasDistribuidasNoMes() . '</a>' .
+                    '" target="_blank" title="Distribuição de sobras">' . $this->getTotalSobrasDistribuidasNoMes() . '</a>' .
                     ' + {total_sobras_do_mes}' .
                     ' <a href="' .
                     $this->urlGenerator->generate('Invoices#index', [
                         'ano-mes' => $this->dates->getInicio()->format('Y-m'),
                         'category_name' => 'Distribuição de sobras',
                     ]) .
-                    '">disrtibuição de sobras</a>'
+                    '" target="_blank">disrtibuição de sobras</a>'
             ],
             'total_horas_trabalhadas' => ['valor' => $this->getTotalTrabalhado() / 60 / 60],
             'total_horas_possiveis' => [
                 'valor' => $this->getTotalHorasPossiveis(),
                 'formula' => '{total_horas_possiveis} = {total_cooperados} * 8 * {dias_uteis_no_mes}'
             ],
-            'total_cooperados' => ['valor' => $this->getTotalCooperados()],
+            'total_cooperados' => [
+                'valor' => $this->getTotalCooperados(),
+                'formula' => '{total_cooperados} ' .
+                    ' <a href="' .
+                    $this->urlGenerator->generate('TrabalhadoSummarized#index', [
+                        'ano-mes' => $this->dates->getInicio()->format('Y-m'),
+                    ]) .
+                    '" target="_blank">Lista de cooperados</a>'
+            ],
             'dias_uteis_no_mes' => ['valor' => $this->dates->getDiasUteisNoMes()],
             'transacao_do_mes' => ['valor' => $this->dates->getInicioProximoMes()->format('Y-m')],
             'ano_mes_trabalhado' => ['valor' => $this->dates->getInicio()->format('Y-m')],
