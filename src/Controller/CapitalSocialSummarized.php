@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @copyright Copyright (c) 2024, Vitor Mattos <vitor@php.rio>
  *

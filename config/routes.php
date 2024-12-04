@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @copyright Copyright (c) 2023, Vitor Mattos <vitor@php.rio>
  *
@@ -32,6 +33,8 @@ return [
     ['name' => 'CapitalSocial#index', 'path' => '/capital-social'],
     ['name' => 'Api\CapitalSocialSummarized#index', 'path' => '/api/v1/capital-social-summarized'],
     ['name' => 'CapitalSocialSummarized#index', 'path' => '/capital-social-summarized'],
+    ['name' => 'Api\TrabalhadoSummarized#index', 'path' => '/api/v1/trabalhado-summarized'],
+    ['name' => 'TrabalhadoSummarized#index', 'path' => '/trabalhado-summarized'],
     ['name' => 'Api\Producao#index', 'path' => '/api/v1/producao'],
     ['name' => 'Producao#index', 'path' => '/producao'],
     ['name' => 'Api\Calculos#index', 'path' => '/api/v1/calculos'],

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @copyright Copyright (c) 2023, Vitor Mattos <vitor@php.rio>
  *
@@ -26,6 +27,7 @@ declare(strict_types=1);
 namespace ProducaoCooperativista\Service\Kimai\Source;
 
 use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
 use InvalidArgumentException;
@@ -166,6 +168,18 @@ class Users
             $item['akaunting_contact_id'] = $row['id'];
         }
         return $item;
+    }
+
+    public function updatePesos(array $pesos): self
+    {
+        $update = new QueryBuilder($this->db->getConnection());
+        foreach ($pesos as $cooperado) {
+            $update->update('users')
+                ->set('peso', $update->createNamedParameter($cooperado['weight']))
+                ->where($update->expr()->eq('tax_number', $update->createNamedParameter($cooperado['tax_number'], ParameterType::STRING)))
+                ->executeStatement();
+        }
+        return $this;
     }
 
     public function saveList(): self

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @copyright Copyright (c) 2023, Vitor Mattos <vitor@php.rio>
+ * @copyright Copyright (c) 2024, Vitor Mattos <vitor@php.rio>
  *
  * @author Vitor Mattos <vitor@php.rio>
  *
@@ -33,44 +33,40 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class Calculos
+class TrabalhadoSummarized
 {
+    private ProducaoCooperativista $producaoCooperativista;
     public function __construct(
         private Request $request,
     ) {
+        $this->producaoCooperativista = App::get(ProducaoCooperativista::class);
     }
 
-    public function index(): Response
+    public function index(): JsonResponse
     {
         try {
-            $producao = App::get(ProducaoCooperativista::class);
-
-            $producao->dates->setDiaUtilPagamento(
-                (int) $this->request->get('dia-util-pagamento', getenv('DIA_UTIL_PAGAMENTO'))
-            );
 
             $inicio = DateTime::createFromFormat('Y-m', $this->request->get('ano-mes', ''));
             if (!$inicio instanceof DateTime) {
                 throw new \Exception('ano-mes precisa estar no formato YYYY-MM');
             }
-            $producao->dates->setInicio($inicio);
-
-            $diasUteis = (int) $this->request->get('dias-uteis');
-            $producao->dates->setDiasUteis($diasUteis);
-
-            $producao->setPercentualMaximo(
-                (int) $this->request->get('percentual-maximo', getenv('PERCENTUAL_MAXIMO'))
-            );
-
-            $producao->getProducaoCooperativista();
-
-            $response = $producao->exportData();
-            return new JsonResponse($response);
-        } catch (\Throwable $e) {
-            return new Response(
-                $e->getMessage(),
+            $this->producaoCooperativista->dates->setInicio($inicio);
+            $trabalhadoSummarized = $this->producaoCooperativista->getTrabalhadoSummarized();
+        } catch (\Throwable $th) {
+            return new JsonResponse(
+                [
+                    'error' => $th->getMessage(),
+                ],
                 Response::HTTP_FORBIDDEN
             );
         }
+
+        $response = [
+            'data' => array_values($trabalhadoSummarized),
+            'metadata' => [
+                'total' => count($trabalhadoSummarized),
+            ],
+        ];
+        return new JsonResponse($response);
     }
 }

@@ -1,9 +1,24 @@
 {% block head %}
-    <link rel="stylesheet" href="//cdn.datatables.net/1.13.7/css/jquery.dataTables.css" />
-    <script type="text/javascript" language="javascript" src="//cdn.datatables.net/1.13.7/js/jquery.dataTables.js"></script>
+    <link rel="stylesheet" href="//cdn.datatables.net/2.1.8/css/dataTables.dataTables.css" />
+    <link rel="stylesheet" href="//cdn.datatables.net/buttons/3.1.2/css/buttons.dataTables.css" />
+
+    <script type="text/javascript" language="javascript" src="//code.jquery.com/jquery-3.7.1.js"></script>
+    <script type="text/javascript" language="javascript" src="//cdn.datatables.net/2.1.8/js/dataTables.js"></script>
+
+    <!-- print -->
+    <script type="text/javascript" language="javascript" src="//cdn.datatables.net/buttons/3.1.2/js/dataTables.buttons.js"></script>
+    <script type="text/javascript" language="javascript" src="//cdn.datatables.net/buttons/3.1.2/js/buttons.dataTables.js"></script>
+    <script type="text/javascript" language="javascript" src="//cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script type="text/javascript" language="javascript" src="//cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script type="text/javascript" language="javascript" src="//cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script type="text/javascript" language="javascript" src="//cdn.datatables.net/buttons/3.1.2/js/buttons.html5.min.js"></script>
+    <script type="text/javascript" language="javascript" src="//cdn.datatables.net/buttons/3.1.2/js/buttons.print.min.js"></script>
+    <!-- button visibility toggle button -->
+    <script type="text/javascript" language="javascript" src="//cdn.datatables.net/buttons/3.1.2/js/buttons.colVis.min.js"></script>
+
     <style>
-        table.dataTable tr.odd { background-color: lightgrey;  border:1px lightgrey;}
-        table.dataTable tr.even{ background-color: white; border:1px lightgrey; }
+        table.dataTable tr{ background-color:  darkgray; }
+        table.dataTable tr:nth-child(even)  { background-color: lightgrey;  }
     </style>
 {% endblock %}
 
@@ -91,7 +106,7 @@
                     // Gera um link com base no contexto
                     this.link = function() {
                         let params = new URLSearchParams(window.location.search)
-                        $('#example_wrapper .dataTables_scrollFoot th input').each((i,e) => {
+                        $('#example_wrapper .dt-scroll-footInner input').each((i,e) => {
                             if (e.value.length > 0) {
                                 params.set(e.name, e.value)
                             } else {
@@ -125,7 +140,7 @@
                             if (value.length === 0) {
                                 return
                             }
-                            let seletor = '#example_wrapper .dataTables_scrollFoot input[name="' + key + '"]'
+                            let seletor = '#example_wrapper .dt-scroll-footInner input[name="' + key + '"]'
                             if (key === 'dtsearch') {
                                 dataTable.dataTable.search(value).draw(false)
                             } else if (key === 'dtpage') {
@@ -141,13 +156,18 @@
                     return this
                 }
 
-                var table = $('#example').DataTable({
+                new DataTable('#example', {
                     scrollX: true,
                     data:    data.data,
                     columns: columns,
                     fixedHeader: {
                         header: false,
                         footer: true
+                    },
+                    layout: {
+                        topStart: {
+                            buttons: ['pageLength', 'colvis', 'copy', 'csv', 'excel', 'pdf', 'print']
+                        }
                     },
                     // Filtro no rodapé
                     initComplete: function () {

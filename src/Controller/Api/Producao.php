@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @copyright Copyright (c) 2023, Vitor Mattos <vitor@php.rio>
  *
@@ -62,7 +63,7 @@ class Producao
             );
 
             $list = $producaoCooperativista->getProducaoCooperativista();
-            $trabalhadoPorCliente = $producaoCooperativista->getPercentualTrabalhadoPorClienteInterno();
+            $trabalhadoPorCliente = $producaoCooperativista->getTrabalhadoPorCliente();
             foreach ($list as $cooperado) {
                 $array = $cooperado->getProducaoCooperativista()->getValues()->toArray();
                 if (empty($array['adiantamento'])) {

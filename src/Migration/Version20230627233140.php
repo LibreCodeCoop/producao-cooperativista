@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @copyright Copyright (c) 2023, Vitor Mattos <vitor@php.rio>
  *
@@ -42,9 +43,10 @@ final class Version20230627233140 extends AbstractMigration
         $table->addColumn('alias', 'string', ['length' => 60]);
         $table->addColumn('kimai_username', 'string', ['length' => 180]);
         $table->addColumn('akaunting_contact_id', 'bigint', ['notnull' => false]);
-        $table->addColumn('tax_number', 'string', ['length' => 20]);
+        $table->addColumn('tax_number', 'string', ['length' => 20, 'notnull' => false]);
         $table->addColumn('dependents', 'smallint');
         $table->addColumn('enabled', 'smallint');
+        $table->addColumn('peso', 'float', ['notnull' => false]);
         $table->addColumn('metadata', 'json');
         $table->addUniqueConstraint(['kimai_username']);
         $table->setPrimaryKey(['id']);

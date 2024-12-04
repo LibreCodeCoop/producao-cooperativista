@@ -32,7 +32,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGenerator;
 
-class Invoices
+class TrabalhadoSummarized
 {
     public function __construct(
         private UrlGenerator $urlGenerator,
@@ -48,7 +48,7 @@ class Invoices
             $inicio->modify('-2 month');
             return new RedirectResponse(
                 $this->urlGenerator->generate(
-                    'Invoices#index',
+                    'TrabalhadoSummarized#index',
                     [
                         'ano-mes' => $inicio->format('Y-m')
                     ],
@@ -59,10 +59,10 @@ class Invoices
 
         $response = new Response(
             App::get(\Twig\Environment::class)
-                ->load('invoices.index.html.twig')
+                ->load('trabalhadoSummarized.index.html.twig')
                 ->render([
                     'url' => $this->urlGenerator->generate(
-                        'Api\Invoices#index',
+                        'Api\TrabalhadoSummarized#index',
                         [
                             'ano-mes' => $inicio->format('Y-m')
                         ],

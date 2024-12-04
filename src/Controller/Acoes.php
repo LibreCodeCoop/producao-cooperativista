@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @copyright Copyright (c) 2023, Vitor Mattos <vitor@php.rio>
  *
@@ -113,6 +114,7 @@ class Acoes
             '--baixar-dados' => $this->request->get('baixar_dados', '0'),
             '--atualiza-producao' => (bool) $this->request->get('atualiza_producao', false),
             '--database' => true,
+            '--pesos' => $this->request->get('pesos'),
         ]);
         $output = new BufferedOutput();
         $exitCode = $application->run($input, $output);

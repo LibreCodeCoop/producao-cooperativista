@@ -1,6 +1,6 @@
 {% extends "layout/index.html.twig" %}
 
-{% block title %}Zerar banco local{% endblock title %}
+{% block title %}Processar produção{% endblock title %}
 
 {% block head %}
     <script type="text/javascript" language="javascript" src="//code.jquery.com/jquery-3.7.0.js"></script>
@@ -60,6 +60,10 @@
             <legend>Atualiza produção</legend>
             <input type="radio" id="atualiza_producao_nao" name="atualiza_producao" value="0"{% if atualiza_producao == 0 %} checked{% endif %} /><label for="atualiza_producao_nao">Não</label>
             <input type="radio" id="atualiza_producao_sim" name="atualiza_producao" value="1"{% if atualiza_producao == 1 %} checked{% endif %} /><label for="atualiza_producao_sim">Sim</label>
+        </fieldset>
+        <fieldset>
+            <legend>Tabela de pesos</legend>
+            <textarea name="pesos"></textarea>
         </fieldset>
         <br />
         <input type="submit" value="Executa" id="submit" />

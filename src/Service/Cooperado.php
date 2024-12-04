@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @copyright Copyright (c) 2023, Vitor Mattos <vitor@php.rio>
  *
@@ -47,6 +48,12 @@ use ProducaoCooperativista\Service\Akaunting\Source\Documents;
  * @method self setInssIrpf(InssIrpf $value)
  * @method self setTaxNumber(string $value)
  * @method string getTaxNumber()
+ * @method self setWeight(float $value)
+ * @method float getWeight()
+ * @method self setPesoFinal()
+ * @method float getPesoFinal()
+ * @method self setTrabalhado(int $value)
+ * @method int getTrabalhado()
  */
 class Cooperado
 {
@@ -56,6 +63,9 @@ class Cooperado
     private ?int $dependentes = 0;
     private ?string $name = '';
     private ?string $taxNumber = '';
+    private ?float $weight = 1;
+    private ?float $pesoFinal = 0;
+    private ?int $trabalhado = 0;
     private ?ProducaoCooperativista $producaoCooperativista = null;
     private ?FRRA $frra = null;
     private ?InssIrpf $inssIrpf = null;

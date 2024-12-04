@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @copyright Copyright (c) 2023, Vitor Mattos <vitor@php.rio>
  *
@@ -38,9 +39,12 @@ class ProducaoCooperativista extends ADocument
         $this->somaItensExtras();
         $this->populateProducaoCooperativistaWithDefault();
         parent::save();
-        $this->getCooperado()
-            ->getInssIrpf()
-            ->saveFromDocument($this);
+        $cooperado = $this->getCooperado();
+        if (strlen($cooperado->getTaxNumber()) === 11) {
+            $cooperado
+                ->getInssIrpf()
+                ->saveFromDocument($this);
+        }
         return $this;
     }
 
@@ -165,17 +169,11 @@ class ProducaoCooperativista extends ADocument
             ->setNote('Dia útil padrão de pagamento', sprintf('%sº', $this->dates->getPagamentoNoDiaUtil()))
             ->setNote('Previsão de pagamento no dia', $this->dates->getDataPagamento()->format('Y-m-d'))
             ->setNote('Base de cálculo', $this->numberFormatter->format($values->getBaseProducao()))
-            ->setNote('FRRA', $this->numberFormatter->format($values->getFrra()))
             ->setContactId($cooperado->getAkauntingContactId())
             ->setContactName($cooperado->getName())
             ->setContactTaxNumber($cooperado->getTaxNumber())
             ->insereHealthInsurance()
             ->aplicaAdiantamentos()
-            ->setItem(
-                code: 'Auxílio',
-                name: 'Ajuda de custo',
-                price: $values->getAuxilio()
-            )
             ->setItem(
                 code: 'bruto',
                 name: 'Bruto produção',
@@ -183,6 +181,25 @@ class ProducaoCooperativista extends ADocument
             )
             ->setTaxes()
             ->coletaInvoiceNaoPago();
+        if (strlen($cooperado->getTaxNumber()) > 11) {
+            if ($this->dates->getDataPagamento()->format('m') === '12') {
+                $this->setItem(
+                    code: 'frra',
+                    name: 'FRRA',
+                    description: sprintf('Referente ao ano/mês: %s', $this->dates->getInicio()->format('Y-m')),
+                    price: $values->getFrra()
+                );
+            } else {
+                $this->setNote('FRRA', $this->numberFormatter->format($values->getFrra()));
+            }
+        } else {
+            $this
+                ->setItem(
+                    code: 'Auxílio',
+                    name: 'Ajuda de custo',
+                    price: $values->getAuxilio()
+                );
+        }
         if ($this->getDueAt()->format('Y-m-d H:i:s') < $this->getIssuedAt()) {
             $this->setIssuedAt($this->getDueAt()->format('Y-m-d H:i:s'));
         }
