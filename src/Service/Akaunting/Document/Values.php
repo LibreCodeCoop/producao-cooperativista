@@ -123,21 +123,28 @@ class Values
     {
         $this->updated = self::STATUS_UPDATING;
 
-        if (!$this->lockFrra) {
-            $this->setFrra($this->getBaseProducao() * (1 / 12));
+        if (strlen($this->cooperado->getTaxNumber()) === 11) {
+            if (!$this->lockFrra) {
+                $this->setFrra($this->getBaseProducao() * (1 / 12));
+            }
+            $this->setAuxilio($this->getBaseProducao() * 0.2);
+            $this->setBruto(
+                $this->getBaseProducao()
+                - $this->getAuxilio()
+                - $this->getFrra()
+            );
+        } else {
+            $this->setBruto($this->getBaseProducao());
         }
-        $this->setAuxilio($this->getBaseProducao() * 0.2);
-        $this->setBruto(
-            $this->getBaseProducao()
-            - $this->getAuxilio()
-            - $this->getFrra()
-        );
         $liquido = $this->getBruto()
-            - $this->getInss()
-            - $this->getIrpf()
             - $this->getHealthInsurance()
-            - $this->getTotalAdiantamento()
-            + $this->getAuxilio();
+            - $this->getTotalAdiantamento();
+        if (strlen($this->cooperado->getTaxNumber()) === 11) {
+            $liquido = $liquido
+                - $this->getInss()
+                - $this->getIrpf()
+                + $this->getAuxilio();
+        }
         $this->setLiquido($liquido);
         $this->setUpdated();
     }
@@ -178,6 +185,9 @@ class Values
 
     public function calculaImpostos(): void
     {
+        if (strlen($this->cooperado->getTaxNumber()) > 11) {
+            return;
+        }
         $inss = new INSS($this->anoFiscal);
         $irpf = new IRPF(
             $this->anoFiscal,

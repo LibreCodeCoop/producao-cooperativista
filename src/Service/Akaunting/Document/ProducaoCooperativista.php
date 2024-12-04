@@ -172,26 +172,30 @@ class ProducaoCooperativista extends ADocument
             ->insereHealthInsurance()
             ->aplicaAdiantamentos()
             ->setItem(
-                code: 'Auxílio',
-                name: 'Ajuda de custo',
-                price: $values->getAuxilio()
-            )
-            ->setItem(
                 code: 'bruto',
                 name: 'Bruto produção',
                 price: $values->getBruto()
             )
             ->setTaxes()
             ->coletaInvoiceNaoPago();
-        if ($this->dates->getDataPagamento()->format('m') === '12') {
-            $this->setItem(
-                code: 'frra',
-                name: 'FRRA',
-                description: sprintf('Referente ao ano/mês: %s', $this->dates->getInicio()->format('Y-m')),
-                price: $values->getFrra()
-            );
+        if (strlen($cooperado->getTaxNumber()) > 11) {
+            if ($this->dates->getDataPagamento()->format('m') === '12') {
+                $this->setItem(
+                    code: 'frra',
+                    name: 'FRRA',
+                    description: sprintf('Referente ao ano/mês: %s', $this->dates->getInicio()->format('Y-m')),
+                    price: $values->getFrra()
+                );
+            } else {
+                $this->setNote('FRRA', $this->numberFormatter->format($values->getFrra()));
+            }
         } else {
-            $this->setNote('FRRA', $this->numberFormatter->format($values->getFrra()));
+            $this
+                ->setItem(
+                    code: 'Auxílio',
+                    name: 'Ajuda de custo',
+                    price: $values->getAuxilio()
+                );
         }
         if ($this->getDueAt()->format('Y-m-d H:i:s') < $this->getIssuedAt()) {
             $this->setIssuedAt($this->getDueAt()->format('Y-m-d H:i:s'));
