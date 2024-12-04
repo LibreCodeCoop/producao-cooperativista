@@ -165,7 +165,6 @@ class ProducaoCooperativista extends ADocument
             ->setNote('Dia útil padrão de pagamento', sprintf('%sº', $this->dates->getPagamentoNoDiaUtil()))
             ->setNote('Previsão de pagamento no dia', $this->dates->getDataPagamento()->format('Y-m-d'))
             ->setNote('Base de cálculo', $this->numberFormatter->format($values->getBaseProducao()))
-            ->setNote('FRRA', $this->numberFormatter->format($values->getFrra()))
             ->setContactId($cooperado->getAkauntingContactId())
             ->setContactName($cooperado->getName())
             ->setContactTaxNumber($cooperado->getTaxNumber())
@@ -183,6 +182,15 @@ class ProducaoCooperativista extends ADocument
             )
             ->setTaxes()
             ->coletaInvoiceNaoPago();
+        if ($this->dates->getDataPagamento()->format('m') === '12') {
+            $this->setItem(
+                code: 'frra',
+                name: 'FRRA',
+                price: $values->getFrra()
+            );
+        } else {
+            $this->setNote('FRRA', $this->numberFormatter->format($values->getFrra()));
+        }
         if ($this->getDueAt()->format('Y-m-d H:i:s') < $this->getIssuedAt()) {
             $this->setIssuedAt($this->getDueAt()->format('Y-m-d H:i:s'));
         }

@@ -941,6 +941,9 @@ class ProducaoCooperativista
                 'liquido' => $producaoCooperativista->getValues()->getLiquido(),
             ]);
 
+            if ($this->dates->getDataPagamento()->format('m') === '12') {
+                continue;
+            }
             $frra = $cooperado->getFrra();
             $frra->getValues()->setFrra(
                 $producaoCooperativista->getValues()->getFrra()
