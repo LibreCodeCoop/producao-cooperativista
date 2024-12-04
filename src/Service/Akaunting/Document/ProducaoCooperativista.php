@@ -39,9 +39,12 @@ class ProducaoCooperativista extends ADocument
         $this->somaItensExtras();
         $this->populateProducaoCooperativistaWithDefault();
         parent::save();
-        $this->getCooperado()
-            ->getInssIrpf()
-            ->saveFromDocument($this);
+        $cooperado = $this->getCooperado();
+        if (strlen($cooperado->getTaxNumber()) === 11) {
+            $cooperado
+                ->getInssIrpf()
+                ->saveFromDocument($this);
+        }
         return $this;
     }
 

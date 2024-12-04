@@ -119,9 +119,6 @@ class Cooperado
 
     public function getInssIrpf(): InssIrpf
     {
-        if (strlen($this->taxNumber) > 11) {
-            return $this->inssIrpf;
-        }
         if ($this->inssIrpf) {
             return $this->inssIrpf;
         }
