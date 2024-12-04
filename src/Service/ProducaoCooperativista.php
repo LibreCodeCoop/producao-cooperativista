@@ -1069,19 +1069,19 @@ class ProducaoCooperativista
         $clientesDescontoFixo = array_column($this->getEntradasClientes(percentualDescontoFixo: true), 'customer_reference');
 
         $trabalhadoPorCliente = $this->getTrabalhadoPorCliente();
-        $pesoTotal = 0;
+        $listaPesoTotal = [];
         $cooperados = [];
         foreach ($trabalhadoPorCliente as $row) {
             if (in_array($row['customer_reference'], $clientesDescontoFixo)) {
                 continue;
             }
-            if (!isset($totalTempoContratado[$row['customer_reference']])) {
-                $totalTempoContratado[$row['customer_reference']] = $row['total_cliente'];
+            if (!isset($listaTempoContratado[$row['customer_reference']])) {
+                $listaTempoContratado[$row['customer_reference']] = $row['total_cliente'];
             }
-            if (!isset($totalTempoTrabalhado[$row['customer_reference']])) {
-                $totalTempoTrabalhado[$row['customer_reference']] = 0;
+            if (!isset($listaTempoTrabalhado[$row['customer_reference']])) {
+                $listaTempoTrabalhado[$row['customer_reference']] = 0;
             }
-            $totalTempoTrabalhado[$row['customer_reference']] += $row['trabalhado'];
+            $listaTempoTrabalhado[$row['customer_reference']] += $row['trabalhado'];
             $cooperado = $this->getCooperado($row['tax_number']);
             $pesoFinal = $cooperado->getPesoFinal() + $row['trabalhado'] * $row['peso'];
             if (!is_numeric($row['peso']) || $row['peso'] <= 0) {
@@ -1093,11 +1093,12 @@ class ProducaoCooperativista
             }
             $cooperado->setPesoFinal($pesoFinal);
             $cooperados[$row['tax_number']] = $cooperado;
-            $pesoTotal += $pesoFinal;
+            $listaPesoTotal[$cooperado->getTaxNumber()] = $pesoFinal;
         }
 
-        $totalTempoContratado = array_sum($totalTempoContratado);
-        $totalTempoTrabalhado = array_sum($totalTempoTrabalhado);
+        $totalTempoContratado = array_sum($listaTempoContratado);
+        $totalTempoTrabalhado = array_sum($listaTempoTrabalhado);
+        $pesoTotal = array_sum($listaPesoTotal);
 
         $totalBasePorCliente = array_column($this->getEntradasClientes(percentualDescontoFixo: false), 'base_producao', 'customer_reference');
         $aDistribuir = array_sum($totalBasePorCliente);
