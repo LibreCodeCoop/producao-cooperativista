@@ -1,5 +1,6 @@
 #!/usr/bin/env php
 <?php
+
 /**
  * @copyright Copyright (c) 2023, Vitor Mattos <vitor@php.rio>
  *

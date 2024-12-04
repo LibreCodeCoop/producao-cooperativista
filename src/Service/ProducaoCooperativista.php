@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @copyright Copyright (c) 2023, Vitor Mattos <vitor@php.rio>
  *
@@ -1437,7 +1438,7 @@ class ProducaoCooperativista
         $return = [];
         $distance = floor($max / $total);
         $current = 0;
-        while(count($return) < $total) {
+        while (count($return) < $total) {
             $current += $distance;
             if ($current >= $max) {
                 $current = $max - 1;
