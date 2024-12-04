@@ -187,6 +187,7 @@ class ProducaoCooperativista extends ADocument
             $this->setItem(
                 code: 'frra',
                 name: 'FRRA',
+                description: sprintf('Referente ao ano/mês: %s', $this->dates->getInicio()->format('Y-m')),
                 price: $values->getFrra()
             );
         } else {
