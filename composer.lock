@@ -1375,16 +1375,16 @@
         },
         {
             "name": "librecodecoop/impostos",
-            "version": "v0.1.0",
+            "version": "v0.1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/LibreCodeCoop/impostos.git",
-                "reference": "595afe81ed27366bc12e6d9f16d5dbc6c0a0689c"
+                "reference": "92eff86ed859cd4a89d7559efcc25b2e3c1a34be"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/LibreCodeCoop/impostos/zipball/595afe81ed27366bc12e6d9f16d5dbc6c0a0689c",
-                "reference": "595afe81ed27366bc12e6d9f16d5dbc6c0a0689c",
+                "url": "https://api.github.com/repos/LibreCodeCoop/impostos/zipball/92eff86ed859cd4a89d7559efcc25b2e3c1a34be",
+                "reference": "92eff86ed859cd4a89d7559efcc25b2e3c1a34be",
                 "shasum": ""
             },
             "require-dev": {
@@ -1418,7 +1418,7 @@
             ],
             "support": {
                 "issues": "https://github.com/LibreCodeCoop/impostos/issues",
-                "source": "https://github.com/LibreCodeCoop/impostos/tree/v0.1.0"
+                "source": "https://github.com/LibreCodeCoop/impostos/tree/v0.1.1"
             },
             "funding": [
                 {
@@ -1426,7 +1426,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-03-06T22:45:05+00:00"
+            "time": "2025-03-06T23:06:31+00:00"
         },
         {
             "name": "masterminds/html5",
