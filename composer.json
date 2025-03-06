@@ -7,7 +7,7 @@
         "doctrine/migrations": "^3.6",
         "doctrine/orm": "^2.15",
         "doctrine/sql-formatter": "^1.1",
-        "librecodecoop/impostos": "^0.0.1",
+        "librecodecoop/impostos": "^0.1.0",
         "monolog/monolog": "^3.3",
         "php-di/php-di": "*",
         "roukmoute/polyfill-calendar": "^0.5.0",
