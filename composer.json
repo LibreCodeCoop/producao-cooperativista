@@ -5,7 +5,7 @@
         "cmixin/business-day": "^1.16",
         "doctrine/dbal": "^3.5",
         "doctrine/migrations": "^3.6",
-        "doctrine/orm": "^2.15",
+        "doctrine/orm": "^3.3",
         "doctrine/sql-formatter": "^1.1",
         "librecodecoop/impostos": "^0.1.0",
         "monolog/monolog": "^3.3",
