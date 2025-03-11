@@ -3,24 +3,24 @@
     "license": "AGPL-3.0-or-later",
     "require": {
         "cmixin/business-day": "^1.16",
-        "doctrine/dbal": "^3.5",
-        "doctrine/migrations": "^3.6",
-        "doctrine/orm": "^2.15",
-        "doctrine/sql-formatter": "^1.1",
+        "doctrine/dbal": "^3.9",
+        "doctrine/migrations": "^3.8",
+        "doctrine/orm": "^3.3",
+        "doctrine/sql-formatter": "^1.5",
         "librecodecoop/impostos": "^0.1.0",
-        "monolog/monolog": "^3.3",
+        "monolog/monolog": "^3.8",
         "php-di/php-di": "*",
         "roukmoute/polyfill-calendar": "^0.5.0",
-        "symfony/browser-kit": "^6.2",
-        "symfony/cache": "^6.3",
-        "symfony/console": "^6.2",
-        "symfony/css-selector": "^6.2",
-        "symfony/http-client": "^6.2",
-        "symfony/http-foundation": "^6.3",
-        "symfony/mime": "^6.2",
-        "symfony/routing": "^6.3",
-        "twig/twig": "^3.7",
-        "vlucas/phpdotenv": "^5.5"
+        "symfony/browser-kit": "^7.2",
+        "symfony/cache": "^7.2",
+        "symfony/console": "^7.2",
+        "symfony/css-selector": "^7.2",
+        "symfony/http-client": "^7.2",
+        "symfony/http-foundation": "^7.2",
+        "symfony/mime": "^7.2",
+        "symfony/routing": "^7.2",
+        "twig/twig": "^3.20",
+        "vlucas/phpdotenv": "^5.6"
     },
     "require-dev": {
         "bamarni/composer-bin-plugin": "^1.8",
@@ -32,7 +32,7 @@
             "Tests\\Php\\": "tests/php"
         }
     },
-    "bin" : [
+    "bin": [
         "bin/import"
     ],
     "config": {
@@ -55,9 +55,8 @@
         "lint": "find . -name \\*.php -not -path './vendor/*' -not -path './vendor-bin/*' -print0 | xargs -0 -n1 php -l",
         "cs:check": "vendor-bin/cs/vendor/friendsofphp/php-cs-fixer/php-cs-fixer fix --dry-run --diff",
         "cs:fix": "vendor-bin/cs/vendor/friendsofphp/php-cs-fixer/php-cs-fixer fix",
-        "psalm": "vendor-bin/psalm/vendor/bin/psalm --threads=1",
-        "psalm:update-baseline": "vendor-bin/psalm/vendor/bin/psalm --threads=1 --update-baseline --set-baseline=tests/psalm-baseline.xml",
-        "psalm:clear": "vendor-bin/psalm/vendor/bin/psalm --clear-cache && vendor-bin/psalm/vendor/bin/psalm --clear-global-cache",
+        "psalm": "vendor-bin/psalm/vendor/bin/psalm --no-cache --threads=$(nproc)",
+        "psalm:update-baseline": "vendor-bin/psalm/vendor/bin/psalm --threads=$(nproc) --update-baseline --set-baseline=tests/psalm-baseline.xml",
         "post-install-cmd": [
             "@composer bin all install --ansi",
             "composer dump-autoload"
