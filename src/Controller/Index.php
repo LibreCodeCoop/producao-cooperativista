@@ -24,64 +24,61 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Controller;
+namespace App\Controller;
 
-use ProducaoCooperativista\Core\App;
-use Symfony\Component\Console\Application;
-use Symfony\Component\HttpFoundation\Request;
+use Symfony\Bundle\FrameworkBundle\Console\Application;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Generator\UrlGenerator;
+use Symfony\Component\HttpKernel\KernelInterface;
+use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
-class Index
+class Index extends AbstractController
 {
     public function __construct(
-        private UrlGenerator $urlGenerator,
-        private Request $request,
+        private UrlGeneratorInterface $urlGenerator,
+        private KernelInterface $kernel
     ) {
     }
 
+    #[Route('/', methods: ['GET'])]
     public function index(): Response
     {
-        $application = App::get(Application::class);
+        $application = new Application($this->kernel);
 
-        $response = new Response(
-            App::get(\Twig\Environment::class)
-                ->load('index.index.html.twig')
-                ->render([
-                    'relatorios' => [
-                        'calculos' => [
-                            'url' => $this->urlGenerator->generate('Calculos#index'),
-                            'label' => 'Cálculos',
-                        ],
-                        'categorias' => [
-                            'url' => $this->urlGenerator->generate('Categorias#index'),
-                            'label' => 'Categorias',
-                        ],
-                        'invoices' => [
-                            'url' => $this->urlGenerator->generate('Invoices#index'),
-                            'label' => 'Entradas e saídas',
-                        ],
-                        'capital-social-summarized' => [
-                            'url' => $this->urlGenerator->generate('CapitalSocialSummarized#index'),
-                            'label' => 'Capital social',
-                        ],
-                        'producao' => [
-                            'url' => $this->urlGenerator->generate('Producao#index'),
-                            'label' => 'Produção',
-                        ],
-                    ],
-                    'acoes' => [
-                        'zerar_banco_local' => [
-                            'url' => $this->urlGenerator->generate('Acoes#zerarBancoLocal'),
-                            'label' => 'Zerar banco local',
-                        ],
-                        'executa_producao' => [
-                            'url' => $this->urlGenerator->generate('Acoes#makeProducao'),
-                            'label' => $application->get('make:producao')->getName(),
-                        ],
-                    ],
-                ])
-        );
-        return $response;
+        return $this->render('index.index.html.twig', [
+            'relatorios' => [
+                'calculos' => [
+                    'url' => $this->urlGenerator->generate('app_calculos_index'),
+                    'label' => 'Cálculos',
+                ],
+                'categorias' => [
+                    'url' => $this->urlGenerator->generate('app_categorias_index'),
+                    'label' => 'Categorias',
+                ],
+                'invoices' => [
+                    'url' => $this->urlGenerator->generate('app_invoices_index'),
+                    'label' => 'Entradas e saídas',
+                ],
+                'capital-social-summarized' => [
+                    'url' => $this->urlGenerator->generate('app_capitalsocialsummarized_index'),
+                    'label' => 'Capital social',
+                ],
+                'producao' => [
+                    'url' => $this->urlGenerator->generate('app_producao_index'),
+                    'label' => 'Produção',
+                ],
+            ],
+            'acoes' => [
+                'zerar_banco_local' => [
+                    'url' => $this->urlGenerator->generate('app_acoes_zerarbancolocal'),
+                    'label' => 'Zerar banco local',
+                ],
+                'executa_producao' => [
+                    'url' => $this->urlGenerator->generate('app_acoes_makeproducao'),
+                    'label' => $application->find('make:producao')->getName(),
+                ],
+            ],
+        ]);
     }
 }

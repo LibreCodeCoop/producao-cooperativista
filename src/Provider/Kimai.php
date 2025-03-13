@@ -24,7 +24,7 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Provider;
+namespace App\Provider;
 
 use Symfony\Component\HttpClient\HttpClient;
 

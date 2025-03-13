@@ -24,15 +24,12 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\Kimai\Source;
+namespace App\Service\Kimai\Source;
 
 use DateTime;
-use Doctrine\DBAL\ArrayParameterType;
-use Doctrine\DBAL\ParameterType;
-use Doctrine\DBAL\Query\QueryBuilder;
-use Doctrine\DBAL\Types\Types;
-use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\Provider\Kimai;
+use App\Entity\Producao\Projects as EntityProjects;
+use App\Provider\Kimai;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpClient\HttpClient;
 
@@ -41,7 +38,7 @@ class Projects
     use Kimai;
     private array $list = [];
     public function __construct(
-        private Database $db,
+        private EntityManagerInterface $entityManager,
         private LoggerInterface $logger
     ) {
     }
@@ -65,52 +62,26 @@ class Projects
 
     public function saveList(array $list): void
     {
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('id')
-            ->from('projects')
-            ->where($select->expr()->in('id', ':id'))
-            ->setParameter('id', array_column($list, 'id'), ArrayParameterType::INTEGER);
-        $result = $select->executeQuery();
-        $exists = [];
-        while ($row = $result->fetchAssociative()) {
-            $exists[] = $row['id'];
-        }
-        $insert = new QueryBuilder($this->db->getConnection());
         foreach ($list as $row) {
-            if (in_array($row['id'], $exists)) {
-                $update = new QueryBuilder($this->db->getConnection());
-                $update->update('projects')
-                    ->set('parent_title', $update->createNamedParameter($row['parentTitle']))
-                    ->set('customer_id', $update->createNamedParameter($row['customer'], ParameterType::INTEGER))
-                    ->set('name', $update->createNamedParameter($row['name']))
-                    ->set('start', $update->createNamedParameter($this->convertDate($row['start']), Types::DATE_MUTABLE))
-                    ->set('end', $update->createNamedParameter($this->convertDate($row['end']), Types::DATE_MUTABLE))
-                    ->set('comment', $update->createNamedParameter($row['comment']))
-                    ->set('visible', $update->createNamedParameter($row['visible'], ParameterType::INTEGER))
-                    ->set('billable', $update->createNamedParameter($row['billable'], ParameterType::INTEGER))
-                    ->set('color', $update->createNamedParameter($row['color']))
-                    ->set('global_activities', $update->createNamedParameter($row['globalActivities'], ParameterType::INTEGER))
-                    ->set('time_budget', $update->createNamedParameter($row['time_budget']))
-                    ->where($update->expr()->eq('id', $update->createNamedParameter($row['id'], ParameterType::INTEGER)))
-                    ->executeStatement();
-                continue;
+            $project = $this->entityManager->getRepository(EntityProjects::class)->find($row['id']);
+            if (!$project instanceof EntityProjects) {
+                $project = new EntityProjects();
+                $project->setId($row['id']);
             }
-            $insert->insert('projects')
-                ->values([
-                    'id' => $insert->createNamedParameter($row['id'], ParameterType::INTEGER),
-                    'parent_title' => $insert->createNamedParameter($row['parentTitle']),
-                    'customer_id' => $insert->createNamedParameter($row['customer'], ParameterType::INTEGER),
-                    'name' => $insert->createNamedParameter($row['name']),
-                    'start' => $insert->createNamedParameter($this->convertDate($row['start']), Types::DATE_MUTABLE),
-                    'end' => $insert->createNamedParameter($this->convertDate($row['end']), Types::DATE_MUTABLE),
-                    'comment' => $insert->createNamedParameter($row['comment']),
-                    'visible' => $insert->createNamedParameter($row['visible'], ParameterType::INTEGER),
-                    'billable' => $insert->createNamedParameter($row['billable'], ParameterType::INTEGER),
-                    'color' => $insert->createNamedParameter($row['color']),
-                    'global_activities' => $insert->createNamedParameter($row['globalActivities'], ParameterType::INTEGER),
-                    'time_budget' => $insert->createNamedParameter($row['time_budget'], ParameterType::INTEGER),
-                ])
-                ->executeStatement();
+            $project
+                ->setParentTitle($row['parentTitle'])
+                ->setCustomerId($row['customer'])
+                ->setName($row['name'])
+                ->setStart($this->convertDate($row['start']))
+                ->setEnd($this->convertDate($row['end']))
+                ->setComment($row['comment'])
+                ->setVisible($row['visible'])
+                ->setBillable($row['billable'])
+                ->setColor($row['color'])
+                ->setGlobalActivities($row['globalActivities'])
+                ->setTimeBudget($row['time_budget']);
+            $this->entityManager->persist($project);
+            $this->entityManager->flush();
         }
     }
 

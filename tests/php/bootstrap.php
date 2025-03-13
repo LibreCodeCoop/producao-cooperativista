@@ -24,4 +24,17 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/../../src/bootstrap.php';
+use Symfony\Component\Dotenv\Dotenv;
+
+require __DIR__.'/../../vendor/autoload.php';
+
+if (!file_exists(__DIR__.'/../../.env')) {
+    touch(__DIR__.'/../../.env');
+}
+
+$dotenv = new Dotenv();
+$dotenv->usePutenv()->loadEnv(__DIR__.'/../../.env', overrideExistingVars: true);
+
+putenv('APP_ENV=test');
+$_ENV['APP_ENV'] = 'test';
+$_SERVER['APP_ENV'] = 'test';

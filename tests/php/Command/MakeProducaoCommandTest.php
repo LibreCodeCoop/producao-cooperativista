@@ -24,10 +24,11 @@
 
 declare(strict_types=1);
 
+namespace App\Tests\Command;
+
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
-use ProducaoCooperativista\Core\App;
-use Symfony\Component\Console\Application;
+use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Tests\Php\TestCase;
@@ -37,7 +38,8 @@ final class MakeProducaoCommandTest extends TestCase
     private Application $application;
     protected function setUp(): void
     {
-        $this->application = App::get(Application::class);
+        $kernel = static::bootKernel();
+        $this->application = new Application($kernel);
         $this->application->setAutoExit(false);
     }
 
@@ -66,7 +68,8 @@ final class MakeProducaoCommandTest extends TestCase
                 '2023-08',
                 <<<CSV
                 akaunting_contact_id,auxilio,base_irpf,base_producao,bruto,dependentes,document_number,peso,frra,health_insurance,inss,irpf,adiantamento,liquido,name,tax_number
-                6,9685,33287.139333333,48425,34704.583333333,0,,1,4035.4166666667,0,1417.444,8269.0033166667,0,34703.136016667,"Pessoa 01",CPF______01
+                6,5000,16499.222666667,25000,17916.666666667,0,,1,2083.3333333333,0,1417.444,3652.3262333333,0,17846.896433333,"Pessoa 02",CPF______02
+                7,5000,16309.632666667,25000,17916.666666667,1,,1,2083.3333333333,0,1417.444,3600.1889833333,0,17899.033683333,"Pessoa 03",CPF______03
                 CSV
             ],
             'recebe_metade' => [
@@ -74,7 +77,8 @@ final class MakeProducaoCommandTest extends TestCase
                 '2023-08',
                 <<<CSV
                 akaunting_contact_id,auxilio,base_irpf,base_producao,bruto,dependentes,document_number,peso,frra,health_insurance,inss,irpf,adiantamento,liquido,name,tax_number
-                6,4842.5,15934.847666667,24212.5,17352.291666667,0,,1,2017.7083333333,0,1417.444,3497.1231083333,0,17280.224558333,"Pessoa 01",CPF______01
+                6,3333.3333333333,10527.000444444,16666.666666667,11944.444444444,0,,1,1388.8888888889,0,1417.444,2009.9651222222,0,11850.368655556,"Pessoa 02",CPF______02
+                7,6666.6666666667,22281.854888889,33333.333333333,23888.888888889,1,,2,2777.7777777778,0,1417.444,5242.5500944444,0,23895.561461111,"Pessoa 03",CPF______03
                 CSV
             ],
         ];

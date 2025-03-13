@@ -29,12 +29,11 @@ namespace Tests\Php;
 use Doctrine\Common\DataFixtures\Executor\ORMExecutor;
 use Doctrine\Common\DataFixtures\Loader;
 use Doctrine\Common\DataFixtures\Purger\ORMPurger;
-use PHPUnit\Framework\TestCase as FrameworkTestCase;
-use ProducaoCooperativista\Core\App;
-use ProducaoCooperativista\DB\Database;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Tests\Php\Fixtures\CsvLoader;
 
-class TestCase extends FrameworkTestCase
+class TestCase extends KernelTestCase
 {
     public function loadDataset(string $dataset): void
     {
@@ -43,9 +42,7 @@ class TestCase extends FrameworkTestCase
         $loader = new Loader();
         $loader->addFixture($csvLoader);
 
-        /** @var Database */
-        $db = App::get(Database::class);
-        $entityManager = $db->getEntityManager();
+        $entityManager = static::getContainer()->get(EntityManagerInterface::class);
         $executor = new ORMExecutor($entityManager, new ORMPurger());
         $executor->execute($loader->getFixtures());
     }

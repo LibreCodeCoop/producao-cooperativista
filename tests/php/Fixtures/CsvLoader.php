@@ -41,7 +41,7 @@ class CsvLoader implements FixtureInterface
             while (($values = fgetcsv($handle, null, ',')) !== false) {
                 $values = array_map(fn ($v) => $v === '' ? null : $v, $values);
                 $data = array_combine($header, $values);
-                $className = 'ProducaoCooperativista\DB\Entity\\' . ucfirst($entityName);
+                $className = 'App\Entity\Producao\\' . ucfirst($entityName);
                 $entity = new $className();
                 $entity->fromArray($data);
                 $manager->persist($entity);

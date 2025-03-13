@@ -24,24 +24,28 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Controller\Api;
+namespace App\Controller\Api;
 
 use DateTime;
-use ProducaoCooperativista\Core\App;
-use ProducaoCooperativista\Service\ProducaoCooperativista;
+use App\Service\ProducaoCooperativista;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
 
-class TrabalhadoSummarized
+class TrabalhadoSummarized extends AbstractController
 {
-    private ProducaoCooperativista $producaoCooperativista;
+    private Request $request;
     public function __construct(
-        private Request $request,
+        RequestStack $requestStack,
+        private ProducaoCooperativista $producao,
     ) {
-        $this->producaoCooperativista = App::get(ProducaoCooperativista::class);
+        $this->request = $requestStack->getCurrentRequest();
     }
 
+    #[Route('/api/v1/trabalhado-summarized', methods: ['GET'])]
     public function index(): JsonResponse
     {
         try {
@@ -50,8 +54,8 @@ class TrabalhadoSummarized
             if (!$inicio instanceof DateTime) {
                 throw new \Exception('ano-mes precisa estar no formato YYYY-MM');
             }
-            $this->producaoCooperativista->dates->setInicio($inicio);
-            $trabalhadoSummarized = $this->producaoCooperativista->getTrabalhadoSummarized();
+            $this->producao->dates->setInicio($inicio);
+            $trabalhadoSummarized = $this->producao->getTrabalhadoSummarized();
         } catch (\Throwable $th) {
             return new JsonResponse(
                 [

@@ -24,7 +24,7 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Helper;
+namespace App\Helper;
 
 class Colors
 {
@@ -178,7 +178,12 @@ class Colors
         'yellowgreen' => [154, 205, 50],
     ];
 
-    public static function colorContrast($r, $g, $b)
+    /**
+     * @return int[]
+     *
+     * @psalm-return list{0|255, 0|255, 0|255}
+     */
+    public static function colorContrast($r, $g, $b): array
     {
         $luminance = (0.299 * $r + 0.587 * $g + 0.114 * $b) / 255;
         if ($luminance <= 0.5) {

@@ -24,17 +24,16 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\Akaunting\Source;
+namespace App\Service\Akaunting\Source;
 
 use DateTime;
 use Doctrine\DBAL\ParameterType;
-use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
-use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\DB\Entity\Transactions as EntityTransactions;
-use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
-use ProducaoCooperativista\Provider\Akaunting\Dataset;
-use ProducaoCooperativista\Provider\Akaunting\ParseText;
+use App\Entity\Producao\Transactions as EntityTransactions;
+use App\Helper\MagicGetterSetterTrait;
+use App\Provider\Akaunting\Dataset;
+use App\Provider\Akaunting\ParseText;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -54,7 +53,7 @@ class Transactions
     private array $list = [];
 
     public function __construct(
-        private Database $db,
+        private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
         private ParseText $parseText,
         private Dataset $dataset,
@@ -62,6 +61,9 @@ class Transactions
         $this->companyId = (int) getenv('AKAUNTING_COMPANY_ID');
     }
 
+    /**
+     * @return EntityTransactions[]
+     */
     public function getList(): array
     {
         if (!empty($this->list)) {
@@ -105,7 +107,7 @@ class Transactions
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
-        $entity = $this->db->getEntityManager()->find(EntityTransactions::class, $array['id']);
+        $entity = $this->entityManager->find(EntityTransactions::class, $array['id']);
         if (!$entity instanceof EntityTransactions) {
             $entity = new EntityTransactions();
         }
@@ -124,7 +126,7 @@ class Transactions
 
     public function saveRow(EntityTransactions $invoice): self
     {
-        $em = $this->db->getEntityManager();
+        $em = $this->entityManager;
         $em->persist($invoice);
         $em->flush();
         return $this;
@@ -144,20 +146,22 @@ class Transactions
         if (!$item['document_id']) {
             return $item;
         }
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('id')
-            ->addSelect('customer_reference')
-            ->addSelect('metadata->>"$.notes" as invoice_notes')
-            ->from('invoices')
-            ->where($select->expr()->eq('id', $select->createNamedParameter($item['document_id'], ParameterType::INTEGER)))
-            ->andWhere('customer_reference IS NOT NULL');
-        $result = $select->executeQuery();
-        $row = $result->fetchAssociative();
+        $qb = $this->entityManager->getConnection()->createQueryBuilder();
+        $qb->select('i.id')
+            ->addSelect('i.customer_reference')
+            ->addSelect("i.metadata as metadata")
+            ->from('invoices', 'i')
+            ->where($qb->expr()->eq('i.id', $qb->createNamedParameter($item['document_id'], ParameterType::INTEGER)))
+            ->andWhere('i.customer_reference IS NOT NULL');
+        $row = $qb->executeQuery()->fetchAssociative();
         if (!$row) {
             return $item;
         }
-        if (is_string($row['invoice_notes'])) {
-            $item = array_merge($item, $this->parseText->do($row['invoice_notes']));
+        if (json_validate($row['metadata'])) {
+            $metadata = json_decode($row['metadata'], true);
+            if (isset($metadata['notes']) && is_string($metadata['notes'])) {
+                $item = array_merge($item, $this->parseText->do($metadata['notes']));
+            }
         }
         if (empty($item['customer_reference'])) {
             $item['customer_reference'] = $row['customer_reference'];

@@ -24,27 +24,33 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Controller\Api;
+namespace App\Controller\Api;
 
+use App\Service\Akaunting\Source\Categories;
+use App\Service\Movimentacao;
 use DateTime;
-use ProducaoCooperativista\Core\App;
-use ProducaoCooperativista\Service\ProducaoCooperativista;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
 
-class Invoices
+class Invoices extends AbstractController
 {
-    private ProducaoCooperativista $producaoCooperativista;
+    private Request $request;
     public function __construct(
-        private Request $request,
+        RequestStack $requestStack,
+        private Categories $categories,
+        private Movimentacao $movimentacao,
     ) {
-        $this->producaoCooperativista = App::get(ProducaoCooperativista::class);
+        $this->request = $requestStack->getCurrentRequest();
     }
 
+    #[Route('/api/v1/invoices', methods: ['GET'])]
     public function index(): JsonResponse
     {
-        $this->producaoCooperativista->dates->setDiaUtilPagamento(
+        $this->movimentacao->dates->setDiaUtilPagamento(
             (int) $this->request->get('dia-util-pagamento', getenv('DIA_UTIL_PAGAMENTO'))
         );
 
@@ -52,12 +58,12 @@ class Invoices
         if (!$inicio instanceof DateTime) {
             throw new \Exception('ano-mes precisa estar no formato YYYY-MM');
         }
-        $this->producaoCooperativista->dates->setInicio($inicio);
+        $this->movimentacao->dates->setInicio($inicio);
 
         $diasUteis = (int) $this->request->get('dias-uteis');
-        $this->producaoCooperativista->dates->setDiasUteis($diasUteis);
+        $this->movimentacao->dates->setDiasUteis($diasUteis);
 
-        $this->producaoCooperativista->setPercentualMaximo(
+        $this->movimentacao->setPercentualMaximo(
             (int) $this->request->get('percentual-maximo', getenv('PERCENTUAL_MAXIMO'))
         );
 
@@ -65,14 +71,16 @@ class Invoices
         try {
             switch ($type) {
                 case 'income':
-                    $movimentacao = $this->producaoCooperativista->getEntradas();
+                    $movimentacao = $this->movimentacao->getEntradas();
                     break;
                 case 'expense':
-                    $movimentacao = $this->producaoCooperativista->getSaidas();
+                    $movimentacao = $this->movimentacao->getSaidas();
                     break;
                 case 'all':
-                    $movimentacao = $this->producaoCooperativista->getMovimentacaoFinanceira();
+                    $movimentacao = $this->movimentacao->getMovimentacaoFinanceira();
                     break;
+                default:
+                    throw new \Exception('Tipo de movimentação invpalido: ' . print_r($type, true));
             }
         } catch (\Throwable $th) {
             return new JsonResponse(
@@ -104,7 +112,7 @@ class Invoices
             'data' => array_values($movimentacao),
             'metadata' => [
                 'total' => count($movimentacao),
-                'date' => $this->producaoCooperativista->dates->getInicioProximoMes()->format('Y-m')
+                'date' => $this->movimentacao->dates->getInicioProximoMes()->format('Y-m')
             ],
         ];
         return new JsonResponse($response);
@@ -132,7 +140,7 @@ class Invoices
 
     private function addFlagColumn(array $list, string $name, string $environment): array
     {
-        $ids = $this->producaoCooperativista->getChildrensCategories(
+        $ids = $this->producao->getChildrensCategories(
             (int) getenv($environment)
         );
         array_walk($list, function (&$row) use ($name, $ids) {

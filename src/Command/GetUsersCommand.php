@@ -24,9 +24,9 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Command;
+namespace App\Command;
 
-use ProducaoCooperativista\Service\Kimai\Source\Users;
+use App\Service\Kimai\Source\Users;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -37,7 +37,7 @@ use Symfony\Component\Console\Output\OutputInterface;
     name: 'get:users',
     description: 'Get users'
 )]
-class GetUsersCommand extends BaseCommand
+class GetUsersCommand extends AbstractBaseCommand
 {
     public function __construct(
         private Users $users

@@ -1,0 +1,77 @@
+doctrine:
+    dbal:
+        # IMPORTANT: You MUST configure your server version,
+        # either here or in the DATABASE_URL env var (see .env file)
+        #server_version: '16'
+
+        default_connection: main
+        connections:
+            main:
+                url: "%env(DATABASE_URL)%"
+                profiling_collect_backtrace: '%kernel.debug%'
+                use_savepoints: true
+            akaunting:
+                url: "%env(DATABASE_AKAUNTING_URL)%"
+                profiling_collect_backtrace: '%kernel.debug%'
+                use_savepoints: true
+    orm:
+        auto_generate_proxy_classes: true
+        enable_lazy_ghost_objects: true
+        default_entity_manager: main
+        controller_resolver:
+            auto_mapping: false
+        entity_managers:
+            main:
+                connection: main
+                report_fields_where_declared: true
+                validate_xml_mapping: true
+                identity_generation_preferences:
+                    Doctrine\DBAL\Platforms\PostgreSQLPlatform: identity
+                naming_strategy: doctrine.orm.naming_strategy.underscore_number_aware
+                auto_mapping: true
+                mappings:
+                    App:
+                        type: attribute
+                        is_bundle: false
+                        dir: '%kernel.project_dir%/src/Entity/Producao'
+                        prefix: 'App\Entity\Producao'
+                        alias: App
+                dql:
+                    string_functions:
+                        JSON_EXTRACT: Scienta\DoctrineJsonFunctions\Query\AST\Functions\Mysql\JsonExtract
+                        JSON_UNQUOTE: Scienta\DoctrineJsonFunctions\Query\AST\Functions\Mysql\JsonUnquote
+            akaunting:
+                connection: akaunting
+                mappings:
+                    App:
+                        type: attribute
+                        is_bundle: false
+                        dir: '%kernel.project_dir%/src/Entity/Akaunting'
+                        prefix: 'App\Entity\Akaunting'
+                        alias: App
+
+when@test:
+    doctrine:
+        dbal:
+            # "TEST_TOKEN" is typically set by ParaTest
+            dbname_suffix: '_test%env(default::TEST_TOKEN)%'
+
+when@prod:
+    doctrine:
+        orm:
+            auto_generate_proxy_classes: false
+            proxy_dir: '%kernel.build_dir%/doctrine/orm/Proxies'
+            query_cache_driver:
+                type: pool
+                pool: doctrine.system_cache_pool
+            result_cache_driver:
+                type: pool
+                pool: doctrine.result_cache_pool
+
+    framework:
+        cache:
+            pools:
+                doctrine.result_cache_pool:
+                    adapter: cache.app
+                doctrine.system_cache_pool:
+                    adapter: cache.system

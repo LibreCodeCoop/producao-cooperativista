@@ -24,26 +24,26 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Controller\Api;
+namespace App\Controller\Api;
 
-use DateTime;
-use ProducaoCooperativista\Core\App;
-use ProducaoCooperativista\Service\ProducaoCooperativista;
+use App\Service\Akaunting\Source\Categories;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
 
-class Categorias
+class Categorias extends AbstractController
 {
-    private ProducaoCooperativista $producaoCooperativista;
-    public function __construct()
-    {
-        $this->producaoCooperativista = App::get(ProducaoCooperativista::class);
+    public function __construct(
+        private Categories $categories,
+    ) {
     }
 
+    #[Route('/api/v1/categorias', methods: ['GET'])]
     public function index(): JsonResponse
     {
         try {
-            $categorias = $this->producaoCooperativista->getCategories();
+            $categorias = $this->categories->getCategories();
         } catch (\Throwable $th) {
             return new JsonResponse(
                 [
@@ -52,6 +52,7 @@ class Categorias
                 Response::HTTP_FORBIDDEN
             );
         }
+        $categorias = array_map(fn ($categoria) => $categoria->toArray(), $categorias);
 
         $categorias = $this->addFlagColumn(
             $categorias,
@@ -78,13 +79,13 @@ class Categorias
         return new JsonResponse($response);
     }
 
-    private function addFlagColumn(array $list, string $name, string $environment): array
+    private function addFlagColumn(array $list, string $columnName, string $environmentName): array
     {
-        $ids = $this->producaoCooperativista->getChildrensCategories(
-            (int) getenv($environment)
+        $ids = $this->categories->getChildrensCategories(
+            (int) getenv($environmentName)
         );
-        array_walk($list, function (&$row) use ($name, $ids) {
-            $row[$name] = in_array($row['id'], $ids) ? 'sim' : '';
+        array_walk($list, function (&$category) use ($columnName, $ids) {
+            $category[$columnName] = in_array($category['id'], $ids) ? 'sim' : '';
         });
         return $list;
     }

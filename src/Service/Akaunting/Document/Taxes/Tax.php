@@ -24,12 +24,12 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\Akaunting\Document\Taxes;
+namespace App\Service\Akaunting\Document\Taxes;
 
+use App\Entity\Producao\Taxes;
 use Doctrine\DBAL\ParameterType;
-use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
-use ProducaoCooperativista\Service\Akaunting\Document\ADocument;
+use App\Service\Akaunting\Document\ADocument;
 use stdClass;
 
 class Tax extends ADocument
@@ -83,13 +83,8 @@ class Tax extends ADocument
 
     private function getPercentualDoImposto(): float
     {
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('rate')
-            ->from('taxes', 't')
-            ->where($select->expr()->eq('id', $select->createNamedParameter($this->taxData->taxId, ParameterType::INTEGER)));
-        $result = $select->executeQuery();
-        $percentual = $result->fetchOne();
-        return $percentual;
+        $tax = $this->entityManager->getRepository(Taxes::class)->find($this->taxData->taxId);
+        return $tax->getRate();
     }
 
     protected function setUp(): self
@@ -100,7 +95,7 @@ class Tax extends ADocument
 
     protected function getTotalRetainedOfMonth(): float
     {
-        $stmt = $this->db->getConnection()->prepare(
+        $query = $this->entityManager->createQuery(
             <<<SQL
             SELECT SUM(jt.amount) as irpf
             FROM invoices i ,
@@ -112,11 +107,9 @@ class Tax extends ADocument
             AND i.transaction_of_month = :ano_mes
             SQL
         );
-        $stmt->bindValue('ano_mes', $this->dates->getInicioProximoMes()->format('Y-m'));
-        $stmt->bindValue('tax_id', $this->taxData->taxId, ParameterType::INTEGER);
-        $result = $stmt->executeQuery();
-
-        $total = (float) $result->fetchOne();
+        $query->setParameter('ano_mes', $this->dates->getInicioProximoMes()->format('Y-m'));
+        $query->setParameter('tax_id', $this->taxData->taxId, ParameterType::INTEGER);
+        $total = (float) $query->getSingleResult();
         return $total;
     }
 

@@ -24,29 +24,39 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Controller;
+namespace App\Controller;
 
-use Monolog\Logger;
-use ProducaoCooperativista\Core\App;
-use ProducaoCooperativista\Helper\ArrayValue;
-use ProducaoCooperativista\Helper\SseLogHandler;
-use Symfony\Component\Console\Application;
+use App\Helper\ArrayValue;
+use App\Helper\SseLogHandler;
+use App\Kernel;
+use Psr\Log\LoggerInterface;
+use Symfony\Bundle\FrameworkBundle\Console\Application;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Generator\UrlGenerator;
+use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
-class Acoes
+class Acoes extends AbstractController
 {
+    private Request $request;
+    private LoggerInterface $logger;
     public function __construct(
-        private UrlGenerator $urlGenerator,
-        private Request $request,
-        private Logger $logger,
+        RequestStack $requestStack,
+        private UrlGeneratorInterface $urlGenerator,
+        LoggerInterface $logger,
         private SseLogHandler $sseLogHandler,
+        private Kernel $kernel,
     ) {
+        $this->request = $requestStack->getCurrentRequest();
+        $this->logger = $logger;
+        $this->logger->pushHandler($this->sseLogHandler);
     }
 
+    #[Route('/acoes/zerar-banco-local', methods: ['GET'])]
     public function zerarBancoLocal(): Response
     {
         $bufferedOutput = $this->executaMigrations('first');
@@ -54,20 +64,15 @@ class Acoes
         $bufferedOutput = $this->executaMigrations('latest');
         $response .= $bufferedOutput->fetch();
 
-        $response = new Response(
-            App::get(\Twig\Environment::class)
-                ->load('acoes/zerar_banco_local.html.twig')
-                ->render(compact('response'))
-        );
-        return $response;
+        return $this->render('acoes/zerar_banco_local.html.twig', compact('response'));
     }
 
     private function executaMigrations(string $migration): BufferedOutput
     {
-        $application = App::get(Application::class);
+        $application = new Application($this->kernel);
         $application->setAutoExit(false);
         $input = new ArrayInput([
-            'migrations:migrate',
+            'doctrine:migrations:migrate',
             '-n' => 0,
             'version' => $migration,
         ]);
@@ -76,28 +81,24 @@ class Acoes
         return $output;
     }
 
+    #[Route('/acoes/make-producao', methods: ['GET'])]
     public function makeProducao(): Response
     {
         $inicio = new \DateTime();
         $inicio->modify('-2 month');
 
-        $response = new Response(
-            App::get(\Twig\Environment::class)
-                ->load('acoes/make_producao.html.twig')
-                ->render([
-                    'inicio_ano' => $inicio->format('Y'),
-                    'inicio_mes' => $inicio->format('m'),
-                    'url' => $this->urlGenerator->generate('Acoes#doMakeProducao'),
-                    'baixar_dados' => $this->request->get('baixar_dados', 0) ? 1 : 0,
-                    'atualiza_producao' => $this->request->get('atualiza_producao', 0) ? 1 : 0,
-                ])
-        );
-        return $response;
+        return $this->render('acoes/make_producao.html.twig', [
+            'inicio_ano' => $inicio->format('Y'),
+            'inicio_mes' => $inicio->format('m'),
+            'url' => $this->urlGenerator->generate('app_acoes_domakeproducao'),
+            'baixar_dados' => $this->request->get('baixar_dados', 0) ? 1 : 0,
+            'atualiza_producao' => $this->request->get('atualiza_producao', 0) ? 1 : 0,
+        ]);
     }
 
+    #[Route('/acoes/do-make-producao', methods: ['GET'])]
     public function doMakeProducao(): Response
     {
-        $this->logger->pushHandler($this->sseLogHandler);
         $inicio = \DateTime::createFromFormat(
             'Y-m',
             $this->request->get('year', '') . '-' . $this->request->get('month', '')
@@ -106,7 +107,7 @@ class Acoes
             throw new \BadMethodCallException('The query string year need to be as format Y-m');
         }
 
-        $application = App::get(Application::class);
+        $application = new Application($this->kernel);
         $application->setAutoExit(false);
         $input = new ArrayInput([
             'make:producao',

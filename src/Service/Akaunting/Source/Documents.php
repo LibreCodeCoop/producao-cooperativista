@@ -24,16 +24,16 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\Akaunting\Source;
+namespace App\Service\Akaunting\Source;
 
 use DateTime;
 use Exception;
-use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\DB\Entity\Invoices;
-use ProducaoCooperativista\Helper\Dates;
-use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
-use ProducaoCooperativista\Provider\Akaunting\Dataset;
-use ProducaoCooperativista\Provider\Akaunting\ParseText;
+use App\Entity\Producao\Invoices;
+use App\Helper\Dates;
+use App\Helper\MagicGetterSetterTrait;
+use App\Provider\Akaunting\Dataset;
+use App\Provider\Akaunting\ParseText;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -53,7 +53,7 @@ class Documents
     private array $list = [];
 
     public function __construct(
-        private Database $db,
+        private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
         private ParseText $parseText,
         private Dataset $dataset,
@@ -63,6 +63,9 @@ class Documents
         $this->companyId = (int) getenv('AKAUNTING_COMPANY_ID');
     }
 
+    /**
+     * @return Invoices[][]
+     */
     public function getList(): array
     {
         if (isset($this->list[$this->getType()])) {
@@ -103,7 +106,7 @@ class Documents
         $array = $this->calculateFixedDiscountPercentage($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
-        $entity = $this->db->getEntityManager()->find(Invoices::class, $array['id']);
+        $entity = $this->entityManager->find(Invoices::class, $array['id']);
         if (!$entity instanceof Invoices) {
             $entity = new Invoices();
         }
@@ -131,7 +134,7 @@ class Documents
 
     public function saveRow(Invoices $invoice): self
     {
-        $em = $this->db->getEntityManager();
+        $em = $this->entityManager;
         $em->persist($invoice);
         $em->flush();
         return $this;

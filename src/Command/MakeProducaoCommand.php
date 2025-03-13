@@ -24,10 +24,10 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Command;
+namespace App\Command;
 
 use DateTime;
-use ProducaoCooperativista\Service\ProducaoCooperativista;
+use App\Service\ProducaoCooperativista;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -38,7 +38,7 @@ use Symfony\Component\Console\Output\OutputInterface;
     name: 'make:producao',
     description: 'Produção cooperativista por cooperado'
 )]
-class MakeProducaoCommand extends BaseCommand
+class MakeProducaoCommand extends AbstractBaseCommand
 {
     public function __construct(
         private ProducaoCooperativista $producaoCooperativista
@@ -124,10 +124,7 @@ class MakeProducaoCommand extends BaseCommand
         $this->producaoCooperativista->dates->setInicio($inicio);
         $this->producaoCooperativista->dates->setDiasUteis($diasUteis);
         $this->producaoCooperativista->setPercentualMaximo($percentualMaximo);
-        $pesos = json_decode((string) $input->getOption('pesos'), true);
-        if (!is_array($pesos)) {
-            $pesos = [];
-        }
+        $pesos = json_decode((string) $input->getOption('pesos'), true) ?? [];
         $this->producaoCooperativista->updatePesos($pesos);
 
         try {

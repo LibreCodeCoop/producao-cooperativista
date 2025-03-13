@@ -24,9 +24,12 @@
 
 declare(strict_types=1);
 
+namespace App\Tests\Helper;
+
 use Carbon\Carbon;
 use PHPUnit\Framework\Attributes\DataProvider;
-use ProducaoCooperativista\Helper\Dates;
+use App\Helper\Dates;
+use DateTime;
 use Tests\Php\TestCase;
 
 final class DatesTest extends TestCase

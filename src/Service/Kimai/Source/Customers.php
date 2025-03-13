@@ -24,13 +24,11 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\Kimai\Source;
+namespace App\Service\Kimai\Source;
 
-use Doctrine\DBAL\ArrayParameterType;
-use Doctrine\DBAL\ParameterType;
-use Doctrine\DBAL\Query\QueryBuilder;
-use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\Provider\Kimai;
+use App\Entity\Producao\Customers as EntityCustomers;
+use App\Provider\Kimai;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpClient\HttpClient;
 
@@ -39,7 +37,7 @@ class Customers
     use Kimai;
     private array $customers = [];
     public function __construct(
-        private Database $db,
+        private EntityManagerInterface $entityManager,
         private LoggerInterface $logger
     ) {
     }
@@ -67,48 +65,24 @@ class Customers
 
     public function saveList(): self
     {
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('id')
-            ->from('customers')
-            ->where($select->expr()->in('id', ':id'))
-            ->setParameter('id', array_column($this->customers, 'id'), ArrayParameterType::INTEGER);
-        $result = $select->executeQuery();
-        $exists = [];
-        while ($row = $result->fetchAssociative()) {
-            $exists[] = $row['id'];
-        }
-        $insert = new QueryBuilder($this->db->getConnection());
         foreach ($this->customers as $row) {
-            if (in_array($row['id'], $exists)) {
-                $update = new QueryBuilder($this->db->getConnection());
-                $update->update('customers')
-                    ->set('name', $update->createNamedParameter($row['name']))
-                    ->set('number', $update->createNamedParameter($row['number']))
-                    ->set('comment', $update->createNamedParameter($row['comment']))
-                    ->set('visible', $update->createNamedParameter($row['visible'], ParameterType::INTEGER))
-                    ->set('billable', $update->createNamedParameter($row['billable'], ParameterType::INTEGER))
-                    ->set('currency', $update->createNamedParameter($row['currency']))
-                    ->set('color', $update->createNamedParameter($row['color']))
-                    ->set('vat_id', $update->createNamedParameter($row['vat_id']))
-                    ->set('time_budget', $update->createNamedParameter($row['time_budget']))
-                    ->where($update->expr()->eq('id', $update->createNamedParameter($row['id'], ParameterType::INTEGER)))
-                    ->executeStatement();
-                continue;
+            $customer = $this->entityManager->getRepository(EntityCustomers::class)->find($row['id']);
+            if (!$customer instanceof EntityCustomers) {
+                $customer = new EntityCustomers();
+                $customer->setId($row['id']);
             }
-            $insert->insert('customers')
-                ->values([
-                    'id' => $insert->createNamedParameter($row['id'], ParameterType::INTEGER),
-                    'name' => $insert->createNamedParameter($row['name']),
-                    'number' => $insert->createNamedParameter($row['number']),
-                    'comment' => $insert->createNamedParameter($row['comment']),
-                    'visible' => $insert->createNamedParameter($row['visible'], ParameterType::INTEGER),
-                    'billable' => $insert->createNamedParameter($row['billable'], ParameterType::INTEGER),
-                    'currency' => $insert->createNamedParameter($row['currency']),
-                    'color' => $insert->createNamedParameter($row['color']),
-                    'vat_id' => $insert->createNamedParameter($row['vat_id']),
-                    'time_budget' => $insert->createNamedParameter($row['time_budget'], ParameterType::INTEGER),
-                ])
-                ->executeStatement();
+            $customer
+                ->setName($row['name'])
+                ->setNumber($row['number'])
+                ->setComment($row['comment'])
+                ->setVisible($row['visible'])
+                ->setBillable($row['billable'])
+                ->setCurrency($row['currency'])
+                ->setColor($row['color'])
+                ->setVatId($row['vat_id'])
+                ->setTimeBudget($row['time_budget']);
+            $this->entityManager->persist($customer);
+            $this->entityManager->flush();
         }
         return $this;
     }

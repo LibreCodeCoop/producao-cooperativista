@@ -24,16 +24,16 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\Akaunting\Document;
+namespace App\Service\Akaunting\Document;
 
 use DateTime;
 use Doctrine\DBAL\ParameterType;
-use Doctrine\DBAL\Query\QueryBuilder;
 use UnexpectedValueException;
 
 class ProducaoCooperativista extends ADocument
 {
     protected string $whoami = 'PDC';
+
     public function save(): self
     {
         $this->somaItensExtras();
@@ -107,20 +107,15 @@ class ProducaoCooperativista extends ADocument
 
     public function updateHealthInsurance(): self
     {
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('metadata->>"$.notes" as notes')
-            ->from('invoices')
-            ->where("type = 'bill'")
-            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) getenv('AKAUNTING_PLANO_DE_SAUDE_CATEGORY_ID'), ParameterType::INTEGER)))
-            ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
-        $result = $select->executeQuery();
-        $text = $result->fetchOne();
-        if (!$text) {
-            return $this;
-        }
-        $return = [];
+        $select = $this->entityManager->getConnection()->createQueryBuilder();
+        $select->select("JSON_UNQUOTE(JSON_EXTRACT(i.metadata, '$.notes')) as notes")
+            ->from('invoices', 'i')
+            ->where("i.type = 'bill'")
+            ->andWhere($select->expr()->eq('i.category_id', $select->createNamedParameter((int) getenv('AKAUNTING_PLANO_DE_SAUDE_CATEGORY_ID'), ParameterType::INTEGER)))
+            ->andWhere($select->expr()->gte('i.transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
+        $text = $select->executeQuery()->fetchOne();
         if (empty($text)) {
-            return $return;
+            return $this;
         }
 
         $explodedText = explode("\n", $text);
@@ -223,21 +218,21 @@ class ProducaoCooperativista extends ADocument
 
     public function atualizaAdiantamentos(): self
     {
-        $taxNumber = $this->getContactTaxNumber();
+        $taxNumber = $this->getCooperado()->getTaxNumber();
 
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('amount')
-            ->addSelect('document_number')
-            ->addSelect('due_at')
-            ->from('invoices')
-            ->where("type = 'bill'")
-            ->andWhere("metadata->>'$.status' = 'paid'")
-            ->andWhere($select->expr()->eq('category_id', $select->createNamedParameter((int) getenv('AKAUNTING_ADIANTAMENTO_CATEGORY_ID'), ParameterType::INTEGER)))
-            ->andWhere($select->expr()->eq('tax_number', $select->createNamedParameter($taxNumber)))
-            ->andWhere($select->expr()->gte('transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
+        $select = $this->entityManager->getConnection()->createQueryBuilder();
+        $select->select('i.amount')
+            ->addSelect('i.document_number')
+            ->addSelect('i.due_at')
+            ->from('invoices', 'i')
+            ->where("i.type = 'bill'")
+            ->andWhere("JSON_UNQUOTE(JSON_EXTRACT(i.metadata, '$.status')) = 'paid'")
+            ->andWhere($select->expr()->eq('i.category_id', $select->createNamedParameter((int) getenv('AKAUNTING_ADIANTAMENTO_CATEGORY_ID'), ParameterType::INTEGER)))
+            ->andWhere($select->expr()->eq('i.tax_number', $select->createNamedParameter($taxNumber)))
+            ->andWhere($select->expr()->gte('i.transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
 
-        $result = $select->executeQuery();
-        while ($row = $result->fetchAssociative()) {
+        $stmt = $select->executeQuery();
+        while ($row = $stmt->fetchAssociative()) {
             $this->values->setAdiantamento(array_merge(
                 $this->values->getAdiantamento(),
                 [$row]

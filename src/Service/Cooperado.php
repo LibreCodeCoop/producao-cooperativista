@@ -24,17 +24,17 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service;
+namespace App\Service;
 
 use NumberFormatter;
-use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\Helper\Dates;
-use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
-use ProducaoCooperativista\Provider\Akaunting\Request;
-use ProducaoCooperativista\Service\Akaunting\Document\FRRA;
-use ProducaoCooperativista\Service\Akaunting\Document\ProducaoCooperativista;
-use ProducaoCooperativista\Service\Akaunting\Document\Taxes\InssIrpf;
-use ProducaoCooperativista\Service\Akaunting\Source\Documents;
+use App\Helper\Dates;
+use App\Helper\MagicGetterSetterTrait;
+use App\Provider\Akaunting\Request;
+use App\Service\Akaunting\Document\FRRA;
+use App\Service\Akaunting\Document\ProducaoCooperativista;
+use App\Service\Akaunting\Document\Taxes\InssIrpf;
+use App\Service\Akaunting\Source\Documents;
+use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * @method self setAkauntingContactId(int $value)
@@ -71,13 +71,13 @@ class Cooperado
     private ?InssIrpf $inssIrpf = null;
 
     public function __construct(
-        private ?int $anoFiscal,
-        private ?int $mes,
-        private Database $db,
+        private EntityManagerInterface $entityManager,
         private Dates $dates,
         private NumberFormatter $numberFormatter,
         private Documents $documents,
         private Request $request,
+        private ?int $anoFiscal = null,
+        private ?int $mes = null,
     ) {
     }
 
@@ -86,16 +86,16 @@ class Cooperado
         if ($this->producaoCooperativista) {
             return $this->producaoCooperativista;
         }
-        $this->setProducaoCooperativista(new ProducaoCooperativista(
+        $this->producaoCooperativista = new ProducaoCooperativista(
             anoFiscal: $this->anoFiscal,
             mes: $this->mes,
-            db: $this->db,
+            entityManager: $this->entityManager,
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
             documents: $this->documents,
             cooperado: $this,
             request: $this->request,
-        ));
+        );
         return $this->producaoCooperativista;
     }
 
@@ -104,16 +104,16 @@ class Cooperado
         if ($this->frra) {
             return $this->frra;
         }
-        $this->setFrra(new FRRA(
+        $this->frra = new FRRA(
             anoFiscal: $this->anoFiscal,
             mes: $this->mes,
-            db: $this->db,
+            entityManager: $this->entityManager,
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
             documents: $this->documents,
             cooperado: $this,
             request: $this->request,
-        ));
+        );
         return $this->frra;
     }
 
@@ -122,16 +122,16 @@ class Cooperado
         if ($this->inssIrpf) {
             return $this->inssIrpf;
         }
-        $this->setInssIrpf(new InssIrpf(
+        $this->inssIrpf = new InssIrpf(
             anoFiscal: $this->anoFiscal,
             mes: $this->mes,
-            db: $this->db,
+            entityManager: $this->entityManager,
             dates: $this->dates,
             numberFormatter: $this->numberFormatter,
             documents: $this->documents,
             cooperado: $this,
             request: $this->request,
-        ));
+        );
         return $this->inssIrpf;
     }
 }

@@ -2,43 +2,50 @@
     "type": "project",
     "license": "AGPL-3.0-or-later",
     "require": {
-        "cmixin/business-day": "^1.16",
-        "doctrine/dbal": "^3.9",
-        "doctrine/migrations": "^3.8",
-        "doctrine/orm": "^3.3",
-        "doctrine/sql-formatter": "^1.5",
-        "librecodecoop/impostos": "^0.1.0",
-        "monolog/monolog": "^3.8",
-        "php-di/php-di": "*",
+        "cmixin/business-day": "^1.19.3",
+        "doctrine/doctrine-bundle": "^2.13.2",
+        "doctrine/doctrine-migrations-bundle": "^3.4.1",
+        "doctrine/orm": "^3.3.2",
+        "librecodecoop/impostos": "^0.1.2",
         "roukmoute/polyfill-calendar": "^0.5.0",
-        "symfony/browser-kit": "^7.2",
-        "symfony/cache": "^7.2",
-        "symfony/console": "^7.2",
+        "scienta/doctrine-json-functions": "^6.3",
+        "symfony/browser-kit": "^7.2.4",
         "symfony/css-selector": "^7.2",
-        "symfony/http-client": "^7.2",
-        "symfony/http-foundation": "^7.2",
-        "symfony/mime": "^7.2",
-        "symfony/routing": "^7.2",
-        "twig/twig": "^3.20",
-        "vlucas/phpdotenv": "^5.6"
+        "symfony/dotenv": "^7.2",
+        "symfony/framework-bundle": "7.2.*",
+        "symfony/http-client": "^7.2.4",
+        "symfony/monolog-bundle": "^3.10",
+        "symfony/runtime": "^7.2.3",
+        "symfony/twig-bundle": "^7.2",
+        "symfony/yaml": "^7.2.3",
+        "twig/twig": "^3.20"
     },
     "require-dev": {
-        "bamarni/composer-bin-plugin": "^1.8",
-        "doctrine/data-fixtures": "^1.6"
+        "bamarni/composer-bin-plugin": "^1.8.2",
+        "doctrine/data-fixtures": "^1.8.1",
+        "symfony/maker-bundle": "^1.62.1"
     },
     "autoload": {
         "psr-4": {
-            "ProducaoCooperativista\\": "src/",
-            "Tests\\Php\\": "tests/php"
+            "App\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "App\\Tests\\": "tests/php/"
         }
     },
     "bin": [
-        "bin/import"
+        "bin/console"
     ],
     "config": {
         "allow-plugins": {
-            "bamarni/composer-bin-plugin": true
+            "bamarni/composer-bin-plugin": true,
+            "php-http/discovery": true,
+            "symfony/flex": true,
+            "symfony/runtime": true
         },
+        "bump-after-update": true,
         "optimize-autoloader": true,
         "classmap-authoritative": true,
         "sort-packages": true
@@ -48,6 +55,10 @@
             "bin-links": false,
             "target-directory": "vendor-bin",
             "forward-command": true
+        },
+        "symfony": {
+            "allow-contrib": false,
+            "require": "7.2.*"
         }
     },
     "scripts": {
@@ -66,5 +77,8 @@
             "composer dump-autoload"
         ],
         "test:unit": "vendor-bin/unit/vendor/bin/phpunit -c tests/php/phpunit.xml --color --no-coverage --fail-on-warning --fail-on-risky"
+    },
+    "conflict": {
+        "symfony/symfony": "*"
     }
 }

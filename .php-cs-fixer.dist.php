@@ -27,10 +27,14 @@ require_once './vendor/autoload.php';
 
 $config = new PhpCsFixer\Config();
 $config
-	->getFinder()
-	->ignoreVCSIgnored(true)
-	->notPath('logs')
-	->notPath('vendor')
-	->notPath('vendor-bin')
-	->in(__DIR__);
+    ->setParallelConfig(PhpCsFixer\Runner\Parallel\ParallelConfigFactory::detect())
+    ->setRules(array_merge($config->getRules(), [
+        'no_unused_imports' => true,
+    ]))
+    ->getFinder()
+    ->ignoreVCSIgnored(true)
+    ->notPath('logs')
+    ->notPath('vendor')
+    ->notPath('vendor-bin')
+    ->in(__DIR__);
 return $config;

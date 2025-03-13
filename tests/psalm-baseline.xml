@@ -1,28 +1,3 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <files psalm-version="5.24.0@462c80e31c34e58cc4f750c656be3927e80e550e">
-  <file src="src/Service/Akaunting/Document/ProducaoCooperativista.php">
-    <InvalidReturnStatement>
-      <code><![CDATA[$return]]></code>
-    </InvalidReturnStatement>
-    <InvalidReturnType>
-      <code><![CDATA[self]]></code>
-    </InvalidReturnType>
-  </file>
-  <file src="src/Service/Akaunting/Document/Taxes/Tax.php">
-    <FalsableReturnStatement>
-      <code><![CDATA[$percentual]]></code>
-    </FalsableReturnStatement>
-  </file>
-  <file src="src/Service/Cooperado.php">
-    <InvalidNullableReturnType>
-      <code><![CDATA[FRRA]]></code>
-      <code><![CDATA[InssIrpf]]></code>
-      <code><![CDATA[ProducaoCooperativista]]></code>
-    </InvalidNullableReturnType>
-    <NullableReturnStatement>
-      <code><![CDATA[$this->frra]]></code>
-      <code><![CDATA[$this->inssIrpf]]></code>
-      <code><![CDATA[$this->producaoCooperativista]]></code>
-    </NullableReturnStatement>
-  </file>
 </files>

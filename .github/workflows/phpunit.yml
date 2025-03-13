@@ -19,8 +19,9 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      DB_URL: pdo-mysql://root:root@127.0.0.1:4444/report
-      DB_URL_AKAUNTING: pdo-mysql://root:root@127.0.0.1:4444/akaunting
+      APP_ENV: test
+      DATABASE_URL: pdo-mysql://root:root@127.0.0.1:4444/report
+      DATABASE_AKAUNTING_URL: pdo-mysql://root:root@127.0.0.1:4444/akaunting
       AKAUNTING_COMPANY_ID: 1
       AKAUNTING_FRRA_MES_PADRAO: 12
       AKAUNTING_RESGATE_SALDO_IRPF_MES_PADRAO: 12
@@ -78,7 +79,9 @@ jobs:
       - name: Set up database
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: php ./bin/import migrations:migrate -n
+        run: |
+            > .env
+            php ./bin/console doctrine:migrations:migrate -n
 
       - name: PHPUnit
         run: composer run test:unit
@@ -86,4 +89,4 @@ jobs:
       - name: Print logs
         if: always()
         run: |
-          cat storage/logs/system.log
+          cat var/log/test.log
