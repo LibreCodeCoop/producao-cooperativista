@@ -58,7 +58,6 @@ class ProducaoCooperativista
     private array $trabalhadoPorCliente = [];
     /** @var Cooperado[] */
     private array $cooperado = [];
-    private array $categoriesList = [];
     private int $totalCooperados = 0;
     private bool $producaoDistribuida = false;
     private EntityManagerInterface $entityManagerAkaunting;
