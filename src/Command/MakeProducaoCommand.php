@@ -26,6 +26,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Service\Kimai\Source\Users;
 use DateTime;
 use App\Service\ProducaoCooperativista;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -41,7 +42,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 class MakeProducaoCommand extends AbstractBaseCommand
 {
     public function __construct(
-        private ProducaoCooperativista $producaoCooperativista
+        private ProducaoCooperativista $producaoCooperativista,
+        private Users $users,
     ) {
         parent::__construct();
     }
@@ -125,7 +127,7 @@ class MakeProducaoCommand extends AbstractBaseCommand
         $this->producaoCooperativista->dates->setDiasUteis($diasUteis);
         $this->producaoCooperativista->setPercentualMaximo($percentualMaximo);
         $pesos = json_decode((string) $input->getOption('pesos'), true) ?? [];
-        $this->producaoCooperativista->updatePesos($pesos);
+        $this->users->updatePesos($pesos);
 
         try {
             $this->producaoCooperativista->getProducaoCooperativista();

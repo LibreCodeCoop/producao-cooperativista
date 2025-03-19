@@ -517,11 +517,6 @@ class ProducaoCooperativista
         $this->movimentacao->setPercentualMaximo($percentualMaximo);
     }
 
-    public function updatePesos(array $pesos): void
-    {
-        $this->users->updatePesos($pesos);
-    }
-
     public function updateProducao(): void
     {
         $producao = $this->getProducaoCooperativista();
