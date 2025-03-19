@@ -511,11 +511,6 @@ class ProducaoCooperativista
         return $contacts->getId();
     }
 
-    public function setPercentualMaximo(int $percentualMaximo): void
-    {
-        $this->movimentacao->setPercentualMaximo($percentualMaximo);
-    }
-
     public function updateProducao(): void
     {
         $producao = $this->getProducaoCooperativista();

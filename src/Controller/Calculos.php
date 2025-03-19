@@ -26,6 +26,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\Movimentacao;
 use App\Service\ProducaoCooperativista;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -42,6 +43,7 @@ class Calculos extends AbstractController
         RequestStack $requestStack,
         private UrlGeneratorInterface $urlGenerator,
         private ProducaoCooperativista $producao,
+        private Movimentacao $movimentacao,
     ) {
         $this->request = $requestStack->getCurrentRequest();
     }
@@ -72,7 +74,7 @@ class Calculos extends AbstractController
         $diasUteis = (int) $this->request->get('dias-uteis');
         $this->producao->dates->setDiasUteis($diasUteis);
 
-        $this->producao->setPercentualMaximo(
+        $this->movimentacao->setPercentualMaximo(
             (int) $this->request->get('percentual-maximo', getenv('PERCENTUAL_MAXIMO'))
         );
         try {
