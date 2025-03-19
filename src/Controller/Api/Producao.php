@@ -24,28 +24,32 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Controller\Api;
+namespace App\Controller\Api;
 
 use DateTime;
-use ProducaoCooperativista\Core\App;
-use ProducaoCooperativista\Service\ProducaoCooperativista;
+use App\Service\ProducaoCooperativista;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
 
-class Producao
+class Producao extends AbstractController
 {
+    private Request $request;
     public function __construct(
-        private Request $request,
+        RequestStack $requestStack,
+        private ProducaoCooperativista $producao,
     ) {
+        $this->request = $requestStack->getCurrentRequest();
     }
 
-    public function index(): Response
+    #[Route('/api/v1/producao', methods: ['GET'])]
+    public function index(): JsonResponse
     {
         try {
-            $producaoCooperativista = App::get(ProducaoCooperativista::class);
-
-            $producaoCooperativista->dates->setDiaUtilPagamento(
+            $this->producao->dates->setDiaUtilPagamento(
                 (int) $this->request->get('dia-util-pagamento', getenv('DIA_UTIL_PAGAMENTO'))
             );
 
@@ -53,17 +57,18 @@ class Producao
             if (!$inicio instanceof DateTime) {
                 throw new \Exception('ano-mes precisa estar no formato YYYY-MM');
             }
-            $producaoCooperativista->dates->setInicio($inicio);
+            $this->producao->dates->setInicio($inicio);
 
             $diasUteis = (int) $this->request->get('dias-uteis');
-            $producaoCooperativista->dates->setDiasUteis($diasUteis);
+            $this->producao->dates->setDiasUteis($diasUteis);
 
-            $producaoCooperativista->setPercentualMaximo(
+            $this->producao->setPercentualMaximo(
                 (int) $this->request->get('percentual-maximo', getenv('PERCENTUAL_MAXIMO'))
             );
 
-            $list = $producaoCooperativista->getProducaoCooperativista();
-            $trabalhadoPorCliente = $producaoCooperativista->getTrabalhadoPorCliente();
+            $list = $this->producao->getProducaoCooperativista();
+            $trabalhadoPorCliente = $this->producao->getTrabalhadoPorCliente();
+            $output = [];
             foreach ($list as $cooperado) {
                 $array = $cooperado->getProducaoCooperativista()->getValues()->toArray();
                 if (empty($array['adiantamento'])) {
@@ -91,7 +96,7 @@ class Producao
                 'data' => array_values($output),
                 'metadata' => [
                     'total' => count($output),
-                    'date' => $producaoCooperativista->dates->getInicioProximoMes()->format('Y-m')
+                    'date' => $this->producao->dates->getInicioProximoMes()->format('Y-m')
                 ],
             ];
             return new JsonResponse($response);

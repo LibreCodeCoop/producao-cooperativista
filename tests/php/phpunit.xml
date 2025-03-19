@@ -8,6 +8,34 @@
   xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.3/phpunit.xsd"
   cacheDirectory=".phpunit.cache"
   >
+  <php>
+    <env name="APP_ENV" value="test"/>
+    <env name="KERNEL_CLASS" value="App\Kernel"/>
+    <env name="DATABASE_URL" value="pdo-mysql://root:root@mysql/report" />
+    <env name="DATABASE_AKAUNTING_URL" value="pdo-mysql://root:root@akaunting.mysql/akaunting" />
+    <env name="AKAUNTING_COMPANY_ID" value="1" />
+    <env name="AKAUNTING_FRRA_MES_PADRAO" value="12" />
+    <env name="AKAUNTING_RESGATE_SALDO_IRPF_MES_PADRAO" value="12" />
+    <env name="AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID" value="35" />
+    <env name="AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID" value="11" />
+    <env name="AKAUNTING_FRRA_CATEGORY_ID" value="33" />
+    <env name="AKAUNTING_ADIANTAMENTO_CATEGORY_ID" value="34" />
+    <env name="AKAUNTING_PLANO_DE_SAUDE_CATEGORY_ID" value="29" />
+    <env name="AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID" value="28" />
+    <env name="AKAUNTING_PARENT_DISPENDIOS_INTERNOS_CATEGORY_ID" value="16" />
+    <env name="AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID" value="45" />
+    <env name="AKAUNTING_IMPOSTOS_COFINS" value="{&quot;categoryId&quot;:40,&quot;contactId&quot;:111,&quot;taxId&quot;:1}" />
+    <env name="AKAUNTING_IMPOSTOS_INSS_IRRF" value="{&quot;categoryId&quot;:38,&quot;contactId&quot;:20,&quot;taxId&quot;:2}" />
+    <env name="AKAUNTING_IMPOSTOS_IRPF_RETIDO" value="{&quot;categoryId&quot;:42,&quot;contactId&quot;:20,&quot;taxId&quot;:2}" />
+    <env name="AKAUNTING_IMPOSTOS_ISS" value="{&quot;categoryId&quot;:39,&quot;contactId&quot;:111,&quot;taxId&quot;:4}" />
+    <env name="AKAUNTING_IMPOSTOS_PIS" value="{&quot;categoryId&quot;:41,&quot;contactId&quot;:111,&quot;taxId&quot;:3}" />
+    <env name="AKAUNTING_IMPOSTOS_ITEM_ID" value="14" />
+    <env name="AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS" value="{&quot;bruto&quot;:26,&quot;INSS&quot;:28,&quot;IRRF&quot;:29,&quot;Plano&quot;:30,&quot;Auxílio&quot;:32,&quot;desconto&quot;:31,&quot;frra&quot;:27}" />
+    <env name="HOLYDAYS_LIST" value="br-rj" />
+    <env name="LOCALE" value="pt_BR" />
+    <env name="CNPJ_CLIENTES_INTERNOS" value="00000000000191" />
+    <env name="CNPJ_COMPANY" value="00000000000191" />
+  </php>
   <testsuite name="Produção Cooperativista Tests">
     <directory suffix="Test.php">.</directory>
   </testsuite>

@@ -24,22 +24,19 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\Kimai\Source;
+namespace App\Service\Kimai\Source;
 
 use DateTime;
-use Doctrine\DBAL\ArrayParameterType;
-use Doctrine\DBAL\ParameterType;
-use Doctrine\DBAL\Query\QueryBuilder;
-use Doctrine\DBAL\Types\Types;
-use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\Provider\Kimai;
+use App\Entity\Producao\Timesheet;
+use App\Provider\Kimai;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 class Timesheets
 {
     use Kimai;
     public function __construct(
-        private Database $db,
+        private EntityManagerInterface $entityManager,
         private LoggerInterface $logger
     ) {
     }
@@ -80,52 +77,26 @@ class Timesheets
 
     public function saveList(array $list): void
     {
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('id')
-            ->from('timesheet')
-            ->where($select->expr()->in('id', ':id'))
-            ->setParameter('id', array_column($list, 'id'), ArrayParameterType::INTEGER);
-        $result = $select->executeQuery();
-        $exists = [];
-        while ($row = $result->fetchAssociative()) {
-            $exists[] = $row['id'];
-        }
-        $insert = new QueryBuilder($this->db->getConnection());
         foreach ($list as $row) {
-            if (in_array($row['id'], $exists)) {
-                $update = new QueryBuilder($this->db->getConnection());
-                $update->update('timesheet')
-                    ->set('activity_id', $update->createNamedParameter($row['activity'], ParameterType::INTEGER))
-                    ->set('project_id', $update->createNamedParameter($row['project'], ParameterType::INTEGER))
-                    ->set('user_id', $update->createNamedParameter($row['user'], ParameterType::INTEGER))
-                    ->set('begin', $update->createNamedParameter($this->convertDate($row['begin']), Types::DATETIME_MUTABLE))
-                    ->set('end', $update->createNamedParameter($this->convertDate($row['end']), Types::DATETIME_MUTABLE))
-                    ->set('duration', $update->createNamedParameter($row['duration'], ParameterType::INTEGER))
-                    ->set('description', $update->createNamedParameter($row['description']))
-                    ->set('rate', $update->createNamedParameter($row['rate'], Types::FLOAT))
-                    ->set('internal_rate', $update->createNamedParameter($row['internalRate'], Types::FLOAT))
-                    ->set('exported', $update->createNamedParameter($row['exported'], ParameterType::INTEGER))
-                    ->set('billable', $update->createNamedParameter($row['billable'], ParameterType::INTEGER))
-                    ->where($update->expr()->eq('id', $update->createNamedParameter($row['id'], ParameterType::INTEGER)))
-                    ->executeStatement();
-                continue;
+            $timesheet = $this->entityManager->getRepository(Timesheet::class)->find($row['id']);
+            if (!$timesheet instanceof Timesheet) {
+                $timesheet = new Timesheet();
+                $timesheet->setId($row['id']);
             }
-            $insert->insert('timesheet')
-                ->values([
-                    'id' => $insert->createNamedParameter($row['id'], ParameterType::INTEGER),
-                    'activity_id' => $insert->createNamedParameter($row['activity'], ParameterType::INTEGER),
-                    'project_id' => $insert->createNamedParameter($row['project'], ParameterType::INTEGER),
-                    'user_id' => $insert->createNamedParameter($row['user'], ParameterType::INTEGER),
-                    'begin' => $insert->createNamedParameter($this->convertDate($row['begin']), Types::DATETIME_MUTABLE),
-                    'end' => $insert->createNamedParameter($this->convertDate($row['end']), Types::DATETIME_MUTABLE),
-                    'duration' => $insert->createNamedParameter($row['duration'], ParameterType::INTEGER),
-                    'description' => $insert->createNamedParameter($row['description']),
-                    'rate' => $insert->createNamedParameter($row['rate'], Types::FLOAT),
-                    'internal_rate' => $insert->createNamedParameter($row['internalRate'], Types::FLOAT),
-                    'exported' => $insert->createNamedParameter($row['exported'], ParameterType::INTEGER),
-                    'billable' => $insert->createNamedParameter($row['billable'], ParameterType::INTEGER),
-                ])
-                ->executeStatement();
+            $timesheet
+                ->setActivityId($row['activity'])
+                ->setProjectId($row['project'])
+                ->setUserId($row['user'])
+                ->setBegin($this->convertDate($row['begin']))
+                ->setEnd($this->convertDate($row['end']))
+                ->setDuration($row['duration'])
+                ->setDescription($row['description'])
+                ->setRate($row['rate'])
+                ->setInternalRate($row['internalRate'])
+                ->setExported($row['exported'])
+                ->setBillable($row['billable']);
+            $this->entityManager->persist($timesheet);
+            $this->entityManager->flush();
         }
     }
 

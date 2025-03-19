@@ -24,13 +24,13 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Helper;
+namespace App\Helper;
 
 class Sse
 {
     private bool $started = false;
 
-    protected function init()
+    protected function init(): void
     {
         if ($this->started) {
             return;
@@ -59,7 +59,7 @@ class Sse
      *
      * @throws \BadMethodCallException if only one parameter is given, a typeless message will be send with that parameter as data
      */
-    public function send(string $event, mixed $data = null)
+    public function send(string $event, ?string $data = null): void
     {
         if ($data and !preg_match('/^[A-Za-z0-9_]+$/', $event)) {
             throw new \BadMethodCallException('Type needs to be alphanumeric ('. $event .')');

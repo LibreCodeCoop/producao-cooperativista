@@ -24,7 +24,7 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Provider\Akaunting;
+namespace App\Provider\Akaunting;
 
 use Exception;
 use Psr\Log\LoggerInterface;
@@ -78,7 +78,7 @@ class Request
         return $response;
     }
 
-    public function handleError($response): void
+    public function handleError(array $response): void
     {
         if (!isset($response['status_code'])) {
             return;

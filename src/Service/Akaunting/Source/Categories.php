@@ -24,26 +24,15 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\Akaunting\Source;
+namespace App\Service\Akaunting\Source;
 
-use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\DB\Entity\Categories as EntityCategories;
-use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
-use ProducaoCooperativista\Provider\Akaunting\Dataset;
+use App\Entity\Producao\Categories as EntityCategories;
+use App\Helper\MagicGetterSetterTrait;
+use App\Provider\Akaunting\Dataset;
+use Doctrine\ORM\EntityManagerInterface;
+use Exception;
 use Psr\Log\LoggerInterface;
 
-/**
- * @method self setName(string $value)
- * @method string getName()
- * @method self setType(string $value)
- * @method string getType()
- * @method self setEnabled(int $value)
- * @method int getEnabled()
- * @method self setParentId(int $value)
- * @method int getParentId();
- * @method self setMetadata(string $value)
- * @method string getMetadata()
- */
 class Categories
 {
     use MagicGetterSetterTrait;
@@ -52,13 +41,16 @@ class Categories
     private array $list = [];
 
     public function __construct(
-        private Database $db,
         private LoggerInterface $logger,
+        private EntityManagerInterface $entityManager,
         private Dataset $dataset,
     ) {
         $this->companyId = (int) getenv('AKAUNTING_COMPANY_ID');
     }
 
+    /**
+     * @return EntityCategories[]
+     */
     public function getList(): array
     {
         if (!empty($this->list)) {
@@ -70,8 +62,8 @@ class Categories
             'company_id' => $this->getCompanyId(),
         ]);
         foreach ($list as $row) {
-            $invoice = $this->fromArray($row);
-            $this->list[] = $invoice;
+            $category = $this->fromArray($row);
+            $this->list[] = $category;
         }
         $this->logger->info('Dados de categorias salvos com sucesso. Total: {total}', [
             'total' => count($this->list),
@@ -81,7 +73,7 @@ class Categories
 
     public function fromArray(array $array): EntityCategories
     {
-        $entity = $this->db->getEntityManager()->find(EntityCategories::class, $array['id']);
+        $entity = $this->entityManager->find(EntityCategories::class, $array['id']);
         $array = $this->convertFields($array);
         if (!$entity instanceof EntityCategories) {
             $entity = new EntityCategories();
@@ -101,7 +93,7 @@ class Categories
 
     public function saveRow(EntityCategories $taxes): self
     {
-        $em = $this->db->getEntityManager();
+        $em = $this->entityManager;
         $em->persist($taxes);
         $em->flush();
         return $this;
@@ -111,5 +103,32 @@ class Categories
     {
         $row['metadata'] = $row;
         return $row;
+    }
+
+    public function getCategories(): array
+    {
+        if (!empty($this->list)) {
+            return $this->list;
+        }
+        $this->list = $this->entityManager->getRepository(EntityCategories::class)->findAll();
+        if (empty($this->list)) {
+            throw new Exception('Sem categorias');
+        }
+        return $this->list;
+    }
+
+    public function getChildrensCategories(int $id): array
+    {
+        $childrens = [];
+        foreach ($this->getCategories() as $category) {
+            if ($category->getParentId() === $id) {
+                $childrens[] = $category->getId();
+                $childrens = array_merge($childrens, $this->getChildrensCategories($category->getId()));
+            }
+            if ($category->getId() === $id) {
+                $childrens[] = $category->getId();
+            }
+        }
+        return array_values(array_unique($childrens));
     }
 }

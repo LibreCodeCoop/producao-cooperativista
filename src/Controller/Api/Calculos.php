@@ -24,28 +24,32 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Controller\Api;
+namespace App\Controller\Api;
 
 use DateTime;
-use ProducaoCooperativista\Core\App;
-use ProducaoCooperativista\Service\ProducaoCooperativista;
+use App\Service\ProducaoCooperativista;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
 
-class Calculos
+class Calculos extends AbstractController
 {
+    private Request $request;
     public function __construct(
-        private Request $request,
+        RequestStack $requestStack,
+        private ProducaoCooperativista $producao,
     ) {
+        $this->request = $requestStack->getCurrentRequest();
     }
 
+    #[Route('/api/v1/calculos', methods: ['GET'])]
     public function index(): Response
     {
         try {
-            $producao = App::get(ProducaoCooperativista::class);
-
-            $producao->dates->setDiaUtilPagamento(
+            $this->producao->dates->setDiaUtilPagamento(
                 (int) $this->request->get('dia-util-pagamento', getenv('DIA_UTIL_PAGAMENTO'))
             );
 
@@ -53,18 +57,18 @@ class Calculos
             if (!$inicio instanceof DateTime) {
                 throw new \Exception('ano-mes precisa estar no formato YYYY-MM');
             }
-            $producao->dates->setInicio($inicio);
+            $this->producao->dates->setInicio($inicio);
 
             $diasUteis = (int) $this->request->get('dias-uteis');
-            $producao->dates->setDiasUteis($diasUteis);
+            $this->producao->dates->setDiasUteis($diasUteis);
 
-            $producao->setPercentualMaximo(
+            $this->producao->setPercentualMaximo(
                 (int) $this->request->get('percentual-maximo', getenv('PERCENTUAL_MAXIMO'))
             );
 
-            $producao->getProducaoCooperativista();
+            $this->producao->getProducaoCooperativista();
 
-            $response = $producao->exportData();
+            $response = $this->producao->exportData();
             return new JsonResponse($response);
         } catch (\Throwable $e) {
             return new Response(

@@ -24,26 +24,26 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Controller\Api;
+namespace App\Controller\Api;
 
-use DateTime;
-use ProducaoCooperativista\Core\App;
-use ProducaoCooperativista\Service\ProducaoCooperativista;
+use App\Service\Cooperado;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
 
-class CapitalSocial
+class CapitalSocial extends AbstractController
 {
-    private ProducaoCooperativista $producaoCooperativista;
-    public function __construct()
-    {
-        $this->producaoCooperativista = App::get(ProducaoCooperativista::class);
+    public function __construct(
+        private Cooperado $cooperado,
+    ) {
     }
 
+    #[Route('/api/v1/capital-social', methods: ['GET'])]
     public function index(): JsonResponse
     {
         try {
-            $capitalSocial = $this->producaoCooperativista->getCapitalSocial();
+            $capitalSocial = $this->cooperado->getCapitalSocial();
         } catch (\Throwable $th) {
             return new JsonResponse(
                 [

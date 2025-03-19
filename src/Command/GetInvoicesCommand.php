@@ -24,10 +24,10 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Command;
+namespace App\Command;
 
 use DateTime;
-use ProducaoCooperativista\Service\Akaunting\Source\Documents;
+use App\Service\Akaunting\Source\Documents;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -38,7 +38,7 @@ use Symfony\Component\Console\Output\OutputInterface;
     name: 'get:invoices',
     description: 'Get invoices'
 )]
-class GetInvoicesCommand extends BaseCommand
+class GetInvoicesCommand extends AbstractBaseCommand
 {
     public function __construct(
         private Documents $documents

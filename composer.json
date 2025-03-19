@@ -2,43 +2,50 @@
     "type": "project",
     "license": "AGPL-3.0-or-later",
     "require": {
-        "cmixin/business-day": "^1.16",
-        "doctrine/dbal": "^3.5",
-        "doctrine/migrations": "^3.6",
-        "doctrine/orm": "^2.15",
-        "doctrine/sql-formatter": "^1.1",
-        "librecodecoop/impostos": "^0.1.0",
-        "monolog/monolog": "^3.3",
-        "php-di/php-di": "*",
+        "cmixin/business-day": "^1.19.3",
+        "doctrine/doctrine-bundle": "^2.13.2",
+        "doctrine/doctrine-migrations-bundle": "^3.4.1",
+        "doctrine/orm": "^3.3.2",
+        "librecodecoop/impostos": "^0.1.2",
         "roukmoute/polyfill-calendar": "^0.5.0",
-        "symfony/browser-kit": "^6.2",
-        "symfony/cache": "^6.3",
-        "symfony/console": "^6.2",
-        "symfony/css-selector": "^6.2",
-        "symfony/http-client": "^6.2",
-        "symfony/http-foundation": "^6.3",
-        "symfony/mime": "^6.2",
-        "symfony/routing": "^6.3",
-        "twig/twig": "^3.7",
-        "vlucas/phpdotenv": "^5.5"
+        "scienta/doctrine-json-functions": "^6.3",
+        "symfony/browser-kit": "^7.2.4",
+        "symfony/css-selector": "^7.2",
+        "symfony/dotenv": "^7.2",
+        "symfony/framework-bundle": "7.2.*",
+        "symfony/http-client": "^7.2.4",
+        "symfony/monolog-bundle": "^3.10",
+        "symfony/runtime": "^7.2.3",
+        "symfony/twig-bundle": "^7.2",
+        "symfony/yaml": "^7.2.3",
+        "twig/twig": "^3.20"
     },
     "require-dev": {
-        "bamarni/composer-bin-plugin": "^1.8",
-        "doctrine/data-fixtures": "^1.6"
+        "bamarni/composer-bin-plugin": "^1.8.2",
+        "doctrine/data-fixtures": "^1.8.1",
+        "symfony/maker-bundle": "^1.62.1"
     },
     "autoload": {
         "psr-4": {
-            "ProducaoCooperativista\\": "src/",
-            "Tests\\Php\\": "tests/php"
+            "App\\": "src/"
         }
     },
-    "bin" : [
-        "bin/import"
+    "autoload-dev": {
+        "psr-4": {
+            "App\\Tests\\": "tests/php/"
+        }
+    },
+    "bin": [
+        "bin/console"
     ],
     "config": {
         "allow-plugins": {
-            "bamarni/composer-bin-plugin": true
+            "bamarni/composer-bin-plugin": true,
+            "php-http/discovery": true,
+            "symfony/flex": true,
+            "symfony/runtime": true
         },
+        "bump-after-update": true,
         "optimize-autoloader": true,
         "classmap-authoritative": true,
         "sort-packages": true
@@ -48,6 +55,10 @@
             "bin-links": false,
             "target-directory": "vendor-bin",
             "forward-command": true
+        },
+        "symfony": {
+            "allow-contrib": false,
+            "require": "7.2.*"
         }
     },
     "scripts": {
@@ -55,9 +66,8 @@
         "lint": "find . -name \\*.php -not -path './vendor/*' -not -path './vendor-bin/*' -print0 | xargs -0 -n1 php -l",
         "cs:check": "vendor-bin/cs/vendor/friendsofphp/php-cs-fixer/php-cs-fixer fix --dry-run --diff",
         "cs:fix": "vendor-bin/cs/vendor/friendsofphp/php-cs-fixer/php-cs-fixer fix",
-        "psalm": "vendor-bin/psalm/vendor/bin/psalm --threads=1",
-        "psalm:update-baseline": "vendor-bin/psalm/vendor/bin/psalm --threads=1 --update-baseline --set-baseline=tests/psalm-baseline.xml",
-        "psalm:clear": "vendor-bin/psalm/vendor/bin/psalm --clear-cache && vendor-bin/psalm/vendor/bin/psalm --clear-global-cache",
+        "psalm": "vendor-bin/psalm/vendor/bin/psalm --no-cache --threads=$(nproc)",
+        "psalm:update-baseline": "vendor-bin/psalm/vendor/bin/psalm --threads=$(nproc) --update-baseline --set-baseline=tests/psalm-baseline.xml",
         "post-install-cmd": [
             "@composer bin all install --ansi",
             "composer dump-autoload"
@@ -67,5 +77,8 @@
             "composer dump-autoload"
         ],
         "test:unit": "vendor-bin/unit/vendor/bin/phpunit -c tests/php/phpunit.xml --color --no-coverage --fail-on-warning --fail-on-risky"
+    },
+    "conflict": {
+        "symfony/symfony": "*"
     }
 }

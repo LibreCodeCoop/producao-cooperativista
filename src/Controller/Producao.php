@@ -24,22 +24,27 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Controller;
+namespace App\Controller;
 
-use ProducaoCooperativista\Core\App;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Generator\UrlGenerator;
+use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
-class Producao
+class Producao extends AbstractController
 {
+    private Request $request;
     public function __construct(
-        private UrlGenerator $urlGenerator,
-        private Request $request,
+        RequestStack $requestStack,
+        private UrlGeneratorInterface $urlGenerator,
     ) {
+        $this->request = $requestStack->getCurrentRequest();
     }
 
+    #[Route('/producao', methods: ['GET'])]
     public function index(): Response
     {
         $inicio = \DateTime::createFromFormat('Y-m', $this->request->get('ano-mes', ''));
@@ -48,27 +53,23 @@ class Producao
             $inicio->modify('-2 month');
             return new RedirectResponse(
                 $this->urlGenerator->generate(
-                    'Producao#index',
+                    'app_producao_index',
                     [
                         'ano-mes' => $inicio->format('Y-m')
                     ],
-                    UrlGenerator::ABSOLUTE_URL
+                    $this->urlGenerator::ABSOLUTE_URL
                 )
             );
         }
 
-        $response = new Response(
-            App::get(\Twig\Environment::class)
-                ->load('producao.index.html.twig')
-                ->render([
-                    'url' => $this->urlGenerator->generate(
-                        'Api\Producao#index',
-                        [
-                            'ano-mes' => $inicio->format('Y-m')
-                        ],
-                    ),
-                ])
-        );
+        return $this->render('producao.index.html.twig', [
+            'url' => $this->urlGenerator->generate(
+                'app_api_producao_index',
+                [
+                    'ano-mes' => $inicio->format('Y-m')
+                ],
+            ),
+        ]);
         return $response;
     }
 }

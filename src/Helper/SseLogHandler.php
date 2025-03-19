@@ -24,41 +24,55 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Helper;
+namespace App\Helper;
 
+use Monolog\Handler\AbstractProcessingHandler;
 use Monolog\Handler\HandlerInterface;
-use Monolog\Handler\HandlerWrapper;
+use Monolog\Handler\ProcessableHandlerTrait;
 use Monolog\Level;
 use Monolog\LogRecord;
+use Monolog\Processor\PsrLogMessageProcessor;
 
-class SseLogHandler extends HandlerWrapper
+class SseLogHandler extends AbstractProcessingHandler
 {
+    use ProcessableHandlerTrait;
     private array $filter = [
         '/doctrine/',
     ];
 
     public function __construct(
         protected HandlerInterface $handler,
+        protected PsrLogMessageProcessor $processor,
         protected Sse $sse,
     ) {
+        $this->pushProcessor($processor);
     }
 
-    /**
-     * @inheritDoc
-     */
-    public function handle(LogRecord $record): bool
+    protected function write(LogRecord $record): void
     {
-        if ($record->level->value >= Level::Info->value) {
-            if (!$this->isBlocked()) {
-                if (json_validate($record->message)) {
-                    $message = json_decode($record->message);
-                    $this->sse->send(strtolower($message->event), $message->data);
-                } else {
-                    $this->sse->send(strtolower($record->level->name), $record->message);
-                }
-            }
+        if ($record->level->value < Level::Info->value) {
+            return;
         }
-        return $this->handler->handle($record);
+        if ($this->isBlocked()) {
+            return;
+        }
+        if ($this->isCli()) {
+            return;
+        }
+        if (\count($this->processors) > 0) {
+            $record = $this->processRecord($record);
+        }
+        if (json_validate($record->message)) {
+            $message = json_decode($record->message);
+            $this->sse->send(strtolower($message->event), $message->data);
+        } else {
+            $this->sse->send(strtolower($record->level->name), $record->message);
+        }
+    }
+
+    private function isCli(): bool
+    {
+        return PHP_SAPI === 'cli';
     }
 
     private function isBlocked(): bool
@@ -66,7 +80,7 @@ class SseLogHandler extends HandlerWrapper
         $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
         foreach ($trace as $row) {
             foreach ($this->filter as $pattern) {
-                if (preg_match($pattern, $row['file'])) {
+                if (isset($row['file']) && preg_match($pattern, $row['file'])) {
                     return true;
                 }
             }

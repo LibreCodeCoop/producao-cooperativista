@@ -24,7 +24,7 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Helper;
+namespace App\Helper;
 
 use Stringable;
 

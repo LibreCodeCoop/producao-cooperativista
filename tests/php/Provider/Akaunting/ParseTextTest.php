@@ -24,8 +24,10 @@
 
 declare(strict_types=1);
 
+namespace App\Tests\Provider\Akaunting;
+
 use PHPUnit\Framework\Attributes\DataProvider;
-use ProducaoCooperativista\Provider\Akaunting\ParseText;
+use App\Provider\Akaunting\ParseText;
 use Tests\Php\TestCase;
 
 final class ParseTextTest extends TestCase

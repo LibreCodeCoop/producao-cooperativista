@@ -1,5 +1,6 @@
 {
     "require-dev": {
-        "vimeo/psalm": "^6.8"
+        "vimeo/psalm": "^6.8",
+        "weirdan/doctrine-psalm-plugin": "^2.10"
     }
 }

@@ -24,16 +24,15 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\Kimai\Source;
+namespace App\Service\Kimai\Source;
 
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
-use Doctrine\DBAL\Query\QueryBuilder;
-use Exception;
 use InvalidArgumentException;
-use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\DB\Entity\Users as EntityUsers;
-use ProducaoCooperativista\Provider\Kimai;
+use App\Entity\Producao\Users as EntityUsers;
+use App\Provider\Kimai;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
 
 class Users
@@ -47,24 +46,20 @@ class Users
     ];
     /** @var EntityUsers[] */
     private array $list = [];
-    private array $spreadsheetData = [];
+    private EntityManagerInterface $entityManagerAkaunting;
 
     public function __construct(
-        private Database $db,
+        ManagerRegistry $managerRegistry,
+        private EntityManagerInterface $entityManager,
         private LoggerInterface $logger
     ) {
+        $this->entityManagerAkaunting = $managerRegistry->getManager('akaunting');
     }
 
     public function setVisibility(int $visibility): self
     {
         $this->visibility = $visibility;
         return $this;
-    }
-
-    public function updateDatabase(): void
-    {
-        $list = $this->getList();
-        $this->saveList($list);
     }
 
     /**
@@ -105,7 +100,7 @@ class Users
         $array = $this->updateFromUserPreferences($array);
         $array = $this->updateWithAkauntingData($array);
         $array = $this->convertFields($array);
-        $entity = $this->db->getEntityManager()->find(EntityUsers::class, $array['id']);
+        $entity = $this->entityManager->find(EntityUsers::class, $array['id']);
         if (!$entity instanceof EntityUsers) {
             $entity = new EntityUsers();
         }
@@ -114,7 +109,7 @@ class Users
         return $entity;
     }
 
-    private function validate($array): void
+    private function validate(array $array): void
     {
         if (empty($array['tax_number'])) {
             $this->logger->alert('Cooperado sem CPF: {cooperado}', [
@@ -145,17 +140,17 @@ class Users
         if (empty($item['tax_number'])) {
             return $item;
         }
-        $select = new QueryBuilder($this->db->getConnection(Database::DB_AKAUNTING));
-        $select->select('c.*')
+        $qb = $this->entityManagerAkaunting->getConnection()->createQueryBuilder();
+        $qb->select('c.*')
             ->from('contacts', 'c')
-            ->where($select->expr()->or(
-                $select->expr()->eq('tax_number', $select->createNamedParameter($item['tax_number'])),
-                $select->expr()->eq('email', $select->createNamedParameter($item['email'])),
+            ->where($qb->expr()->or(
+                $qb->expr()->eq('c.tax_number', $qb->createNamedParameter($item['tax_number'])),
+                $qb->expr()->eq('c.email', $qb->createNamedParameter($item['email'])),
             ))
-            ->andWhere('deleted_at IS NULL')
-            ->andWhere($select->expr()->in('type', $select->createNamedParameter(['vendor', 'employee'], ArrayParameterType::STRING)))
+            ->andWhere('c.deleted_at IS NULL')
+            ->andWhere($qb->expr()->in('c.type', $qb->createNamedParameter(['vendor', 'employee'], ArrayParameterType::STRING)))
             ->orderBy('c.type');
-        $result = $select->executeQuery();
+        $result = $qb->executeQuery();
         $row = $result->fetchAssociative();
         if (!$row) {
             return $item;
@@ -172,7 +167,7 @@ class Users
 
     public function updatePesos(array $pesos): self
     {
-        $update = new QueryBuilder($this->db->getConnection());
+        $update = $this->entityManager->getConnection()->createQueryBuilder();
         foreach ($pesos as $cooperado) {
             $update->update('users')
                 ->set('peso', $update->createNamedParameter($cooperado['weight']))
@@ -193,7 +188,7 @@ class Users
 
     public function saveRow(EntityUsers $user): self
     {
-        $em = $this->db->getEntityManager();
+        $em = $this->entityManager;
         $em->persist($user);
         $em->flush();
         return $this;

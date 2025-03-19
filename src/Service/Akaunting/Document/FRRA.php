@@ -24,7 +24,7 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\Akaunting\Document;
+namespace App\Service\Akaunting\Document;
 
 use UnexpectedValueException;
 

@@ -24,9 +24,9 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\Akaunting\Document\Taxes;
+namespace App\Service\Akaunting\Document\Taxes;
 
-use ProducaoCooperativista\Service\Akaunting\Document\ADocument;
+use App\Service\Akaunting\Document\ADocument;
 use UnexpectedValueException;
 
 class InssIrpf extends Tax

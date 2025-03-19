@@ -24,9 +24,9 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Command;
+namespace App\Command;
 
-use ProducaoCooperativista\Service\Kimai\Source\Customers;
+use App\Service\Kimai\Source\Customers;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -36,7 +36,7 @@ use Symfony\Component\Console\Output\OutputInterface;
     name: 'get:customers',
     description: 'Get customers'
 )]
-class GetCustomersCommand extends BaseCommand
+class GetCustomersCommand extends AbstractBaseCommand
 {
     public function __construct(
         private Customers $customers

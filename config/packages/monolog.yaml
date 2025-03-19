@@ -1,0 +1,12 @@
+monolog:
+    channels: ['sse']
+    handlers:
+        main:
+            type: stream
+            path: "%kernel.logs_dir%/%kernel.environment%.log"
+            level: debug
+        sse:
+            type: service
+            id: App\Helper\SseLogHandler
+            level: info
+            channels: ['sse']

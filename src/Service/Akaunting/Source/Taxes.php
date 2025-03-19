@@ -24,12 +24,12 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\Akaunting\Source;
+namespace App\Service\Akaunting\Source;
 
-use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\DB\Entity\Taxes as EntityTaxes;
-use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
-use ProducaoCooperativista\Provider\Akaunting\Dataset;
+use App\Entity\Producao\Taxes as EntityTaxes;
+use App\Helper\MagicGetterSetterTrait;
+use App\Provider\Akaunting\Dataset;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -52,13 +52,16 @@ class Taxes
     private array $list = [];
 
     public function __construct(
-        private Database $db,
+        private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
         private Dataset $dataset,
     ) {
         $this->companyId = (int) getenv('AKAUNTING_COMPANY_ID');
     }
 
+    /**
+     * @return EntityTaxes[]
+     */
     public function getList(): array
     {
         if (!empty($this->list)) {
@@ -78,7 +81,7 @@ class Taxes
 
     public function fromArray(array $array): EntityTaxes
     {
-        $entity = $this->db->getEntityManager()->find(EntityTaxes::class, $array['id']);
+        $entity = $this->entityManager->find(EntityTaxes::class, $array['id']);
         $array = $this->convertFields($array);
         if (!$entity instanceof EntityTaxes) {
             $entity = new EntityTaxes();
@@ -98,7 +101,7 @@ class Taxes
 
     public function saveRow(EntityTaxes $taxes): self
     {
-        $em = $this->db->getEntityManager();
+        $em = $this->entityManager;
         $em->persist($taxes);
         $em->flush();
         return $this;

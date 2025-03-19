@@ -24,9 +24,9 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Command;
+namespace App\Command;
 
-use ProducaoCooperativista\Service\Kimai\Source\Projects;
+use App\Service\Kimai\Source\Projects;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -36,7 +36,7 @@ use Symfony\Component\Console\Output\OutputInterface;
     name: 'get:projects',
     description: 'Get projects'
 )]
-class GetProjectsCommand extends BaseCommand
+class GetProjectsCommand extends AbstractBaseCommand
 {
     public function __construct(
         private Projects $projects

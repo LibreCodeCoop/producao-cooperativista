@@ -24,18 +24,17 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\Akaunting\Document;
+namespace App\Service\Akaunting\Document;
 
 use DateTime;
-use Doctrine\DBAL\Query\QueryBuilder;
 use Exception;
+use App\Helper\Dates;
+use App\Helper\MagicGetterSetterTrait;
+use App\Provider\Akaunting\Request;
+use App\Service\Cooperado;
+use App\Service\Akaunting\Source\Documents;
+use Doctrine\ORM\EntityManagerInterface;
 use NumberFormatter;
-use ProducaoCooperativista\DB\Database;
-use ProducaoCooperativista\Helper\Dates;
-use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
-use ProducaoCooperativista\Provider\Akaunting\Request;
-use ProducaoCooperativista\Service\Cooperado;
-use ProducaoCooperativista\Service\Akaunting\Source\Documents;
 use Symfony\Component\HttpClient\Exception\ClientException;
 use UnexpectedValueException;
 
@@ -100,7 +99,7 @@ abstract class ADocument
     protected array $itemsIds;
 
     public function __construct(
-        protected Database $db,
+        protected EntityManagerInterface $entityManager,
         protected Dates $dates,
         protected Documents $documents,
         protected Request $request,
@@ -150,7 +149,7 @@ abstract class ADocument
         return $this->search;
     }
 
-    public function setNote(string $label, $value): self
+    public function setNote(string $label, string $value): self
     {
         $current = $this->notes[$label] ?? null;
         if ($value !== $current) {
@@ -172,6 +171,7 @@ abstract class ADocument
         float $discount = 0,
         int $order = 0
     ): self {
+        $item = [];
         if ($itemId) {
             $item['item_id'] = $itemId;
         } elseif ($code) {
@@ -220,6 +220,9 @@ abstract class ADocument
         return $this->items;
     }
 
+    /**
+     * @return int[]
+     */
     public function getItemsIds(): array
     {
         return $this->itemsIds;
@@ -333,17 +336,16 @@ abstract class ADocument
         if ($this->loadedFromAkaunting) {
             return $this;
         }
-        $select = new QueryBuilder($this->db->getConnection());
-        $select->select('id')
-            ->addSelect('tax_number')
-            ->addSelect('document_number')
-            ->addSelect('metadata->>"$.status" AS status')
-            ->addSelect('due_at')
-            ->from('invoices')
-            ->where($select->expr()->eq('document_number', $select->createNamedParameter($this->getDocumentNumber())));
+        $select = $this->entityManager->getConnection()->createQueryBuilder();
+        $select->select('i.id')
+            ->addSelect('i.tax_number')
+            ->addSelect('i.document_number')
+            ->addSelect("JSON_UNQUOTE(JSON_EXTRACT(i.metadata, '$.status')) AS status")
+            ->addSelect('i.due_at')
+            ->from('invoices', 'i')
+            ->where($select->expr()->eq('i.document_number', $select->createNamedParameter($this->getDocumentNumber())));
 
-        $result = $select->executeQuery();
-        $row = $result->fetchAssociative();
+        $row = $select->fetchOne();
 
         if (!$row) {
             $this->action = self::ACTION_CREATE;

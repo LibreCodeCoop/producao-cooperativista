@@ -24,11 +24,11 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Service\Akaunting\Document;
+namespace App\Service\Akaunting\Document;
 
 use Impostos\Service\INSS;
 use Impostos\Service\IRPF;
-use ProducaoCooperativista\Service\Cooperado;
+use App\Service\Cooperado;
 
 /**
  * @method self setAuxilio(float $value)
@@ -79,7 +79,6 @@ class Values
     private const STATUS_UPDATING = 1;
     private const STATUS_UPDATED = 2;
     private int $updated = self::STATUS_UPDATED;
-
 
     public function __construct(
         private ?int $anoFiscal,

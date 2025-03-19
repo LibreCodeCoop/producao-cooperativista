@@ -24,12 +24,11 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Helper;
+namespace App\Helper;
 
 use Carbon\Carbon;
 use Cmixin\BusinessDay;
 use DateTime;
-use ProducaoCooperativista\Helper\MagicGetterSetterTrait;
 
 /**
  * @method DateTime getInicio()

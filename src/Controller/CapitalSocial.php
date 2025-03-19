@@ -24,32 +24,27 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Controller;
+namespace App\Controller;
 
-use ProducaoCooperativista\Core\App;
-use Symfony\Component\HttpFoundation\Request;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Generator\UrlGenerator;
+use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
-class CapitalSocial
+class CapitalSocial extends AbstractController
 {
     public function __construct(
-        private UrlGenerator $urlGenerator,
-        private Request $request,
+        private UrlGeneratorInterface $urlGenerator,
     ) {
     }
 
+    #[Route('/capital-social', methods: ['GET'])]
     public function index(): Response
     {
-        $response = new Response(
-            App::get(\Twig\Environment::class)
-                ->load('capitalSocial.index.html.twig')
-                ->render([
-                    'url' => $this->urlGenerator->generate(
-                        'Api\CapitalSocial#index'
-                    )
-                ])
-        );
-        return $response;
+        return $this->render('capitalSocial.index.html.twig', [
+            'url' => $this->urlGenerator->generate(
+                'app_api_capitalsocial_index'
+            )
+        ]);
     }
 }

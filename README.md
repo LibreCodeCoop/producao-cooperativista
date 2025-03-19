@@ -81,7 +81,7 @@ Em outro terminal:
 ```bash
 docker compose exec php bash
 composer install
-php ./bin/import migrations:migrate -n
+php ./bin/console doctrine:migrations:migrate -n
 ```
 
 ## Comandos

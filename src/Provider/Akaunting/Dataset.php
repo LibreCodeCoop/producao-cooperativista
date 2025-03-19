@@ -24,7 +24,7 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Provider\Akaunting;
+namespace App\Provider\Akaunting;
 
 class Dataset
 {

@@ -24,7 +24,7 @@
 
 declare(strict_types=1);
 
-namespace ProducaoCooperativista\Provider\Akaunting;
+namespace App\Provider\Akaunting;
 
 class ParseText
 {
@@ -38,6 +38,9 @@ class ParseText
         'Arquivar' => 'archive',
     ];
 
+    /**
+     * @return string[]
+     */
     public function do(string $text): array
     {
         $return = [];
