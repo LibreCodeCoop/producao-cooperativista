@@ -26,6 +26,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
+use App\Service\Movimentacao;
 use DateTime;
 use App\Service\ProducaoCooperativista;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -41,6 +42,7 @@ class Producao extends AbstractController
     public function __construct(
         RequestStack $requestStack,
         private ProducaoCooperativista $producao,
+        private Movimentacao $movimentacao,
     ) {
         $this->request = $requestStack->getCurrentRequest();
     }
@@ -62,7 +64,7 @@ class Producao extends AbstractController
             $diasUteis = (int) $this->request->get('dias-uteis');
             $this->producao->dates->setDiasUteis($diasUteis);
 
-            $this->producao->setPercentualMaximo(
+            $this->movimentacao->setPercentualMaximo(
                 (int) $this->request->get('percentual-maximo', getenv('PERCENTUAL_MAXIMO'))
             );
 

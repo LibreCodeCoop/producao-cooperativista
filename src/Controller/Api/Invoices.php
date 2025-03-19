@@ -140,7 +140,7 @@ class Invoices extends AbstractController
 
     private function addFlagColumn(array $list, string $name, string $environment): array
     {
-        $ids = $this->producao->getChildrensCategories(
+        $ids = $this->categories->getChildrensCategories(
             (int) getenv($environment)
         );
         array_walk($list, function (&$row) use ($name, $ids) {
