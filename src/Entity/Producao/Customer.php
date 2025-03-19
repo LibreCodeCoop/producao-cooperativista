@@ -31,8 +31,9 @@ use App\Helper\MagicGetterSetterTrait;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
+#[ORM\Table(name: 'customers')]
 #[ORM\Entity]
-class Customers
+class Customer
 {
     use MagicGetterSetterTrait;
     use EntityArrayMapperTrait;

@@ -26,8 +26,8 @@ declare(strict_types=1);
 
 namespace App\Service\Kimai\Source;
 
+use App\Entity\Producao\Project;
 use DateTime;
-use App\Entity\Producao\Projects as EntityProjects;
 use App\Provider\Kimai;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -63,9 +63,9 @@ class Projects
     public function saveList(array $list): void
     {
         foreach ($list as $row) {
-            $project = $this->entityManager->getRepository(EntityProjects::class)->find($row['id']);
-            if (!$project instanceof EntityProjects) {
-                $project = new EntityProjects();
+            $project = $this->entityManager->getRepository(Project::class)->find($row['id']);
+            if (!$project instanceof Project) {
+                $project = new Project();
                 $project->setId($row['id']);
             }
             $project

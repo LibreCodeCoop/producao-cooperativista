@@ -26,7 +26,7 @@ declare(strict_types=1);
 
 namespace App\Service\Akaunting\Source;
 
-use App\Entity\Producao\Taxes as EntityTaxes;
+use App\Entity\Producao\Tax;
 use App\Helper\MagicGetterSetterTrait;
 use App\Provider\Akaunting\Dataset;
 use Doctrine\ORM\EntityManagerInterface;
@@ -48,7 +48,7 @@ class Taxes
 {
     use MagicGetterSetterTrait;
     private int $companyId;
-    /** @var EntityTaxes[] */
+    /** @var Tax[] */
     private array $list = [];
 
     public function __construct(
@@ -60,7 +60,7 @@ class Taxes
     }
 
     /**
-     * @return EntityTaxes[]
+     * @return Tax[]
      */
     public function getList(): array
     {
@@ -79,12 +79,12 @@ class Taxes
         return $this->list ?? [];
     }
 
-    public function fromArray(array $array): EntityTaxes
+    public function fromArray(array $array): Tax
     {
-        $entity = $this->entityManager->find(EntityTaxes::class, $array['id']);
+        $entity = $this->entityManager->find(Tax::class, $array['id']);
         $array = $this->convertFields($array);
-        if (!$entity instanceof EntityTaxes) {
-            $entity = new EntityTaxes();
+        if (!$entity instanceof Tax) {
+            $entity = new Tax();
         }
         $entity->fromArray($array);
         return $entity;
@@ -99,7 +99,7 @@ class Taxes
         return $this;
     }
 
-    public function saveRow(EntityTaxes $taxes): self
+    public function saveRow(Tax $taxes): self
     {
         $em = $this->entityManager;
         $em->persist($taxes);

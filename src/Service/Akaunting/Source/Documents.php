@@ -26,9 +26,9 @@ declare(strict_types=1);
 
 namespace App\Service\Akaunting\Source;
 
+use App\Entity\Producao\Invoice;
 use DateTime;
 use Exception;
-use App\Entity\Producao\Invoices;
 use App\Helper\Dates;
 use App\Helper\MagicGetterSetterTrait;
 use App\Provider\Akaunting\Dataset;
@@ -49,7 +49,7 @@ class Documents
     private ?DateTime $date;
     private string $type;
     private int $companyId;
-    /** @var Invoices[][] */
+    /** @var Invoice[][] */
     private array $list = [];
 
     public function __construct(
@@ -64,7 +64,7 @@ class Documents
     }
 
     /**
-     * @return Invoices[][]
+     * @return Invoice[][]
      */
     public function getList(): array
     {
@@ -99,16 +99,16 @@ class Documents
         return $this->list[$this->getType()] ?? [];
     }
 
-    public function fromArray(array $array): Invoices
+    public function fromArray(array $array): Invoice
     {
         $array = array_merge($array, $this->parseText->do((string) $array['notes']));
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->calculateFixedDiscountPercentage($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
-        $entity = $this->entityManager->find(Invoices::class, $array['id']);
-        if (!$entity instanceof Invoices) {
-            $entity = new Invoices();
+        $entity = $this->entityManager->find(Invoice::class, $array['id']);
+        if (!$entity instanceof Invoice) {
+            $entity = new Invoice();
         }
         $entity->fromArray($array);
         return $entity;
@@ -132,7 +132,7 @@ class Documents
         return $this;
     }
 
-    public function saveRow(Invoices $invoice): self
+    public function saveRow(Invoice $invoice): self
     {
         $em = $this->entityManager;
         $em->persist($invoice);

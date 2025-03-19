@@ -26,10 +26,10 @@ declare(strict_types=1);
 
 namespace App\Service\Akaunting\Source;
 
+use App\Entity\Producao\Transaction;
 use DateTime;
 use Doctrine\DBAL\ParameterType;
 use Exception;
-use App\Entity\Producao\Transactions as EntityTransactions;
 use App\Helper\MagicGetterSetterTrait;
 use App\Provider\Akaunting\Dataset;
 use App\Provider\Akaunting\ParseText;
@@ -49,7 +49,7 @@ class Transactions
     private ?DateTime $date;
     private int $companyId;
     private ?int $categoryId = null;
-    /** @var EntityTransactions[] */
+    /** @var Transaction[] */
     private array $list = [];
 
     public function __construct(
@@ -62,7 +62,7 @@ class Transactions
     }
 
     /**
-     * @return EntityTransactions[]
+     * @return Transaction[]
      */
     public function getList(): array
     {
@@ -100,16 +100,16 @@ class Transactions
         return $this->list;
     }
 
-    public function fromArray(array $array): EntityTransactions
+    public function fromArray(array $array): Transaction
     {
         $array = $this->getDataFromAssociatedDocument($array);
         $array = array_merge($array, $this->parseText->do((string) $array['description']));
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
-        $entity = $this->entityManager->find(EntityTransactions::class, $array['id']);
-        if (!$entity instanceof EntityTransactions) {
-            $entity = new EntityTransactions();
+        $entity = $this->entityManager->find(Transaction::class, $array['id']);
+        if (!$entity instanceof Transaction) {
+            $entity = new Transaction();
         }
         $entity->fromArray($array);
         return $entity;
@@ -124,7 +124,7 @@ class Transactions
         return $this;
     }
 
-    public function saveRow(EntityTransactions $invoice): self
+    public function saveRow(Transaction $invoice): self
     {
         $em = $this->entityManager;
         $em->persist($invoice);

@@ -22,13 +22,13 @@ classDiagram
     }
 
     namespace Source {
-        class Customers
-        class Invoices
+        class Customer
+        class Invoice
         %% class Nfse
-        %% class Projects
+        %% class Project
         %% class Timesheet
-        %% class Transactions
-        %% class Users
+        %% class Transaction
+        %% class User
     }
 
     namespace Provider {
