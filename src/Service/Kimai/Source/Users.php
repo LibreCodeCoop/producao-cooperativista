@@ -26,10 +26,10 @@ declare(strict_types=1);
 
 namespace App\Service\Kimai\Source;
 
+use App\Entity\Producao\User;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
 use InvalidArgumentException;
-use App\Entity\Producao\Users as EntityUsers;
 use App\Provider\Kimai;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
@@ -44,7 +44,7 @@ class Users
         2 => 'hidden',
         3 => 'all',
     ];
-    /** @var EntityUsers[] */
+    /** @var User[] */
     private array $list = [];
     private EntityManagerInterface $entityManagerAkaunting;
 
@@ -95,14 +95,14 @@ class Users
         return $list;
     }
 
-    public function fromArray(array $array): EntityUsers
+    public function fromArray(array $array): User
     {
         $array = $this->updateFromUserPreferences($array);
         $array = $this->updateWithAkauntingData($array);
         $array = $this->convertFields($array);
-        $entity = $this->entityManager->find(EntityUsers::class, $array['id']);
-        if (!$entity instanceof EntityUsers) {
-            $entity = new EntityUsers();
+        $entity = $this->entityManager->find(User::class, $array['id']);
+        if (!$entity instanceof User) {
+            $entity = new User();
         }
         $this->validate($array);
         $entity->fromArray($array);
@@ -186,7 +186,7 @@ class Users
         return $this;
     }
 
-    public function saveRow(EntityUsers $user): self
+    public function saveRow(User $user): self
     {
         $em = $this->entityManager;
         $em->persist($user);

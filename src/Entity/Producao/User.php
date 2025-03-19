@@ -31,20 +31,29 @@ use App\Helper\MagicGetterSetterTrait;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
+#[ORM\Table(name: 'users')]
 #[ORM\Entity]
-class Taxes
+class User
 {
     use MagicGetterSetterTrait;
     use EntityArrayMapperTrait;
     #[ORM\Id]
     #[ORM\Column(insertable: true, options: ['unsigned' => true])]
     private int $id;
-    #[ORM\Column]
-    private string $name;
-    #[ORM\Column(type: Types::SMALLINT, options: ['default' => 1])]
+    #[ORM\Column(length: 60)]
+    private string $alias;
+    #[ORM\Column(length: 180, unique: true)]
+    private string $kimaiUsername;
+    #[ORM\Column(nullable: true, type: Types::BIGINT)]
+    private ?int $akauntingContactId;
+    #[ORM\Column(nullable: true, length: 20)]
+    private ?string $taxNumber;
+    #[ORM\Column(nullable: true, type: Types::FLOAT)]
+    private ?float $peso;
+    #[ORM\Column(type: Types::SMALLINT)]
+    private int $dependents;
+    #[ORM\Column(type: Types::SMALLINT)]
     private int $enabled;
-    #[ORM\Column]
-    private float $rate;
-    #[ORM\Column]
+    #[ORM\Column(type: Types::JSON)]
     private array $metadata;
 }

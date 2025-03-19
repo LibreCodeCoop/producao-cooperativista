@@ -26,7 +26,7 @@ declare(strict_types=1);
 
 namespace App\Service\Akaunting\Source;
 
-use App\Entity\Producao\Categories as EntityCategories;
+use App\Entity\Producao\Category;
 use App\Helper\MagicGetterSetterTrait;
 use App\Provider\Akaunting\Dataset;
 use Doctrine\ORM\EntityManagerInterface;
@@ -37,7 +37,7 @@ class Categories
 {
     use MagicGetterSetterTrait;
     private int $companyId;
-    /** @var EntityCategories[] */
+    /** @var Category[] */
     private array $list = [];
 
     public function __construct(
@@ -49,7 +49,7 @@ class Categories
     }
 
     /**
-     * @return EntityCategories[]
+     * @return Category[]
      */
     public function getList(): array
     {
@@ -71,12 +71,12 @@ class Categories
         return $this->list ?? [];
     }
 
-    public function fromArray(array $array): EntityCategories
+    public function fromArray(array $array): Category
     {
-        $entity = $this->entityManager->find(EntityCategories::class, $array['id']);
+        $entity = $this->entityManager->find(Category::class, $array['id']);
         $array = $this->convertFields($array);
-        if (!$entity instanceof EntityCategories) {
-            $entity = new EntityCategories();
+        if (!$entity instanceof Category) {
+            $entity = new Category();
         }
         $entity->fromArray($array);
         return $entity;
@@ -91,7 +91,7 @@ class Categories
         return $this;
     }
 
-    public function saveRow(EntityCategories $taxes): self
+    public function saveRow(Category $taxes): self
     {
         $em = $this->entityManager;
         $em->persist($taxes);
@@ -110,7 +110,7 @@ class Categories
         if (!empty($this->list)) {
             return $this->list;
         }
-        $this->list = $this->entityManager->getRepository(EntityCategories::class)->findAll();
+        $this->list = $this->entityManager->getRepository(Category::class)->findAll();
         if (empty($this->list)) {
             throw new Exception('Sem categorias');
         }

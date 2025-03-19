@@ -26,7 +26,7 @@ declare(strict_types=1);
 
 namespace App\Service\Kimai\Source;
 
-use App\Entity\Producao\Customers as EntityCustomers;
+use App\Entity\Producao\Customer;
 use App\Provider\Kimai;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -66,9 +66,9 @@ class Customers
     public function saveList(): self
     {
         foreach ($this->customers as $row) {
-            $customer = $this->entityManager->getRepository(EntityCustomers::class)->find($row['id']);
-            if (!$customer instanceof EntityCustomers) {
-                $customer = new EntityCustomers();
+            $customer = $this->entityManager->getRepository(Customer::class)->find($row['id']);
+            if (!$customer instanceof Customer) {
+                $customer = new Customer();
                 $customer->setId($row['id']);
             }
             $customer

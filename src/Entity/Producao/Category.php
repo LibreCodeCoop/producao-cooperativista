@@ -31,34 +31,31 @@ use App\Helper\MagicGetterSetterTrait;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
+/**
+ * $method int getId()
+ * $method string getName()
+ * $method string getType()
+ * $method int getEnabled()
+ * $method ?int getParentId()
+ * $method array getMetadata()
+ */
+#[ORM\Table(name: 'categories')]
 #[ORM\Entity]
-class Projects
+class Category
 {
     use MagicGetterSetterTrait;
     use EntityArrayMapperTrait;
     #[ORM\Id]
     #[ORM\Column(insertable: true, options: ['unsigned' => true])]
     private int $id;
-    #[ORM\Column(length: 150)]
-    private string $parentTitle;
-    #[ORM\Column(type: Types::BIGINT)]
-    private int $customerId;
-    #[ORM\Column(length: 150)]
+    #[ORM\Column]
     private string $name;
-    #[ORM\Column(nullable: true)]
-    private ?\DateTime $start;
-    #[ORM\Column(nullable: true)]
-    private ?\DateTime $end;
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    private ?string $comment;
-    #[ORM\Column(type: Types::BOOLEAN)]
-    private bool $visible;
-    #[ORM\Column(type: Types::BOOLEAN)]
-    private bool $billable;
-    #[ORM\Column(nullable: true, length: 7)]
-    private ?string $color;
-    #[ORM\Column(type: Types::BOOLEAN)]
-    private bool $globalActivities;
-    #[ORM\Column(type: Types::BIGINT)]
-    private ?int $timeBudget;
+    #[ORM\Column(length: 50)]
+    private string $type;
+    #[ORM\Column(type: Types::SMALLINT, options: ['default' => 1])]
+    private int $enabled;
+    #[ORM\Column(type: Types::BIGINT, nullable: true)]
+    private ?int $parentId;
+    #[ORM\Column(type: Types::JSON)]
+    private array $metadata;
 }

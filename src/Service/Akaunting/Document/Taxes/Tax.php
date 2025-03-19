@@ -26,7 +26,7 @@ declare(strict_types=1);
 
 namespace App\Service\Akaunting\Document\Taxes;
 
-use App\Entity\Producao\Taxes;
+use App\Entity\Producao\Tax as EntityTax;
 use Doctrine\DBAL\ParameterType;
 use Exception;
 use App\Service\Akaunting\Document\ADocument;
@@ -83,7 +83,7 @@ class Tax extends ADocument
 
     private function getPercentualDoImposto(): float
     {
-        $tax = $this->entityManager->getRepository(Taxes::class)->find($this->taxData->taxId);
+        $tax = $this->entityManager->getRepository(EntityTax::class)->find($this->taxData->taxId);
         return $tax->getRate();
     }
 
