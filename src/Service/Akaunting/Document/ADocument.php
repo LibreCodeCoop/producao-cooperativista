@@ -345,7 +345,7 @@ abstract class ADocument
             ->from('invoices', 'i')
             ->where($select->expr()->eq('i.document_number', $select->createNamedParameter($this->getDocumentNumber())));
 
-        $row = $select->fetchOne();
+        $row = $select->fetchAssociative();
 
         if (!$row) {
             $this->action = self::ACTION_CREATE;
