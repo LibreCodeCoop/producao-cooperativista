@@ -176,7 +176,7 @@ class ProducaoCooperativista extends ADocument
             )
             ->setTaxes()
             ->coletaInvoiceNaoPago();
-        if (strlen($cooperado->getTaxNumber()) > 11) {
+        if (strlen($cooperado->getTaxNumber()) <= 11) {
             if ($this->dates->getDataPagamento()->format('m') === '12') {
                 $this->setItem(
                     code: 'frra',
@@ -187,7 +187,6 @@ class ProducaoCooperativista extends ADocument
             } else {
                 $this->setNote('FRRA', $this->numberFormatter->format($values->getFrra()));
             }
-        } else {
             $this
                 ->setItem(
                     code: 'Auxílio',
