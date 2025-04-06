@@ -395,7 +395,7 @@ class Movimentacao
 
     public function getTaxaMinima(): float
     {
-        return $this->taxaMaxima;
+        return $this->taxaMinima;
     }
 
     public function getTaxaMaxima(): float
