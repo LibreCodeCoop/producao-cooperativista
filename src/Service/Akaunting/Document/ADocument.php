@@ -399,11 +399,17 @@ abstract class ADocument
 
     private function setDueAt(string $dateTime): self
     {
-        $dateTime = preg_replace('/-\d{2}:\d{2}$/', '', $dateTime);
-        $dateTime = str_replace('T', ' ', $dateTime);
-        $dateTime = DateTime::createFromFormat('Y-m-d H:i:s', $dateTime);
+        $dateTimeSanitized = preg_replace('/-\d{2}:\d{2}$/', '', $dateTime);
+        $dateTimeSanitized = str_replace('T', ' ', $dateTimeSanitized);
+        $dateTimeObject = DateTime::createFromFormat('Y-m-d H:i:s', $dateTimeSanitized);
+        if (!$dateTimeObject) {
+            $dateTimeObject = DateTime::createFromFormat('Y-m-d', $dateTimeSanitized);
+        }
+        if (!$this->dueAt instanceof DateTime) {
+            throw new UnexpectedValueException('DueAt inválido: ' . $dateTimeSanitized);
+        }
 
-        return $this->changeDueAt($dateTime);
+        return $this->changeDueAt($dateTimeObject);
     }
 
     protected function changeDueAt(DateTime $dueAt): self
