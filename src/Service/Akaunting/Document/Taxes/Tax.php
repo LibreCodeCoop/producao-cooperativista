@@ -95,8 +95,7 @@ class Tax extends ADocument
 
     protected function getTotalRetainedOfMonth(): float
     {
-        $query = $this->entityManager->createQuery(
-            <<<SQL
+        $query = <<<SQL
             SELECT SUM(jt.amount) as irpf
             FROM invoices i ,
                 JSON_TABLE(i.metadata, '$.item_taxes.data[*]' COLUMNS (
@@ -105,11 +104,12 @@ class Tax extends ADocument
                 )) jt
             WHERE jt.id = :tax_id
             AND i.transaction_of_month = :ano_mes
-            SQL
-        );
-        $query->setParameter('ano_mes', $this->dates->getInicioProximoMes()->format('Y-m'));
-        $query->setParameter('tax_id', $this->taxData->taxId, ParameterType::INTEGER);
-        $total = (float) $query->getSingleResult();
+            SQL;
+        $stmt = $this->entityManager->getConnection()->executeQuery($query, [
+            'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m'),
+            'tax_id' => $this->taxData->taxId, ParameterType::INTEGER,
+        ]);
+        $total = (float) $stmt->fetchOne();
         return $total;
     }
 
