@@ -1047,7 +1047,7 @@ class ProducaoCooperativista
     private function csvstr(array $fields): string
     {
         $f = fopen('php://memory', 'r+');
-        if (fputcsv($f, $fields) === false) {
+        if (fputcsv($f, $fields, ',', '"', '\\') === false) {
             return '';
         }
         rewind($f);

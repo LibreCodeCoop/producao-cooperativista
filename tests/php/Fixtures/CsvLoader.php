@@ -37,8 +37,8 @@ class CsvLoader implements FixtureInterface
         foreach ($this->csvFiles as $filename) {
             $handle = fopen($filename, 'r');
             $entityName = pathinfo($filename, PATHINFO_FILENAME);
-            $header = fgetcsv($handle, null, ',');
-            while (($values = fgetcsv($handle, null, ',')) !== false) {
+            $header = fgetcsv($handle, null, ',', '"', '\\');
+            while (($values = fgetcsv($handle, null, ',', '"', '\\')) !== false) {
                 $values = array_map(fn ($v) => $v === '' ? null : $v, $values);
                 $data = array_combine($header, $values);
                 $className = 'App\Entity\Producao\\' . ucfirst($entityName);
