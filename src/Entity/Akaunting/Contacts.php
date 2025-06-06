@@ -31,6 +31,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
+#[ORM\Table(name: 'contacts')]
 class Contacts
 {
     use MagicGetterSetterTrait;
@@ -38,22 +39,22 @@ class Contacts
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
     private int $id;
-    #[ORM\Column]
+    #[ORM\Column(name: 'company_id')]
     private ?int $companyId;
     #[ORM\Column]
     private string $type;
     #[ORM\Column]
     private string $name;
-    #[ORM\Column(nullable: true, length: 20)]
+    #[ORM\Column(name: 'tax_number', nullable: true, length: 20)]
     private ?string $taxNumber;
     #[ORM\Column]
     private string $country;
-    #[ORM\Column]
+    #[ORM\Column(name: 'currency_code')]
     private string $currencyCode;
     #[ORM\Column(type: Types::SMALLINT)]
     private ?int $enabled;
-    #[ORM\Column]
+    #[ORM\Column(name: 'created_at')]
     private \DateTime $createdAt;
-    #[ORM\Column]
+    #[ORM\Column(name: 'updated_at')]
     private \DateTime $updatedAt;
 }

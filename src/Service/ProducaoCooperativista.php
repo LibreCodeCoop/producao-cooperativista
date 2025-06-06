@@ -505,9 +505,10 @@ class ProducaoCooperativista
             ->setCountry('BR')
             ->setCurrencyCode('BRL')
             ->setEnabled(1)
-            ->setCreatedAt($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'))
-            ->setUpdatedAt($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'));
+            ->setCreatedAt($this->dates->getDataProcessamento())
+            ->setUpdatedAt($this->dates->getDataProcessamento());
         $this->entityManagerAkaunting->persist($contacts);
+        $this->entityManagerAkaunting->flush();
         return $contacts->getId();
     }
 
