@@ -71,7 +71,7 @@ class Timesheets
         if ($exported) {
             $query['exported'] = $exported === 'all' ? null : $exported;
         }
-        $list = $this->doRequestKimai('/api/timesheets', $query);
+        $list = $this->doRequestKimai('/timesheets', $query);
         return $list;
     }
 

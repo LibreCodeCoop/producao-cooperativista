@@ -76,7 +76,7 @@ class Users
         $this->logger->info('Importando usuários com visibilidade = {visibilidade}', [
             'visibilidade' => $this->visibilityDataset[$this->visibility],
         ]);
-        $list = $this->doRequestKimai('/api/users', [
+        $list = $this->doRequestKimai('/users', [
             'visible' => $this->visibility,
         ]);
         foreach ($list as $row) {
@@ -121,7 +121,7 @@ class Users
 
     private function updateFromUserPreferences(array $item): array
     {
-        $detailed = $this->doRequestKimai('/api/users/' . $item['id']);
+        $detailed = $this->doRequestKimai('/users/' . $item['id']);
         $preferences = array_column($detailed['preferences'], 'value', 'name');
         $item['kimai_username'] = $item['username'];
         if (!$item['alias']) {
