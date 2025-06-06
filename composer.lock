@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "67db37fdf5ff984288d6040e4dc77d9d",
+    "content-hash": "05b1e6a3d9948acc3508bce4b498e1b3",
     "packages": [
         {
             "name": "carbonphp/carbon-doctrine-types",
@@ -1838,70 +1838,6 @@
                 "source": "https://github.com/php-fig/log/tree/3.0.2"
             },
             "time": "2024-09-11T13:17:53+00:00"
-        },
-        {
-            "name": "roukmoute/polyfill-calendar",
-            "version": "v0.5.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/roukmoute/polyfill-calendar.git",
-                "reference": "51b74db2520307e9c5fba905a08fea0c8940ccad"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/roukmoute/polyfill-calendar/zipball/51b74db2520307e9c5fba905a08fea0c8940ccad",
-                "reference": "51b74db2520307e9c5fba905a08fea0c8940ccad",
-                "shasum": ""
-            },
-            "require": {
-                "php": "^7.1 || ^8.0"
-            },
-            "require-dev": {
-                "friendsofphp/php-cs-fixer": "^2.16",
-                "pedrotroller/php-cs-custom-fixer": "^2.19",
-                "phpspec/phpspec": "^5.1 || ^6.1 || ^7.2",
-                "phpstan/phpstan": "^0.12.8",
-                "phpstan/phpstan-strict-rules": "^0.12.2",
-                "pyrech/composer-changelogs": "^1.7",
-                "roave/security-advisories": "dev-master",
-                "vimeo/psalm": "^4.26"
-            },
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "1.0-dev"
-                }
-            },
-            "autoload": {
-                "files": [
-                    "runtime/bootstrap.php"
-                ],
-                "psr-4": {
-                    "Roukmoute\\Polyfill\\Calendar\\": "src"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Mathias STRASSER",
-                    "email": "contact@roukmoute.fr"
-                }
-            ],
-            "description": "PHP Polyfill for the Calendar extension",
-            "keywords": [
-                "calendar",
-                "compatibility",
-                "polyfill",
-                "portable"
-            ],
-            "support": {
-                "issues": "https://github.com/roukmoute/polyfill-calendar/issues",
-                "source": "https://github.com/roukmoute/polyfill-calendar/tree/v0.5.0"
-            },
-            "time": "2022-08-14T10:03:07+00:00"
         },
         {
             "name": "scienta/doctrine-json-functions",

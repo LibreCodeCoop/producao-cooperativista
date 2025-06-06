@@ -7,7 +7,6 @@
         "doctrine/doctrine-migrations-bundle": "^3.4.2",
         "doctrine/orm": "^3.3.3",
         "librecodecoop/impostos": "^0.1.2",
-        "roukmoute/polyfill-calendar": "^0.5.0",
         "scienta/doctrine-json-functions": "^6.3",
         "symfony/browser-kit": "^7.3.0",
         "symfony/css-selector": "^7.3",
