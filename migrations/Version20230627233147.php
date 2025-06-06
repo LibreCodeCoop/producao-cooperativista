@@ -44,7 +44,7 @@ final class Version20230627233147 extends AbstractMigration
         $table->addColumn('numero_substituta', Types::BIGINT, ['notnull' => false]);
         $table->addColumn('cnpj', Types::STRING, ['length' => 14]);
         $table->addColumn('razao_social', Types::STRING, ['length' => 255]);
-        $table->addColumn('data_emissao', Types::DATE_MUTABLE);
+        $table->addColumn('data_emissao', Types::DATETIME_MUTABLE);
         $table->addColumn('valor_servico', Types::FLOAT);
         $table->addColumn('valor_cofins', Types::FLOAT);
         $table->addColumn('valor_ir', Types::FLOAT);

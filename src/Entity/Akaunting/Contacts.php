@@ -45,7 +45,7 @@ class Contacts
     #[ORM\Column]
     private string $name;
     #[ORM\Column(nullable: true, length: 20)]
-    private ?int $taxNumber;
+    private ?string $taxNumber;
     #[ORM\Column]
     private string $country;
     #[ORM\Column]

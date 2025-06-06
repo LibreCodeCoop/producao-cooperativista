@@ -42,9 +42,9 @@ final class Version20230627233146 extends AbstractMigration
         $table = $schema->createTable('invoices');
         $table->addColumn('id', Types::INTEGER, ['unsigned' => true, 'autoincrement' => false]);
         $table->addColumn('type', Types::STRING, ['length' => 50]);
-        $table->addColumn('issued_at', Types::DATE_MUTABLE);
-        $table->addColumn('due_at', Types::DATE_MUTABLE);
-        $table->addColumn('transaction_of_month', Types::STRING, ['length' => 255]);
+        $table->addColumn('issued_at', Types::DATETIME_MUTABLE);
+        $table->addColumn('due_at', Types::DATETIME_MUTABLE);
+        $table->addColumn('transaction_of_month', Types::STRING, ['length' => 100]);
         $table->addColumn('amount', Types::FLOAT);
         $table->addColumn('discount_percentage', Types::FLOAT, ['notnull' => false]);
         $table->addColumn('currency_code', Types::STRING, ['length' => 14]);
@@ -53,7 +53,7 @@ final class Version20230627233146 extends AbstractMigration
         $table->addColumn('tax_number', Types::STRING, ['length' => 255, 'notnull' => false]);
         $table->addColumn('customer_reference', Types::STRING, ['length' => 255, 'notnull' => false]);
         $table->addColumn('contact_id', Types::BIGINT);
-        $table->addColumn('contact_reference', Types::STRING, ['notnull' => false, 'length' => 191]);
+        $table->addColumn('contact_reference', Types::STRING, ['notnull' => false, 'length' => 255]);
         $table->addColumn('contact_name', Types::STRING, ['length' => 255]);
         $table->addColumn('contact_type', Types::STRING, ['notnull' => false, 'length' => 191]);
         $table->addColumn('category_id', Types::BIGINT);

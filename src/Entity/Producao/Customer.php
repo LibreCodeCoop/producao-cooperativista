@@ -54,7 +54,7 @@ class Customer
     private string $currency;
     #[ORM\Column(length: 7, nullable: true)]
     private ?string $color;
-    #[ORM\Column(unique: true, nullable: true)]
+    #[ORM\Column(unique: true, nullable: true, length: 100)]
     private ?string $vatId;
     #[ORM\Column(type: Types::BIGINT)]
     private ?int $timeBudget;

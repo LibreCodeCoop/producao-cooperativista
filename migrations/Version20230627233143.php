@@ -44,8 +44,8 @@ final class Version20230627233143 extends AbstractMigration
         $table->addColumn('parent_title', Types::STRING, ['length' => 150]);
         $table->addColumn('customer_id', Types::BIGINT);
         $table->addColumn('name', Types::STRING, ['length' => 150]);
-        $table->addColumn('start', Types::DATE_MUTABLE, ['notnull' => false]);
-        $table->addColumn('end', Types::DATE_MUTABLE, ['notnull' => false]);
+        $table->addColumn('start', Types::DATETIME_MUTABLE, ['notnull' => false]);
+        $table->addColumn('end', Types::DATETIME_MUTABLE, ['notnull' => false]);
         $table->addColumn('comment', Types::TEXT, ['notnull' => false]);
         $table->addColumn('visible', Types::BOOLEAN);
         $table->addColumn('billable', Types::BOOLEAN);

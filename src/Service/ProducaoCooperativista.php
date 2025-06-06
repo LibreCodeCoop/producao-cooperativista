@@ -498,7 +498,7 @@ class ProducaoCooperativista
     {
         $contacts = new Contacts();
         $contacts
-            ->setCompanyId(getenv('AKAUNTING_COMPANY_ID'), ParameterType::INTEGER)
+            ->setCompanyId((int) getenv('AKAUNTING_COMPANY_ID'), ParameterType::INTEGER)
             ->setType('vendor')
             ->setName($name)
             ->setTaxNumber($taxNumber)

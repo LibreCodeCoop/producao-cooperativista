@@ -46,7 +46,7 @@ class Category
     use MagicGetterSetterTrait;
     use EntityArrayMapperTrait;
     #[ORM\Id]
-    #[ORM\Column(insertable: true, options: ['unsigned' => true])]
+    #[ORM\Column(type: Types::BIGINT, insertable: true, options: ['unsigned' => true])]
     private int $id;
     #[ORM\Column]
     private string $name;
