@@ -55,7 +55,7 @@ class Projects
 
     public function getFromApi(): array
     {
-        $this->list = $this->doRequestKimai('/api/projects');
+        $this->list = $this->doRequestKimai('/projects');
         $this->populateWithExtraFields();
         return $this->list;
     }
@@ -103,11 +103,10 @@ class Projects
             $this->logger->debug('Dados extras do projeto: {name}', ['name' => $project['name']]);
             $result = $client->request(
                 'GET',
-                rtrim(getenv('KIMAI_API_BASE_URL'), '/') . '/api/projects/' . $project['id'],
+                rtrim(getenv('KIMAI_API_BASE_URL'), '/') . '/projects/' . $project['id'],
                 [
                     'headers' => [
-                        'X-AUTH-USER' => getenv('KIMAI_AUTH_USER'),
-                        'X-AUTH-TOKEN' => getenv('KIMAI_AUTH_TOKEN'),
+                        'Authorization' => 'Bearer ' . getenv('KIMAI_API_TOKEN'),
                     ],
                 ]
             );

@@ -58,7 +58,7 @@ class Customers
         if ($this->customers) {
             return $this->customers;
         }
-        $this->customers = $this->doRequestKimai('/api/customers');
+        $this->customers = $this->doRequestKimai('/customers');
         $this->populateWithExtraFields();
         return $this->customers;
     }
@@ -94,11 +94,10 @@ class Customers
             $this->logger->debug('Dados extras do customer: {name}', ['name' => $customer['name']]);
             $result = $client->request(
                 'GET',
-                rtrim(getenv('KIMAI_API_BASE_URL'), '/') . '/api/customers/' . $customer['id'],
+                rtrim(getenv('KIMAI_API_BASE_URL'), '/') . '/customers/' . $customer['id'],
                 [
                     'headers' => [
-                        'X-AUTH-USER' => getenv('KIMAI_AUTH_USER'),
-                        'X-AUTH-TOKEN' => getenv('KIMAI_AUTH_TOKEN'),
+                        'Authorization' => 'Bearer ' . getenv('KIMAI_API_TOKEN'),
                     ],
                 ]
             );

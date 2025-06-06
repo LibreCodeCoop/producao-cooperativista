@@ -45,8 +45,7 @@ trait Kimai
                 [
                     'query' => $query,
                     'headers' => [
-                        'X-AUTH-USER' => getenv('KIMAI_AUTH_USER'),
-                        'X-AUTH-TOKEN' => getenv('KIMAI_AUTH_TOKEN'),
+                        'Authorization' => 'Bearer ' . getenv('KIMAI_API_TOKEN'),
                     ],
                 ]
             );
