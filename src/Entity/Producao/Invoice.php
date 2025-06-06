@@ -46,7 +46,7 @@ class Invoice
     private \DateTime $issuedAt;
     #[ORM\Column]
     private \DateTime $dueAt;
-    #[ORM\Column]
+    #[ORM\Column(length: 100)]
     private string $transactionOfMonth;
     #[ORM\Column]
     private float $amount;
@@ -60,11 +60,11 @@ class Invoice
     private ?int $nfse;
     #[ORM\Column(nullable: true)]
     private ?string $taxNumber;
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(nullable: true, length: 255)]
     private ?string $customerReference;
     #[ORM\Column(type: Types::BIGINT)]
     private int $contactId;
-    #[ORM\Column(length: 191, nullable: true)]
+    #[ORM\Column(nullable: true, length: 255)]
     private ?string $contactReference;
     #[ORM\Column]
     private string $contactName;

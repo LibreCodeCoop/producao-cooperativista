@@ -44,7 +44,7 @@ class Transaction
     private string $type;
     #[ORM\Column]
     private \DateTime $paidAt;
-    #[ORM\Column]
+    #[ORM\Column(length: 100)]
     private string $transactionOfMonth;
     #[ORM\Column]
     private float $amount;
@@ -52,17 +52,17 @@ class Transaction
     private ?float $discountPercentage;
     #[ORM\Column(length: 14)]
     private string $currencyCode;
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(nullable: true, length: 255)]
     private ?string $reference;
     #[ORM\Column(nullable: true, type: Types::BIGINT, options: ['unsigned' => true])]
     private ?string $nfse;
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(nullable: true, length: 100)]
     private ?string $taxNumber;
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(nullable: true, length: 255)]
     private ?string $customerReference;
     #[ORM\Column(type: Types::BIGINT)]
     private int $contactId;
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(nullable: true, length: 255)]
     private ?string $contactReference;
     #[ORM\Column]
     private string $contactName;
