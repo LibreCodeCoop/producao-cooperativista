@@ -17,6 +17,7 @@ doctrine:
     orm:
         auto_generate_proxy_classes: true
         enable_lazy_ghost_objects: true
+        enable_native_lazy_objects: true
         default_entity_manager: main
         controller_resolver:
             auto_mapping: false
