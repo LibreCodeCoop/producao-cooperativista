@@ -2,27 +2,27 @@
     "type": "project",
     "license": "AGPL-3.0-or-later",
     "require": {
-        "cmixin/business-day": "^1.19.6",
-        "doctrine/doctrine-bundle": "^2.14.0",
-        "doctrine/doctrine-migrations-bundle": "^3.4.2",
-        "doctrine/orm": "^3.3.3",
+        "cmixin/business-day": "^1.20.3",
+        "doctrine/doctrine-bundle": "^2.18.1",
+        "doctrine/doctrine-migrations-bundle": "^3.7.0",
+        "doctrine/orm": "^3.5.8",
         "librecodecoop/impostos": "^0.1.2",
         "scienta/doctrine-json-functions": "^6.3",
-        "symfony/browser-kit": "^7.3.0",
-        "symfony/css-selector": "^7.3",
-        "symfony/dotenv": "^7.3",
+        "symfony/browser-kit": "^7.4.0",
+        "symfony/css-selector": "^7.4",
+        "symfony/dotenv": "^7.4",
         "symfony/framework-bundle": "7.3.*",
-        "symfony/http-client": "^7.3.0",
-        "symfony/monolog-bundle": "^3.10",
-        "symfony/runtime": "^7.3.0",
-        "symfony/twig-bundle": "^7.3",
-        "symfony/yaml": "^7.3.0",
-        "twig/twig": "^3.21.1"
+        "symfony/http-client": "^7.4.0",
+        "symfony/monolog-bundle": "^3.11",
+        "symfony/runtime": "^7.4.0",
+        "symfony/twig-bundle": "^7.4",
+        "symfony/yaml": "^7.4.0",
+        "twig/twig": "^3.22.1"
     },
     "require-dev": {
-        "bamarni/composer-bin-plugin": "^1.8.2",
-        "doctrine/data-fixtures": "^2.0.2",
-        "symfony/maker-bundle": "^1.63.0"
+        "bamarni/composer-bin-plugin": "^1.8.3",
+        "doctrine/data-fixtures": "^2.2.0",
+        "symfony/maker-bundle": "^1.65.1"
     },
     "autoload": {
         "psr-4": {
