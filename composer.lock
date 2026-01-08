@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d73c16876353a87ec336d0a7a6f55657",
+    "content-hash": "8d57d1e3c07378050f8104bcd746197f",
     "packages": [
         {
             "name": "carbonphp/carbon-doctrine-types",
@@ -4565,31 +4565,31 @@
         },
         {
             "name": "symfony/runtime",
-            "version": "v7.4.0",
+            "version": "v8.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/runtime.git",
-                "reference": "e3dd6c0f46a6810b3245726e8452cee45754e628"
+                "reference": "73b34037b23db051048ba2873031ddb89be9f19d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/runtime/zipball/e3dd6c0f46a6810b3245726e8452cee45754e628",
-                "reference": "e3dd6c0f46a6810b3245726e8452cee45754e628",
+                "url": "https://api.github.com/repos/symfony/runtime/zipball/73b34037b23db051048ba2873031ddb89be9f19d",
+                "reference": "73b34037b23db051048ba2873031ddb89be9f19d",
                 "shasum": ""
             },
             "require": {
                 "composer-plugin-api": "^1.0|^2.0",
-                "php": ">=8.2"
+                "php": ">=8.4"
             },
             "conflict": {
-                "symfony/dotenv": "<6.4"
+                "symfony/error-handler": "<7.4"
             },
             "require-dev": {
                 "composer/composer": "^2.6",
-                "symfony/console": "^6.4|^7.0|^8.0",
-                "symfony/dotenv": "^6.4|^7.0|^8.0",
-                "symfony/http-foundation": "^6.4|^7.0|^8.0",
-                "symfony/http-kernel": "^6.4|^7.0|^8.0"
+                "symfony/console": "^7.4|^8.0",
+                "symfony/dotenv": "^7.4|^8.0",
+                "symfony/http-foundation": "^7.4|^8.0",
+                "symfony/http-kernel": "^7.4|^8.0"
             },
             "type": "composer-plugin",
             "extra": {
@@ -4624,7 +4624,7 @@
                 "runtime"
             ],
             "support": {
-                "source": "https://github.com/symfony/runtime/tree/v7.4.0"
+                "source": "https://github.com/symfony/runtime/tree/v8.0.1"
             },
             "funding": [
                 {
@@ -4644,7 +4644,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-11-04T03:05:49+00:00"
+            "time": "2025-12-05T14:08:45+00:00"
         },
         {
             "name": "symfony/service-contracts",
