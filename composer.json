@@ -3,7 +3,7 @@
     "license": "AGPL-3.0-or-later",
     "require": {
         "cmixin/business-day": "^1.20.3",
-        "doctrine/doctrine-bundle": "^2.18.1",
+        "doctrine/doctrine-bundle": "^3.2.2",
         "doctrine/doctrine-migrations-bundle": "^3.7.0",
         "doctrine/orm": "^3.5.8",
         "librecodecoop/impostos": "^0.1.2",
