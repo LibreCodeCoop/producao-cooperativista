@@ -12,7 +12,7 @@
         "symfony/css-selector": "^8.0",
         "symfony/dotenv": "^8.0",
         "symfony/framework-bundle": "7.3.*",
-        "symfony/http-client": "^7.4.0",
+        "symfony/http-client": "^8.0.3",
         "symfony/monolog-bundle": "^4.0",
         "symfony/runtime": "^8.0.1",
         "symfony/twig-bundle": "^7.4",
