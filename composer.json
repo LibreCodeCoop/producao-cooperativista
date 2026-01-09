@@ -16,7 +16,7 @@
         "symfony/monolog-bundle": "^4.0",
         "symfony/runtime": "^8.0.1",
         "symfony/twig-bundle": "^7.4",
-        "symfony/yaml": "^7.4.0",
+        "symfony/yaml": "^8.0.1",
         "twig/twig": "^3.22.1"
     },
     "require-dev": {
