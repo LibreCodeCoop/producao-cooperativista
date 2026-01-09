@@ -9,7 +9,7 @@
         "librecodecoop/impostos": "^0.1.2",
         "scienta/doctrine-json-functions": "^6.3",
         "symfony/browser-kit": "^7.4.0",
-        "symfony/css-selector": "^7.4",
+        "symfony/css-selector": "^8.0",
         "symfony/dotenv": "^8.0",
         "symfony/framework-bundle": "7.3.*",
         "symfony/http-client": "^7.4.0",
