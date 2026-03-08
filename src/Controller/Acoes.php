@@ -29,9 +29,10 @@ namespace App\Controller;
 use App\Helper\ArrayValue;
 use App\Helper\SseLogHandler;
 use App\Kernel;
-use Psr\Log\LoggerInterface;
+use Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\HttpFoundation\Request;
@@ -43,11 +44,12 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 class Acoes extends AbstractController
 {
     private Request $request;
-    private LoggerInterface $logger;
+    private Logger $logger;
     public function __construct(
         RequestStack $requestStack,
         private UrlGeneratorInterface $urlGenerator,
-        LoggerInterface $logger,
+        #[Autowire(service: 'monolog.logger')]
+        Logger $logger,
         private SseLogHandler $sseLogHandler,
         private Kernel $kernel,
     ) {
