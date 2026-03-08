@@ -59,23 +59,47 @@ class Acoes extends AbstractController
     #[Route('/acoes/zerar-banco-local', methods: ['GET'])]
     public function zerarBancoLocal(): Response
     {
-        $bufferedOutput = $this->executaMigrations('first');
-        $response = $bufferedOutput->fetch();
-        $bufferedOutput = $this->executaMigrations('latest');
-        $response .= $bufferedOutput->fetch();
+        $response = '';
+
+        foreach ($this->getResetDatabaseCommands() as $command) {
+            $bufferedOutput = $this->executaComando($command);
+            $response .= $bufferedOutput->fetch();
+        }
 
         return $this->render('acoes/zerar_banco_local.html.twig', compact('response'));
     }
 
-    private function executaMigrations(string $migration): BufferedOutput
+    /**
+     * @return array<int, array<string, bool|string>>
+     */
+    private function getResetDatabaseCommands(): array
+    {
+        return [
+            [
+                'command' => 'doctrine:schema:drop',
+                '--full-database' => true,
+                '--force' => true,
+            ],
+            [
+                'command' => 'doctrine:migrations:sync-metadata-storage',
+                '--no-interaction' => true,
+            ],
+            [
+                'command' => 'doctrine:migrations:migrate',
+                '--no-interaction' => true,
+                'version' => 'latest',
+            ],
+        ];
+    }
+
+    /**
+     * @param array<string, bool|string> $arguments
+     */
+    private function executaComando(array $arguments): BufferedOutput
     {
         $application = new Application($this->kernel);
         $application->setAutoExit(false);
-        $input = new ArrayInput([
-            'doctrine:migrations:migrate',
-            '-n' => 0,
-            'version' => $migration,
-        ]);
+        $input = new ArrayInput($arguments);
         $output = new BufferedOutput();
         $application->run($input, $output);
         return $output;
