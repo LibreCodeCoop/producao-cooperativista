@@ -9,22 +9,14 @@ doctrine:
             main:
                 url: "%env(DATABASE_URL)%"
                 profiling_collect_backtrace: '%kernel.debug%'
-                use_savepoints: true
             akaunting:
                 url: "%env(DATABASE_AKAUNTING_URL)%"
                 profiling_collect_backtrace: '%kernel.debug%'
-                use_savepoints: true
     orm:
-        auto_generate_proxy_classes: true
-        enable_lazy_ghost_objects: true
-        enable_native_lazy_objects: true
         default_entity_manager: main
-        controller_resolver:
-            auto_mapping: false
         entity_managers:
             main:
                 connection: main
-                report_fields_where_declared: true
                 validate_xml_mapping: true
                 identity_generation_preferences:
                     Doctrine\DBAL\Platforms\PostgreSQLPlatform: identity
@@ -60,8 +52,6 @@ when@test:
 when@prod:
     doctrine:
         orm:
-            auto_generate_proxy_classes: false
-            proxy_dir: '%kernel.build_dir%/doctrine/orm/Proxies'
             query_cache_driver:
                 type: pool
                 pool: doctrine.system_cache_pool
