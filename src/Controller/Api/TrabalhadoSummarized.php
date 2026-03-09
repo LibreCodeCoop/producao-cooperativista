@@ -50,7 +50,7 @@ class TrabalhadoSummarized extends AbstractController
     {
         try {
 
-            $inicio = DateTime::createFromFormat('Y-m', $this->request->get('ano-mes', ''));
+            $inicio = DateTime::createFromFormat('Y-m', $this->request->query->getString('ano-mes'));
             if (!$inicio instanceof DateTime) {
                 throw new \Exception('ano-mes precisa estar no formato YYYY-MM');
             }
