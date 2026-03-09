@@ -51,23 +51,23 @@ class Invoices extends AbstractController
     public function index(): JsonResponse
     {
         $this->movimentacao->dates->setDiaUtilPagamento(
-            (int) $this->request->get('dia-util-pagamento', getenv('DIA_UTIL_PAGAMENTO'))
+            $this->request->query->getInt('dia-util-pagamento', (int) getenv('DIA_UTIL_PAGAMENTO'))
         );
 
-        $inicio = DateTime::createFromFormat('Y-m', $this->request->get('ano-mes', ''));
+        $inicio = DateTime::createFromFormat('Y-m', $this->request->query->getString('ano-mes'));
         if (!$inicio instanceof DateTime) {
             throw new \Exception('ano-mes precisa estar no formato YYYY-MM');
         }
         $this->movimentacao->dates->setInicio($inicio);
 
-        $diasUteis = (int) $this->request->get('dias-uteis');
+        $diasUteis = $this->request->query->getInt('dias-uteis');
         $this->movimentacao->dates->setDiasUteis($diasUteis);
 
         $this->movimentacao->setPercentualMaximo(
-            (int) $this->request->get('percentual-maximo', getenv('PERCENTUAL_MAXIMO'))
+            $this->request->query->getInt('percentual-maximo', (int) getenv('PERCENTUAL_MAXIMO'))
         );
 
-        $type = $this->request->get('type', 'all');
+        $type = $this->request->query->getString('type', 'all');
         try {
             switch ($type) {
                 case 'income':
