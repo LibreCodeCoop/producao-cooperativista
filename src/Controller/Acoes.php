@@ -117,8 +117,8 @@ class Acoes extends AbstractController
             'inicio_ano' => $inicio->format('Y'),
             'inicio_mes' => $inicio->format('m'),
             'url' => $this->urlGenerator->generate('app_acoes_domakeproducao'),
-            'baixar_dados' => $this->request->get('baixar_dados', 0) ? 1 : 0,
-            'atualiza_producao' => $this->request->get('atualiza_producao', 0) ? 1 : 0,
+            'baixar_dados' => $this->request->query->getBoolean('baixar_dados') ? 1 : 0,
+            'atualiza_producao' => $this->request->query->getBoolean('atualiza_producao') ? 1 : 0,
         ]);
     }
 
@@ -127,7 +127,7 @@ class Acoes extends AbstractController
     {
         $inicio = \DateTime::createFromFormat(
             'Y-m',
-            $this->request->get('year', '') . '-' . $this->request->get('month', '')
+            $this->request->query->getString('year') . '-' . $this->request->query->getString('month')
         );
         if (!$inicio instanceof \DateTime) {
             throw new \BadMethodCallException('The query string year need to be as format Y-m');
@@ -138,10 +138,10 @@ class Acoes extends AbstractController
         $input = new ArrayInput([
             'make:producao',
             '--ano-mes' => $inicio->format('Y-m'),
-            '--baixar-dados' => $this->request->get('baixar_dados', '0'),
-            '--atualiza-producao' => (bool) $this->request->get('atualiza_producao', false),
+            '--baixar-dados' => $this->request->query->getString('baixar_dados', '0'),
+            '--atualiza-producao' => $this->request->query->getBoolean('atualiza_producao'),
             '--database' => true,
-            '--pesos' => $this->request->get('pesos'),
+            '--pesos' => $this->request->query->getString('pesos'),
         ]);
         $output = new BufferedOutput();
         $exitCode = $application->run($input, $output);
