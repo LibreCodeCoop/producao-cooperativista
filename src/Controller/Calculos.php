@@ -51,7 +51,7 @@ class Calculos extends AbstractController
     #[Route('/calculos', methods: ['GET'])]
     public function index(): Response
     {
-        $inicio = \DateTime::createFromFormat('Y-m', $this->request->get('ano-mes', ''));
+        $inicio = \DateTime::createFromFormat('Y-m', $this->request->query->getString('ano-mes'));
         if (!$inicio instanceof \DateTime) {
             $inicio = new \DateTime();
             $inicio->modify('-2 month');
@@ -66,16 +66,16 @@ class Calculos extends AbstractController
             );
         }
         $this->producao->dates->setDiaUtilPagamento(
-            (int) $this->request->get('dia-util-pagamento', getenv('DIA_UTIL_PAGAMENTO'))
+            $this->request->query->getInt('dia-util-pagamento', (int) getenv('DIA_UTIL_PAGAMENTO'))
         );
 
         $this->producao->dates->setInicio($inicio);
 
-        $diasUteis = (int) $this->request->get('dias-uteis');
+        $diasUteis = $this->request->query->getInt('dias-uteis');
         $this->producao->dates->setDiasUteis($diasUteis);
 
         $this->movimentacao->setPercentualMaximo(
-            (int) $this->request->get('percentual-maximo', getenv('PERCENTUAL_MAXIMO'))
+            $this->request->query->getInt('percentual-maximo', (int) getenv('PERCENTUAL_MAXIMO'))
         );
         try {
             $data = $this->producao->exportData();
