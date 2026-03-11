@@ -1774,16 +1774,16 @@
         },
         {
             "name": "scienta/doctrine-json-functions",
-            "version": "6.4.0",
+            "version": "6.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ScientaNL/DoctrineJsonFunctions.git",
-                "reference": "a585a2eb52c630e115953340ebde355ee81e5602"
+                "reference": "d19d67a40734fd81025bfffdf40ff26d5ace16ea"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ScientaNL/DoctrineJsonFunctions/zipball/a585a2eb52c630e115953340ebde355ee81e5602",
-                "reference": "a585a2eb52c630e115953340ebde355ee81e5602",
+                "url": "https://api.github.com/repos/ScientaNL/DoctrineJsonFunctions/zipball/d19d67a40734fd81025bfffdf40ff26d5ace16ea",
+                "reference": "d19d67a40734fd81025bfffdf40ff26d5ace16ea",
                 "shasum": ""
             },
             "require": {
@@ -1791,7 +1791,8 @@
                 "doctrine/lexer": "^2.0 || ^3.0",
                 "doctrine/orm": "^2.19 || ^3",
                 "ext-pdo": "*",
-                "php": "^8.1"
+                "php": "^8.1",
+                "symfony/polyfill-php83": "^1.27"
             },
             "require-dev": {
                 "doctrine/coding-standard": "^9.0 || ^10.0 || ^11.0 || ^12.0 || ^13.0",
@@ -1812,9 +1813,6 @@
             },
             "type": "library",
             "autoload": {
-                "files": [
-                    "polyfill/override.php"
-                ],
                 "psr-4": {
                     "Scienta\\DoctrineJsonFunctions\\": "src/"
                 }
@@ -1844,9 +1842,9 @@
             ],
             "support": {
                 "issues": "https://github.com/ScientaNL/DoctrineJsonFunctions/issues",
-                "source": "https://github.com/ScientaNL/DoctrineJsonFunctions/tree/6.4.0"
+                "source": "https://github.com/ScientaNL/DoctrineJsonFunctions/tree/6.5.0"
             },
-            "time": "2026-03-06T15:50:46+00:00"
+            "time": "2026-03-10T08:22:48+00:00"
         },
         {
             "name": "symfony/browser-kit",
@@ -4172,6 +4170,86 @@
                 }
             ],
             "time": "2024-12-23T08:48:59+00:00"
+        },
+        {
+            "name": "symfony/polyfill-php83",
+            "version": "v1.33.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/polyfill-php83.git",
+                "reference": "17f6f9a6b1735c0f163024d959f700cfbc5155e5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/polyfill-php83/zipball/17f6f9a6b1735c0f163024d959f700cfbc5155e5",
+                "reference": "17f6f9a6b1735c0f163024d959f700cfbc5155e5",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.2"
+            },
+            "type": "library",
+            "extra": {
+                "thanks": {
+                    "url": "https://github.com/symfony/polyfill",
+                    "name": "symfony/polyfill"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "bootstrap.php"
+                ],
+                "psr-4": {
+                    "Symfony\\Polyfill\\Php83\\": ""
+                },
+                "classmap": [
+                    "Resources/stubs"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nicolas Grekas",
+                    "email": "p@tchwork.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Symfony polyfill backporting some PHP 8.3+ features to lower PHP versions",
+            "homepage": "https://symfony.com",
+            "keywords": [
+                "compatibility",
+                "polyfill",
+                "portable",
+                "shim"
+            ],
+            "support": {
+                "source": "https://github.com/symfony/polyfill-php83/tree/v1.33.0"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2025-07-08T02:45:35+00:00"
         },
         {
             "name": "symfony/polyfill-php84",
