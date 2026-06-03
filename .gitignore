@@ -18,4 +18,5 @@ cookies.json
 .~lock.*#
 .phpunit.cache
 clover.xml
+config/reference.php
 docker-compose.override.yml
