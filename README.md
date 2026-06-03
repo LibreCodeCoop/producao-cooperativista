@@ -10,6 +10,45 @@ Calcular o bruto da produção cooperativista por cooperado com base em dados co
 | [Akaunting](https://akaunting.com) | Gestão financeira                                                                                         |
 | Site da prefeitura                 | Emissão de NFSe. Hoje o sistema dá suporte oficial apenas as prefeituras dos municípios do Rio e Niterói. |
 
+## Ambiente de desenvolvimento
+
+Crie o arquivo docker-compose.override.yml
+```yml
+networks:
+  external:
+    external: true
+
+services:
+  php:
+    networks:
+      - internal
+      - external
+  nginx:
+    ports:
+      - 8080:80
+  mysql:
+    image: mysql
+    cap_add:
+      - SYS_NICE  # CAP_SYS_NICE
+    volumes:
+      - ./.docker/mysql/conf:/etc/mysql/conf.d
+      - ./volumes/mysql/dump:/docker-entrypoint-initdb.d
+      - ./volumes/mysql/data:/var/lib/mysql
+    ports:
+      - 3301:3306
+    restart: unless-stopped
+    environment:
+      - TZ
+      - MYSQL_HOST
+      - MYSQL_ROOT_PASSWORD
+      - MYSQL_DATABASE
+      - MYSQL_USER
+      - MYSQL_PASSWORD
+    networks:
+      - internal
+```
+E peça o `.env` de prod ao time de infraestrutura. Irão te passar sem as credenciais de produção que você deverá substituir por credenciais de desenvolvimento. Em geral olhando o `.env.example` ajuda a entender.
+
 ## Ações para que tudo funcione
 * Emissão de notas fiscais
   * Definir a descrição da nota fiscal com campos separados por `:` (dois pontos)
