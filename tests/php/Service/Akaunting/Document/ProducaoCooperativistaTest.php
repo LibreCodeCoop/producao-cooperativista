@@ -235,8 +235,7 @@ final class ProducaoCooperativistaTest extends TestCase
         string $categoryName,
         string $itemDescription,
         string $contactName
-    ): void
-    {
+    ): void {
         $invoice = new Invoice();
         $invoice->fromArray([
             'id' => $id,
