@@ -30,6 +30,7 @@ use App\Entity\Akaunting\Contacts;
 use App\Helper\Colors;
 use App\Helper\Dates;
 use App\Provider\Akaunting\Request;
+use App\Service\Akaunting\DocumentConfiguration;
 use App\Service\Akaunting\Document\Taxes\Cofins;
 use App\Service\Akaunting\Document\Taxes\IrpfRetidoNaNota;
 use App\Service\Akaunting\Document\Taxes\Iss;
@@ -74,6 +75,7 @@ class ProducaoCooperativista
         private Transactions $transactions,
         private Users $users,
         private Request $request,
+        private DocumentConfiguration $documentConfiguration,
         private NumberFormatter $numberFormatter,
         private Categories $categories,
         private Taxes $taxes,
@@ -547,6 +549,7 @@ class ProducaoCooperativista
             dates: $this->dates,
             documents: $this->documents,
             request: $this->request,
+            documentConfiguration: $this->documentConfiguration,
         );
         $inssIrpf->saveMonthTaxes();
 
@@ -555,6 +558,7 @@ class ProducaoCooperativista
             dates: $this->dates,
             documents: $this->documents,
             request: $this->request,
+            documentConfiguration: $this->documentConfiguration,
         );
         $cofins->setTotalBrutoNotasClientes($this->movimentacao->getTotalBrutoNotasClientes());
         $cofins->saveMonthTaxes();
@@ -564,6 +568,7 @@ class ProducaoCooperativista
             dates: $this->dates,
             documents: $this->documents,
             request: $this->request,
+            documentConfiguration: $this->documentConfiguration,
         );
         $pis->setTotalBrutoNotasClientes($this->movimentacao->getTotalBrutoNotasClientes());
         $pis->saveMonthTaxes();
@@ -573,6 +578,7 @@ class ProducaoCooperativista
             dates: $this->dates,
             documents: $this->documents,
             request: $this->request,
+            documentConfiguration: $this->documentConfiguration,
         );
         $iss->setTotalBrutoNotasClientes($this->movimentacao->getTotalBrutoNotasClientes());
         $iss->saveMonthTaxes();
@@ -637,13 +643,14 @@ class ProducaoCooperativista
     {
         if (!isset($this->cooperado[$taxNumber])) {
             $this->cooperado[$taxNumber] = new Cooperado(
-                anoFiscal: (int) $this->dates->getInicio()->format('Y'),
-                mes: (int) $this->dates->getInicio()->format('m'),
                 entityManager: $this->entityManager,
                 dates: $this->dates,
                 numberFormatter: $this->numberFormatter,
                 documents: $this->documents,
                 request: $this->request,
+                documentConfiguration: $this->documentConfiguration,
+                anoFiscal: (int) $this->dates->getInicio()->format('Y'),
+                mes: (int) $this->dates->getInicio()->format('m'),
             );
         }
         return $this->cooperado[$taxNumber];
