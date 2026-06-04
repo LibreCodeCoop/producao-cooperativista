@@ -42,6 +42,8 @@ final class ProducaoCooperativistaTest extends TestCase
 {
     private const COOPERADO_NOME = 'Cooperado Exemplo';
     private const COOPERADO_CPF = '00011122233';
+    private const PLANO_DE_SAUDE_CATEGORY_ID = 9101;
+    private const PLANO_DE_SAUDE_LEGADO_CATEGORY_ID = 9102;
     private const VALOR_BENEFICIO_SECUNDARIO = 12.34;
     private const VALOR_BENEFICIO_PRINCIPAL = 56.78;
     private const VALOR_TELEFONIA = 7.89;
@@ -79,7 +81,7 @@ final class ProducaoCooperativistaTest extends TestCase
             id: 1001,
             amount: self::VALOR_BENEFICIO_SECUNDARIO,
             notes: 'Cooperado: ' . self::COOPERADO_NOME . ', CPF: ' . self::COOPERADO_CPF . ', Valor: R$ 12,34',
-            categoryId: (int) getenv('AKAUNTING_PLANO_DE_SAUDE_CATEGORY_ID'),
+            categoryId: self::PLANO_DE_SAUDE_CATEGORY_ID,
             categoryName: 'Cooperado > Produção > Desconto líquido > Plano de saúde',
             itemDescription: 'Lançamento genérico 1001',
             contactName: 'Fornecedor Exemplo A'
@@ -88,7 +90,7 @@ final class ProducaoCooperativistaTest extends TestCase
             id: 1002,
             amount: self::VALOR_BENEFICIO_PRINCIPAL,
             notes: 'Cooperado: ' . self::COOPERADO_NOME . ', CPF: ' . self::COOPERADO_CPF . ', Valor: R$ 56,78',
-            categoryId: (int) getenv('AKAUNTING_PLANO_DE_SAUDE_CATEGORY_ID'),
+            categoryId: self::PLANO_DE_SAUDE_CATEGORY_ID,
             categoryName: 'Cooperado > Produção > Desconto líquido > Plano de saúde',
             itemDescription: 'Lançamento genérico 1002',
             contactName: 'Fornecedor Exemplo B'
@@ -106,7 +108,7 @@ final class ProducaoCooperativistaTest extends TestCase
         $document = $this->createDocumentForCooperado(self::COOPERADO_NOME, self::COOPERADO_CPF);
         $document->updateLiquidDiscounts();
 
-        $this->assertSame(64.67, round($document->getValues()->getHealthInsurance(), 2));
+        $this->assertSame(64.67, round($document->getValues()->getLiquidDiscount(), 2));
     }
 
     public function testUpdateLiquidDiscountsFallsBackToOlderBillInSameCategoryWhenLatestCpfDoesNotMatch(): void
@@ -117,7 +119,7 @@ final class ProducaoCooperativistaTest extends TestCase
             id: 1003,
             amount: self::VALOR_BENEFICIO_SECUNDARIO,
             notes: 'Cooperado: ' . self::COOPERADO_NOME . ', CPF: ' . self::COOPERADO_CPF . ', Valor: R$ 12,34',
-            categoryId: (int) getenv('AKAUNTING_PLANO_DE_SAUDE_CATEGORY_ID'),
+            categoryId: self::PLANO_DE_SAUDE_CATEGORY_ID,
             categoryName: 'Cooperado > Produção > Desconto líquido > Plano de saúde',
             itemDescription: 'Lançamento genérico 1003',
             contactName: 'Fornecedor Exemplo B'
@@ -126,7 +128,7 @@ final class ProducaoCooperativistaTest extends TestCase
             id: 1004,
             amount: self::VALOR_BENEFICIO_PRINCIPAL,
             notes: 'Cooperado: Outro Cooperado, CPF: 99988877766, Valor: R$ 56,78',
-            categoryId: (int) getenv('AKAUNTING_PLANO_DE_SAUDE_CATEGORY_ID'),
+            categoryId: self::PLANO_DE_SAUDE_CATEGORY_ID,
             categoryName: 'Cooperado > Produção > Desconto líquido > Plano de saúde',
             itemDescription: 'Lançamento genérico 1004',
             contactName: 'Fornecedor Exemplo C'
@@ -135,16 +137,22 @@ final class ProducaoCooperativistaTest extends TestCase
         $document = $this->createDocumentForCooperado(self::COOPERADO_NOME, self::COOPERADO_CPF);
         $document->updateLiquidDiscounts();
 
-        $this->assertSame(12.34, round($document->getValues()->getHealthInsurance(), 2));
+        $this->assertSame(12.34, round($document->getValues()->getLiquidDiscount(), 2));
     }
 
-    public function testUpdateLiquidDiscountsSupportsLegacyHealthInsuranceCategoryDuringTransition(): void
+    public function testUpdateLiquidDiscountsIgnoresCategoriesOutsideParentHierarchy(): void
     {
+        $this->persistLiquidDiscountCategoryHierarchy();
+        $this->persistCategory(
+            id: self::PLANO_DE_SAUDE_LEGADO_CATEGORY_ID,
+            name: 'Cooperado > Produção > Plano de saúde',
+            parentId: 11,
+        );
         $this->persistBill(
             id: 1005,
             amount: self::VALOR_BENEFICIO_PRINCIPAL,
             notes: 'Cooperado: ' . self::COOPERADO_NOME . ', CPF: ' . self::COOPERADO_CPF . ', Valor: R$ 56,78',
-            categoryId: (int) getenv('AKAUNTING_PLANO_DE_SAUDE_CATEGORY_ID'),
+            categoryId: self::PLANO_DE_SAUDE_LEGADO_CATEGORY_ID,
             categoryName: 'Cooperado > Produção > Plano de saúde',
             itemDescription: 'Lançamento legado 1005',
             contactName: 'Fornecedor Legado'
@@ -153,7 +161,7 @@ final class ProducaoCooperativistaTest extends TestCase
         $document = $this->createDocumentForCooperado(self::COOPERADO_NOME, self::COOPERADO_CPF);
         $document->updateLiquidDiscounts();
 
-        $this->assertSame(56.78, round($document->getValues()->getHealthInsurance(), 2));
+        $this->assertSame(0.0, round($document->getValues()->getLiquidDiscount(), 2));
     }
 
     private function createDocumentForCooperado(string $name, string $taxNumber): ProducaoCooperativista
@@ -186,7 +194,7 @@ final class ProducaoCooperativistaTest extends TestCase
             parentId: 11,
         );
         $this->persistCategory(
-            id: (int) getenv('AKAUNTING_PLANO_DE_SAUDE_CATEGORY_ID'),
+            id: self::PLANO_DE_SAUDE_CATEGORY_ID,
             name: 'Cooperado > Produção > Desconto líquido > Plano de saúde',
             parentId: $parentCategoryId,
         );
