@@ -110,15 +110,10 @@ class ProducaoCooperativista extends ADocument
         return parent::setUp();
     }
 
-    public function updateHealthInsurance(): self
-    {
-        return $this->updateLiquidDiscounts();
-    }
-
     public function updateLiquidDiscounts(): self
     {
         $this->liquidDiscounts = [];
-        $this->values->setHealthInsurance(0);
+        $this->values->setLiquidDiscount(0);
 
         $categoryIds = $this->getLiquidDiscountCategoryIds();
         if (empty($categoryIds)) {
@@ -162,7 +157,7 @@ class ProducaoCooperativista extends ADocument
                 continue;
             }
 
-            foreach ($this->extractHealthInsuranceMatches($notes) as $match) {
+            foreach ($this->extractLiquidDiscountMatches($notes) as $match) {
                 if ($match['CPF'] !== $this->getCooperado()->getTaxNumber()) {
                     continue;
                 }
@@ -188,7 +183,7 @@ class ProducaoCooperativista extends ADocument
             fn (float $carry, array $discount): float => $carry + $discount['amount'],
             0.0
         );
-        $this->values->setHealthInsurance($totalLiquidDiscount);
+        $this->values->setLiquidDiscount($totalLiquidDiscount);
 
         return $this;
     }
@@ -198,26 +193,15 @@ class ProducaoCooperativista extends ADocument
      */
     private function getLiquidDiscountCategoryIds(): array
     {
-        $categoryIds = [];
-
         $liquidDiscountParentId = (int) getenv('AKAUNTING_PARENT_DESCONTO_LIQUIDO_CATEGORY_ID');
-        if ($liquidDiscountParentId > 0) {
-            $categoryIds = $this->getDescendantCategoryIds($liquidDiscountParentId);
+        if ($liquidDiscountParentId <= 0) {
+            return [];
         }
 
-        $legacyHealthInsuranceCategoryId = $this->getLegacyHealthInsuranceCategoryId();
-        if ($legacyHealthInsuranceCategoryId > 0) {
-            $categoryIds[] = $legacyHealthInsuranceCategoryId;
-        }
-
+        $categoryIds = $this->getDescendantCategoryIds($liquidDiscountParentId);
         $categoryIds = array_map('intval', $categoryIds);
         $categoryIds = array_filter($categoryIds, fn (int $id): bool => $id > 0);
         return array_values(array_unique($categoryIds));
-    }
-
-    private function getLegacyHealthInsuranceCategoryId(): int
-    {
-        return (int) getenv('AKAUNTING_PLANO_DE_SAUDE_CATEGORY_ID');
     }
 
     /**
@@ -276,7 +260,7 @@ class ProducaoCooperativista extends ADocument
     /**
      * @return array<int, array{CPF: string, value: float}>
      */
-    private function extractHealthInsuranceMatches(string $text): array
+    private function extractLiquidDiscountMatches(string $text): array
     {
         $matches = [];
         $pattern = '/^Cooperado: .*CPF: (?<CPF>\d+)[,;]? Valor: (R\$ ?)?(?<value>.*)$/i';
@@ -370,12 +354,12 @@ class ProducaoCooperativista extends ADocument
     private function insereLiquidDiscounts(): self
     {
         if (empty($this->liquidDiscounts)) {
-            $healthInsurance = $this->values->getHealthInsurance();
-            if ($healthInsurance) {
+            $totalLiquidDiscount = $this->values->getLiquidDiscount();
+            if ($totalLiquidDiscount) {
                 $this->setItem(
-                    itemId: $this->itemsIds['Plano'],
-                    name: 'Plano de saúde',
-                    price: -$healthInsurance,
+                    itemId: $this->itemsIds['desconto'],
+                    name: 'Desconto líquido',
+                    price: -$totalLiquidDiscount,
                     order: 10
                 );
             }
@@ -384,25 +368,36 @@ class ProducaoCooperativista extends ADocument
 
         foreach ($this->liquidDiscounts as $discount) {
             $description = $this->buildLiquidDiscountDescription($discount);
-            if ($discount['category_id'] === $this->getLegacyHealthInsuranceCategoryId()) {
-                $this->setItem(
-                    itemId: $this->itemsIds['Plano'],
-                    name: 'Plano de saúde',
-                    price: -$discount['amount'],
-                    order: 10
-                );
-                continue;
-            }
-
             $this->setItem(
                 itemId: $this->itemsIds['desconto'],
-                name: 'Desconto líquido',
+                name: $this->getLiquidDiscountItemName($discount),
                 description: $description,
                 price: -$discount['amount'],
                 order: 10
             );
         }
         return $this;
+    }
+
+    /**
+     * @param array{category_id: int, category_name: string, amount: float, document_number: string, due_at: ?string} $discount
+     */
+    private function getLiquidDiscountItemName(array $discount): string
+    {
+        if ($discount['category_name'] === '') {
+            return 'Desconto líquido';
+        }
+
+        $parts = array_values(array_filter(
+            array_map('trim', explode('>', $discount['category_name'])),
+            fn (string $part): bool => $part !== ''
+        ));
+        $itemName = array_pop($parts);
+        if (!is_string($itemName) || $itemName === '') {
+            return 'Desconto líquido';
+        }
+
+        return $itemName;
     }
 
     /**
