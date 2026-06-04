@@ -28,9 +28,9 @@ namespace App\Service\Kimai\Source;
 
 use App\Entity\Producao\User;
 use Doctrine\DBAL\ArrayParameterType;
-use Doctrine\DBAL\ParameterType;
 use InvalidArgumentException;
 use App\Provider\Kimai;
+use App\Service\Nextcloud\ProfileFieldsClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
@@ -51,7 +51,8 @@ class Users
     public function __construct(
         ManagerRegistry $managerRegistry,
         private EntityManagerInterface $entityManager,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private ProfileFieldsClient $profileFieldsClient,
     ) {
         $this->entityManagerAkaunting = $managerRegistry->getManager('akaunting');
     }
@@ -98,6 +99,7 @@ class Users
     public function fromArray(array $array): User
     {
         $array = $this->updateFromUserPreferences($array);
+        $array = $this->profileFieldsClient->enrichUser($array);
         $array = $this->updateWithAkauntingData($array);
         $array = $this->convertFields($array);
         $entity = $this->entityManager->find(User::class, $array['id']);
@@ -163,18 +165,6 @@ class Users
             $item['akaunting_contact_id'] = $row['id'];
         }
         return $item;
-    }
-
-    public function updatePesos(array $pesos): self
-    {
-        $update = $this->entityManager->getConnection()->createQueryBuilder();
-        foreach ($pesos as $cooperado) {
-            $update->update('users')
-                ->set('peso', $update->createNamedParameter($cooperado['weight']))
-                ->where($update->expr()->eq('tax_number', $update->createNamedParameter($cooperado['tax_number'], ParameterType::STRING)))
-                ->executeStatement();
-        }
-        return $this;
     }
 
     public function saveList(): self
