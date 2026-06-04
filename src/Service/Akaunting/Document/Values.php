@@ -47,8 +47,8 @@ use App\Service\Cooperado;
  * @method float getFrra()
  * @method self setFrraDocumentNumber(float $value)
  * @method float getFrraDocumentNumber()
- * @method self setHealthInsurance(float $value)
- * @method float getHealthInsurance()
+ * @method self setLiquidDiscount(float $value)
+ * @method float getLiquidDiscount()
  * @method self setInss(float $value)
  * @method float getInss()
  * @method self setIrpf(float $value)
@@ -72,7 +72,7 @@ class Values
     private ?float $inss = 0;
     private ?float $irpf = 0;
     private ?float $liquido = 0;
-    private ?float $healthInsurance = 0;
+    private ?float $liquidDiscount = 0;
     private ?array $adiantamento = [];
     private bool $lockFrra = false;
     private const STATUS_NEED_TO_UPDATE = 0;
@@ -136,7 +136,7 @@ class Values
             $this->setBruto($this->getBaseProducao());
         }
         $liquido = $this->getBruto()
-            - $this->getHealthInsurance()
+            - $this->getLiquidDiscount()
             - $this->getTotalAdiantamento();
         if (strlen($this->cooperado->getTaxNumber()) === 11) {
             $liquido = $liquido
@@ -216,7 +216,7 @@ class Values
             'document_number' => $this->getDocumentNumber(),
             'peso' => $cooperado->getWeight(),
             'frra' => $this->getFrra(),
-            'health_insurance' => $this->getHealthInsurance(),
+            'liquid_discount' => $this->getLiquidDiscount(),
             'inss' => $this->getInss(),
             'irpf' => $this->getIrpf(),
             'adiantamento' => array_map(fn ($i) => ['amount' => $i['amount']], $this->getAdiantamento()),

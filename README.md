@@ -73,18 +73,33 @@ E peça o `.env` de prod ao time de infraestrutura. Irão te passar sem as crede
   * Custos
     * Categorizar transação de saída como `Cliente (custo)` quando forem custos de clientes
     * Sempre que for custo reembolsável pelo cliente, adicionar `<cpf/CNPJ>|<setor>` na transação no campo `Referência` para que seja possível identificar qual cliente deverá reembolsar este custo de entrada. Lembrar de acrescentar o setor sempre que necessário.
-    * Plano de saúde deve ser categorizado como `Plano de saúde`
-    * No campo "nota" (descrição) do plano de saúde deve conter a divisão das sobras do plano de saúde.
+    * Todo custo que deve descontar do líquido da fatura do cooperado precisa estar abaixo da categoria pai `Cooperado > Produção > Desconto líquido`
+      * Exemplo: `Cooperado > Produção > Desconto líquido > Plano de saúde`
+      * Exemplo: `Cooperado > Produção > Desconto líquido > Telefonia`
+    * Configure o id da categoria pai em `AKAUNTING_PARENT_DESCONTO_LIQUIDO_CATEGORY_ID`
+    * Categorias fora desta hierarquia são ignoradas.
+    * No campo "nota" (descrição) de cada desconto líquido deve conter a divisão por cooperado.
       Exemplo:
       ```csv
       Cooperado: Hedy Lamarr; CPF: 00000000000; Valor: 781,95
       Cooperado: Grace Hopper; CPF: 11111111111; Valor: R$ 439,55
-      Cooperado: Ada Lovelace, CPF: 11111111111, Valor: R$439,55
+      Cooperado: Ada Lovelace, CPF: 22222222222, Valor: 1.592,65
+      Cooperado: Radia Perlman, CPF: 33333333333, Valor: R$12.345,67
       ```
       > **Dica**: Esta descrição é coletada com a seguinte regex:
       > ```
       > /^Cooperado: .*CPF: (?<CPF>\d+)[,;]? Valor: (R\$ ?)?(?<value>.*)$/i
       > ```
+      > Depois disso, o parse do valor funciona assim:
+      > - remove `R$`, espaços e outros caracteres que não sejam dígitos, vírgula, ponto ou sinal
+      > - remove todos os pontos `.`
+      > - troca a vírgula `,` por ponto `.` antes de converter para número
+      >
+      > Portanto:
+      > - use **vírgula como separador decimal**
+      > - o **ponto é opcional e só pode ser usado como separador de milhar**
+      > - formatos como `781,95`, `R$ 781,95`, `1.592,65` e `R$12.345,67` são aceitos
+      > - **não** use ponto como separador decimal, por exemplo `1592.65`, porque hoje isso seria interpretado como `159265`
     * Customização da fatura (compra ou venda) ou transação deve ser inserida na descrição. Valores possíveis:
       | Nome                     | Descrição                                                                                                                                                                         |
       | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

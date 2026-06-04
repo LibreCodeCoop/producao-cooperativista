@@ -20,7 +20,7 @@
     <env name="AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID" value="11" />
     <env name="AKAUNTING_FRRA_CATEGORY_ID" value="33" />
     <env name="AKAUNTING_ADIANTAMENTO_CATEGORY_ID" value="34" />
-    <env name="AKAUNTING_PLANO_DE_SAUDE_CATEGORY_ID" value="29" />
+    <env name="AKAUNTING_PARENT_DESCONTO_LIQUIDO_CATEGORY_ID" value="129" />
     <env name="AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID" value="28" />
     <env name="AKAUNTING_PARENT_DISPENDIOS_INTERNOS_CATEGORY_ID" value="16" />
     <env name="AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID" value="45" />
@@ -30,7 +30,7 @@
     <env name="AKAUNTING_IMPOSTOS_ISS" value="{&quot;categoryId&quot;:39,&quot;contactId&quot;:111,&quot;taxId&quot;:4}" />
     <env name="AKAUNTING_IMPOSTOS_PIS" value="{&quot;categoryId&quot;:41,&quot;contactId&quot;:111,&quot;taxId&quot;:3}" />
     <env name="AKAUNTING_IMPOSTOS_ITEM_ID" value="14" />
-    <env name="AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS" value="{&quot;bruto&quot;:26,&quot;INSS&quot;:28,&quot;IRRF&quot;:29,&quot;Plano&quot;:30,&quot;Auxílio&quot;:32,&quot;desconto&quot;:31,&quot;frra&quot;:27}" />
+    <env name="AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS" value="{&quot;bruto&quot;:26,&quot;INSS&quot;:28,&quot;IRRF&quot;:29,&quot;Auxílio&quot;:32,&quot;desconto&quot;:31,&quot;frra&quot;:27}" />
     <env name="HOLYDAYS_LIST" value="br-rj" />
     <env name="LOCALE" value="pt_BR" />
     <env name="CNPJ_CLIENTES_INTERNOS" value="00000000000191" />
