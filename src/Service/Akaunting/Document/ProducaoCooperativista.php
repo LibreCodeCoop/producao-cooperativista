@@ -108,30 +108,83 @@ class ProducaoCooperativista extends ADocument
     public function updateHealthInsurance(): self
     {
         $select = $this->entityManager->getConnection()->createQueryBuilder();
-        $select->select("JSON_UNQUOTE(JSON_EXTRACT(i.metadata, '$.notes')) as notes")
+        $select->select('i.metadata')
             ->from('invoices', 'i')
             ->where("i.type = 'bill'")
             ->andWhere($select->expr()->eq('i.category_id', $select->createNamedParameter((int) getenv('AKAUNTING_PLANO_DE_SAUDE_CATEGORY_ID'), ParameterType::INTEGER)))
-            ->andWhere($select->expr()->gte('i.transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
-        $text = $select->executeQuery()->fetchOne();
-        if (empty($text)) {
+            ->andWhere($select->expr()->eq('i.transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))))
+            ->orderBy('i.id', 'DESC');
+        $rows = $select->executeQuery()->fetchAllAssociative();
+        if (empty($rows)) {
             return $this;
         }
 
-        $explodedText = explode("\n", $text);
-        $pattern = '/^Cooperado: .*CPF: (?<CPF>\d+)[,;]? Valor: (R\$ ?)?(?<value>.*)$/i';
-        foreach ($explodedText as $row) {
-            if (!preg_match($pattern, $row, $matches)) {
+        foreach ($rows as $row) {
+            $metadata = $this->decodeInvoiceMetadata($row['metadata'] ?? null);
+            $notes = $metadata['notes'] ?? null;
+            if (!is_string($notes) || $notes === '') {
                 continue;
             }
-            if ($matches['CPF'] === $this->getCooperado()->getTaxNumber()) {
-                $value = str_replace('.', '', $matches['value']);
-                $value = str_replace(',', '.', $value);
-                $value = (float) $value;
-                $this->values->setHealthInsurance($value);
+
+            $healthInsurance = null;
+            foreach ($this->extractHealthInsuranceMatches($notes) as $match) {
+                if ($match['CPF'] !== $this->getCooperado()->getTaxNumber()) {
+                    continue;
+                }
+                $healthInsurance = $match['value'];
+            }
+
+            if ($healthInsurance !== null) {
+                $this->values->setHealthInsurance($healthInsurance);
+                return $this;
             }
         }
+
         return $this;
+    }
+
+    private function decodeInvoiceMetadata(mixed $metadata): array
+    {
+        if (is_array($metadata)) {
+            return $metadata;
+        }
+        if (!is_string($metadata) || $metadata === '') {
+            return [];
+        }
+
+        $decoded = json_decode($metadata, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+        return $decoded;
+    }
+
+    /**
+     * @return array<int, array{CPF: string, value: float}>
+     */
+    private function extractHealthInsuranceMatches(string $text): array
+    {
+        $matches = [];
+        $pattern = '/^Cooperado: .*CPF: (?<CPF>\d+)[,;]? Valor: (R\$ ?)?(?<value>.*)$/i';
+        foreach (explode("\n", $text) as $row) {
+            if (!preg_match($pattern, $row, $match)) {
+                continue;
+            }
+            $matches[] = [
+                'CPF' => $match['CPF'],
+                'value' => $this->parseMoneyValue($match['value']),
+            ];
+        }
+        return $matches;
+    }
+
+    private function parseMoneyValue(string $value): float
+    {
+        $value = trim($value);
+        $value = preg_replace('/[^0-9,.-]/', '', $value) ?? '';
+        $value = str_replace('.', '', $value);
+        $value = str_replace(',', '.', $value);
+        return (float) $value;
     }
 
     protected function getDocumentNumber(): string
