@@ -8,6 +8,7 @@ Calcular o bruto da produção cooperativista por cooperado com base em dados co
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | [Kimai](https://www.kimai.org)     | Registro de horas trabalhadas por projeto, emissão de relatório de horas trabalhadas para clientes        |
 | [Akaunting](https://akaunting.com) | Gestão financeira                                                                                         |
+| [Nextcloud + Profile Fields](https://github.com/LibreCodeCoop/profile_fields/) | Diretório interno dos cooperados com os campos customizados `weight` e `tax_number` usados na produção |
 | Site da prefeitura                 | Emissão de NFSe. Hoje o sistema dá suporte oficial apenas as prefeituras dos municípios do Rio e Niterói. |
 
 ## Ambiente de desenvolvimento
@@ -53,6 +54,9 @@ E peça o `.env` de prod ao time de infraestrutura. Irão te passar sem as crede
 * Emissão de notas fiscais
   * Definir a descrição da nota fiscal com campos separados por `:` (dois pontos)
   * Quando for NFSe para mais de um setor de um mesmo CNPJ, acrescentar o campo `setor: <setor>`
+* Nextcloud + Profile Fields
+  * Criar no app `profile_fields` os campos `weight` e `tax_number`.
+  * Preencher estes campos para cada cooperado; eles passam a ser a fonte oficial do peso e do CPF/CNPJ usados no cálculo.
 * Akaunting
   * Dados de clientes
     * Definir número de identificação fiscal (cpf/cnpj) para todo fornecedor/cliente. Quando houver nota emitida para mais de um setor de um mesmo CNPJ e figurarem diferentes contas na LibreCode (conta = contrato), concatenar da seguinte forma: `<cpf/CNPJ>|<setor>`

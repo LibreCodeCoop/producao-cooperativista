@@ -26,7 +26,6 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Service\Kimai\Source\Users;
 use App\Service\Movimentacao;
 use DateTime;
 use App\Service\ProducaoCooperativista;
@@ -45,7 +44,6 @@ class MakeProducaoCommand extends AbstractBaseCommand
     public function __construct(
         private ProducaoCooperativista $producaoCooperativista,
         private Movimentacao $movimentacao,
-        private Users $users,
     ) {
         parent::__construct();
     }
@@ -94,12 +92,6 @@ class MakeProducaoCommand extends AbstractBaseCommand
                 'Atualiza a produção cooperativista no Akaunting'
             )
             ->addOption(
-                'pesos',
-                null,
-                InputOption::VALUE_REQUIRED,
-                'Pesos finais para cálculo da produção'
-            )
-            ->addOption(
                 'ods',
                 null,
                 InputOption::VALUE_NONE,
@@ -128,8 +120,6 @@ class MakeProducaoCommand extends AbstractBaseCommand
         $this->producaoCooperativista->dates->setInicio($inicio);
         $this->producaoCooperativista->dates->setDiasUteis($diasUteis);
         $this->movimentacao->setPercentualMaximo($percentualMaximo);
-        $pesos = json_decode((string) $input->getOption('pesos'), true) ?? [];
-        $this->users->updatePesos($pesos);
 
         try {
             $this->producaoCooperativista->getProducaoCooperativista();

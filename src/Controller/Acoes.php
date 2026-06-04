@@ -141,7 +141,6 @@ class Acoes extends AbstractController
             '--baixar-dados' => $this->request->query->getString('baixar_dados', '0'),
             '--atualiza-producao' => $this->request->query->getBoolean('atualiza_producao'),
             '--database' => true,
-            '--pesos' => $this->request->query->getString('pesos'),
         ]);
         $output = new BufferedOutput();
         $exitCode = $application->run($input, $output);
