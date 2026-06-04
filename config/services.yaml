@@ -20,6 +20,8 @@ services:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
             - '../src/Kernel.php'
+            - '../src/Service/Akaunting/DocumentConfiguration.php'
+    App\Service\Akaunting\DocumentConfiguration:
     NumberFormatter:
         class: NumberFormatter
         arguments:
