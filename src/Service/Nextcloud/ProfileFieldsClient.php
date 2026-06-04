@@ -176,8 +176,7 @@ class ProfileFieldsClient
         string $method = 'GET',
         array $options = [],
         bool $allowNotFound = false,
-    ): array
-    {
+    ): array {
         if (!$this->isConfigured()) {
             return [];
         }
