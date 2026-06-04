@@ -147,7 +147,7 @@ class ProducaoCooperativista extends ADocument
         $selectedDiscounts = [];
         foreach ($rows as $row) {
             $categoryId = (int) ($row['category_id'] ?? 0);
-            if ($categoryId <= 0 || isset($selectedDiscounts[$categoryId])) {
+            if ($categoryId <= 0) {
                 continue;
             }
 
@@ -162,7 +162,7 @@ class ProducaoCooperativista extends ADocument
                     continue;
                 }
 
-                $selectedDiscounts[$categoryId] = [
+                $selectedDiscounts[] = [
                     'category_id' => $categoryId,
                     'category_name' => (string) ($row['category_name'] ?? ''),
                     'amount' => $match['value'],
@@ -177,7 +177,7 @@ class ProducaoCooperativista extends ADocument
             return $this;
         }
 
-        $this->liquidDiscounts = array_values($selectedDiscounts);
+        $this->liquidDiscounts = $selectedDiscounts;
         $totalLiquidDiscount = array_reduce(
             $this->liquidDiscounts,
             fn (float $carry, array $discount): float => $carry + $discount['amount'],
