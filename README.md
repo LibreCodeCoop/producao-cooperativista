@@ -73,8 +73,12 @@ E peça o `.env` de prod ao time de infraestrutura. Irão te passar sem as crede
   * Custos
     * Categorizar transação de saída como `Cliente (custo)` quando forem custos de clientes
     * Sempre que for custo reembolsável pelo cliente, adicionar `<cpf/CNPJ>|<setor>` na transação no campo `Referência` para que seja possível identificar qual cliente deverá reembolsar este custo de entrada. Lembrar de acrescentar o setor sempre que necessário.
-    * Plano de saúde deve ser categorizado como `Plano de saúde`
-    * No campo "nota" (descrição) do plano de saúde deve conter a divisão das sobras do plano de saúde.
+    * Todo custo que deve descontar do líquido da fatura do cooperado precisa estar abaixo da categoria pai `Cooperado > Produção > Desconto líquido`
+      * Exemplo: `Cooperado > Produção > Desconto líquido > Plano de saúde`
+      * Exemplo: `Cooperado > Produção > Desconto líquido > Telefonia`
+    * Configure o id da categoria pai em `AKAUNTING_PARENT_DESCONTO_LIQUIDO_CATEGORY_ID`
+    * Durante a migração, mantenha `AKAUNTING_PLANO_DE_SAUDE_CATEGORY_ID` apontando para a categoria histórica de plano de saúde. Se você apenas mover a categoria existente para baixo de `Desconto líquido`, o id permanece e as faturas já emitidas/importadas continuam compatíveis.
+    * No campo "nota" (descrição) de cada desconto líquido deve conter a divisão por cooperado.
       Exemplo:
       ```csv
       Cooperado: Hedy Lamarr; CPF: 00000000000; Valor: 781,95

@@ -590,16 +590,16 @@ class ProducaoCooperativista
         $this->movimentacao->getMovimentacaoFinanceira();
         $this->cadastraCooperadoQueProduziuNoAkaunting();
         $this->distribuiProducao();
-        $this->atualizaPlanoDeSaude();
+        $this->atualizaDescontosLiquido();
         $this->atualizaAdiantamentos();
         $this->logger->debug('Produção por cooperado ooperado: {json}', ['json' => json_encode($this->cooperado)]);
         return $this->cooperado;
     }
 
-    private function atualizaPlanoDeSaude(): self
+    private function atualizaDescontosLiquido(): self
     {
         foreach ($this->cooperado as $cooperado) {
-            $cooperado->getProducaoCooperativista()->updateHealthInsurance();
+            $cooperado->getProducaoCooperativista()->updateLiquidDiscounts();
         }
         return $this;
     }
