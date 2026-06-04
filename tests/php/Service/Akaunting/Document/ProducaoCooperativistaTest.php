@@ -76,7 +76,7 @@ final class ProducaoCooperativistaTest extends TestCase
         $this->dates->setInicio(new DateTime('2026-04-01 00:00:00'));
     }
 
-    public function testUpdateLiquidDiscountsSumsLatestMatchPerChildCategory(): void
+    public function testUpdateLiquidDiscountsSumsAllMatchingBillsInSameChildCategory(): void
     {
         $this->persistLiquidDiscountCategoryHierarchy();
 
@@ -111,7 +111,7 @@ final class ProducaoCooperativistaTest extends TestCase
         $document = $this->createDocumentForCooperado(self::COOPERADO_NOME, self::COOPERADO_CPF);
         $document->updateLiquidDiscounts();
 
-        $this->assertSame(64.67, round($document->getValues()->getLiquidDiscount(), 2));
+        $this->assertSame(77.01, round($document->getValues()->getLiquidDiscount(), 2));
     }
 
     public function testUpdateLiquidDiscountsFallsBackToOlderBillInSameCategoryWhenLatestCpfDoesNotMatch(): void
