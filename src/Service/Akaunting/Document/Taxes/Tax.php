@@ -30,11 +30,9 @@ use App\Entity\Producao\Tax as EntityTax;
 use Doctrine\DBAL\ParameterType;
 use Exception;
 use App\Service\Akaunting\Document\ADocument;
-use stdClass;
 
 class Tax extends ADocument
 {
-    protected stdClass $taxData;
     protected string $whoami = 'TAX';
     protected string $readableName = 'Tax';
     protected int $quantity = 1;
@@ -83,14 +81,26 @@ class Tax extends ADocument
 
     private function getPercentualDoImposto(): float
     {
-        $tax = $this->entityManager->getRepository(EntityTax::class)->find($this->taxData->taxId);
+        $tax = $this->entityManager->getRepository(EntityTax::class)->find($this->getTaxDataInt('taxId'));
         return $tax->getRate();
     }
 
     protected function setUp(): self
     {
-        $this->taxData = json_decode(getenv('AKAUNTING_IMPOSTOS_' . $this->whoami));
         return parent::setUp();
+    }
+
+    /**
+     * @return array<mixed>
+     */
+    protected function getTaxData(): array
+    {
+        return $this->documentConfiguration->getTaxData($this->whoami);
+    }
+
+    protected function getTaxDataInt(string $key): int
+    {
+        return $this->documentConfiguration->getTaxDataInt($this->whoami, $key);
     }
 
     protected function getTotalRetainedOfMonth(): float
@@ -107,7 +117,7 @@ class Tax extends ADocument
             SQL;
         $stmt = $this->entityManager->getConnection()->executeQuery($query, [
             'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m'),
-            'tax_id' => $this->taxData->taxId, ParameterType::INTEGER,
+            'tax_id' => $this->getTaxDataInt('taxId'), ParameterType::INTEGER,
         ]);
         $total = (float) $stmt->fetchOne();
         return $total;
@@ -118,7 +128,7 @@ class Tax extends ADocument
         $contact = $this->getContact();
 
         $this
-            ->setCategoryId($this->taxData->categoryId)
+            ->setCategoryId($this->getTaxDataInt('categoryId'))
             ->setStatus('draft')
             ->setIssuedAt($this->dates->getDataProcessamento()->format('Y-m-d H:i:s'))
             ->setCurrencyCode('BRL')
@@ -131,8 +141,9 @@ class Tax extends ADocument
 
     private function getContact(): array
     {
+        $contactId = $this->getTaxDataInt('contactId');
         $response = $this->request->send(
-            endpoint: '/api/contacts/' . $this->taxData->contactId,
+            endpoint: '/api/contacts/' . $contactId,
             query: [
                 'search' => implode(' ', [
                     'type:vendor',
@@ -143,7 +154,7 @@ class Tax extends ADocument
         if (!isset($response['data'])) {
             throw new Exception(
                 "Impossible to handle contact to insert bill of type {$this->readableName}.\n" .
-                "Got an error when get the contact with ID: {$this->taxData->contactId}.\n" .
+                "Got an error when get the contact with ID: {$contactId}.\n" .
                 "Response from API:\n" .
                 json_encode($response)
             );
