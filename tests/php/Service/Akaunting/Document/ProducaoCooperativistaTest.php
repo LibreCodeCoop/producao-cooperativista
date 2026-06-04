@@ -30,6 +30,7 @@ use App\Entity\Producao\Category;
 use App\Entity\Producao\Invoice;
 use App\Helper\Dates;
 use App\Provider\Akaunting\Request;
+use App\Service\Akaunting\DocumentConfiguration;
 use App\Service\Akaunting\Document\ProducaoCooperativista;
 use App\Service\Akaunting\Source\Documents;
 use App\Service\Cooperado;
@@ -53,6 +54,7 @@ final class ProducaoCooperativistaTest extends TestCase
     private Dates $dates;
     private Documents $documents;
     private Request $request;
+    private DocumentConfiguration $documentConfiguration;
     private NumberFormatter $numberFormatter;
 
     protected function setUp(): void
@@ -64,6 +66,7 @@ final class ProducaoCooperativistaTest extends TestCase
         $this->dates = $container->get(Dates::class);
         $this->documents = $container->get(Documents::class);
         $this->request = $container->get(Request::class);
+        $this->documentConfiguration = $container->get(DocumentConfiguration::class);
         $this->numberFormatter = new NumberFormatter((string) getenv('LOCALE'), NumberFormatter::CURRENCY);
 
         $this->entityManager->getConnection()->executeStatement('DELETE FROM invoices');
@@ -172,6 +175,7 @@ final class ProducaoCooperativistaTest extends TestCase
             numberFormatter: $this->numberFormatter,
             documents: $this->documents,
             request: $this->request,
+            documentConfiguration: $this->documentConfiguration,
             anoFiscal: 2026,
             mes: 4,
         );
