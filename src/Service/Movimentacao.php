@@ -35,6 +35,7 @@ use Psr\Log\LoggerInterface;
 class Movimentacao
 {
     private array $movimentacao = [];
+    private ?array $customerReferenceRequiredCategories = null;
     private array $custosPorCliente = [];
     private float $percentualAdministrativo = 0;
     private float $taxaAdministrativa = 0;
@@ -160,16 +161,20 @@ class Movimentacao
         $stmt = $this->entityManager->getConnection()->executeQuery($sql, [
             'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m')
         ]);
+        $movimentacao = [];
         $errors = [];
         while ($row = $stmt->fetchAssociative()) {
-            if (empty($row['customer_reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['customer_reference'])) {
+            if (
+                $this->isCustomerReferenceRequired($row)
+                && (empty($row['customer_reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['customer_reference']))
+            ) {
                 $errors[] = $row;
             }
             $row['percentual_desconto_fixo'] = (bool) $row['percentual_desconto_fixo'];
 
-            $this->movimentacao[$row['id']] = $row;
+            $movimentacao[$row['id']] = $row;
         }
-        if (empty($this->movimentacao)) {
+        if (empty($movimentacao)) {
             throw new Exception('Sem transações');
         }
 
@@ -184,9 +189,36 @@ class Movimentacao
             ));
         }
 
+        $this->movimentacao = $movimentacao;
         $this->calculaBaseProducao();
         $this->logger->debug('Movimentação', [$this->movimentacao]);
         return $this->movimentacao;
+    }
+
+    private function isCustomerReferenceRequired(array $row): bool
+    {
+        return in_array(
+            (int) $row['category_id'],
+            $this->getCustomerReferenceRequiredCategories(),
+            true
+        );
+    }
+
+    /**
+     * @return int[]
+     */
+    private function getCustomerReferenceRequiredCategories(): array
+    {
+        if (is_array($this->customerReferenceRequiredCategories)) {
+            return $this->customerReferenceRequiredCategories;
+        }
+
+        $this->customerReferenceRequiredCategories = array_map('intval', array_values(array_unique(array_merge(
+            $this->categories->getChildrensCategories((int) getenv('AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID')),
+            $this->categories->getChildrensCategories((int) getenv('AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID')),
+        ))));
+
+        return $this->customerReferenceRequiredCategories;
     }
 
     public function setMovimentacao($movimentacao): void

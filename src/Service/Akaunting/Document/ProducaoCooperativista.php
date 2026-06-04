@@ -57,8 +57,8 @@ class ProducaoCooperativista extends ADocument
     {
         $extras = array_reduce($this->getItems(), function (float $total, array $item) {
             $exclude = [
-                $this->getItemsIds()['Auxílio'],
-                $this->getItemsIds()['bruto'],
+                $this->getItemId('Auxílio'),
+                $this->getItemId('bruto'),
             ];
             if (!in_array($item['item_id'], $exclude) && $item['total'] > 0) {
                 $total += $item['total'];
@@ -357,7 +357,7 @@ class ProducaoCooperativista extends ADocument
             $totalLiquidDiscount = $this->values->getLiquidDiscount();
             if ($totalLiquidDiscount) {
                 $this->setItem(
-                    itemId: $this->itemsIds['desconto'],
+                    itemId: $this->getItemId('desconto'),
                     name: 'Desconto líquido',
                     price: -$totalLiquidDiscount,
                     order: 10
@@ -369,7 +369,7 @@ class ProducaoCooperativista extends ADocument
         foreach ($this->liquidDiscounts as $discount) {
             $description = $this->buildLiquidDiscountDescription($discount);
             $this->setItem(
-                itemId: $this->itemsIds['desconto'],
+                itemId: $this->getItemId('desconto'),
                 name: $this->getLiquidDiscountItemName($discount),
                 description: $description,
                 price: -$discount['amount'],
@@ -451,7 +451,7 @@ class ProducaoCooperativista extends ADocument
         foreach ($this->values->getAdiantamento() as $adiantamento) {
             $dueAt = new DateTime($adiantamento['due_at']);
             $this->setItem(
-                itemId: $this->itemsIds['desconto'],
+                itemId: $this->getItemId('desconto'),
                 name: 'Adiantamento',
                 description: sprintf('Número: %s, data: %s', $adiantamento['document_number'], $dueAt->format('Y-m-d')),
                 price: abs($adiantamento['amount']) * -1,

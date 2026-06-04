@@ -31,6 +31,7 @@ use Exception;
 use App\Helper\Dates;
 use App\Helper\MagicGetterSetterTrait;
 use App\Provider\Akaunting\Request;
+use App\Service\Akaunting\DocumentConfiguration;
 use App\Service\Cooperado;
 use App\Service\Akaunting\Source\Documents;
 use Doctrine\ORM\EntityManagerInterface;
@@ -95,20 +96,17 @@ abstract class ADocument
     protected array $notes = [];
     protected array $items = [];
 
-    /** @var int[] */
-    protected array $itemsIds;
-
     public function __construct(
         protected EntityManagerInterface $entityManager,
         protected Dates $dates,
         protected Documents $documents,
         protected Request $request,
+        protected DocumentConfiguration $documentConfiguration,
         protected ?int $anoFiscal = null,
         protected ?int $mes = null,
         protected ?NumberFormatter $numberFormatter = null,
         protected ?Cooperado $cooperado = null,
     ) {
-        $this->itemsIds = json_decode(getenv('AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS'), true);
         $this->setValues(new Values(
             anoFiscal: $anoFiscal,
             mes: $mes,
@@ -175,7 +173,7 @@ abstract class ADocument
         if ($itemId) {
             $item['item_id'] = $itemId;
         } elseif ($code) {
-            $item['item_id'] = $this->itemsIds[$code];
+            $item['item_id'] = $this->getItemId($code);
         }
         if ($id) {
             $item['id'] = $id;
@@ -225,7 +223,12 @@ abstract class ADocument
      */
     public function getItemsIds(): array
     {
-        return $this->itemsIds;
+        return $this->documentConfiguration->getDocumentItemIds();
+    }
+
+    protected function getItemId(string $code): int
+    {
+        return $this->documentConfiguration->getDocumentItemId($code);
     }
 
     public function toArray(): array
