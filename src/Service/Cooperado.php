@@ -30,6 +30,7 @@ use NumberFormatter;
 use App\Helper\Dates;
 use App\Helper\MagicGetterSetterTrait;
 use App\Provider\Akaunting\Request;
+use App\Service\Akaunting\DocumentConfiguration;
 use App\Service\Akaunting\Document\FRRA;
 use App\Service\Akaunting\Document\ProducaoCooperativista;
 use App\Service\Akaunting\Document\Taxes\InssIrpf;
@@ -76,6 +77,7 @@ class Cooperado
         private NumberFormatter $numberFormatter,
         private Documents $documents,
         private Request $request,
+        private DocumentConfiguration $documentConfiguration,
         private ?int $anoFiscal = null,
         private ?int $mes = null,
     ) {
@@ -95,6 +97,7 @@ class Cooperado
             documents: $this->documents,
             cooperado: $this,
             request: $this->request,
+            documentConfiguration: $this->documentConfiguration,
         );
         return $this->producaoCooperativista;
     }
@@ -113,6 +116,7 @@ class Cooperado
             documents: $this->documents,
             cooperado: $this,
             request: $this->request,
+            documentConfiguration: $this->documentConfiguration,
         );
         return $this->frra;
     }
@@ -131,6 +135,7 @@ class Cooperado
             documents: $this->documents,
             cooperado: $this,
             request: $this->request,
+            documentConfiguration: $this->documentConfiguration,
         );
         return $this->inssIrpf;
     }
