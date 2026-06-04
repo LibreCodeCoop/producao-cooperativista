@@ -66,7 +66,7 @@ class InssIrpf extends Tax
 
     private function updateItem(string $code, array $item): self
     {
-        if ($item['item_id'] !== $this->itemsIds[$code]) {
+        if ($item['item_id'] !== $this->getItemId($code)) {
             return $this;
         }
         $this->setItem(
