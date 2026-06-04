@@ -77,18 +77,29 @@ E peça o `.env` de prod ao time de infraestrutura. Irão te passar sem as crede
       * Exemplo: `Cooperado > Produção > Desconto líquido > Plano de saúde`
       * Exemplo: `Cooperado > Produção > Desconto líquido > Telefonia`
     * Configure o id da categoria pai em `AKAUNTING_PARENT_DESCONTO_LIQUIDO_CATEGORY_ID`
-    * Durante a migração, mantenha `AKAUNTING_PLANO_DE_SAUDE_CATEGORY_ID` apontando para a categoria histórica de plano de saúde. Se você apenas mover a categoria existente para baixo de `Desconto líquido`, o id permanece e as faturas já emitidas/importadas continuam compatíveis.
+    * Categorias fora desta hierarquia são ignoradas.
     * No campo "nota" (descrição) de cada desconto líquido deve conter a divisão por cooperado.
       Exemplo:
       ```csv
       Cooperado: Hedy Lamarr; CPF: 00000000000; Valor: 781,95
       Cooperado: Grace Hopper; CPF: 11111111111; Valor: R$ 439,55
-      Cooperado: Ada Lovelace, CPF: 11111111111, Valor: R$439,55
+      Cooperado: Ada Lovelace, CPF: 22222222222, Valor: 1.592,65
+      Cooperado: Radia Perlman, CPF: 33333333333, Valor: R$12.345,67
       ```
       > **Dica**: Esta descrição é coletada com a seguinte regex:
       > ```
       > /^Cooperado: .*CPF: (?<CPF>\d+)[,;]? Valor: (R\$ ?)?(?<value>.*)$/i
       > ```
+      > Depois disso, o parse do valor funciona assim:
+      > - remove `R$`, espaços e outros caracteres que não sejam dígitos, vírgula, ponto ou sinal
+      > - remove todos os pontos `.`
+      > - troca a vírgula `,` por ponto `.` antes de converter para número
+      >
+      > Portanto:
+      > - use **vírgula como separador decimal**
+      > - o **ponto é opcional e só pode ser usado como separador de milhar**
+      > - formatos como `781,95`, `R$ 781,95`, `1.592,65` e `R$12.345,67` são aceitos
+      > - **não** use ponto como separador decimal, por exemplo `1592.65`, porque hoje isso seria interpretado como `159265`
     * Customização da fatura (compra ou venda) ou transação deve ser inserida na descrição. Valores possíveis:
       | Nome                     | Descrição                                                                                                                                                                         |
       | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
