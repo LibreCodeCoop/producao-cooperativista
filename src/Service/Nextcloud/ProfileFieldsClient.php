@@ -126,24 +126,84 @@ class ProfileFieldsClient
             return $user;
         }
 
-        $fields = $this->getFieldsForTaxNumber($taxNumber);
+        $fields = $this->resolveFieldsForUser($user, $taxNumber);
         if ($fields === []) {
             return $user;
         }
 
-        $taxNumberFieldKey = $this->getTaxNumberFieldKey();
-        $taxNumber = $fields[$taxNumberFieldKey] ?? null;
-        if (is_scalar($taxNumber) && trim((string) $taxNumber) !== '') {
-            $user['tax_number'] = trim((string) $taxNumber);
+        return $this->applyFieldsToUser($user, $fields);
+    }
+
+    /**
+     * @param array<string, mixed> $user
+     * @return array<string, mixed>
+     */
+    private function resolveFieldsForUser(array $user, string $taxNumber): array
+    {
+        $fields = $this->getFieldsForTaxNumber($taxNumber);
+        if ($fields !== []) {
+            return $fields;
         }
 
-        $weightFieldKey = $this->getWeightFieldKey();
-        $weight = $fields[$weightFieldKey] ?? null;
-        if (is_scalar($weight) && is_numeric((string) $weight)) {
-            $user['peso'] = (float) $weight;
+        $userUid = $this->getUserUid($user);
+        if ($userUid !== '') {
+            $this->logger->debug('Profile Fields lookup by tax number returned no result; falling back to user UID lookup.', [
+                'tax_number' => $taxNumber,
+                'user_uid' => $userUid,
+            ]);
         }
+
+        return $this->getFieldsForUser($userUid);
+    }
+
+    /**
+     * @param array<string, mixed> $user
+     * @param array<string, mixed> $fields
+     * @return array<string, mixed>
+     */
+    private function applyFieldsToUser(array $user, array $fields): array
+    {
+        $this->applyTrimmedScalarField($user, $fields, $this->getTaxNumberFieldKey(), 'tax_number');
+        $this->applyNumericField($user, $fields, $this->getWeightFieldKey(), 'peso', static fn ($value): float => (float) $value);
+        $this->applyNumericField($user, $fields, $this->getDependentsFieldKey(), 'dependents', static fn ($value): int => (int) $value);
 
         return $user;
+    }
+
+    /**
+     * @param array<string, mixed> $user
+     */
+    private function applyTrimmedScalarField(array &$user, array $fields, string $fieldKey, string $userKey): void
+    {
+        $fieldValue = $fields[$fieldKey] ?? null;
+        if (!is_scalar($fieldValue)) {
+            return;
+        }
+
+        $normalizedValue = trim((string) $fieldValue);
+        if ($normalizedValue !== '') {
+            $user[$userKey] = $normalizedValue;
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $user
+     * @param callable(scalar): int|float $caster
+     */
+    private function applyNumericField(array &$user, array $fields, string $fieldKey, string $userKey, callable $caster): void
+    {
+        $fieldValue = $fields[$fieldKey] ?? null;
+        if (is_scalar($fieldValue) && is_numeric((string) $fieldValue)) {
+            $user[$userKey] = $caster($fieldValue);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $user
+     */
+    private function getUserUid(array $user): string
+    {
+        return trim((string) ($user['kimai_username'] ?? $user['username'] ?? ''));
     }
 
     private function getDefinitionFieldKey(int $definitionId): ?string
@@ -262,5 +322,10 @@ class ProfileFieldsClient
     private function getWeightFieldKey(): string
     {
         return trim((string) getenv('PROFILE_FIELDS_WEIGHT_FIELD_KEY')) ?: 'weight';
+    }
+
+    private function getDependentsFieldKey(): string
+    {
+        return trim((string) getenv('PROFILE_FIELDS_DEPENDENTS_FIELD_KEY')) ?: 'dependents';
     }
 }
