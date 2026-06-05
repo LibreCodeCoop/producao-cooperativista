@@ -27,6 +27,7 @@ declare(strict_types=1);
 namespace App\Service\Akaunting\Document\Taxes;
 
 use App\Service\Akaunting\Document\ADocument;
+use Collator;
 use UnexpectedValueException;
 
 class InssIrpf extends Tax
@@ -56,25 +57,106 @@ class InssIrpf extends Tax
 
     private function updateItems(): self
     {
-        $items = $this->document->getItems();
-        foreach ($items as $item) {
-            $this->updateItem('INSS', $item)
-                ->updateItem('IRRF', $item);
+        $this->removeCurrentCooperadoItems();
+
+        $codesByItemId = [
+            $this->getItemId('INSS') => 'INSS',
+            $this->getItemId('IRRF') => 'IRRF',
+        ];
+
+        foreach ($this->document->getItems() as $item) {
+            $code = $codesByItemId[$item['item_id'] ?? 0] ?? null;
+            if (!$code) {
+                continue;
+            }
+
+            $this->setItem(
+                code: $code,
+                name: $this->getTaxItemName($code),
+                description: 'Documento: ' . $this->document->getDocumentNumber(),
+                price: $item['price']
+            );
         }
+
+        $this->sortItemsByCooperadoName();
+
         return $this;
     }
 
-    private function updateItem(string $code, array $item): self
+    private function removeCurrentCooperadoItems(): self
     {
-        if ($item['item_id'] !== $this->getItemId($code)) {
+        $itemNames = [
+            $this->getTaxItemName('INSS'),
+            $this->getTaxItemName('IRRF'),
+        ];
+
+        $items = array_values(array_filter($this->items, fn (array $item): bool => !in_array(
+            trim((string) ($item['name'] ?? '')),
+            $itemNames,
+            true
+        )));
+
+        if (count($items) === count($this->items)) {
             return $this;
         }
-        $this->setItem(
-            code: $code,
-            name: $code . ' ' . $this->getCooperado()->getName(),
-            description: 'Documento: ' . $this->document->getDocumentNumber(),
-            price: $item['price']
-        );
+
+        $this->changed();
+        $this->items = $items;
+
         return $this;
+    }
+
+    private function getTaxItemName(string $code): string
+    {
+        return $code . ' ' . $this->getCooperado()->getName();
+    }
+
+    private function sortItemsByCooperadoName(): self
+    {
+        $items = $this->items;
+        $locale = (string) getenv('LOCALE');
+        $collator = class_exists(Collator::class) ? new Collator($locale ?: 'pt_BR') : null;
+
+        usort($items, function (array $left, array $right) use ($collator): int {
+            $comparison = $this->compareNames(
+                $this->extractCooperadoName((string) ($left['name'] ?? '')),
+                $this->extractCooperadoName((string) ($right['name'] ?? '')),
+                $collator
+            );
+
+            if ($comparison !== 0) {
+                return $comparison;
+            }
+
+            return $this->compareNames(
+                (string) ($left['name'] ?? ''),
+                (string) ($right['name'] ?? ''),
+                $collator
+            );
+        });
+
+        foreach ($items as $index => &$item) {
+            $item['order'] = $index;
+        }
+        unset($item);
+
+        $this->items = $items;
+
+        return $this;
+    }
+
+    private function compareNames(string $left, string $right, ?Collator $collator): int
+    {
+        if ($collator instanceof Collator) {
+            return $collator->compare($left, $right);
+        }
+
+        return strnatcasecmp($left, $right);
+    }
+
+    private function extractCooperadoName(string $name): string
+    {
+        $name = trim($name);
+        return preg_replace('/^(INSS|IRRF)\s+/u', '', $name) ?? $name;
     }
 }
