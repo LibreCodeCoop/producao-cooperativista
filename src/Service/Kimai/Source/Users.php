@@ -124,7 +124,7 @@ class Users
     private function updateFromUserPreferences(array $item): array
     {
         $detailed = $this->doRequestKimai('/users/' . $item['id']);
-        $preferences = array_column($detailed['preferences'], 'value', 'name');
+        $preferences = array_column($detailed['preferences'] ?? [], 'value', 'name');
         $item['kimai_username'] = $item['username'];
         if (!$item['alias']) {
             $item['alias'] = $item['username'];
@@ -133,7 +133,7 @@ class Users
         if ($preferences['tax_number'] ?? '' !== '') {
             $item['tax_number'] = $preferences['tax_number'];
         }
-        $item['dependents'] = (int) ($preferences['dependents'] ?? 0);
+        $item['dependents'] = 0;
         return $item;
     }
 
