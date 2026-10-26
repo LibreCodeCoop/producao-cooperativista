@@ -13,6 +13,8 @@ use App\Helper\ArrayValue;
 use App\Helper\SseLogHandler;
 use App\Kernel;
 use App\Service\Calculation\CalculationActionGuard;
+use App\Service\Calculation\CalculationExecutionLock;
+use App\Service\Import\StagingDatabaseResetter;
 use App\Service\Calculation\ExecutionOutcome;
 use Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
@@ -23,9 +25,9 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use RuntimeException;
 
 class Acoes extends AbstractController
 {
@@ -36,67 +38,50 @@ class Acoes extends AbstractController
         private SseLogHandler $sseLogHandler,
         private Kernel $kernel,
         private CalculationActionGuard $guard,
+        private StagingDatabaseResetter $stagingDatabaseResetter,
+        private CalculationExecutionLock $executionLock,
     ) {
     }
 
     #[Route('/acoes/zerar-banco-local', methods: ['GET', 'POST'])]
     public function zerarBancoLocal(Request $request): Response
     {
-        if ($this->kernel->getEnvironment() === 'prod') {
-            throw new AccessDeniedHttpException('A exclusão do banco local não está disponível em produção.');
-        }
-
-        $output = '';
+        $message = '';
+        $status = Response::HTTP_OK;
         if ($request->isMethod('POST')) {
+            // The staging database is disposable, but the operation is still
+            // destructive. Production use requires a CSRF token and an
+            // independently configured operations credential.
             $this->guard->assertAuthorized($request, true);
             if ($request->request->getString('confirmacao') !== 'ZERAR') {
                 return new Response('Confirmação inválida: escreva ZERAR.', Response::HTTP_BAD_REQUEST);
             }
-            $this->logger->warning('Iniciada reposição manual do banco de desenvolvimento.');
-            foreach ($this->getResetDatabaseCommands() as $command) {
-                [$exitCode, $response] = $this->executaComando($command);
-                $output .= $response;
-                if ($exitCode !== 0) {
-                    $this->logger->error('Falha no reset do banco de desenvolvimento.', [
-                        'command' => $command['command'],
-                        'exit_code' => $exitCode,
-                    ]);
-                    break;
-                }
+            try {
+                $this->executionLock->acquire();
+                $deleted = $this->stagingDatabaseResetter->reset();
+                $this->logger->warning('Banco intermediário do ETL reconstruído a partir de dados vazios.', [
+                    'deleted_count' => array_sum($deleted),
+                    'staging_tables' => array_keys($deleted),
+                ]);
+                $message = sprintf(
+                    'Dados importados removidos (%d registros). Estrutura, migrações e logs preservados. Execute a extração novamente antes dos relatórios.',
+                    array_sum($deleted)
+                );
+            } catch (RuntimeException $error) {
+                $this->logger->error('Não foi possível limpar o banco de transformação.', ['exception' => $error]);
+                $status = str_contains($error->getMessage(), 'Já existe um cálculo') ?
+                    Response::HTTP_CONFLICT : Response::HTTP_INTERNAL_SERVER_ERROR;
+                $message = $error->getMessage();
+            } finally {
+                $this->executionLock->release();
             }
         }
 
         return $this->render('acoes/zerar_banco_local.html.twig', [
-            'response' => $output,
+            'response' => $message,
             'token' => $this->guard->token($request),
             'url' => $this->urlGenerator->generate('app_acoes_zerarbancolocal'),
-        ]);
-    }
-
-    /**
-     * @return list<array<string, bool|string>>
-     */
-    private function getResetDatabaseCommands(): array
-    {
-        return [
-            ['command' => 'doctrine:schema:drop', '--full-database' => true, '--force' => true],
-            ['command' => 'doctrine:migrations:sync-metadata-storage', '--no-interaction' => true],
-            ['command' => 'doctrine:migrations:migrate', '--no-interaction' => true, 'version' => 'latest'],
-        ];
-    }
-
-    /**
-     * @param array<string, bool|string> $arguments
-     * @return array{int, string}
-     */
-    private function executaComando(array $arguments): array
-    {
-        $application = new Application($this->kernel);
-        $application->setAutoExit(false);
-        $output = new BufferedOutput();
-
-        $code = $application->run(new ArrayInput($arguments), $output);
-        return [$code, $output->fetch()];
+        ], new Response('', $status));
     }
 
     #[Route('/acoes/make-producao', methods: ['GET'])]

@@ -27,6 +27,10 @@ services:
         arguments:
             $locale: '%env(LOCALE)%'
             $style: !php/const NumberFormatter::CURRENCY
+    App\Service\Import\StagingDatabaseResetter:
+        arguments:
+            $main: '@doctrine.dbal.main_connection'
+            $akaunting: '@doctrine.dbal.akaunting_connection'
     App\Service\Akaunting\CooperadoContactRegistry:
         arguments:
             $akauntingManager: '@doctrine.orm.akaunting_entity_manager'

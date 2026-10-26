@@ -1,18 +1,32 @@
 {% extends "layout/index.html.twig" %}
 
-{% block title %}Reiniciar banco local de desenvolvimento{% endblock %}
+{% block title %}Limpar dados importados do ETL{% endblock %}
 
 {% block body %}
-    <h2>Reiniciar banco local de desenvolvimento</h2>
-    <p>Esta operação destrói tabelas do banco de desenvolvimento. É proibida em produção.</p>
+    <h2>Reconstruir dados intermediários do ETL</h2>
+    <p>
+        Esta ação remove <strong>somente os dados importados do banco de transformação</strong>.
+        Não remove tabelas, migrações, logs nem registros do Akaunting e Kimai.
+    </p>
+    <p>
+        Use quando um apontamento de horas ou um lançamento financeiro tiver sido alterado,
+        excluído ou reclassificado na origem e os relatórios ainda estiverem desatualizados.
+        Depois de limpar os dados, <strong>execute a importação novamente antes de calcular</strong>.
+    </p>
+    <p>
+        A operação exige que <code>PRODUCAO_STAGING_DATABASE</code> seja o nome exato
+        do banco intermediário, diferente do banco financeiro.
+    </p>
     <form method="post" action="{{ url }}">
         <input type="hidden" name="_token" value="{{ token }}">
         <label for="confirmacao">Digite ZERAR para confirmar:</label>
         <input id="confirmacao" name="confirmacao" required autocomplete="off">
-        <button type="submit">Reiniciar banco de desenvolvimento</button>
+        <label for="action_token">Credencial de operação (obrigatória em produção):</label>
+        <input id="action_token" type="password" name="action_token" autocomplete="off">
+        <button type="submit">Limpar dados intermediários</button>
     </form>
     {% if response %}
-        <h3>Resultado da execução</h3>
+        <h3>Resultado</h3>
         <pre>{{ response }}</pre>
     {% endif %}
 {% endblock %}

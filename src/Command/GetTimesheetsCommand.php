@@ -93,7 +93,12 @@ class GetTimesheetsCommand extends AbstractBaseCommand
             );
         }
         if ($input->getOption('database')) {
-            $this->timesheets->saveList($list);
+            if ($input->getOption('user') === 'all' && $input->getOption('exported') === 'all') {
+                $this->timesheets->syncMonth($date, $list);
+            } else {
+                // A filtered response is not an authoritative monthly snapshot.
+                $this->timesheets->saveList($list);
+            }
         }
         return Command::SUCCESS;
     }

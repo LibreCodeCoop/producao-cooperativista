@@ -33,6 +33,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use App\Service\Import\BatchPersistence;
 use App\Service\Import\ExistingEntityIndex;
+use App\Service\Import\MonthSnapshotReconciler;
 
 class Timesheets
 {
@@ -42,6 +43,7 @@ class Timesheets
         private LoggerInterface $logger,
         private ExistingEntityIndex $entityIndex,
         private BatchPersistence $batchPersistence,
+        private MonthSnapshotReconciler $snapshotReconciler,
     ) {
     }
 
@@ -49,9 +51,10 @@ class Timesheets
     {
         $this->logger->info('Baixando dados de timesheets');
         $list = $this->getFromApi($data);
-        $this->saveList($list);
-        $this->logger->info('Dados de timesheet salvos com sucesso. Total: {total}', [
+        $removed = $this->syncMonth($data, $list);
+        $this->logger->info('Apontamentos da competência sincronizados: {total} atuais, {removed} removidos do ETL.', [
             'total' => count($list),
+            'removed' => $removed,
         ]);
     }
 
@@ -77,6 +80,25 @@ class Timesheets
         }
         $list = $this->doRequestKimai('/timesheets', $query);
         return $list;
+    }
+
+    /**
+     * Use this only after obtaining a complete, unfiltered snapshot of the month.
+     * Both upserts and deletion of disappeared Kimai entries use one transaction.
+     *
+     * @param list<array<string, mixed>> $list
+     */
+    public function syncMonth(DateTime $month, array $list): int
+    {
+        return $this->entityManager->getConnection()->transactional(function () use ($month, $list): int {
+            $this->saveList($list);
+            $removed = $this->snapshotReconciler->removeMissingTimesheets(
+                $this->entityManager,
+                $month,
+                array_column($list, 'id')
+            );
+            return $removed;
+        });
     }
 
     public function saveList(array $list): void
