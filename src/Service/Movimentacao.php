@@ -290,8 +290,20 @@ class Movimentacao
         $sourceKey = (string) ($movimentacao['table'] ?? '') . ':' . (string) $movimentacao['id'];
         $key = $this->movementKeysBySource[$sourceKey] ?? (int) $movimentacao['id'];
         $this->movimentacao[$key] = $movimentacao;
-        // A recomputation must use fresh derived values on the next call.
+        $this->invalidateDerivedTotals();
+    }
+
+    private function invalidateDerivedTotals(): void
+    {
         $this->custosPorCliente = null;
+        $this->percentualAdministrativo = 0.0;
+        $this->taxaAdministrativa = 0.0;
+        $this->taxaMaxima = 0.0;
+        $this->taxaMinima = 0.0;
+        $this->totalCustoCliente = 0.0;
+        $this->totalBrutoNotasClientes = 0.0;
+        $this->totalDispendios = 0.0;
+        $this->totalNotasClientes = 0.0;
     }
 
     public function getSaidas(): array
@@ -526,6 +538,9 @@ class Movimentacao
         if ($percentualMaximo < 0 || $percentualMaximo > 100) {
             throw new \InvalidArgumentException('Percentual administrativo máximo deve estar entre 0 e 100.');
         }
+        if ($this->percentualMaximo !== $percentualMaximo) {
+            $this->invalidateDerivedTotals();
+        }
         $this->percentualMaximo = $percentualMaximo;
     }
 
@@ -601,7 +616,10 @@ class Movimentacao
                     'A produção do cliente ficou negativa após os custos e a taxa administrativa. Confira despesas, percentual e competência antes de distribuir.'
                 );
             }
-            $this->setMovimentacao($row);
+            // Calculated output does not alter revenue or expenses. Preserve
+            // cached aggregate totals; mutating input via setMovimentacao()
+            // independently invalidates every derived total.
+            $this->movimentacao[$key] = $row;
         }
 
         $this->logger->debug('Entradas no mês com base de produção', [json_encode($entradasClientes)]);

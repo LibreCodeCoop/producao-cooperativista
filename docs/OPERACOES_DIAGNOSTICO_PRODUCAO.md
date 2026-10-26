@@ -73,3 +73,15 @@ A auditoria tributária independente está em `docs/AUDITORIA_IMPOSTOS_2026-10-2
 ## Política de confidencialidade do streaming de progresso
 
 O SSE exibe **somente eventos estruturados** `info`, `warning`, `alert`, `done` e `failed`, de autoria explícita da aplicação. Logs informativos genéricos ou avisos de importação não são transmitidos ao navegador, pois podem conter valores, CPF/CNPJ e informações de clientes. As etapas de importação, parametrização, cálculo e gravação são comunicadas com frases fixas, sem dados pessoais. O resultado final inclui o identificador de execução; exceções completas permanecem nos arquivos privados de log do servidor. Testes cobrem a exclusão de textos sensíveis e eventos JSON arbitrários.
+
+## Simulações de regressão para margem administrativa (dados sintéticos)
+
+O teste `MovimentacaoTest::testChangingMonthlyMovementsInvalidatesCachedTotalsAndAdministrativeRate` executa o mesmo objeto em três configurações, demonstrando que a base considera apenas movimentos elegíveis da competência, e **não saldo de conta**:
+
+| Cenário | Receitas elegíveis | Dispêndios internos | Teto configurado | Taxa administrativa calculada | Parcela relativa à receita |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Receita alta | R$ 100.000 | R$ 5.000 | 25% | R$ 10.000 | 10% |
+| Receita baixa (mesmo objeto, novos movimentos) | R$ 10.000 | R$ 8.000 | 25% | R$ 8.000 | 80% |
+| Receita alta, teto reduzido | R$ 100.000 | R$ 5.000 | 3% | R$ 5.000 | 5% |
+
+**Atenção:** na baixa receita, o percentual ultrapassa o teto de segurança para cobrir os dispêndios internos classificados. O sistema registra alerta, mas **isso não equivale a aprovação de retenção adicional**. A definição dos fundos, da capitalização progressiva e da prioridade de remuneração continua sujeita à autoridade estatutária. Qualquer excedente não é, por si, distribuição de sobras aprovada. Alterações dos movimentos e do teto agora invalidam *todos* os totais e percentuais derivados, evitando reutilizar valores de outro cenário.

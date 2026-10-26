@@ -320,6 +320,61 @@ final class MovimentacaoTest extends TestCase
         $this->assertEqualsWithDelta(8000.0, $this->movimentacao->getTaxaAdministrativa(), 0.001);
     }
 
+    public function testChangingMonthlyMovementsInvalidatesCachedTotalsAndAdministrativeRate(): void
+    {
+        $this->persistCategory(id: 45, name: 'Receita clientes', parentId: null, type: 'income');
+        $this->persistCategory(id: 20, name: 'Serviços', parentId: 45, type: 'income');
+        $this->persistCategory(id: 16, name: 'Despesas internas', parentId: null);
+
+        $income = [
+            'id' => 501,
+            'amount' => 100000.0,
+            'category_id' => 20,
+            'category_type' => 'income',
+            'transaction_of_month' => '2026-05',
+            'archive' => 0,
+            'percentual_desconto_fixo' => false,
+            'discount_percentage' => 0.0,
+            'customer_reference' => '12345678000190',
+        ];
+        $expense = [
+            'id' => 502,
+            'amount' => 5000.0,
+            'category_id' => 16,
+            'category_type' => 'expense',
+            'transaction_of_month' => '2026-05',
+            'archive' => 0,
+            'percentual_desconto_fixo' => false,
+        ];
+
+        // High revenue: administrative reserve reaches 2x internal expenses,
+        // using only customer activity within the selected competence.
+        $this->movimentacao->setMovimentacao($income);
+        $this->movimentacao->setMovimentacao($expense);
+        $this->movimentacao->setPercentualMaximo(25);
+        self::assertEqualsWithDelta(100000.0, $this->movimentacao->getTotalNotasClientes(), 0.001);
+        self::assertEqualsWithDelta(10.0, $this->movimentacao->percentualAdministrativo(), 0.001);
+        self::assertEqualsWithDelta(10000.0, $this->movimentacao->getTaxaAdministrativa(), 0.001);
+
+        // Low revenue: previously cached high-revenue totals must not survive.
+        $income['amount'] = 10000.0;
+        $expense['amount'] = 8000.0;
+        $this->movimentacao->setMovimentacao($income);
+        $this->movimentacao->setMovimentacao($expense);
+        self::assertEqualsWithDelta(10000.0, $this->movimentacao->getTotalNotasClientes(), 0.001);
+        self::assertEqualsWithDelta(80.0, $this->movimentacao->percentualAdministrativo(), 0.001);
+        self::assertEqualsWithDelta(8000.0, $this->movimentacao->getTaxaAdministrativa(), 0.001);
+
+        // Changing the configured safety cap must also invalidate the rate.
+        $income['amount'] = 100000.0;
+        $expense['amount'] = 5000.0;
+        $this->movimentacao->setMovimentacao($income);
+        $this->movimentacao->setMovimentacao($expense);
+        $this->movimentacao->setPercentualMaximo(3);
+        self::assertEqualsWithDelta(5.0, $this->movimentacao->percentualAdministrativo(), 0.001);
+        self::assertEqualsWithDelta(5000.0, $this->movimentacao->getTaxaAdministrativa(), 0.001);
+    }
+
     public function testPartialInvoicePaymentsAcrossMonthsNeverMultiplyEligibleCapital(): void
     {
         $this->persistCategory(id: 45, name: 'Cliente', parentId: null, type: 'income');
