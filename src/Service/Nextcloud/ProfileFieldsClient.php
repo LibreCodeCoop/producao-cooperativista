@@ -19,6 +19,8 @@ class ProfileFieldsClient
     /** @var array<string, array<string, mixed>> */
     private array $fieldsByTaxNumber = [];
 
+    private bool $preferUserUidLookup = false;
+
     public function __construct(
         private HttpClientInterface $httpClient,
         private LoggerInterface $logger,
@@ -140,19 +142,24 @@ class ProfileFieldsClient
      */
     private function resolveFieldsForUser(array $user, string $taxNumber): array
     {
+        $userUid = $this->getUserUid($user);
+
+        // In existing production logs, most CPF lookups returned 404 but the
+        // same users were found by UID. Prefer the successful route after a miss.
+        if ($this->preferUserUidLookup && $userUid !== '') {
+            $uidFields = $this->getFieldsForUser($userUid);
+            $profileTaxNumber = trim((string) ($uidFields[$this->getTaxNumberFieldKey()] ?? ''));
+            if ($profileTaxNumber !== '' && $profileTaxNumber === $taxNumber) {
+                return $uidFields;
+            }
+        }
+
         $fields = $this->getFieldsForTaxNumber($taxNumber);
         if ($fields !== []) {
             return $fields;
         }
 
-        $userUid = $this->getUserUid($user);
-        if ($userUid !== '') {
-            $this->logger->debug('Profile Fields lookup by tax number returned no result; falling back to user UID lookup.', [
-                'tax_number' => $taxNumber,
-                'user_uid' => $userUid,
-            ]);
-        }
-
+        $this->preferUserUidLookup = true;
         return $this->getFieldsForUser($userUid);
     }
 
@@ -188,7 +195,7 @@ class ProfileFieldsClient
 
     /**
      * @param array<string, mixed> $user
-     * @param callable(scalar): int|float $caster
+     * @param pure-callable(scalar):(int|float) $caster
      */
     private function applyNumericField(array &$user, array $fields, string $fieldKey, string $userKey, callable $caster): void
     {
@@ -253,11 +260,11 @@ class ProfileFieldsClient
         $response = $this->httpClient->request($method, $url, $options);
 
         $statusCode = $response->getStatusCode();
-        $payload = $response->toArray(false);
-
         if ($statusCode === 404 && $allowNotFound) {
             return [];
         }
+
+        $payload = $response->toArray(false);
 
         if ($statusCode < 200 || $statusCode >= 300) {
             throw new RuntimeException(sprintf(
@@ -268,6 +275,9 @@ class ProfileFieldsClient
         }
 
         $metaStatusCode = (int) ($payload['ocs']['meta']['statuscode'] ?? 100);
+        if ($metaStatusCode === 404 && $allowNotFound) {
+            return [];
+        }
         if ($metaStatusCode >= 400) {
             throw new RuntimeException(sprintf(
                 'Falha ao consultar a API Profile Fields (%d): %s',

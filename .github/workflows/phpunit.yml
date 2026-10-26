@@ -86,6 +86,15 @@ jobs:
       - name: PHPUnit
         run: composer run test:unit
 
+      - name: JavaScript regression tests
+        run: node --test tests/js/production-progress.test.cjs
+
+      - name: Validate Symfony service wiring
+        run: php bin/console lint:container --env=test
+
+      - name: PHP coding standards
+        run: composer run cs:check
+
       - name: Print logs
         if: always()
         run: |

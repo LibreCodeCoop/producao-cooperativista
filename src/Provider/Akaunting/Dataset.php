@@ -1,54 +1,57 @@
 <?php
 
 /**
- * @copyright Copyright (c) 2023, Vitor Mattos <vitor@php.rio>
- *
- * @author Vitor Mattos <vitor@php.rio>
- *
+ * @copyright Copyright (c) 2026, LibreCode contributors
  * @license GNU AGPL version 3 or any later version
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 declare(strict_types=1);
 
 namespace App\Provider\Akaunting;
 
+use RuntimeException;
+
 class Dataset
 {
-    public function __construct(
-        private Request $request,
-    ) {
-
+    public function __construct(private Request $request)
+    {
     }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
     public function list(string $endpoint, array $query = []): array
     {
-        $list = [];
-        while (true) {
-            $response = $this->request->send(
-                endpoint: $endpoint,
-                query: $query,
-                method: 'GET',
-            );
+        $all = [];
+        $visited = [];
+        $page = 0;
+        while ($endpoint !== '') {
+            if (++$page > 1000 || isset($visited[$endpoint])) {
+                throw new RuntimeException('Paginação circular ou excessiva na API do Akaunting. Verifique links.next.');
+            }
+            $visited[$endpoint] = true;
+            $response = $this->request->send(endpoint: $endpoint, query: $query, method: 'GET');
+            $this->request->handleError($response);
 
-            $list = array_merge($list, $response['data']);
-            if (is_null($response['links']['next'])) {
+            if (!isset($response['data']) || !is_array($response['data']) || !array_is_list($response['data'])) {
+                throw new RuntimeException(sprintf(
+                    'Resposta inesperada da API do Akaunting na página %d: campo data ausente ou inválido. Verifique autenticação, URL e versão da API.',
+                    $page
+                ));
+            }
+            $all = array_merge($all, $response['data']);
+            $next = $response['links']['next'] ?? null;
+            if ($next === null || $next === '') {
                 break;
             }
-            $endpoint = $response['links']['next'];
+            if (!is_string($next)) {
+                throw new RuntimeException('Resposta da API do Akaunting possui link de próxima página inválido.');
+            }
+            $endpoint = $next;
+            // Follow pagination URLs as supplied by the API without accumulating
+            // the first page's search filters a second time.
+            $query = [];
         }
-        return $list;
+        return $all;
     }
 }

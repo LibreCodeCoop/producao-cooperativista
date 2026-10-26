@@ -33,8 +33,8 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Service\Calculation\ApiProblemResponder;
 
 class Producao extends AbstractController
 {
@@ -43,6 +43,7 @@ class Producao extends AbstractController
         RequestStack $requestStack,
         private ProducaoCooperativista $producao,
         private Movimentacao $movimentacao,
+        private ApiProblemResponder $apiErrors,
     ) {
         $this->request = $requestStack->getCurrentRequest();
     }
@@ -55,7 +56,7 @@ class Producao extends AbstractController
                 $this->request->query->getInt('dia-util-pagamento', (int) getenv('DIA_UTIL_PAGAMENTO'))
             );
 
-            $inicio = DateTime::createFromFormat('Y-m', $this->request->query->getString('ano-mes'));
+            $inicio = DateTime::createFromFormat('!Y-m', $this->request->query->getString('ano-mes'));
             if (!$inicio instanceof DateTime) {
                 throw new \Exception('ano-mes precisa estar no formato YYYY-MM');
             }
@@ -103,12 +104,7 @@ class Producao extends AbstractController
             ];
             return new JsonResponse($response);
         } catch (\Throwable $e) {
-            return new JsonResponse(
-                [
-                    'erro' => $e->getMessage()
-                ],
-                Response::HTTP_FORBIDDEN
-            );
+            return $this->apiErrors->fromThrowable($e, 'Producao');
         }
     }
 }

@@ -32,8 +32,8 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Service\Calculation\ApiProblemResponder;
 
 class TrabalhadoSummarized extends AbstractController
 {
@@ -41,6 +41,7 @@ class TrabalhadoSummarized extends AbstractController
     public function __construct(
         RequestStack $requestStack,
         private ProducaoCooperativista $producao,
+        private ApiProblemResponder $apiErrors,
     ) {
         $this->request = $requestStack->getCurrentRequest();
     }
@@ -50,19 +51,14 @@ class TrabalhadoSummarized extends AbstractController
     {
         try {
 
-            $inicio = DateTime::createFromFormat('Y-m', $this->request->query->getString('ano-mes'));
+            $inicio = DateTime::createFromFormat('!Y-m', $this->request->query->getString('ano-mes'));
             if (!$inicio instanceof DateTime) {
                 throw new \Exception('ano-mes precisa estar no formato YYYY-MM');
             }
             $this->producao->dates->setInicio($inicio);
             $trabalhadoSummarized = $this->producao->getTrabalhadoSummarized();
         } catch (\Throwable $th) {
-            return new JsonResponse(
-                [
-                    'error' => $th->getMessage(),
-                ],
-                Response::HTTP_FORBIDDEN
-            );
+            return $this->apiErrors->fromThrowable($th, 'TrabalhadoSummarized');
         }
 
         $response = [

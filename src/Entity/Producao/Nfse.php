@@ -27,6 +27,7 @@ declare(strict_types=1);
 namespace App\Entity\Producao;
 
 use App\Helper\EntityArrayMapperTrait;
+use App\Helper\MagicGetterSetterTrait;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -34,6 +35,7 @@ use Doctrine\ORM\Mapping as ORM;
 class Nfse
 {
     use EntityArrayMapperTrait;
+    use MagicGetterSetterTrait;
     private int $id;
     #[ORM\Id]
     #[ORM\Column(type: Types::BIGINT, options: ['unsigned' => true])]

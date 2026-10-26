@@ -70,10 +70,6 @@ class Index extends AbstractController
                 ],
             ],
             'acoes' => [
-                'zerar_banco_local' => [
-                    'url' => $this->urlGenerator->generate('app_acoes_zerarbancolocal'),
-                    'label' => 'Zerar banco local',
-                ],
                 'executa_producao' => [
                     'url' => $this->urlGenerator->generate('app_acoes_makeproducao'),
                     'label' => $application->find('make:producao')->getName(),

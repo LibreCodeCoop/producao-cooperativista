@@ -374,6 +374,51 @@ final class ProfileFieldsClientTest extends TestCase
         ]));
     }
 
+    public function testPrefersMatchingUidAfterLookupMissAcrossUsers(): void
+    {
+        putenv('PROFILE_FIELDS_API_BASE_URL=https://nextcloud.example.com');
+        putenv('PROFILE_FIELDS_AUTH_USER=api-user');
+        putenv('PROFILE_FIELDS_AUTH_TOKEN=api-token');
+
+        $calls = ['lookup' => 0, 'uid' => 0];
+        $http = new MockHttpClient(function (string $method, string $url) use (&$calls): MockResponse {
+            if (str_ends_with($url, '/users/lookup')) {
+                ++$calls['lookup'];
+                return new MockResponse('not found', ['http_code' => 404]);
+            }
+            if (str_ends_with($url, '/definitions')) {
+                return new MockResponse((string) json_encode(['ocs' => [
+                    'meta' => ['statuscode' => 100],
+                    'data' => [
+                        ['id' => 10, 'field_key' => 'tax_number'],
+                        ['id' => 11, 'field_key' => 'weight'],
+                    ],
+                ]]));
+            }
+            if (str_contains($url, '/users/') && str_ends_with($url, '/values')) {
+                ++$calls['uid'];
+                $isFirst = str_contains($url, '/users/a/values');
+                return new MockResponse((string) json_encode(['ocs' => [
+                    'meta' => ['statuscode' => 100],
+                    'data' => [
+                        ['field_definition_id' => 10, 'value' => ['value' => $isFirst ? '11122233344' : '22233344455']],
+                        ['field_definition_id' => 11, 'value' => ['value' => $isFirst ? '1.5' : '2.5']],
+                    ],
+                ]]));
+            }
+            self::fail('Unexpected Profile Fields request: ' . $url);
+        });
+
+        $client = new ProfileFieldsClient($http, new NullLogger());
+        self::assertSame(1.5, $client->enrichUser([
+            'tax_number' => '11122233344', 'kimai_username' => 'a',
+        ])['peso']);
+        self::assertSame(2.5, $client->enrichUser([
+            'tax_number' => '22233344455', 'kimai_username' => 'b',
+        ])['peso']);
+        self::assertSame(['lookup' => 1, 'uid' => 2], $calls);
+    }
+
     /**
      * @param array<string, mixed> $options
      * @param array<string, string> $expectedPayload

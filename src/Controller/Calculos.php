@@ -51,7 +51,7 @@ class Calculos extends AbstractController
     #[Route('/calculos', methods: ['GET'])]
     public function index(): Response
     {
-        $inicio = \DateTime::createFromFormat('Y-m', $this->request->query->getString('ano-mes'));
+        $inicio = \DateTime::createFromFormat('!Y-m', $this->request->query->getString('ano-mes'));
         if (!$inicio instanceof \DateTime) {
             $inicio = new \DateTime();
             $inicio->modify('-2 month');

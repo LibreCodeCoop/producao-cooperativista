@@ -33,8 +33,8 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Service\Calculation\ApiProblemResponder;
 
 class Invoices extends AbstractController
 {
@@ -43,6 +43,7 @@ class Invoices extends AbstractController
         RequestStack $requestStack,
         private Categories $categories,
         private Movimentacao $movimentacao,
+        private ApiProblemResponder $apiErrors,
     ) {
         $this->request = $requestStack->getCurrentRequest();
     }
@@ -54,7 +55,7 @@ class Invoices extends AbstractController
             $this->request->query->getInt('dia-util-pagamento', (int) getenv('DIA_UTIL_PAGAMENTO'))
         );
 
-        $inicio = DateTime::createFromFormat('Y-m', $this->request->query->getString('ano-mes'));
+        $inicio = DateTime::createFromFormat('!Y-m', $this->request->query->getString('ano-mes'));
         if (!$inicio instanceof DateTime) {
             throw new \Exception('ano-mes precisa estar no formato YYYY-MM');
         }
@@ -83,12 +84,7 @@ class Invoices extends AbstractController
                     throw new \Exception('Tipo de movimentação invpalido: ' . print_r($type, true));
             }
         } catch (\Throwable $th) {
-            return new JsonResponse(
-                [
-                    'erro' => $th->getMessage()
-                ],
-                Response::HTTP_FORBIDDEN
-            );
+            return $this->apiErrors->fromThrowable($th, 'Invoices');
         }
 
         $movimentacao = $this->addUrlToAccount($movimentacao);

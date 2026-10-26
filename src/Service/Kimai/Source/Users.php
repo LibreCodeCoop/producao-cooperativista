@@ -34,6 +34,7 @@ use App\Service\Nextcloud\ProfileFieldsClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
+use App\Service\Import\BatchPersistence;
 
 class Users
 {
@@ -53,6 +54,7 @@ class Users
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
         private ProfileFieldsClient $profileFieldsClient,
+        private BatchPersistence $batchPersistence,
     ) {
         $this->entityManagerAkaunting = $managerRegistry->getManager('akaunting');
     }
@@ -170,9 +172,7 @@ class Users
     public function saveList(): self
     {
         $this->getList();
-        foreach ($this->list as $row) {
-            $this->saveRow($row);
-        }
+        $this->batchPersistence->save($this->entityManager, $this->list);
         return $this;
     }
 

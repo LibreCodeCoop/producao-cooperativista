@@ -31,6 +31,7 @@ use App\Helper\MagicGetterSetterTrait;
 use App\Provider\Akaunting\Dataset;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use App\Service\Import\BatchPersistence;
 
 /**
  * @method self setCompanyId(int $value)
@@ -55,6 +56,7 @@ class Taxes
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
         private Dataset $dataset,
+        private BatchPersistence $batchPersistence,
     ) {
         $this->companyId = (int) getenv('AKAUNTING_COMPANY_ID');
     }
@@ -93,9 +95,7 @@ class Taxes
     public function saveList(): self
     {
         $this->getList();
-        foreach ($this->list as $row) {
-            $this->saveRow($row);
-        }
+        $this->batchPersistence->save($this->entityManager, $this->list);
         return $this;
     }
 

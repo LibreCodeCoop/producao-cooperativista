@@ -1,108 +1,55 @@
 {% extends "layout/index.html.twig" %}
 
-{% block title %}Processar produção{% endblock title %}
+{% block title %}Processar produção cooperativista{% endblock %}
 
 {% block head %}
-    <script type="text/javascript" language="javascript" src="//code.jquery.com/jquery-3.7.0.js"></script>
+    <script src="/js/production-progress.js" defer></script>
     <style>
-        .alert {
-            padding: 20px;
-            background-color: #f44336;
-            color: white;
-            opacity: 1;
-            transition: opacity 0.6s;
-            margin-bottom: 15px;
-        }
-
-        .alert.success {background-color: #04AA6D;}
-        .alert.info {background-color: #2196F3;}
-        .alert.warning {background-color: #ff9800;}
-
-        .closebtn {
-            margin-left: 15px;
-            color: white;
-            font-weight: bold;
-            float: right;
-            font-size: 22px;
-            line-height: 20px;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-
-        .closebtn:hover {
-            color: black;
-        }
+        .alert { padding: 12px; margin: 12px 0; background: #fee4e2; border-radius: 4px; }
+        .alert.info { background: #e2efff; }
+        .alert.warning { background: #fff0cc; }
+        .alert.success { background: #d7f5e5; }
+        .notice { max-width: 52rem; }
     </style>
-{% endblock head %}
+{% endblock %}
 
 {% block body %}
-    <form id="form-gera-producao">
+    <p class="notice">A produção usa receitas e custos elegíveis da competência, não o saldo bancário da cooperativa. Confira a prévia antes de emitir documentos.</p>
+
+    <form id="form-gera-producao" method="post" action="{{ url }}">
+        <input type="hidden" name="_token" value="{{ token }}">
         <fieldset>
             <legend>Produção realizada em</legend>
-            <label for="month">Ano/mês</label>
+            <label for="year">Ano</label>
             <select id="year" name="year">
-            {%~ for j in range('now'|date('Y')-1, 'now'|date('Y')+1) %}
-                <option{% if inicio_ano == j %} selected{% endif %}>{{ j }}</option>
-            {%~ endfor %}
+                {% for j in range('now'|date('Y') - 1, 'now'|date('Y') + 1) %}
+                    <option value="{{ j }}"{% if inicio_ano == j %} selected{% endif %}>{{ j }}</option>
+                {% endfor %}
             </select>
+            <label for="month">Mês</label>
             <select id="month" name="month">
-            {%~ for j in 1..12 %}
-                <option{% if inicio_mes == j %} selected{% endif %}>{{ "%02d"|format(j) }}</option>
-            {%~ endfor %}
+                {% for j in 1..12 %}
+                    <option value="{{ '%02d'|format(j) }}"{% if inicio_mes == '%02d'|format(j) %} selected{% endif %}>{{ '%02d'|format(j) }}</option>
+                {% endfor %}
             </select>
         </fieldset>
+
         <fieldset>
-            <legend>Baixar dados</legend>
-            <input type="radio" id="baixar_dados_nao" name="baixar_dados" value="0"{% if baixar_dados == 0 %} checked{% endif %} /><label for="baixar_dados_nao">Não</label>
-            <input type="radio" id="baixar_dados_sim" name="baixar_dados" value="1"{% if baixar_dados == 0 %} checked{% endif %} /><label for="baixar_dados_sim">Sim</label>
+            <legend>Baixar dados de fontes externas</legend>
+            <label><input type="radio" name="baixar_dados" value="0"{% if baixar_dados == 0 %} checked{% endif %}> Não</label>
+            <label><input type="radio" name="baixar_dados" value="1"{% if baixar_dados == 1 %} checked{% endif %}> Sim</label>
         </fieldset>
+
         <fieldset>
-            <legend>Atualiza produção</legend>
-            <input type="radio" id="atualiza_producao_nao" name="atualiza_producao" value="0"{% if atualiza_producao == 0 %} checked{% endif %} /><label for="atualiza_producao_nao">Não</label>
-            <input type="radio" id="atualiza_producao_sim" name="atualiza_producao" value="1"{% if atualiza_producao == 1 %} checked{% endif %} /><label for="atualiza_producao_sim">Sim</label>
+            <legend>Gravar produção no Akaunting</legend>
+            <label><input type="radio" name="atualiza_producao" value="0"{% if atualiza_producao == 0 %} checked{% endif %}> Não (prévia)</label>
+            <label><input type="radio" name="atualiza_producao" value="1"{% if atualiza_producao == 1 %} checked{% endif %}> Sim (gera/atualiza documentos)</label>
         </fieldset>
-        <br />
-        <input type="submit" value="Executa" id="submit" />
+
+        <p class="notice">Em produção, a importação ou a gravação exige uma senha administrativa definida em <code>PRODUCAO_ACTION_TOKEN</code> no servidor.</p>
+        <label for="action_token">Senha para operações de escrita</label>
+        <input type="password" id="action_token" name="action_token" autocomplete="off" placeholder="Obrigatória para escrita em produção">
+        <p><button type="submit" id="submit">Executar</button></p>
     </form>
-    <div id="messages"></div>
-    <script>
-        $('#form-gera-producao').submit( function(e) {
-            e.preventDefault()
-
-            const ItemMessage = (type, data) => '<div class="alert ' + type + '">' + '<span class="closebtn">&times;</span>' + data + '</div>';
-
-            $('#messages').html('')
-
-            const eventSource = new EventSource(
-                '{{ url|raw }}?' + $('#form-gera-producao').serialize()
-            )
-            eventSource.addEventListener('info', e => {
-                $('#messages').append(ItemMessage(e.type, JSON.parse(e.data)))
-            })
-            eventSource.addEventListener('alert', e => {
-                $('#messages').append(ItemMessage(e.type, JSON.parse(e.data)))
-            })
-            eventSource.addEventListener('error', e => {
-                $('#messages').append(ItemMessage(e.type, JSON.parse(e.data)))
-            })
-            eventSource.addEventListener('warning', e => {
-                $('#messages').append(ItemMessage(e.type, JSON.parse(e.data)))
-            })
-            eventSource.addEventListener('done', e => {
-                $('#messages').append(ItemMessage('success', JSON.parse(e.data)))
-                eventSource.close()
-                $('#messages').append('Volte para a página anterior e veja os relatórios')
-            })
-            eventSource.onerror = function(event) {
-                $('#messages').append(ItemMessage('alert', 'Erro no servidor. Confira os logs, aplicação abortada.'))
-                eventSource.close()
-            }
-
-            $('#messages').on('click', '.closebtn', function() {
-                $(this).parent().fadeTo(600, 0, function() {
-                    $(this).hide('slow')
-                });
-            });
-        })
-    </script>
+    <div id="messages" role="status" aria-live="polite"></div>
 {% endblock %}

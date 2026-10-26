@@ -110,37 +110,16 @@ class ProducaoCooperativista extends ADocument
         return parent::setUp();
     }
 
-    public function updateLiquidDiscounts(): self
+    /**
+     * @param list<array<string, mixed>>|null $rows Shared bill data preloaded once per calculation.
+     */
+    public function updateLiquidDiscounts(?array $rows = null): self
     {
         $this->liquidDiscounts = [];
         $this->values->setLiquidDiscount(0);
 
-        $categoryIds = $this->getLiquidDiscountCategoryIds();
-        if (empty($categoryIds)) {
-            return $this;
-        }
-
-        $select = $this->entityManager->getConnection()->createQueryBuilder();
-        $select->select('i.id')
-            ->addSelect('i.category_id')
-            ->addSelect('i.category_name')
-            ->addSelect('i.document_number')
-            ->addSelect('i.due_at')
-            ->addSelect('i.metadata')
-            ->from('invoices', 'i')
-            ->where("i.type = 'bill'")
-            ->andWhere($select->expr()->eq('i.transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))))
-            ->orderBy('i.category_id', 'ASC')
-            ->addOrderBy('i.id', 'DESC');
-
-        $categoryParameters = array_map(
-            fn (int $categoryId): string => $select->createNamedParameter($categoryId, ParameterType::INTEGER),
-            $categoryIds
-        );
-        $select->andWhere($select->expr()->in('i.category_id', $categoryParameters));
-
-        $rows = $select->executeQuery()->fetchAllAssociative();
-        if (empty($rows)) {
+        $rows ??= $this->getLiquidDiscountRows();
+        if (!$rows) {
             return $this;
         }
 
@@ -186,6 +165,43 @@ class ProducaoCooperativista extends ADocument
         $this->values->setLiquidDiscount($totalLiquidDiscount);
 
         return $this;
+    }
+
+    /**
+     * Fetch eligible discount bills once and pass the same rows to each cooperado.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getLiquidDiscountRows(): array
+    {
+        $categoryIds = $this->getLiquidDiscountCategoryIds();
+        if (!$categoryIds) {
+            return [];
+        }
+
+        $select = $this->entityManager->getConnection()->createQueryBuilder();
+        $select->select('i.id')
+            ->addSelect('i.category_id')
+            ->addSelect('i.category_name')
+            ->addSelect('i.document_number')
+            ->addSelect('i.due_at')
+            ->addSelect('i.metadata')
+            ->from('invoices', 'i')
+            ->where("i.type = 'bill'")
+            ->andWhere($select->expr()->eq(
+                'i.transaction_of_month',
+                $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))
+            ))
+            ->orderBy('i.category_id', 'ASC')
+            ->addOrderBy('i.id', 'DESC');
+
+        $categoryParameters = array_map(
+            fn (int $categoryId): string => $select->createNamedParameter($categoryId, ParameterType::INTEGER),
+            $categoryIds
+        );
+        $select->andWhere($select->expr()->in('i.category_id', $categoryParameters));
+
+        return $select->executeQuery()->fetchAllAssociative();
     }
 
     /**
@@ -421,29 +437,63 @@ class ProducaoCooperativista extends ADocument
         return implode(', ', $parts);
     }
 
-    public function atualizaAdiantamentos(): self
+    /**
+     * @param list<array<string, mixed>>|null $rows Advance rows for this cooperado, if preloaded.
+     */
+    public function atualizaAdiantamentos(?array $rows = null): self
     {
         $taxNumber = $this->getCooperado()->getTaxNumber();
-
-        $select = $this->entityManager->getConnection()->createQueryBuilder();
-        $select->select('i.amount')
-            ->addSelect('i.document_number')
-            ->addSelect('i.due_at')
-            ->from('invoices', 'i')
-            ->where("i.type = 'bill'")
-            ->andWhere("JSON_UNQUOTE(JSON_EXTRACT(i.metadata, '$.status')) = 'paid'")
-            ->andWhere($select->expr()->eq('i.category_id', $select->createNamedParameter((int) getenv('AKAUNTING_ADIANTAMENTO_CATEGORY_ID'), ParameterType::INTEGER)))
-            ->andWhere($select->expr()->eq('i.tax_number', $select->createNamedParameter($taxNumber)))
-            ->andWhere($select->expr()->gte('i.transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
-
-        $stmt = $select->executeQuery();
-        while ($row = $stmt->fetchAssociative()) {
+        $rows ??= $this->getAdiantamentosParaCooperados([$taxNumber])[$taxNumber] ?? [];
+        $this->values->setAdiantamento([]);
+        foreach ($rows as $row) {
             $this->values->setAdiantamento(array_merge(
                 $this->values->getAdiantamento(),
                 [$row]
             ));
         }
+
         return $this;
+    }
+
+    /**
+     * Batch-fetch paid advances for the relevant cooperados.
+     *
+     * @param list<string> $taxNumbers
+     * @return array<string, list<array<string, mixed>>>
+     */
+    public function getAdiantamentosParaCooperados(array $taxNumbers): array
+    {
+        if (!$taxNumbers) {
+            return [];
+        }
+
+        $select = $this->entityManager->getConnection()->createQueryBuilder();
+        $select->select('i.amount')
+            ->addSelect('i.document_number')
+            ->addSelect('i.due_at')
+            ->addSelect('i.tax_number')
+            ->from('invoices', 'i')
+            ->where("i.type = 'bill'")
+            ->andWhere("JSON_UNQUOTE(JSON_EXTRACT(i.metadata, '$.status')) = 'paid'")
+            ->andWhere($select->expr()->eq(
+                'i.category_id',
+                $select->createNamedParameter((int) getenv('AKAUNTING_ADIANTAMENTO_CATEGORY_ID'), ParameterType::INTEGER)
+            ))
+            ->andWhere($select->expr()->in(
+                'i.tax_number',
+                $select->createNamedParameter($taxNumbers, \Doctrine\DBAL\ArrayParameterType::STRING)
+            ))
+            ->andWhere($select->expr()->gte(
+                'i.transaction_of_month',
+                $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))
+            ));
+
+        $byCooperado = [];
+        foreach ($select->executeQuery()->fetchAllAssociative() as $row) {
+            $byCooperado[(string) $row['tax_number']][] = $row;
+        }
+
+        return $byCooperado;
     }
 
     private function aplicaAdiantamentos(): self

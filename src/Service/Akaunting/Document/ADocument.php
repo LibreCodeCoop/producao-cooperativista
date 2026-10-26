@@ -309,8 +309,25 @@ abstract class ADocument
                         method: 'GET'
                     );
                     $this->request->handleError($response);
-                    // Set the ID of existing document and request again this method to handle the update
-                    $this->setId($response['data'][0]['id']);
+                    $matches = array_filter(
+                        $response['data'] ?? [],
+                        fn ($row): bool => is_array($row)
+                            && ($row['document_number'] ?? '') === $this->getDocumentNumber()
+                    );
+                    $existing = reset($matches);
+                    if (!is_array($existing) || empty($existing['id'])) {
+                        throw new \RuntimeException(sprintf(
+                            'Documento %s já existe no Akaunting, mas a consulta não retornou um registro exato. Verifique o cadastro antes de tentar novamente.',
+                            $this->getDocumentNumber()
+                        ));
+                    }
+                    if (in_array($existing['status'] ?? '', ['paid', 'cancelled'], true)) {
+                        throw new \RuntimeException(sprintf(
+                            'Documento %s já está finalizado no Akaunting e não pode ser sobrescrito.',
+                            $this->getDocumentNumber()
+                        ));
+                    }
+                    $this->setId((int) $existing['id']);
                     $this->save();
                     return $this;
                 }
@@ -328,6 +345,11 @@ abstract class ADocument
             throw new Exception(json_encode($content));
         }
         $this->request->handleError($response);
+        if (!isset($response['data']) || !is_array($response['data'])) {
+            throw new \RuntimeException(
+                'Akaunting processou a operação, mas não retornou os dados do documento. Verifique o documento existente antes de reexecutar.'
+            );
+        }
         // Update local database
         $document = $this->documents->fromArray($response['data']);
         $this->documents->saveRow($document);

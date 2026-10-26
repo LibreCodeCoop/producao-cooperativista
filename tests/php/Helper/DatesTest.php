@@ -54,6 +54,40 @@ final class DatesTest extends TestCase
         $this->assertEquals($expected, $actual, 'Data de previsão de pagamento de FRRA inválida');
     }
 
+    public function testSettingMonthDoesNotMutateCallerAndResetsDerivedDate(): void
+    {
+        $date = new DateTime('2026-10-25 18:30:00');
+        $dates = new Dates(now: new DateTime('2026-10-25'));
+        $dates->setInicio($date);
+        self::assertSame('2026-10-25 18:30:00', $date->format('Y-m-d H:i:s'));
+        self::assertSame('2026-10-01', $dates->getInicio()->format('Y-m-d'));
+        self::assertSame('2026-11-01', $dates->getInicioProximoMes()->format('Y-m-d'));
+
+        $old = $dates->getDataPagamento();
+        $dates->setInicio(new DateTime('2026-12-08'));
+        $new = $dates->getDataPagamento();
+        self::assertNotSame($old, $new);
+        self::assertSame('2026-12-01', $dates->getInicio()->format('Y-m-d'));
+        self::assertSame('2027-01-01', $dates->getInicioProximoMes()->format('Y-m-d'));
+    }
+
+    public function testFutureFrraMonthAfterYearRolloverDoesNotMutateCurrentDate(): void
+    {
+        $today = new DateTime('2026-11-26');
+        $dates = new Dates(pagamentoFrraMesPadrao: 5, now: $today);
+        self::assertSame('2026-11-26', $today->format('Y-m-d'));
+        self::assertSame('2026-11-26', $dates->hoje()->format('Y-m-d'));
+        self::assertSame('2027-05', $dates->getPrevisaoPagamentoFrra()->format('Y-m'));
+    }
+
+    public function testChangingFrraBusinessDayRecalculatesDueDate(): void
+    {
+        $dates = new Dates(now: new DateTime('2026-01-02'));
+        $original = $dates->getPrevisaoPagamentoFrra()->format('Y-m-d');
+        $dates->setDiaUtilPagamento(9);
+        self::assertNotSame($original, $dates->getPrevisaoPagamentoFrra()->format('Y-m-d'));
+    }
+
     public static function providerCalculaPrevisaoPagamentoFrra(): array
     {
         return [

@@ -78,7 +78,7 @@ class GetTimesheetsCommand extends AbstractBaseCommand
             $output->writeln('<error>--year-month is mandatory</error>');
             return Command::INVALID;
         }
-        $date = DateTime::createFromFormat('Y-m', $input->getOption('year-month'));
+        $date = DateTime::createFromFormat('!Y-m', $input->getOption('year-month'));
         $list = $this->timesheets->getFromApi(
             $date,
             $input->getOption('user'),

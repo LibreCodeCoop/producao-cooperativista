@@ -167,6 +167,68 @@ final class ProducaoCooperativistaTest extends TestCase
         $this->assertSame(0.0, round($document->getValues()->getLiquidDiscount(), 2));
     }
 
+    public function testOneDiscountQueryCanBeSharedAcrossMultipleCooperados(): void
+    {
+        $this->persistLiquidDiscountCategoryHierarchy();
+        $this->persistBill(
+            id: 1101,
+            amount: 69.12,
+            notes: "Cooperado: A, CPF: 00011122233, Valor: R$ 12,34\nCooperado: B, CPF: 11122233344, Valor: R$ 56,78",
+            categoryId: self::PLANO_DE_SAUDE_CATEGORY_ID,
+            categoryName: 'Cooperado > Produção > Desconto líquido > Plano de saúde',
+            itemDescription: 'Dois cooperados',
+            contactName: 'Fornecedor de benefício'
+        );
+
+        $a = $this->createDocumentForCooperado('A', '00011122233');
+        $b = $this->createDocumentForCooperado('B', '11122233344');
+        $rows = $a->getLiquidDiscountRows();
+
+        $this->assertCount(1, $rows);
+        $a->updateLiquidDiscounts($rows);
+        $b->updateLiquidDiscounts($rows);
+
+        $this->assertEqualsWithDelta(12.34, $a->getValues()->getLiquidDiscount(), 0.001);
+        $this->assertEqualsWithDelta(56.78, $b->getValues()->getLiquidDiscount(), 0.001);
+    }
+
+    public function testPaidAdvancesCanBeFetchedOnceAndAssignedToEachCooperado(): void
+    {
+        $categoryId = (int) getenv('AKAUNTING_ADIANTAMENTO_CATEGORY_ID');
+        foreach ([
+            ['id' => 1102, 'cpf' => '00011122233', 'amount' => 70.0],
+            ['id' => 1103, 'cpf' => '11122233344', 'amount' => 20.0],
+        ] as $advance) {
+            $this->persistBill(
+                id: $advance['id'],
+                amount: $advance['amount'],
+                notes: 'Adiantamento',
+                categoryId: $categoryId,
+                categoryName: 'Cooperado > Produção > Adiantamento',
+                itemDescription: 'Adiantamento de teste',
+                contactName: 'Cooperado de teste'
+            );
+            $this->entityManager->getConnection()->executeStatement(
+                'UPDATE invoices SET tax_number = :cpf WHERE id = :id',
+                ['cpf' => $advance['cpf'], 'id' => $advance['id']]
+            );
+        }
+
+        $a = $this->createDocumentForCooperado('A', '00011122233');
+        $b = $this->createDocumentForCooperado('B', '11122233344');
+        $grouped = $a->getAdiantamentosParaCooperados(['00011122233', '11122233344']);
+
+        $this->assertCount(1, $grouped['00011122233']);
+        $this->assertCount(1, $grouped['11122233344']);
+        $a->atualizaAdiantamentos($grouped['00011122233']);
+        $b->atualizaAdiantamentos($grouped['11122233344']);
+        $a->atualizaAdiantamentos($grouped['00011122233']);
+
+        $this->assertEqualsWithDelta(70.0, $a->getValues()->getAdiantamento()[0]['amount'], 0.001);
+        $this->assertCount(1, $a->getValues()->getAdiantamento());
+        $this->assertEqualsWithDelta(20.0, $b->getValues()->getAdiantamento()[0]['amount'], 0.001);
+    }
+
     private function createDocumentForCooperado(string $name, string $taxNumber): ProducaoCooperativista
     {
         $cooperado = new Cooperado(

@@ -36,5 +36,6 @@ $config
     ->notPath('logs')
     ->notPath('vendor')
     ->notPath('vendor-bin')
+    ->exclude(['.docker', '.audit-dependencies', 'volumes', 'var', 'vendor', 'vendor-bin', 'node_modules', 'storage'])
     ->in(__DIR__);
 return $config;

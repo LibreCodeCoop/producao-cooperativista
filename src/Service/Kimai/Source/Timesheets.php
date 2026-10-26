@@ -31,13 +31,17 @@ use App\Entity\Producao\Timesheet;
 use App\Provider\Kimai;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use App\Service\Import\BatchPersistence;
+use App\Service\Import\ExistingEntityIndex;
 
 class Timesheets
 {
     use Kimai;
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private ExistingEntityIndex $entityIndex,
+        private BatchPersistence $batchPersistence,
     ) {
     }
 
@@ -53,7 +57,7 @@ class Timesheets
 
     public function getFromApi(DateTime $date, $user = 'all', $exported = 'all'): array
     {
-        $begin = $date
+        $begin = (clone $date)
             ->modify('first day of this month')
             ->setTime(00, 00, 00);
         $end = clone $begin;
@@ -77,10 +81,15 @@ class Timesheets
 
     public function saveList(array $list): void
     {
+        $existing = $this->entityIndex->byId(
+            $this->entityManager,
+            Timesheet::class,
+            array_column($list, 'id')
+        );
+        $entities = [];
         foreach ($list as $row) {
-            $timesheet = $this->entityManager->getRepository(Timesheet::class)->find($row['id']);
-            if (!$timesheet instanceof Timesheet) {
-                $timesheet = new Timesheet();
+            $timesheet = $existing[$row['id']] ?? new Timesheet();
+            if (!isset($existing[$row['id']])) {
                 $timesheet->setId($row['id']);
             }
             $timesheet
@@ -95,9 +104,9 @@ class Timesheets
                 ->setInternalRate($row['internalRate'])
                 ->setExported($row['exported'])
                 ->setBillable($row['billable']);
-            $this->entityManager->persist($timesheet);
-            $this->entityManager->flush();
+            $entities[] = $timesheet;
         }
+        $this->batchPersistence->save($this->entityManager, $entities);
     }
 
     private function convertDate($date): ?DateTime

@@ -35,6 +35,8 @@ use App\Provider\Akaunting\Dataset;
 use App\Provider\Akaunting\ParseText;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use App\Service\Import\BatchPersistence;
+use App\Service\Import\ExistingEntityIndex;
 
 /**
  * @method self setCompanyId(int $value)
@@ -46,7 +48,7 @@ use Psr\Log\LoggerInterface;
 class Documents
 {
     use MagicGetterSetterTrait;
-    private ?DateTime $date;
+    private ?DateTime $date = null;
     private string $type;
     private int $companyId;
     /** @var Invoice[][] */
@@ -58,13 +60,15 @@ class Documents
         private ParseText $parseText,
         private Dataset $dataset,
         private Dates $dates,
+        private BatchPersistence $batchPersistence,
+        private ExistingEntityIndex $entityIndex,
     ) {
         $this->type = 'invoice';
         $this->companyId = (int) getenv('AKAUNTING_COMPANY_ID');
     }
 
     /**
-     * @return Invoice[][]
+     * @return Invoice[]
      */
     public function getList(): array
     {
@@ -88,8 +92,10 @@ class Documents
             'company_id' => $this->getCompanyId(),
             'search' => implode(' ', $search),
         ]);
+        $this->list[$this->getType()] = [];
+        $existing = $this->entityIndex->byId($this->entityManager, Invoice::class, array_column($list, 'id'));
         foreach ($list as $row) {
-            $invoice = $this->fromArray($row);
+            $invoice = $this->fromArray($row, $existing[$row['id']] ?? new Invoice());
             $this->list[$this->getType()][] = $invoice;
         }
         $this->logger->info('Dados de {tipo} salvos com sucesso. Total: {total}', [
@@ -99,16 +105,19 @@ class Documents
         return $this->list[$this->getType()] ?? [];
     }
 
-    public function fromArray(array $array): Invoice
+    public function fromArray(array $array, ?Invoice $existingInvoice = null): Invoice
     {
         $array = array_merge($array, $this->parseText->do((string) $array['notes']));
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->calculateFixedDiscountPercentage($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
-        $entity = $this->entityManager->find(Invoice::class, $array['id']);
-        if (!$entity instanceof Invoice) {
-            $entity = new Invoice();
+        $entity = $existingInvoice;
+        if ($entity === null) {
+            $entity = $this->entityManager->find(Invoice::class, $array['id']);
+            if (!$entity instanceof Invoice) {
+                $entity = new Invoice();
+            }
         }
         $entity->fromArray($array);
         return $entity;
@@ -124,12 +133,18 @@ class Documents
     public function saveList(): self
     {
         $this->getList();
-        foreach ($this->list as $list) {
-            foreach ($list as $row) {
-                $this->saveRow($row);
-            }
-        }
+        $this->batchPersistence->save($this->entityManager, $this->documentsFromList());
         return $this;
+    }
+
+    /**
+     * @return \Generator<Invoice>
+     */
+    private function documentsFromList(): \Generator
+    {
+        foreach ($this->list as $list) {
+            yield from $list;
+        }
     }
 
     public function saveRow(Invoice $invoice): self

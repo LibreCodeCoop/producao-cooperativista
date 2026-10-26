@@ -35,7 +35,6 @@ use App\Service\Cooperado;
  * @method float getAuxilio()
  * @method self setBaseIrpf(float $value)
  * @method float getBaseIrpf()
- * @method self setBaseProducao(float $value)
  * @method float getBaseProducao()
  * @method self setBruto(float $value)
  * @method float getBruto()

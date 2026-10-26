@@ -63,12 +63,12 @@ class Dates
 
     private function calculaPrevisaoPagamentoFrra(): void
     {
-        if ((int) $this->hoje()->format('m') === $this->pagamentoFrraMesPadrao) {
-            $ano = $this->hoje()->modify('+1 year')->format('Y');
-        } else {
-            $ano = $this->hoje()->format('Y');
+        $agora = $this->hoje();
+        $ano = (int) $agora->format('Y');
+        if ((int) $agora->format('n') >= $this->pagamentoFrraMesPadrao) {
+            ++$ano;
         }
-        $this->previsaoPagamentoFrra = \DateTime::createFromFormat('Y-m', $ano . '-' . (string) $this->pagamentoFrraMesPadrao)
+        $this->previsaoPagamentoFrra = \DateTime::createFromFormat('!Y-m', $ano . '-' . (string) $this->pagamentoFrraMesPadrao)
             ->modify('first day of this month')
             ->setTime(00, 00, 00);
         $carbon = Carbon::parse($this->previsaoPagamentoFrra);
@@ -82,20 +82,24 @@ class Dates
 
     public function setInicio(DateTime $inicio): void
     {
-        $this->inicio = $inicio
+        $this->inicio = (clone $inicio)
             ->modify('first day of this month')
             ->setTime(00, 00, 00);
-        $fim = clone $inicio;
+        $fim = clone $this->inicio;
         $this->fim = $fim->modify('last day of this month')
             ->setTime(23, 59, 59);
 
-        $this->inicioProximoMes = (clone $inicio)->modify('first day of next month');
+        $this->inicioProximoMes = (clone $this->inicio)->modify('first day of next month');
         $this->fimProximoMes = (clone $fim)->modify('last day of next month');
+        unset($this->dataPagamento, $this->dataProcessamento);
+        $this->diasUteis = 0;
     }
 
     public function setDiaUtilPagamento(int $dia): void
     {
         $this->pagamentoNoDiaUtil = $dia;
+        unset($this->dataPagamento, $this->dataProcessamento);
+        $this->calculaPrevisaoPagamentoFrra();
     }
 
     public function getDataPagamento(): DateTime

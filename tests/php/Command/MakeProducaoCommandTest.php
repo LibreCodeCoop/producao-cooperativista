@@ -60,6 +60,31 @@ final class MakeProducaoCommandTest extends TestCase
         $this->assertEquals($expected, rtrim($output->fetch(), "\n"));
     }
 
+    #[RunInSeparateProcess]
+    public function testDryRunNeverCreatesMissingAkauntingContacts(): void
+    {
+        $this->loadDataset('recebe_tudo');
+
+        $manager = static::getContainer()->get(\Doctrine\ORM\EntityManagerInterface::class);
+        $manager->getConnection()->executeStatement('UPDATE users SET akaunting_contact_id = NULL WHERE id = 2');
+        $manager->clear();
+
+        $input = new ArrayInput([
+            'make:producao',
+            '--baixar-dados' => '0',
+            '--ano-mes' => '2023-08',
+            '--csv' => true,
+        ]);
+        $output = new BufferedOutput();
+        $exitCode = $this->application->run($input, $output);
+
+        self::assertSame(\Symfony\Component\Console\Command\Command::SUCCESS, $exitCode);
+        self::assertStringContainsString('Pessoa 02', $output->fetch());
+        self::assertNull(
+            $manager->getConnection()->fetchOne('SELECT akaunting_contact_id FROM users WHERE id = 2') ?: null
+        );
+    }
+
     public static function providerScenarios(): array
     {
         return [

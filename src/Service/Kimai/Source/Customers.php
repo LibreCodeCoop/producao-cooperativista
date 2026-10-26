@@ -30,7 +30,9 @@ use App\Entity\Producao\Customer;
 use App\Provider\Kimai;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\HttpClient\HttpClient;
+use App\Service\Import\BatchPersistence;
+use App\Service\Import\ExistingEntityIndex;
+use App\Service\Import\KimaiDetailsLoader;
 
 class Customers
 {
@@ -38,7 +40,10 @@ class Customers
     private array $customers = [];
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private ExistingEntityIndex $entityIndex,
+        private BatchPersistence $batchPersistence,
+        private KimaiDetailsLoader $detailsLoader,
     ) {
     }
 
@@ -58,17 +63,30 @@ class Customers
         if ($this->customers) {
             return $this->customers;
         }
-        $this->customers = $this->doRequestKimai('/customers');
-        $this->populateWithExtraFields();
+        $this->customers = $this->detailsLoader->enrich(
+            $this->doRequestKimai('/customers'),
+            'customers',
+            ['timeBudget', 'vatId']
+        );
+        foreach ($this->customers as &$customer) {
+            $customer['time_budget'] = $customer['timeBudget'];
+            $customer['vat_id'] = $customer['vatId'];
+        }
+        unset($customer);
         return $this->customers;
     }
 
     public function saveList(): self
     {
+        $existing = $this->entityIndex->byId(
+            $this->entityManager,
+            Customer::class,
+            array_column($this->customers, 'id')
+        );
+        $entities = [];
         foreach ($this->customers as $row) {
-            $customer = $this->entityManager->getRepository(Customer::class)->find($row['id']);
-            if (!$customer instanceof Customer) {
-                $customer = new Customer();
+            $customer = $existing[$row['id']] ?? new Customer();
+            if (!isset($existing[$row['id']])) {
                 $customer->setId($row['id']);
             }
             $customer
@@ -81,30 +99,9 @@ class Customers
                 ->setColor($row['color'])
                 ->setVatId($row['vat_id'])
                 ->setTimeBudget($row['time_budget']);
-            $this->entityManager->persist($customer);
-            $this->entityManager->flush();
+            $entities[] = $customer;
         }
+        $this->batchPersistence->save($this->entityManager, $entities);
         return $this;
-    }
-
-    private function populateWithExtraFields(): void
-    {
-        $client = HttpClient::create();
-        foreach ($this->customers as $key => $customer) {
-            $this->logger->debug('Dados extras do customer: {name}', ['name' => $customer['name']]);
-            $result = $client->request(
-                'GET',
-                rtrim(getenv('KIMAI_API_BASE_URL'), '/') . '/customers/' . $customer['id'],
-                [
-                    'headers' => [
-                        'Authorization' => 'Bearer ' . getenv('KIMAI_API_TOKEN'),
-                    ],
-                ]
-            );
-            $allFields = $result->toArray();
-            $this->logger->debug('{json}', ['json' => $allFields]);
-            $this->customers[$key]['time_budget'] = $allFields['timeBudget'];
-            $this->customers[$key]['vat_id'] = $allFields['vatId'];
-        }
     }
 }

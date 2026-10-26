@@ -27,11 +27,13 @@ services:
         arguments:
             $locale: '%env(LOCALE)%'
             $style: !php/const NumberFormatter::CURRENCY
+    App\Service\Akaunting\CooperadoContactRegistry:
+        arguments:
+            $akauntingManager: '@doctrine.orm.akaunting_entity_manager'
     Monolog\Processor\PsrLogMessageProcessor:
     App\Helper\SseLogHandler:
         arguments:
             $sse: '@App\Helper\Sse'
-            $handler: '@monolog.handler.main'
             $processor: '@Monolog\Processor\PsrLogMessageProcessor'
 
     # add more service definitions when explicit configuration is needed

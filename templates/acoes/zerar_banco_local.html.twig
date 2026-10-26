@@ -1,7 +1,18 @@
 {% extends "layout/index.html.twig" %}
 
-{% block title %}Zerar banco local{% endblock title %}
+{% block title %}Reiniciar banco local de desenvolvimento{% endblock %}
 
 {% block body %}
-    <pre>{{ response }}</pre>
+    <h2>Reiniciar banco local de desenvolvimento</h2>
+    <p>Esta operação destrói tabelas do banco de desenvolvimento. É proibida em produção.</p>
+    <form method="post" action="{{ url }}">
+        <input type="hidden" name="_token" value="{{ token }}">
+        <label for="confirmacao">Digite ZERAR para confirmar:</label>
+        <input id="confirmacao" name="confirmacao" required autocomplete="off">
+        <button type="submit">Reiniciar banco de desenvolvimento</button>
+    </form>
+    {% if response %}
+        <h3>Resultado da execução</h3>
+        <pre>{{ response }}</pre>
+    {% endif %}
 {% endblock %}

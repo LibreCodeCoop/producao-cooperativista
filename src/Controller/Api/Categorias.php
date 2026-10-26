@@ -29,13 +29,14 @@ namespace App\Controller\Api;
 use App\Service\Akaunting\Source\Categories;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Service\Calculation\ApiProblemResponder;
 
 class Categorias extends AbstractController
 {
     public function __construct(
         private Categories $categories,
+        private ApiProblemResponder $apiErrors,
     ) {
     }
 
@@ -45,12 +46,7 @@ class Categorias extends AbstractController
         try {
             $categorias = $this->categories->getCategories();
         } catch (\Throwable $th) {
-            return new JsonResponse(
-                [
-                    'error' => $th->getMessage(),
-                ],
-                Response::HTTP_FORBIDDEN
-            );
+            return $this->apiErrors->fromThrowable($th, 'Categorias');
         }
         $categorias = array_map(fn ($categoria) => $categoria->toArray(), $categorias);
 

@@ -27,6 +27,7 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Service\Movimentacao;
+use App\Service\Calculation\CalculationExecutionLock;
 use DateTime;
 use App\Service\ProducaoCooperativista;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -34,6 +35,8 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Formatter\OutputFormatter;
+use Psr\Log\LoggerInterface;
 
 #[AsCommand(
     name: 'make:producao',
@@ -44,6 +47,8 @@ class MakeProducaoCommand extends AbstractBaseCommand
     public function __construct(
         private ProducaoCooperativista $producaoCooperativista,
         private Movimentacao $movimentacao,
+        private LoggerInterface $logger,
+        private ?CalculationExecutionLock $executionLock = null,
     ) {
         parent::__construct();
     }
@@ -108,35 +113,52 @@ class MakeProducaoCommand extends AbstractBaseCommand
         $diasUteis = (int) $input->getOption('dias-uteis');
         $percentualMaximo = (int) $input->getOption('percentual-maximo');
         $diaUtilPagamento = (int) $input->getOption('dia-util-pagamento');
-        $inicio = DateTime::createFromFormat('Y-m', $input->getOption('ano-mes'));
+        $inicio = DateTime::createFromFormat('!Y-m', $input->getOption('ano-mes'));
         if (!$inicio instanceof DateTime) {
             $output->writeln('<error>--ano-mes precisa estar no formato YYYY-MM</error>');
             return Command::INVALID;
         }
-        if ((bool) $input->getOption('baixar-dados')) {
-            $this->producaoCooperativista->loadFromExternalSources($inicio);
-        }
-        $this->producaoCooperativista->dates->setDiaUtilPagamento($diaUtilPagamento);
-        $this->producaoCooperativista->dates->setInicio($inicio);
-        $this->producaoCooperativista->dates->setDiasUteis($diasUteis);
-        $this->movimentacao->setPercentualMaximo($percentualMaximo);
-
+        $phase = 'inicialização';
         try {
+            $this->executionLock?->acquire();
+            $phase = 'importação dos dados';
+            if ((bool) $input->getOption('baixar-dados')) {
+                $this->producaoCooperativista->loadFromExternalSources($inicio);
+            }
+            $phase = 'configuração do cálculo';
+            $this->producaoCooperativista->dates->setDiaUtilPagamento($diaUtilPagamento);
+            $this->producaoCooperativista->dates->setInicio($inicio);
+            $this->producaoCooperativista->dates->setDiasUteis($diasUteis);
+            $this->movimentacao->setPercentualMaximo($percentualMaximo);
+
+            $phase = 'cálculo da produção';
             $this->producaoCooperativista->getProducaoCooperativista();
-        } catch (\Throwable $th) {
-            $output->writeln('<error>' . $th->getMessage() . '</error>');
-            return Command::INVALID;
-        }
 
-        if ($input->getOption('atualiza-producao')) {
-            $this->producaoCooperativista->updateProducao();
-        }
+            if ($input->getOption('atualiza-producao')) {
+                $phase = 'gravação dos documentos no Akaunting';
+                $this->producaoCooperativista->updateProducao();
+            }
 
-        if ($input->getOption('csv')) {
-            $output->writeLn(
-                $this->producaoCooperativista->exportToCsv()
-            );
+            if ($input->getOption('csv')) {
+                $phase = 'exportação do relatório';
+                $output->writeln($this->producaoCooperativista->exportToCsv());
+            }
+            return Command::SUCCESS;
+        } catch (\Throwable $error) {
+            $this->logger->error('Falha na produção de {competencia}, etapa {etapa}: {motivo}', [
+                'competencia' => $inicio->format('Y-m'),
+                'etapa' => $phase,
+                'motivo' => $error->getMessage(),
+                'exception' => $error,
+            ]);
+            $output->writeln(sprintf(
+                '<error>Falha na etapa "%s": %s</error>',
+                OutputFormatter::escape($phase),
+                OutputFormatter::escape($error->getMessage())
+            ));
+            return Command::FAILURE;
+        } finally {
+            $this->executionLock?->release();
         }
-        return Command::SUCCESS;
     }
 }

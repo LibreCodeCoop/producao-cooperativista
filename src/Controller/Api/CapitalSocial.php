@@ -29,13 +29,14 @@ namespace App\Controller\Api;
 use App\Service\Cooperado;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Service\Calculation\ApiProblemResponder;
 
 class CapitalSocial extends AbstractController
 {
     public function __construct(
         private Cooperado $cooperado,
+        private ApiProblemResponder $apiErrors,
     ) {
     }
 
@@ -45,12 +46,7 @@ class CapitalSocial extends AbstractController
         try {
             $capitalSocial = $this->cooperado->getCapitalSocial();
         } catch (\Throwable $th) {
-            return new JsonResponse(
-                [
-                    'error' => $th->getMessage(),
-                ],
-                Response::HTTP_FORBIDDEN
-            );
+            return $this->apiErrors->fromThrowable($th, 'CapitalSocial');
         }
 
         $response = [

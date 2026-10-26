@@ -27,10 +27,9 @@ declare(strict_types=1);
 namespace App\Service\Source;
 
 use DateTime;
-use Doctrine\DBAL\ArrayParameterType;
-use Doctrine\DBAL\ParameterType;
-use Doctrine\DBAL\Types\Types;
 use App\Entity\Producao\Nfse as EntityNfse;
+use App\Service\Import\ExistingEntityIndex;
+use App\Service\Import\BatchPersistence;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\BrowserKit\Cookie;
@@ -83,15 +82,19 @@ class Nfse
 
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private ExistingEntityIndex $entityIndex,
+        private BatchPersistence $batchPersistence,
     ) {
         $this->cookiesFile = realpath(__DIR__ . '/../../..') . '/' . $this->cookiesFile;
     }
 
     public function updateDatabase(DateTime $data): void
     {
-        if (!getenv('PREFEITURA_LOGIN')) {
-            $this->logger->warning('Dados de NFSe não foram baixados da prefeitura, dados de login não informados.');
+        if (!getenv('PREFEITURA_LOGIN') || !getenv('PREFEITURA_SENHA') || !getenv('PREFEITURA')) {
+            $this->logger->warning(
+                'NFSE_IMPORTACAO: consulta municipal não realizada. Confira PREFEITURA, PREFEITURA_LOGIN e PREFEITURA_SENHA no servidor; confirme se as NFS-e desta competência estão completas antes da distribuição.'
+            );
             return;
         }
         $this->logger->info('Baixando dados de NFSe');
@@ -108,7 +111,7 @@ class Nfse
         ?string $senha = null,
         ?string $prefeitura = null
     ): array {
-        $inicio = $data
+        $inicio = (clone $data)
             ->modify('first day of this month');
         $fim = clone $inicio;
         $fim = $fim->modify('last day of this month');
@@ -135,99 +138,47 @@ class Nfse
 
     public function saveList(array $list): void
     {
-        $qb = $this->entityManager->getConnection()->createQueryBuilder();
-        $qb->select('n.numero')
-            ->from('nfse', 'n')
-            ->where($qb->expr()->in('n.numero', ':numero'))
-            ->setParameter(
-                'numero',
-                array_column(
-                    $list,
-                    $this->columnInternalToExternal('numero')
-                ),
-                ArrayParameterType::INTEGER
-            );
-        $stmt = $qb->executeQuery();
-        $exists = [];
-        while ($row = $stmt->fetchAssociative()) {
-            $exists[] = $row['numero'];
+        if ($list === []) {
+            return;
         }
+
+        $column = $this->columnInternalToExternal('numero');
+        $ids = array_map(static fn (array $row): int => (int) $row[$column], $list);
+        if (count($ids) !== count(array_unique($ids))) {
+            throw new \DomainException('Importação de NFS-e contém números duplicados. Revise a origem antes de gravar.');
+        }
+
+        $existing = $this->entityIndex->byId($this->entityManager, EntityNfse::class, $ids);
+        $entities = [];
         foreach ($list as $row) {
-            if (in_array($row[$this->columnInternalToExternal('numero')], $exists)) {
-                $update = $this->entityManager->createQueryBuilder();
-                $update->update('nfse')
-                    ->set('cnpj', $update->createNamedParameter(
-                        $row[$this->columnInternalToExternal('cnpj')]
-                    ))
-                    ->set('razao_social', $update->createNamedParameter(
-                        $row[$this->columnInternalToExternal('razao_social')]
-                    ))
-                    ->set('data_emissao', $update->createNamedParameter(
-                        $this->convertDate($row[$this->columnInternalToExternal('data_emissao')]),
-                        Types::DATE_MUTABLE
-                    ))
-                    ->set('valor_servico', $update->createNamedParameter(
-                        $this->convertPtBrToFloat($row[$this->columnInternalToExternal('valor_servico')]),
-                        Types::FLOAT
-                    ))
-                    ->set('valor_cofins', $update->createNamedParameter(
-                        $this->convertPtBrToFloat($row[$this->columnInternalToExternal('valor_cofins')]),
-                        Types::FLOAT
-                    ))
-                    ->set('valor_ir', $update->createNamedParameter(
-                        $this->convertPtBrToFloat($row[$this->columnInternalToExternal('valor_ir')]),
-                        Types::FLOAT
-                    ))
-                    ->set('valor_pis', $update->createNamedParameter(
-                        $this->convertPtBrToFloat($row[$this->columnInternalToExternal('valor_pis')]),
-                        Types::FLOAT
-                    ))
-                    ->set('valor_iss', $update->createNamedParameter(
-                        $this->convertPtBrToFloat($row[$this->columnInternalToExternal('valor_iss')]),
-                        Types::FLOAT
-                    ))
-                    ->set('numero_substituta', $update->createNamedParameter(
-                        $this->convertPtBrToFloat($row[$this->columnInternalToExternal('numero_substituta')]),
-                        Types::FLOAT
-                    ))
-                    ->set('discriminacao_normalizada', $update->createNamedParameter(
-                        $row['discriminacao_normalizada']
-                    ))
-                    ->set('codigo_cliente', $update->createNamedParameter(
-                        $row['codigo_cliente']
-                    ))
-                    ->set('metadata', $update->createNamedParameter(
-                        json_encode($row)
-                    ))
-                    ->where($update->expr()->eq(
-                        'numero',
-                        $update->createNamedParameter(
-                            $row[$this->columnInternalToExternal('numero')],
-                            ParameterType::INTEGER
-                        )
-                    ))
-                    ->getQuery()
-                    ->execute();
-                continue;
+            $number = (int) $row[$column];
+            if ($number <= 0) {
+                throw new \DomainException('NFS-e sem número positivo válido. Corrija a exportação municipal.');
             }
-            $nfse = new EntityNfse();
+
+            $substituta = $this->convertPtBrToFloat(
+                $row[$this->columnInternalToExternal('numero_substituta')] ?? null
+            );
+            $nfse = $existing[$number] ?? new EntityNfse();
             $nfse
-                ->setNumero($row[$this->columnInternalToExternal('numero')])
-                ->setCnpj($row[$this->columnInternalToExternal('cnpj')])
-                ->setRazaoSocial($row[$this->columnInternalToExternal('razao_social')])
+                ->setNumero($number)
+                ->setCnpj((string) $row[$this->columnInternalToExternal('cnpj')])
+                ->setRazaoSocial((string) $row[$this->columnInternalToExternal('razao_social')])
                 ->setDataEmissao($this->convertDate($row[$this->columnInternalToExternal('data_emissao')]))
                 ->setValorServico($this->convertPtBrToFloat($row[$this->columnInternalToExternal('valor_servico')]))
-                ->setValorCofins($this->convertPtBrToFloat($row[$this->columnInternalToExternal('valor_cofins')]))
-                ->setValorIr($this->convertPtBrToFloat($row[$this->columnInternalToExternal('valor_ir')]))
-                ->setValorPis($this->convertPtBrToFloat($row[$this->columnInternalToExternal('valor_pis')]))
-                ->setValorIss($this->convertPtBrToFloat($row[$this->columnInternalToExternal('valor_iss')]))
-                ->setNumeroSubstituta($this->convertPtBrToFloat($row[$this->columnInternalToExternal('numero_substituta')]))
-                ->setDiscriminacaoNormalizada($row['discriminacao_normalizada'])
-                ->setSetor($row['setor'])
-                ->setCodigoCliente($row['codigo_cliente'])
-                ->setMetadata(json_encode($row));
-            $this->entityManager->persist($nfse);
+                ->setValorCofins($this->convertPtBrToFloat($row[$this->columnInternalToExternal('valor_cofins')]) ?? 0.0)
+                ->setValorIr($this->convertPtBrToFloat($row[$this->columnInternalToExternal('valor_ir')]) ?? 0.0)
+                ->setValorPis($this->convertPtBrToFloat($row[$this->columnInternalToExternal('valor_pis')]) ?? 0.0)
+                ->setValorIss($this->convertPtBrToFloat($row[$this->columnInternalToExternal('valor_iss')]) ?? 0.0)
+                ->setNumeroSubstituta($substituta !== null ? (int) $substituta : null)
+                ->setDiscriminacaoNormalizada((string) $row['discriminacao_normalizada'])
+                ->setSetor($row['setor'] ?? null)
+                ->setCodigoCliente((string) $row['codigo_cliente'])
+                ->setMetadata($row);
+            $entities[] = $nfse;
         }
+
+        $this->batchPersistence->save($this->entityManager, $entities);
     }
 
     private function convertPtBrToFloat(?string $number): ?float

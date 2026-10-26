@@ -29,13 +29,14 @@ namespace App\Controller\Api;
 use App\Service\ProducaoCooperativista;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Service\Calculation\ApiProblemResponder;
 
 class CapitalSocialSummarized extends AbstractController
 {
     public function __construct(
         private ProducaoCooperativista $producao,
+        private ApiProblemResponder $apiErrors,
     ) {
     }
 
@@ -45,12 +46,7 @@ class CapitalSocialSummarized extends AbstractController
         try {
             $capitalSocial = $this->producao->getCapitalSocialSummarized();
         } catch (\Throwable $th) {
-            return new JsonResponse(
-                [
-                    'error' => $th->getMessage(),
-                ],
-                Response::HTTP_FORBIDDEN
-            );
+            return $this->apiErrors->fromThrowable($th, 'CapitalSocialSummarized');
         }
 
         $response = [
