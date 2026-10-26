@@ -14,6 +14,19 @@ use PHPUnit\Framework\TestCase;
 
 final class SseEventMessageTest extends TestCase
 {
+    public function testExplicitProgressEventsRejectSensitiveOrUntrustedLogShapes(): void
+    {
+        self::assertNull(SseEventMessage::fromExplicitProgressRecord('CPF 11122233344'));
+        self::assertNull(SseEventMessage::fromExplicitProgressRecord('{"event":"error","data":"internal trace"}'));
+        self::assertNull(SseEventMessage::fromExplicitProgressRecord('{"event":"done","data":"ok","secret":"token"}'));
+        self::assertSame(
+            ['event' => 'failed', 'data' => 'Falha interna. Consulte ID da execução.'],
+            SseEventMessage::fromExplicitProgressRecord(
+                '{"event":"failed","data":"Falha interna. Consulte ID da execução."}'
+            )
+        );
+    }
+
     public function testFailedEventsArePreserved(): void
     {
         $this->assertSame(

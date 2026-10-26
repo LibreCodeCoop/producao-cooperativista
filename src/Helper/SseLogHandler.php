@@ -34,9 +34,10 @@ class SseLogHandler extends AbstractProcessingHandler
             return;
         }
 
-        $event = SseEventMessage::fromLogRecord($record->message, $record->level->name);
-        // Detailed errors and exception payloads are for the server log only.
-        if ($event['event'] === 'error' || $event['event'] === 'critical') {
+        // Even info/warning logs are not safe to stream by default. They may
+        // embed CPF/CNPJ, customer names, financial amounts and API responses.
+        $event = SseEventMessage::fromExplicitProgressRecord($record->message);
+        if ($event === null) {
             return;
         }
 

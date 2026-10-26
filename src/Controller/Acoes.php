@@ -141,6 +141,10 @@ class Acoes extends AbstractController
                         'run_id' => $runId,
                         'competencia' => $competencia,
                     ]);
+                    $this->logger->info(new ArrayValue([
+                        'event' => 'info',
+                        'data' => sprintf('Execução %s iniciada para a competência %s.', $runId, $competencia),
+                    ]));
 
                     $app = new Application($this->kernel);
                     $app->setAutoExit(false);

@@ -27,6 +27,7 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Service\Movimentacao;
+use App\Helper\ArrayValue;
 use App\Service\Calculation\CalculationExecutionLock;
 use DateTime;
 use App\Service\ProducaoCooperativista;
@@ -123,24 +124,29 @@ class MakeProducaoCommand extends AbstractBaseCommand
             $this->executionLock?->acquire();
             $phase = 'importação dos dados';
             if ((bool) $input->getOption('baixar-dados')) {
+                $this->reportPhase('Importando dados das integrações.');
                 $this->producaoCooperativista->loadFromExternalSources($inicio);
             }
             $phase = 'configuração do cálculo';
+            $this->reportPhase('Validando parâmetros econômicos.');
             $this->producaoCooperativista->dates->setDiaUtilPagamento($diaUtilPagamento);
             $this->producaoCooperativista->dates->setInicio($inicio);
             $this->producaoCooperativista->dates->setDiasUteis($diasUteis);
             $this->movimentacao->setPercentualMaximo($percentualMaximo);
 
             $phase = 'cálculo da produção';
+            $this->reportPhase('Calculando produção elegível, horas e pesos.');
             $this->producaoCooperativista->getProducaoCooperativista();
 
             if ($input->getOption('atualiza-producao')) {
                 $phase = 'gravação dos documentos no Akaunting';
+                $this->reportPhase('Gravando documentos no Akaunting.');
                 $this->producaoCooperativista->updateProducao();
             }
 
             if ($input->getOption('csv')) {
                 $phase = 'exportação do relatório';
+                $this->reportPhase('Preparando relatório de produção.');
                 $output->writeln($this->producaoCooperativista->exportToCsv());
             }
             return Command::SUCCESS;
@@ -160,5 +166,15 @@ class MakeProducaoCommand extends AbstractBaseCommand
         } finally {
             $this->executionLock?->release();
         }
+    }
+
+    private function reportPhase(string $message): void
+    {
+        // Only fixed, non-sensitive progress messages are forwarded to SSE.
+        // The logger retains all detailed records privately on the server.
+        $this->logger->info(new ArrayValue([
+            'event' => 'info',
+            'data' => $message,
+        ]));
     }
 }
