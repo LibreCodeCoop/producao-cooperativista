@@ -74,9 +74,9 @@ class Values
     private ?float $liquidDiscount = 0;
     private ?array $adiantamento = [];
     private bool $lockFrra = false;
-    private const STATUS_NEED_TO_UPDATE = 0;
-    private const STATUS_UPDATING = 1;
-    private const STATUS_UPDATED = 2;
+    private const int STATUS_NEED_TO_UPDATE = 0;
+    private const int STATUS_UPDATING = 1;
+    private const int STATUS_UPDATED = 2;
     private int $updated = self::STATUS_UPDATED;
 
     public function __construct(
@@ -89,11 +89,11 @@ class Values
     public function __call($name, $arguments)
     {
         if (!preg_match('/^(?<type>get|set)(?<property>.+)/', $name, $matches)) {
-            throw new \LogicException(sprintf('Cannot set non existing property %s->%s = %s.', \get_class($this), $name, var_export($arguments, true)));
+            throw new \LogicException(sprintf('Cannot set non existing property %s->%s = %s.', static::class, $name, var_export($arguments, true)));
         }
         $property = lcfirst($matches['property']);
         if (!property_exists($this, $property)) {
-            throw new \LogicException(sprintf('Cannot set non existing property %s->%s = %s.', \get_class($this), $name, var_export($arguments, true)));
+            throw new \LogicException(sprintf('Cannot set non existing property %s->%s = %s.', static::class, $name, var_export($arguments, true)));
         }
         if ($matches['type'] === 'get') {
             if ($this->updated === self::STATUS_NEED_TO_UPDATE) {

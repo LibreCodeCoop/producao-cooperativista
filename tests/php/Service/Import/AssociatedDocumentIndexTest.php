@@ -28,12 +28,12 @@ final class AssociatedDocumentIndexTest extends TestCase
                 self::assertSame(ArrayParameterType::INTEGER, $types['ids']);
                 return $result;
             });
-        $manager = $this->createMock(EntityManagerInterface::class);
+        $manager = $this->createStub(EntityManagerInterface::class);
         $manager->method('getConnection')->willReturn($connection);
 
         self::assertSame(
             [11 => ['id' => 11, 'customer_reference' => 'cliente-11', 'metadata' => '{}']],
-            (new AssociatedDocumentIndex())->byId($manager, [11, 12, 11, 0, -1])
+            new AssociatedDocumentIndex()->byId($manager, [11, 12, 11, 0, -1])
         );
     }
 
@@ -41,18 +41,18 @@ final class AssociatedDocumentIndexTest extends TestCase
     {
         $manager = $this->createMock(EntityManagerInterface::class);
         $manager->expects($this->never())->method('getConnection');
-        self::assertSame([], (new AssociatedDocumentIndex())->byId($manager, []));
+        self::assertSame([], new AssociatedDocumentIndex()->byId($manager, []));
     }
 
     public function testLargeImportsUseBoundedBatches(): void
     {
-        $result = $this->createMock(Result::class);
+        $result = $this->createStub(Result::class);
         $result->method('fetchAllAssociative')->willReturn([]);
         $connection = $this->createMock(Connection::class);
         $connection->expects($this->exactly(2))->method('executeQuery')->willReturn($result);
-        $manager = $this->createMock(EntityManagerInterface::class);
+        $manager = $this->createStub(EntityManagerInterface::class);
         $manager->method('getConnection')->willReturn($connection);
 
-        self::assertSame([], (new AssociatedDocumentIndex())->byId($manager, range(1, 401)));
+        self::assertSame([], new AssociatedDocumentIndex()->byId($manager, range(1, 401)));
     }
 }

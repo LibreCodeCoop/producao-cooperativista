@@ -30,14 +30,14 @@ final class CustomerCostAllocatorTest extends TestCase
     {
         $this->expectException(DomainException::class);
         $this->expectExceptionMessage('excedem receitas');
-        (new CustomerCostAllocator())->allocate([
+        new CustomerCostAllocator()->allocate([
             ['amount' => 100.0, 'customer_reference' => 'client-a'],
         ], ['client-a' => 200.0]);
     }
 
     public function testAnInvoiceCanHaveZeroCostAndPreservesItsAmount(): void
     {
-        $this->assertSame([0 => 0.0], (new CustomerCostAllocator())->allocate([
+        $this->assertSame([0 => 0.0], new CustomerCostAllocator()->allocate([
             ['amount' => 0, 'customer_reference' => 'client-a'],
         ], []));
     }

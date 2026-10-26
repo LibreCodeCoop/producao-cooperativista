@@ -15,7 +15,7 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 final class CalculationActionGuard
 {
-    private const CSRF_SESSION_KEY = 'production_calculation_csrf';
+    private const string CSRF_SESSION_KEY = 'production_calculation_csrf';
 
     public function __construct(private KernelInterface $kernel)
     {

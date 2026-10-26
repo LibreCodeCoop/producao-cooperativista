@@ -1,12 +1,32 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://help.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 version: 2
 updates:
-  # Maintain dependencies for Composer
-  - package-ecosystem: "composer" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: composer
+    directories:
+      - /
+      - /vendor-bin/cs
+      - /vendor-bin/unit
+      - /vendor-bin/psalm
+      - /vendor-bin/rector
     schedule:
-      interval: "daily"
+      interval: weekly
+    groups:
+      composer-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /.docker/php
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly

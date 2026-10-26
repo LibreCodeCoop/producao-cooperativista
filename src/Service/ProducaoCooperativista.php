@@ -159,7 +159,7 @@ class ProducaoCooperativista
             SELECT contact_id, c.name, amount,
                 paid_at AS due_at,
                 t.id,
-                'transaction' as`'table`
+                'transaction' AS `table`
             FROM transactions t
             join contacts c on c.id = t.contact_id
             WHERE category_id = 25
@@ -169,7 +169,7 @@ class ProducaoCooperativista
             -- Documents
             SELECT contact_id, contact_Name, amount, due_at,
                 d.id,
-                'documents' as`'table`
+                'documents' AS `table`
             FROM documents d
             WHERE d.category_id = 25
             AND d.deleted_at IS NULL
@@ -177,7 +177,7 @@ class ProducaoCooperativista
             -- Documents with items
             SELECT d.contact_id, d.contact_Name, di.price, d.due_at,
                 d.id,
-                'documents_item' as`'table`
+                'documents_item' AS `table`
             FROM document_items as di
             JOIN documents as d on di.document_id = d.id
             where di.item_id = 11
@@ -186,9 +186,10 @@ class ProducaoCooperativista
             ) x
             ORDER BY x.name, x.due_at
             SQL;
-        $qb = $this->entityManagerAkaunting->getConnection()->createQueryBuilder();
-        $stmt = $qb->executeQuery($sql);
-        $return = $stmt->fetchAllAssociative();
+        // This is a complete SQL statement. QueryBuilder::executeQuery() does
+        // not accept SQL text; sending it there silently discards the query.
+        $return = $this->entityManagerAkaunting->getConnection()
+            ->executeQuery($sql)->fetchAllAssociative();
         if (empty($return)) {
             throw new Exception('Sem capital social');
         }
@@ -307,7 +308,7 @@ class ProducaoCooperativista
             ->orderBy('u.alias');
         $result = $qb->executeQuery();
         while ($row = $result->fetchAssociative()) {
-            $row['peso'] = $row['peso'] ?? 1;
+            $row['peso'] ??= 1;
             $cooperado = $this->getCooperado($row['tax_number']);
             $cooperado
                 ->setName($row['alias'])
@@ -434,7 +435,7 @@ class ProducaoCooperativista
             if (!$row['customer_reference']) {
                 continue;
             }
-            $row['peso'] = $row['peso'] ?? 1;
+            $row['peso'] ??= 1;
             $cooperado = $this->getCooperado($row['tax_number']);
             $cooperado
                 ->setName($row['alias'])
@@ -621,7 +622,7 @@ class ProducaoCooperativista
         }
 
         $byCooperado = $firstCooperado->getProducaoCooperativista()->getAdiantamentosParaCooperados(
-            array_map('strval', array_keys($this->cooperado))
+            array_map(strval(...), array_keys($this->cooperado))
         );
         foreach ($this->cooperado as $cooperado) {
             $taxNumber = $cooperado->getTaxNumber();
@@ -654,18 +655,16 @@ class ProducaoCooperativista
 
     private function getCooperado(string $taxNumber): Cooperado
     {
-        if (!isset($this->cooperado[$taxNumber])) {
-            $this->cooperado[$taxNumber] = new Cooperado(
-                entityManager: $this->entityManager,
-                dates: $this->dates,
-                numberFormatter: $this->numberFormatter,
-                documents: $this->documents,
-                request: $this->request,
-                documentConfiguration: $this->documentConfiguration,
-                anoFiscal: (int) $this->dates->getInicio()->format('Y'),
-                mes: (int) $this->dates->getInicio()->format('m'),
-            );
-        }
+        $this->cooperado[$taxNumber] ??= new Cooperado(
+            entityManager: $this->entityManager,
+            dates: $this->dates,
+            numberFormatter: $this->numberFormatter,
+            documents: $this->documents,
+            request: $this->request,
+            documentConfiguration: $this->documentConfiguration,
+            anoFiscal: (int) $this->dates->getInicio()->format('Y'),
+            mes: (int) $this->dates->getInicio()->format('m'),
+        );
         return $this->cooperado[$taxNumber];
     }
 
@@ -774,8 +773,8 @@ class ProducaoCooperativista
             ->from('invoices', 'i')
             ->where($qb->expr()->eq('transaction_of_month', $qb->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))))
             ->andWhere($qb->expr()->eq('i.type', $qb->createNamedParameter('invoice')))
-            ->andWhere($qb->expr()->eq('i.archive', $qb->createNamedParameter(0), ParameterType::INTEGER))
-            ->andWhere($qb->expr()->eq('i.category_id', $qb->createNamedParameter(getenv('AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID')), ParameterType::INTEGER));
+            ->andWhere($qb->expr()->eq('i.archive', $qb->createNamedParameter(0, ParameterType::INTEGER)))
+            ->andWhere($qb->expr()->eq('i.category_id', $qb->createNamedParameter((int) getenv('AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID'), ParameterType::INTEGER)));
         $total = $qb->executeQuery()->fetchOne();
         return (float) $total;
     }

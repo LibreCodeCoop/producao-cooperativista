@@ -21,7 +21,7 @@ final class TransactionsDateRangeTest extends TestCase
     {
         $selected = new DateTime('first day of -1 year');
         $expectedFrom = $selected->format('Y-m-01');
-        $expectedTo = (new DateTime('last day of this month'))->format('Y-m-d');
+        $expectedTo = new DateTime('last day of this month')->format('Y-m-d');
         $original = $selected->format('Y-m-d');
 
         $dataset = $this->createMock(Dataset::class);
@@ -59,34 +59,32 @@ final class TransactionsDateRangeTest extends TestCase
     {
         $dataset = $this->createMock(Dataset::class);
         $dataset->expects($this->once())->method('list')->willReturn(
-            array_map(static function (int $id): array {
-                return [
-                    'id' => $id,
-                    'document_id' => 73,
-                    'paid_at' => '2026-05-12T09:00:00-03:00',
-                    'amount' => 50.0,
-                    'type' => 'income',
-                    'currency_code' => 'BRL',
-                    'reference' => '',
-                    'contact' => [
-                        'id' => 9,
-                        'reference' => null,
-                        'name' => 'Cliente',
-                        'type' => 'customer',
-                        'tax_number' => '12345678000190',
-                    ],
-                    'category_id' => 20,
-                    'category' => ['name' => 'Serviço', 'type' => 'income'],
-                    'customer_reference' => null,
-                    'description' => '',
-                    'archive' => 'não',
-                    'discount_percentage' => null,
-                    'nfse' => null,
-                ];
-            }, [11, 12])
+            array_map(static fn (int $id): array => [
+                'id' => $id,
+                'document_id' => 73,
+                'paid_at' => '2026-05-12T09:00:00-03:00',
+                'amount' => 50.0,
+                'type' => 'income',
+                'currency_code' => 'BRL',
+                'reference' => '',
+                'contact' => [
+                    'id' => 9,
+                    'reference' => null,
+                    'name' => 'Cliente',
+                    'type' => 'customer',
+                    'tax_number' => '12345678000190',
+                ],
+                'category_id' => 20,
+                'category' => ['name' => 'Serviço', 'type' => 'income'],
+                'customer_reference' => null,
+                'description' => '',
+                'archive' => 'não',
+                'discount_percentage' => null,
+                'nfse' => null,
+            ], [11, 12])
         );
 
-        $result = $this->createMock(\Doctrine\DBAL\Result::class);
+        $result = $this->createStub(\Doctrine\DBAL\Result::class);
         $result->method('fetchAllAssociative')->willReturn([
             ['id' => 73, 'customer_reference' => '12345678000190', 'metadata' => '{}'],
         ]);
@@ -104,7 +102,7 @@ final class TransactionsDateRangeTest extends TestCase
         $source = new Transactions(
             $manager,
             new NullLogger(),
-            $this->createMock(ParseText::class),
+            $this->createStub(ParseText::class),
             $dataset,
             new BatchPersistence(),
             new ExistingEntityIndex(),
@@ -121,9 +119,9 @@ final class TransactionsDateRangeTest extends TestCase
     private function source(Dataset $dataset): Transactions
     {
         return new Transactions(
-            $this->createMock(EntityManagerInterface::class),
+            $this->createStub(EntityManagerInterface::class),
             new NullLogger(),
-            $this->createMock(ParseText::class),
+            $this->createStub(ParseText::class),
             $dataset,
             new BatchPersistence(),
             new ExistingEntityIndex(),

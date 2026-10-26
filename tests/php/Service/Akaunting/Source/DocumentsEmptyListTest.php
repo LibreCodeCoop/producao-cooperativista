@@ -23,9 +23,9 @@ final class DocumentsEmptyListTest extends TestCase
         $dataset->expects($this->once())->method('list')->willReturn([]);
         $dates = new Dates('br-national', 12, new DateTime('2026-10-01'));
         $documents = new Documents(
-            $this->createMock(EntityManagerInterface::class),
+            $this->createStub(EntityManagerInterface::class),
             new NullLogger(),
-            $this->getMockBuilder(ParseText::class)->disableOriginalConstructor()->getMock(),
+            $this->createStub(ParseText::class),
             $dataset,
             $dates,
             new BatchPersistence(),

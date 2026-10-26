@@ -24,11 +24,11 @@ final class NfseImportWarningTest extends TestCase
         $logger->expects($this->once())->method('warning')
             ->with(self::stringContains('PREFEITURA_LOGIN'));
 
-        (new Nfse(
+        new Nfse(
             $manager,
             $logger,
             new \App\Service\Import\ExistingEntityIndex(),
             new \App\Service\Import\BatchPersistence(),
-        ))->updateDatabase(new DateTime('2026-09-01'));
+        )->updateDatabase(new DateTime('2026-09-01'));
     }
 }

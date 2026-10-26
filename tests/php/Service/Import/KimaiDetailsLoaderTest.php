@@ -29,7 +29,7 @@ final class KimaiDetailsLoaderTest extends TestCase
             self::fail('No HTTP request should be necessary.');
         });
         $rows = [['id' => 1, 'timeBudget' => 0, 'vatId' => '123']];
-        self::assertSame($rows, (new KimaiDetailsLoader($http))->enrich($rows, 'customers', ['timeBudget', 'vatId']));
+        self::assertSame($rows, new KimaiDetailsLoader($http)->enrich($rows, 'customers', ['timeBudget', 'vatId']));
     }
 
     public function testOnlyMissingDetailsAreRequested(): void
@@ -40,7 +40,7 @@ final class KimaiDetailsLoaderTest extends TestCase
             return new MockResponse('{"timeBudget":7200,"vatId":"100"}');
         });
 
-        $rows = (new KimaiDetailsLoader($http))->enrich([
+        $rows = new KimaiDetailsLoader($http)->enrich([
             ['id' => 1, 'timeBudget' => 0, 'vatId' => 'abc'],
             ['id' => 2, 'name' => 'B'],
         ], 'customers', ['timeBudget', 'vatId']);

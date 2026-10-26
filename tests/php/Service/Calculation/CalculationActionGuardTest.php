@@ -61,7 +61,7 @@ final class CalculationActionGuardTest extends TestCase
 
     private function guardAndSession(string $environment): array
     {
-        $kernel = $this->createMock(KernelInterface::class);
+        $kernel = $this->createStub(KernelInterface::class);
         $kernel->method('getEnvironment')->willReturn($environment);
         return [new CalculationActionGuard($kernel), new Session(new MockArraySessionStorage())];
     }

@@ -13,11 +13,11 @@ final class DatasetTest extends TestCase
 {
     public function testMalformedPageHasActionableError(): void
     {
-        $request = $this->createMock(Request::class);
+        $request = $this->createStub(Request::class);
         $request->method('send')->willReturn(['message' => 'Something went wrong']);
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('campo data ausente');
-        (new Dataset($request))->list('/api/documents');
+        new Dataset($request)->list('/api/documents');
     }
 
     public function testPaginatesWithoutDuplicatingSearchParameters(): void
@@ -35,7 +35,7 @@ final class DatasetTest extends TestCase
             }
         );
 
-        self::assertSame([['id' => 1], ['id' => 2]], (new Dataset($request))->list(
+        self::assertSame([['id' => 1], ['id' => 2]], new Dataset($request)->list(
             '/api/documents',
             ['search' => 'type:bill']
         ));
@@ -43,10 +43,10 @@ final class DatasetTest extends TestCase
 
     public function testCyclesFailBeforeInfiniteLoop(): void
     {
-        $request = $this->createMock(Request::class);
+        $request = $this->createStub(Request::class);
         $request->method('send')->willReturn(['data' => [], 'links' => ['next' => '/api/documents']]);
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('circular');
-        (new Dataset($request))->list('/api/documents');
+        new Dataset($request)->list('/api/documents');
     }
 }

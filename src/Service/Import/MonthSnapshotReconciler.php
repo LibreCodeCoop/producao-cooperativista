@@ -40,7 +40,7 @@ final class MonthSnapshotReconciler
             ]
         )->fetchFirstColumn();
 
-        $source = array_fill_keys(array_map('intval', $sourceIds), true);
+        $source = array_fill_keys(array_map(intval(...), $sourceIds), true);
         $stale = [];
         foreach ($existing as $id) {
             $key = (int) $id;

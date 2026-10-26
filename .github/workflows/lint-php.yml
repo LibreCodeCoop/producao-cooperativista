@@ -22,7 +22,7 @@ concurrency:
 jobs:
   php-lint:
     runs-on: ubuntu-latest
-    name: php-lint (8.4)
+    name: php-lint
 
     steps:
       - name: Checkout
@@ -30,9 +30,12 @@ jobs:
 
       - name: Lint PHP sources
         run: |
+          php_version="$(cat .php-version)"
+          jq -e --arg php "^$php_version" '.require.php == $php' composer.json
+          grep -Fqx "ARG PHP_VERSION=$php_version" .docker/php/Dockerfile
           docker run --rm \
             -v "${GITHUB_WORKSPACE}:/code:ro" \
-            -w /code php:8.4-cli \
+            -w /code "php:${php_version}-cli" \
             sh -c 'find bin config migrations public src tests -type f -name "*.php" -print0 | xargs -0 -r -n1 php -l'
 
   summary:

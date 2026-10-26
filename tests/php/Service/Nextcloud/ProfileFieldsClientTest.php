@@ -452,7 +452,7 @@ final class ProfileFieldsClientTest extends TestCase
 
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('Identificador fiscal divergente');
-        (new ProfileFieldsClient($http, new NullLogger()))->enrichUser([
+        new ProfileFieldsClient($http, new NullLogger())->enrichUser([
             'tax_number' => '11122233344',
             'kimai_username' => 'cooperado-a',
         ]);

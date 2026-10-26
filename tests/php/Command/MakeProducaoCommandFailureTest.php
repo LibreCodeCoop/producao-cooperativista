@@ -82,7 +82,11 @@ final class MakeProducaoCommandFailureTest extends TestCase
 
     public function testFebruaryStartsOnFirstDayIndependentlyOfCurrentDay(): void
     {
-        [$production, $movements, $logger] = $this->dependencies();
+        // This scenario checks the selected month, not the publication path.
+        $production = $this->createStub(ProducaoCooperativista::class);
+        $production->dates = $this->createMock(Dates::class);
+        $movements = $this->createStub(Movimentacao::class);
+        $logger = $this->createStub(LoggerInterface::class);
         $production->dates->expects($this->once())
             ->method('setInicio')
             ->with($this->callback(
@@ -106,12 +110,8 @@ final class MakeProducaoCommandFailureTest extends TestCase
             ->disableOriginalConstructor()
             ->onlyMethods(['loadFromExternalSources', 'getProducaoCooperativista', 'updateProducao'])
             ->getMock();
-        $production->dates = $this->createMock(Dates::class);
-
-        $movements = $this->getMockBuilder(Movimentacao::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['setPercentualMaximo'])
-            ->getMock();
+        $production->dates = $this->createStub(Dates::class);
+        $movements = $this->createStub(Movimentacao::class);
 
         return [$production, $movements, $this->createMock(LoggerInterface::class)];
     }

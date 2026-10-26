@@ -45,11 +45,11 @@ class User
     #[ORM\Column(length: 180, unique: true)]
     private string $kimaiUsername;
     #[ORM\Column(nullable: true, type: Types::BIGINT)]
-    private ?int $akauntingContactId;
+    private ?int $akauntingContactId = null;
     #[ORM\Column(nullable: true, length: 20)]
-    private ?string $taxNumber;
+    private ?string $taxNumber = null;
     #[ORM\Column(nullable: true, type: Types::FLOAT)]
-    private ?float $peso;
+    private ?float $peso = null;
     #[ORM\Column(type: Types::SMALLINT)]
     private int $dependents;
     #[ORM\Column(type: Types::SMALLINT)]

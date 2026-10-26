@@ -38,8 +38,8 @@ use Tests\Php\TestCase;
 
 final class MovimentacaoTest extends TestCase
 {
-    private const LEGACY_COOPERADO_CATEGORY_ID = 9102;
-    private const CLIENT_EXPENSE_CATEGORY_ID = 9201;
+    private const int LEGACY_COOPERADO_CATEGORY_ID = 9102;
+    private const int CLIENT_EXPENSE_CATEGORY_ID = 9201;
 
     private EntityManagerInterface $entityManager;
     private Dates $dates;

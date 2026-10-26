@@ -22,7 +22,7 @@ use RuntimeException;
 final class StagingDatabaseResetter
 {
     /** @var list<string> */
-    private const STAGING_TABLES = [
+    private const array STAGING_TABLES = [
         'timesheet',
         'transactions',
         'invoices',

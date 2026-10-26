@@ -13,7 +13,7 @@ use RuntimeException;
 
 final class StagingDatabaseResetterTest extends TestCase
 {
-    private const TABLES = [
+    private const array TABLES = [
         'timesheet', 'transactions', 'invoices', 'nfse', 'taxes',
         'categories', 'users', 'projects', 'customers',
     ];
@@ -28,10 +28,10 @@ final class StagingDatabaseResetterTest extends TestCase
         putenv('PRODUCAO_STAGING_DATABASE=etl_test');
 
         $main = $this->createMock(Connection::class);
-        $financial = $this->createMock(Connection::class);
+        $financial = $this->createStub(Connection::class);
         $main->method('getDatabase')->willReturn('etl_test');
         $financial->method('getDatabase')->willReturn('akaunting');
-        $schema = $this->createMock(AbstractSchemaManager::class);
+        $schema = $this->createStub(AbstractSchemaManager::class);
         $schema->method('listTableNames')->willReturn([...self::TABLES, 'doctrine_migration_versions', 'some_unrelated_table']);
         $main->method('createSchemaManager')->willReturn($schema);
 
@@ -50,7 +50,7 @@ final class StagingDatabaseResetterTest extends TestCase
 
         $manager = $this->createMock(EntityManagerInterface::class);
         $manager->expects($this->once())->method('clear');
-        $result = (new StagingDatabaseResetter($main, $financial, $manager))->reset();
+        $result = new StagingDatabaseResetter($main, $financial, $manager)->reset();
 
         self::assertCount(9, $result);
         self::assertSame(18, array_sum($result));
@@ -70,16 +70,16 @@ final class StagingDatabaseResetterTest extends TestCase
         ] as [$expected, $actual, $financialName]) {
             putenv('PRODUCAO_STAGING_DATABASE=' . $expected);
             $main = $this->createMock(Connection::class);
-            $financial = $this->createMock(Connection::class);
+            $financial = $this->createStub(Connection::class);
             $main->method('getDatabase')->willReturn($actual);
             $financial->method('getDatabase')->willReturn($financialName);
             $main->expects($this->never())->method('executeStatement');
             try {
-                (new StagingDatabaseResetter(
+                new StagingDatabaseResetter(
                     $main,
                     $financial,
-                    $this->createMock(EntityManagerInterface::class)
-                ))->reset();
+                    $this->createStub(EntityManagerInterface::class)
+                )->reset();
                 self::fail('Dangerous target was accepted.');
             } catch (RuntimeException $e) {
                 self::assertNotEmpty($e->getMessage());
@@ -91,20 +91,20 @@ final class StagingDatabaseResetterTest extends TestCase
     {
         putenv('PRODUCAO_STAGING_DATABASE=etl_test');
         $main = $this->createMock(Connection::class);
-        $financial = $this->createMock(Connection::class);
+        $financial = $this->createStub(Connection::class);
         $main->method('getDatabase')->willReturn('etl_test');
         $financial->method('getDatabase')->willReturn('akaunting');
-        $schema = $this->createMock(AbstractSchemaManager::class);
+        $schema = $this->createStub(AbstractSchemaManager::class);
         $schema->method('listTableNames')->willReturn(['transactions']);
         $main->method('createSchemaManager')->willReturn($schema);
         $main->expects($this->never())->method('executeStatement');
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('esquema de transformação está incompleto');
-        (new StagingDatabaseResetter(
+        new StagingDatabaseResetter(
             $main,
             $financial,
-            $this->createMock(EntityManagerInterface::class)
-        ))->reset();
+            $this->createStub(EntityManagerInterface::class)
+        )->reset();
     }
 }

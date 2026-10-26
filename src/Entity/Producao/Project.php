@@ -47,19 +47,19 @@ class Project
     #[ORM\Column(length: 150)]
     private string $name;
     #[ORM\Column(nullable: true)]
-    private ?\DateTime $start;
+    private ?\DateTime $start = null;
     #[ORM\Column(nullable: true)]
-    private ?\DateTime $end;
+    private ?\DateTime $end = null;
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    private ?string $comment;
+    private ?string $comment = null;
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $visible;
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $billable;
     #[ORM\Column(nullable: true, length: 7)]
-    private ?string $color;
+    private ?string $color = null;
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $globalActivities;
     #[ORM\Column(type: Types::BIGINT)]
-    private ?int $timeBudget;
+    private ?int $timeBudget = null;
 }

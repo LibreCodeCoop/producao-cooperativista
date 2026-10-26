@@ -15,14 +15,14 @@ final class CooperadoContactRegistryTest extends TestCase
 {
     public function testReusesExistingContactOnRerun(): void
     {
-        $conn = $this->createMock(Connection::class);
+        $conn = $this->createStub(Connection::class);
         $conn->method('fetchOne')->willReturn(73);
         $manager = $this->createMock(EntityManagerInterface::class);
         $manager->method('getConnection')->willReturn($conn);
         $manager->expects($this->never())->method('persist');
         $manager->expects($this->never())->method('flush');
 
-        self::assertSame(73, (new CooperadoContactRegistry($manager))->getOrCreate(
+        self::assertSame(73, new CooperadoContactRegistry($manager)->getOrCreate(
             'Cooperado',
             '00011122233',
             1,
@@ -32,7 +32,7 @@ final class CooperadoContactRegistryTest extends TestCase
 
     public function testMissingContactIsPersistedOnceWithCorrectTypes(): void
     {
-        $conn = $this->createMock(Connection::class);
+        $conn = $this->createStub(Connection::class);
         $conn->method('fetchOne')->willReturn(false);
         $manager = $this->createMock(EntityManagerInterface::class);
         $manager->method('getConnection')->willReturn($conn);
@@ -43,7 +43,7 @@ final class CooperadoContactRegistryTest extends TestCase
         });
         $manager->expects($this->once())->method('flush');
 
-        self::assertSame(74, (new CooperadoContactRegistry($manager))->getOrCreate(
+        self::assertSame(74, new CooperadoContactRegistry($manager)->getOrCreate(
             'Cooperado',
             '00011122233',
             1,

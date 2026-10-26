@@ -186,7 +186,7 @@ class Users
 
     private function convertFields(array $row): array
     {
-        $row['akaunting_contact_id'] = $row['akaunting_contact_id'] ?? null;
+        $row['akaunting_contact_id'] ??= null;
         $row['metadata'] = $row;
         return $row;
     }

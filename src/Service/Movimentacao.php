@@ -277,7 +277,7 @@ class Movimentacao
             return $this->customerReferenceRequiredCategories;
         }
 
-        $this->customerReferenceRequiredCategories = array_map('intval', array_values(array_unique(array_merge(
+        $this->customerReferenceRequiredCategories = array_map(intval(...), array_values(array_unique(array_merge(
             $this->categories->getChildrensCategories((int) getenv('AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID')),
             $this->categories->getChildrensCategories((int) getenv('AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID')),
         ))));

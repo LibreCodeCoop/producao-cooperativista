@@ -263,7 +263,7 @@ class Nfse
         try {
             $crawler = $client->request('GET', 'https://' . $this->prefeituras[$this->prefeitura]['host'] . '/NFSE/contribuinte/Consulta.aspx');
             $inscricao = $crawler->filter('#ctl00_cphCabMenu_ddlContribuinte option[selected=selected]')->attr('value');
-        } catch (\Throwable $th) {
+        } catch (\Throwable) {
             $this->doLogin();
             $this->getData();
             return [];
@@ -331,7 +331,7 @@ class Nfse
 
         $fp = fopen('data://text/plain,' . $text, 'r');
         $rows = [];
-        while (($data = fgetcsv($fp, 10000, ';')) !== false) {
+        while (($data = fgetcsv($fp, 10000, ';', escape: '\\')) !== false) {
             $rows[] = $data;
         }
         $header = array_shift($rows);

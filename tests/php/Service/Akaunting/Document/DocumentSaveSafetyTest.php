@@ -43,7 +43,7 @@ final class DocumentSaveSafetyTest extends TestCase
 
     public function testEmptyCreateResponseDoesNotClaimSuccess(): void
     {
-        $request = $this->getMockBuilder(Request::class)->disableOriginalConstructor()->onlyMethods(['send', 'handleError'])->getMock();
+        $request = $this->createStub(Request::class);
         $request->method('send')->willReturn(['message' => 'ok']);
 
         $this->expectException(RuntimeException::class);
@@ -53,9 +53,9 @@ final class DocumentSaveSafetyTest extends TestCase
 
     private function document(Request $request): ADocument
     {
-        $manager = $this->createMock(EntityManagerInterface::class);
-        $dates = $this->getMockBuilder(Dates::class)->disableOriginalConstructor()->getMock();
-        $documents = $this->getMockBuilder(Documents::class)->disableOriginalConstructor()->getMock();
+        $manager = $this->createStub(EntityManagerInterface::class);
+        $dates = $this->createStub(Dates::class);
+        $documents = $this->createStub(Documents::class);
 
         return new class ($manager, $dates, $documents, $request, new DocumentConfiguration()) extends ADocument {
             protected function setUp(): self

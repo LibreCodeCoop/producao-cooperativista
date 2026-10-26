@@ -51,25 +51,25 @@ class Invoice
     #[ORM\Column]
     private float $amount;
     #[ORM\Column(nullable: true)]
-    private ?float $discountPercentage;
+    private ?float $discountPercentage = null;
     #[ORM\Column(length: 14)]
     private string $currencyCode;
     #[ORM\Column]
     private string $documentNumber;
     #[ORM\Column(nullable: true, type: Types::BIGINT, options: ['unsigned' => true])]
-    private ?int $nfse;
+    private ?int $nfse = null;
     #[ORM\Column(nullable: true)]
-    private ?string $taxNumber;
+    private ?string $taxNumber = null;
     #[ORM\Column(nullable: true, length: 255)]
-    private ?string $customerReference;
+    private ?string $customerReference = null;
     #[ORM\Column(type: Types::BIGINT)]
     private int $contactId;
     #[ORM\Column(nullable: true, length: 255)]
-    private ?string $contactReference;
+    private ?string $contactReference = null;
     #[ORM\Column]
     private string $contactName;
     #[ORM\Column(length: 191, nullable: true)]
-    private ?string $contactType;
+    private ?string $contactType = null;
     #[ORM\Column(type: Types::BIGINT)]
     private int $categoryId;
     #[ORM\Column]

@@ -32,6 +32,7 @@ use UnexpectedValueException;
 
 class ProducaoCooperativista extends ADocument
 {
+    #[\Override]
     protected string $whoami = 'PDC';
 
     /**
@@ -104,7 +105,7 @@ class ProducaoCooperativista extends ADocument
     {
         try {
             $this->getDueAt();
-        } catch (UnexpectedValueException $e) {
+        } catch (UnexpectedValueException) {
             $this->changeDueAt($this->dates->getDataPagamento());
         }
         return parent::setUp();
@@ -215,7 +216,7 @@ class ProducaoCooperativista extends ADocument
         }
 
         $categoryIds = $this->getDescendantCategoryIds($liquidDiscountParentId);
-        $categoryIds = array_map('intval', $categoryIds);
+        $categoryIds = array_map(intval(...), $categoryIds);
         $categoryIds = array_filter($categoryIds, fn (int $id): bool => $id > 0);
         return array_values(array_unique($categoryIds));
     }
@@ -405,7 +406,7 @@ class ProducaoCooperativista extends ADocument
         }
 
         $parts = array_values(array_filter(
-            array_map('trim', explode('>', $discount['category_name'])),
+            array_map(trim(...), explode('>', $discount['category_name'])),
             fn (string $part): bool => $part !== ''
         ));
         $itemName = array_pop($parts);

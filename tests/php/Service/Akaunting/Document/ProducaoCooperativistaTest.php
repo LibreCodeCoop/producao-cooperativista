@@ -41,14 +41,14 @@ use Tests\Php\TestCase;
 
 final class ProducaoCooperativistaTest extends TestCase
 {
-    private const COOPERADO_NOME = 'Cooperado Exemplo';
-    private const COOPERADO_CPF = '00011122233';
-    private const PLANO_DE_SAUDE_CATEGORY_ID = 9101;
-    private const PLANO_DE_SAUDE_LEGADO_CATEGORY_ID = 9102;
-    private const VALOR_BENEFICIO_SECUNDARIO = 12.34;
-    private const VALOR_BENEFICIO_PRINCIPAL = 56.78;
-    private const VALOR_TELEFONIA = 7.89;
-    private const TELEFONIA_CATEGORY_ID = 9100;
+    private const string COOPERADO_NOME = 'Cooperado Exemplo';
+    private const string COOPERADO_CPF = '00011122233';
+    private const int PLANO_DE_SAUDE_CATEGORY_ID = 9101;
+    private const int PLANO_DE_SAUDE_LEGADO_CATEGORY_ID = 9102;
+    private const float VALOR_BENEFICIO_SECUNDARIO = 12.34;
+    private const float VALOR_BENEFICIO_PRINCIPAL = 56.78;
+    private const float VALOR_TELEFONIA = 7.89;
+    private const int TELEFONIA_CATEGORY_ID = 9100;
 
     private EntityManagerInterface $entityManager;
     private Dates $dates;

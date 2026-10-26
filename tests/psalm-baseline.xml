@@ -1,3 +1,636 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<files psalm-version="5.24.0@462c80e31c34e58cc4f750c656be3927e80e550e">
+<files psalm-version="6.20.1@376425b8e67b79773add388e16b4f6be5693dc87">
+  <file src="src/Command/AbstractBaseCommand.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function configure(): void]]></code>
+    </MissingOverrideAttribute>
+  </file>
+  <file src="src/Command/GetCategoriesCommand.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function configure(): void]]></code>
+      <code><![CDATA[public function execute(InputInterface $input, OutputInterface $output): int]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[GetCategoriesCommand]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Command/GetCustomersCommand.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function execute(InputInterface $input, OutputInterface $output): int]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[GetCustomersCommand]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Command/GetInvoicesCommand.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function configure(): void]]></code>
+      <code><![CDATA[public function execute(InputInterface $input, OutputInterface $output): int]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[GetInvoicesCommand]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Command/GetNfseCommand.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function configure(): void]]></code>
+      <code><![CDATA[public function execute(InputInterface $input, OutputInterface $output): int]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[GetNfseCommand]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Command/GetProjectsCommand.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function execute(InputInterface $input, OutputInterface $output): int]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[GetProjectsCommand]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Command/GetTaxesCommand.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function configure(): void]]></code>
+      <code><![CDATA[public function execute(InputInterface $input, OutputInterface $output): int]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[GetTaxesCommand]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Command/GetTimesheetsCommand.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function configure(): void]]></code>
+      <code><![CDATA[public function execute(InputInterface $input, OutputInterface $output): int]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[GetTimesheetsCommand]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Command/GetTransactionsCommand.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function configure(): void]]></code>
+      <code><![CDATA[public function execute(InputInterface $input, OutputInterface $output): int]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[GetTransactionsCommand]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Command/GetUsersCommand.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function configure(): void]]></code>
+      <code><![CDATA[public function execute(InputInterface $input, OutputInterface $output): int]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[GetUsersCommand]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Command/MakeProducaoCommand.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function configure(): void]]></code>
+      <code><![CDATA[public function execute(InputInterface $input, OutputInterface $output): int]]></code>
+    </MissingOverrideAttribute>
+    <UnusedClass>
+      <code><![CDATA[MakeProducaoCommand]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/Acoes.php">
+    <UnusedClass>
+      <code><![CDATA[Acoes]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/Api/Calculos.php">
+    <UnusedClass>
+      <code><![CDATA[Calculos]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/Api/CapitalSocial.php">
+    <UnusedClass>
+      <code><![CDATA[CapitalSocial]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/Api/CapitalSocialSummarized.php">
+    <UnusedClass>
+      <code><![CDATA[CapitalSocialSummarized]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/Api/Categorias.php">
+    <UnusedClass>
+      <code><![CDATA[Categorias]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/Api/Invoices.php">
+    <UnusedClass>
+      <code><![CDATA[Invoices]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/Api/Producao.php">
+    <UnusedClass>
+      <code><![CDATA[Producao]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/Api/TrabalhadoSummarized.php">
+    <UnusedClass>
+      <code><![CDATA[TrabalhadoSummarized]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/Calculos.php">
+    <UnusedClass>
+      <code><![CDATA[Calculos]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/CapitalSocial.php">
+    <UnusedClass>
+      <code><![CDATA[CapitalSocial]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/CapitalSocialSummarized.php">
+    <UnevaluatedCode>
+      <code><![CDATA[return $response;]]></code>
+    </UnevaluatedCode>
+    <UnusedClass>
+      <code><![CDATA[CapitalSocialSummarized]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/Categorias.php">
+    <UnusedClass>
+      <code><![CDATA[Categorias]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/Index.php">
+    <UnusedClass>
+      <code><![CDATA[Index]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/Invoices.php">
+    <UnevaluatedCode>
+      <code><![CDATA[return $response;]]></code>
+    </UnevaluatedCode>
+    <UnusedClass>
+      <code><![CDATA[Invoices]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/Producao.php">
+    <UnevaluatedCode>
+      <code><![CDATA[return $response;]]></code>
+    </UnevaluatedCode>
+    <UnusedClass>
+      <code><![CDATA[Producao]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Controller/TrabalhadoSummarized.php">
+    <UnevaluatedCode>
+      <code><![CDATA[return $response;]]></code>
+    </UnevaluatedCode>
+    <UnusedClass>
+      <code><![CDATA[TrabalhadoSummarized]]></code>
+    </UnusedClass>
+  </file>
+  <file src="src/Entity/Akaunting/Contacts.php">
+    <UnusedProperty>
+      <code><![CDATA[$companyId]]></code>
+      <code><![CDATA[$country]]></code>
+      <code><![CDATA[$createdAt]]></code>
+      <code><![CDATA[$currencyCode]]></code>
+      <code><![CDATA[$enabled]]></code>
+      <code><![CDATA[$id]]></code>
+      <code><![CDATA[$name]]></code>
+      <code><![CDATA[$taxNumber]]></code>
+      <code><![CDATA[$type]]></code>
+      <code><![CDATA[$updatedAt]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Entity/Producao/Category.php">
+    <UnusedProperty>
+      <code><![CDATA[$enabled]]></code>
+      <code><![CDATA[$id]]></code>
+      <code><![CDATA[$metadata]]></code>
+      <code><![CDATA[$name]]></code>
+      <code><![CDATA[$parentId]]></code>
+      <code><![CDATA[$type]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Entity/Producao/Customer.php">
+    <UnusedProperty>
+      <code><![CDATA[$billable]]></code>
+      <code><![CDATA[$color]]></code>
+      <code><![CDATA[$comment]]></code>
+      <code><![CDATA[$currency]]></code>
+      <code><![CDATA[$id]]></code>
+      <code><![CDATA[$name]]></code>
+      <code><![CDATA[$number]]></code>
+      <code><![CDATA[$timeBudget]]></code>
+      <code><![CDATA[$vatId]]></code>
+      <code><![CDATA[$visible]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Entity/Producao/Invoice.php">
+    <UnusedProperty>
+      <code><![CDATA[$amount]]></code>
+      <code><![CDATA[$archive]]></code>
+      <code><![CDATA[$categoryId]]></code>
+      <code><![CDATA[$categoryName]]></code>
+      <code><![CDATA[$categoryType]]></code>
+      <code><![CDATA[$contactId]]></code>
+      <code><![CDATA[$contactName]]></code>
+      <code><![CDATA[$contactReference]]></code>
+      <code><![CDATA[$contactType]]></code>
+      <code><![CDATA[$currencyCode]]></code>
+      <code><![CDATA[$customerReference]]></code>
+      <code><![CDATA[$discountPercentage]]></code>
+      <code><![CDATA[$documentNumber]]></code>
+      <code><![CDATA[$dueAt]]></code>
+      <code><![CDATA[$id]]></code>
+      <code><![CDATA[$issuedAt]]></code>
+      <code><![CDATA[$metadata]]></code>
+      <code><![CDATA[$nfse]]></code>
+      <code><![CDATA[$taxNumber]]></code>
+      <code><![CDATA[$transactionOfMonth]]></code>
+      <code><![CDATA[$type]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Entity/Producao/Nfse.php">
+    <UnusedProperty>
+      <code><![CDATA[$cnpj]]></code>
+      <code><![CDATA[$codigoCliente]]></code>
+      <code><![CDATA[$dataEmissao]]></code>
+      <code><![CDATA[$discriminacaoNormalizada]]></code>
+      <code><![CDATA[$id]]></code>
+      <code><![CDATA[$metadata]]></code>
+      <code><![CDATA[$numero]]></code>
+      <code><![CDATA[$numeroSubstituta]]></code>
+      <code><![CDATA[$razaoSocial]]></code>
+      <code><![CDATA[$setor]]></code>
+      <code><![CDATA[$valorCofins]]></code>
+      <code><![CDATA[$valorIr]]></code>
+      <code><![CDATA[$valorIss]]></code>
+      <code><![CDATA[$valorPis]]></code>
+      <code><![CDATA[$valorServico]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Entity/Producao/Project.php">
+    <UnusedProperty>
+      <code><![CDATA[$billable]]></code>
+      <code><![CDATA[$color]]></code>
+      <code><![CDATA[$comment]]></code>
+      <code><![CDATA[$customerId]]></code>
+      <code><![CDATA[$end]]></code>
+      <code><![CDATA[$globalActivities]]></code>
+      <code><![CDATA[$id]]></code>
+      <code><![CDATA[$name]]></code>
+      <code><![CDATA[$parentTitle]]></code>
+      <code><![CDATA[$start]]></code>
+      <code><![CDATA[$timeBudget]]></code>
+      <code><![CDATA[$visible]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Entity/Producao/Tax.php">
+    <UnusedProperty>
+      <code><![CDATA[$enabled]]></code>
+      <code><![CDATA[$id]]></code>
+      <code><![CDATA[$metadata]]></code>
+      <code><![CDATA[$name]]></code>
+      <code><![CDATA[$rate]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Entity/Producao/Timesheet.php">
+    <UnusedProperty>
+      <code><![CDATA[$activityId]]></code>
+      <code><![CDATA[$begin]]></code>
+      <code><![CDATA[$billable]]></code>
+      <code><![CDATA[$description]]></code>
+      <code><![CDATA[$duration]]></code>
+      <code><![CDATA[$end]]></code>
+      <code><![CDATA[$exported]]></code>
+      <code><![CDATA[$id]]></code>
+      <code><![CDATA[$internalRate]]></code>
+      <code><![CDATA[$projectId]]></code>
+      <code><![CDATA[$rate]]></code>
+      <code><![CDATA[$userId]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Entity/Producao/Transaction.php">
+    <UnusedProperty>
+      <code><![CDATA[$amount]]></code>
+      <code><![CDATA[$archive]]></code>
+      <code><![CDATA[$categoryId]]></code>
+      <code><![CDATA[$categoryName]]></code>
+      <code><![CDATA[$categoryType]]></code>
+      <code><![CDATA[$contactId]]></code>
+      <code><![CDATA[$contactName]]></code>
+      <code><![CDATA[$contactReference]]></code>
+      <code><![CDATA[$contactType]]></code>
+      <code><![CDATA[$currencyCode]]></code>
+      <code><![CDATA[$customerReference]]></code>
+      <code><![CDATA[$discountPercentage]]></code>
+      <code><![CDATA[$id]]></code>
+      <code><![CDATA[$metadata]]></code>
+      <code><![CDATA[$nfse]]></code>
+      <code><![CDATA[$paidAt]]></code>
+      <code><![CDATA[$reference]]></code>
+      <code><![CDATA[$taxNumber]]></code>
+      <code><![CDATA[$transactionOfMonth]]></code>
+      <code><![CDATA[$type]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Entity/Producao/User.php">
+    <UnusedProperty>
+      <code><![CDATA[$akauntingContactId]]></code>
+      <code><![CDATA[$alias]]></code>
+      <code><![CDATA[$dependents]]></code>
+      <code><![CDATA[$enabled]]></code>
+      <code><![CDATA[$id]]></code>
+      <code><![CDATA[$kimaiUsername]]></code>
+      <code><![CDATA[$metadata]]></code>
+      <code><![CDATA[$peso]]></code>
+      <code><![CDATA[$taxNumber]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Helper/ArrayValue.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[public function __toString(): string]]></code>
+    </MissingOverrideAttribute>
+  </file>
+  <file src="src/Helper/Dates.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$fim]]></code>
+      <code><![CDATA[$fimProximoMes]]></code>
+      <code><![CDATA[$locationHolydays]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Helper/EntityArrayMapperTrait.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[toArray]]></code>
+      <code><![CDATA[toArray]]></code>
+      <code><![CDATA[toArray]]></code>
+      <code><![CDATA[toArray]]></code>
+      <code><![CDATA[toArray]]></code>
+      <code><![CDATA[toArray]]></code>
+      <code><![CDATA[toArray]]></code>
+      <code><![CDATA[toArray]]></code>
+      <code><![CDATA[toArray]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Helper/SseEventMessage.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[fromLogRecord]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Helper/SseLogHandler.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function write(LogRecord $record): void]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+    <PossiblyUnusedProperty>
+      <code><![CDATA[$processor]]></code>
+    </PossiblyUnusedProperty>
+  </file>
+  <file src="src/Provider/Akaunting/Dataset.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Provider/Akaunting/Request.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Service/Akaunting/CooperadoContactRegistry.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Service/Akaunting/Document/ADocument.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[getItemsIds]]></code>
+    </PossiblyUnusedMethod>
+    <PossiblyUnusedProperty>
+      <code><![CDATA[$amount]]></code>
+      <code><![CDATA[$anoFiscal]]></code>
+      <code><![CDATA[$categoryId]]></code>
+      <code><![CDATA[$contactId]]></code>
+      <code><![CDATA[$contactName]]></code>
+      <code><![CDATA[$contactTaxNumber]]></code>
+      <code><![CDATA[$cooperado]]></code>
+      <code><![CDATA[$currencyCode]]></code>
+      <code><![CDATA[$currencyRate]]></code>
+      <code><![CDATA[$id]]></code>
+      <code><![CDATA[$issuedAt]]></code>
+      <code><![CDATA[$mes]]></code>
+      <code><![CDATA[$status]]></code>
+    </PossiblyUnusedProperty>
+  </file>
+  <file src="src/Service/Akaunting/Document/FRRA.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function getDocumentNumber(): string]]></code>
+      <code><![CDATA[protected function setUp(): self]]></code>
+      <code><![CDATA[public function save(): self]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedReturnValue>
+      <code><![CDATA[self]]></code>
+    </PossiblyUnusedReturnValue>
+  </file>
+  <file src="src/Service/Akaunting/Document/ProducaoCooperativista.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function getDocumentNumber(): string]]></code>
+      <code><![CDATA[protected function setUp(): self]]></code>
+      <code><![CDATA[public function save(): self]]></code>
+    </MissingOverrideAttribute>
+  </file>
+  <file src="src/Service/Akaunting/Document/Taxes/Cofins.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function setUp(): self]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedReturnValue>
+      <code><![CDATA[self]]></code>
+    </PossiblyUnusedReturnValue>
+  </file>
+  <file src="src/Service/Akaunting/Document/Taxes/InssIrpf.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function setUp(): self]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedReturnValue>
+      <code><![CDATA[self]]></code>
+    </PossiblyUnusedReturnValue>
+  </file>
+  <file src="src/Service/Akaunting/Document/Taxes/IrpfRetidoNaNota.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function setUp(): self]]></code>
+      <code><![CDATA[public function saveMonthTaxes(): self]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedReturnValue>
+      <code><![CDATA[self]]></code>
+    </PossiblyUnusedReturnValue>
+  </file>
+  <file src="src/Service/Akaunting/Document/Taxes/Iss.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function setUp(): self]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedReturnValue>
+      <code><![CDATA[self]]></code>
+    </PossiblyUnusedReturnValue>
+  </file>
+  <file src="src/Service/Akaunting/Document/Taxes/Pis.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function setUp(): self]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedReturnValue>
+      <code><![CDATA[self]]></code>
+    </PossiblyUnusedReturnValue>
+  </file>
+  <file src="src/Service/Akaunting/Document/Taxes/Tax.php">
+    <MissingOverrideAttribute>
+      <code><![CDATA[protected function setUp(): self]]></code>
+      <code><![CDATA[public function save(): self]]></code>
+    </MissingOverrideAttribute>
+    <PossiblyUnusedMethod>
+      <code><![CDATA[getTaxData]]></code>
+    </PossiblyUnusedMethod>
+    <PossiblyUnusedProperty>
+      <code><![CDATA[$totalBrutoNotasClientes]]></code>
+    </PossiblyUnusedProperty>
+  </file>
+  <file src="src/Service/Akaunting/Document/Values.php">
+    <UnusedProperty>
+      <code><![CDATA[$adiantamento]]></code>
+      <code><![CDATA[$auxilio]]></code>
+      <code><![CDATA[$baseIrpf]]></code>
+      <code><![CDATA[$bruto]]></code>
+      <code><![CDATA[$documentNumber]]></code>
+      <code><![CDATA[$frra]]></code>
+      <code><![CDATA[$frraDocumentNumber]]></code>
+      <code><![CDATA[$inss]]></code>
+      <code><![CDATA[$irpf]]></code>
+      <code><![CDATA[$liquidDiscount]]></code>
+      <code><![CDATA[$liquido]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Service/Akaunting/Source/Categories.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[saveRow]]></code>
+    </PossiblyUnusedMethod>
+    <PossiblyUnusedReturnValue>
+      <code><![CDATA[Category[]]]></code>
+    </PossiblyUnusedReturnValue>
+    <UnusedProperty>
+      <code><![CDATA[$companyId]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Service/Akaunting/Source/Documents.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$companyId]]></code>
+      <code><![CDATA[$type]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Service/Akaunting/Source/Taxes.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[saveRow]]></code>
+    </PossiblyUnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$companyId]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Service/Akaunting/Source/Transactions.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[saveRow]]></code>
+    </PossiblyUnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$categoryId]]></code>
+      <code><![CDATA[$companyId]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Service/Calculation/ApiProblemResponder.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Service/Calculation/CalculationActionGuard.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Service/Calculation/CalculationExecutionLock.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Service/Cooperado.php">
+    <UnusedProperty>
+      <code><![CDATA[$akauntingContactId]]></code>
+      <code><![CDATA[$dependentes]]></code>
+      <code><![CDATA[$name]]></code>
+      <code><![CDATA[$pesoFinal]]></code>
+      <code><![CDATA[$taxNumber]]></code>
+      <code><![CDATA[$trabalhado]]></code>
+      <code><![CDATA[$weight]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Service/Import/KimaiDetailsLoader.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Service/Import/StagingDatabaseResetter.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Service/Kimai/Source/Customers.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Service/Kimai/Source/Projects.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Service/Kimai/Source/Timesheets.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Service/Kimai/Source/Users.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[saveRow]]></code>
+    </PossiblyUnusedMethod>
+    <UnusedDocblockParam>
+      <code><![CDATA[$visible]]></code>
+    </UnusedDocblockParam>
+  </file>
+  <file src="src/Service/Movimentacao.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+      <code><![CDATA[setMovimentacao]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Service/Nextcloud/ProfileFieldsClient.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+    <UnusedProperty>
+      <code><![CDATA[$logger]]></code>
+    </UnusedProperty>
+  </file>
+  <file src="src/Service/ProducaoCooperativista.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+  </file>
+  <file src="src/Service/Source/Nfse.php">
+    <PossiblyUnusedMethod>
+      <code><![CDATA[__construct]]></code>
+    </PossiblyUnusedMethod>
+  </file>
 </files>

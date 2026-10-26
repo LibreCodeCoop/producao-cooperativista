@@ -13,7 +13,7 @@ final class CalculationExecutionLockTest extends TestCase
 {
     public function testConcurrentExecutionIsRejectedAndLockCanBeReused(): void
     {
-        $kernel = $this->createMock(KernelInterface::class);
+        $kernel = $this->createStub(KernelInterface::class);
         $kernel->method('getProjectDir')->willReturn(dirname(__DIR__, 4));
 
         $first = new CalculationExecutionLock($kernel);

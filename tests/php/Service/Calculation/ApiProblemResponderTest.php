@@ -18,7 +18,7 @@ final class ApiProblemResponderTest extends TestCase
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects($this->once())->method('error');
 
-        $response = (new ApiProblemResponder($logger))->fromThrowable(
+        $response = new ApiProblemResponder($logger)->fromThrowable(
             new DomainException('Código de cliente inválido, CPF 11122233344, senha secreto-123'),
             'producao'
         );
@@ -34,7 +34,7 @@ final class ApiProblemResponderTest extends TestCase
 
     public function testExternalFailureIsNotIncorrectlyReportedAsForbidden(): void
     {
-        $response = (new ApiProblemResponder($this->createMock(LoggerInterface::class)))
+        $response = new ApiProblemResponder($this->createStub(LoggerInterface::class))
             ->fromThrowable(new RuntimeException('Could not resolve host: akaunting.nginx'), 'calculos');
 
         self::assertSame(Response::HTTP_SERVICE_UNAVAILABLE, $response->getStatusCode());

@@ -51,7 +51,7 @@ final class NfseSaveListTest extends TestCase
     private function source(EntityManagerInterface $manager): Nfse
     {
         $source = new Nfse($manager, new NullLogger(), new ExistingEntityIndex(), new BatchPersistence());
-        (new \ReflectionProperty(Nfse::class, 'prefeitura'))->setValue($source, 'niteroi');
+        new \ReflectionProperty(Nfse::class, 'prefeitura')->setValue($source, 'niteroi');
         return $source;
     }
 

@@ -33,9 +33,11 @@ use App\Service\Akaunting\Document\ADocument;
 
 class Tax extends ADocument
 {
+    #[\Override]
     protected string $whoami = 'TAX';
     protected string $readableName = 'Tax';
     protected int $quantity = 1;
+    #[\Override]
     protected string $type = 'bill';
     protected float $totalBrutoNotasClientes;
 

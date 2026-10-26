@@ -30,6 +30,7 @@ use UnexpectedValueException;
 
 class FRRA extends ProducaoCooperativista
 {
+    #[\Override]
     protected string $whoami = 'PDC';
 
     protected function setUp(): self
@@ -37,7 +38,7 @@ class FRRA extends ProducaoCooperativista
         $this->getValues()->setLockFrra(true);
         try {
             $this->getDueAt();
-        } catch (UnexpectedValueException $e) {
+        } catch (UnexpectedValueException) {
             $this->changeDueAt($this->dates->getPrevisaoPagamentoFrra());
         }
         return parent::setUp();

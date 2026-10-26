@@ -194,3 +194,11 @@ Tudo (ou quase tudo) o que é feito fica registrado em log e pode ser monitorado
 ```bash
 tail -f logs/system.log
 ```
+
+### Requisitos e qualidade
+
+- **PHP:** versão suportada declarada em `.php-version`, no Composer e verificada nos workflows. O Docker utiliza a mesma versão.
+- **Node.js:** versão de execução de testes declarada em `.nvmrc`. O frontend usa JavaScript nativo, sem dependências npm instaladas.
+- **Dependências:** `composer update -W` no backend, com ferramentas de desenvolvimento isoladas em `vendor-bin`.
+- **Modernização de PHP:** `composer run rector:check` verifica as refatorações, e `composer run rector:fix` aplica as alterações.
+- **Verificação:** `composer run test:unit`, `composer run cs:check` e `composer run psalm`. Os testes de JavaScript usam `node --test tests/js/production-progress.test.cjs`.

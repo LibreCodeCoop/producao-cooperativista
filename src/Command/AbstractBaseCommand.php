@@ -56,16 +56,14 @@ abstract class AbstractBaseCommand extends Command
         }
 
         $header = array_keys(current($data));
-        $header = array_filter($header, function ($value) use ($removeColumns) {
-            return !in_array($value, $removeColumns);
-        });
-        fputcsv($csv, $header);
+        $header = array_filter($header, fn ($value) => !in_array($value, $removeColumns));
+        fputcsv($csv, $header, escape: '\\');
         foreach ($data as $row) {
             foreach ($removeColumns as $toRemove) {
                 unset($row[$toRemove]);
             }
             unset($row['metaFields'], $row['teams']);
-            fputcsv($csv, $row);
+            fputcsv($csv, $row, escape: '\\');
         }
         rewind($csv);
         return (string) stream_get_contents($csv);

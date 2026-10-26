@@ -57,7 +57,7 @@ class Dates
         private int $pagamentoFrraMesPadrao = 12,
         private DateTime $now = new DateTime(),
     ) {
-        BusinessDay::enable('Carbon\Carbon', $this->locationHolydays);
+        BusinessDay::enable(\Carbon\Carbon::class, $this->locationHolydays);
         $this->calculaPrevisaoPagamentoFrra();
     }
 
@@ -106,7 +106,7 @@ class Dates
     {
         try {
             return $this->dataPagamento;
-        } catch (\Throwable $th) {
+        } catch (\Throwable) {
             $inicoMes = (clone $this->inicioProximoMes)->modify('first day of next month');
             $carbon = Carbon::parse($inicoMes);
             $dataPagamento = $carbon->addBusinessDays($this->pagamentoNoDiaUtil);

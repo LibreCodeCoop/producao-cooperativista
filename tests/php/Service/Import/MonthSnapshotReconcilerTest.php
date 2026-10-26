@@ -16,7 +16,7 @@ final class MonthSnapshotReconcilerTest extends TestCase
 {
     public function testRemovesOnlyEntriesMissingFromTheSourceMonth(): void
     {
-        $result = $this->createMock(Result::class);
+        $result = $this->createStub(Result::class);
         $result->method('fetchFirstColumn')->willReturn([10, 20, 30]);
         $connection = $this->createMock(Connection::class);
         $connection->expects($this->once())->method('executeQuery')
@@ -33,10 +33,10 @@ final class MonthSnapshotReconcilerTest extends TestCase
                 self::assertSame(ArrayParameterType::INTEGER, $types['ids']);
                 return 2;
             });
-        $manager = $this->createMock(EntityManagerInterface::class);
+        $manager = $this->createStub(EntityManagerInterface::class);
         $manager->method('getConnection')->willReturn($connection);
 
-        self::assertSame(2, (new MonthSnapshotReconciler())->removeMissingTimesheets(
+        self::assertSame(2, new MonthSnapshotReconciler()->removeMissingTimesheets(
             $manager,
             new DateTimeImmutable('2026-05-24'),
             [10]
@@ -45,15 +45,15 @@ final class MonthSnapshotReconcilerTest extends TestCase
 
     public function testNoDeletionForIdenticalSnapshot(): void
     {
-        $result = $this->createMock(Result::class);
+        $result = $this->createStub(Result::class);
         $result->method('fetchFirstColumn')->willReturn([12, 13]);
         $connection = $this->createMock(Connection::class);
         $connection->method('executeQuery')->willReturn($result);
         $connection->expects($this->never())->method('executeStatement');
-        $manager = $this->createMock(EntityManagerInterface::class);
+        $manager = $this->createStub(EntityManagerInterface::class);
         $manager->method('getConnection')->willReturn($connection);
 
-        self::assertSame(0, (new MonthSnapshotReconciler())->removeMissingTimesheets(
+        self::assertSame(0, new MonthSnapshotReconciler()->removeMissingTimesheets(
             $manager,
             new DateTimeImmutable('2026-05-01'),
             [12, 13]
@@ -62,7 +62,7 @@ final class MonthSnapshotReconcilerTest extends TestCase
 
     public function testAnEmptyAuthoritativeMonthDeletesStaleRows(): void
     {
-        $result = $this->createMock(Result::class);
+        $result = $this->createStub(Result::class);
         $result->method('fetchFirstColumn')->willReturn([7]);
         $connection = $this->createMock(Connection::class);
         $connection->method('executeQuery')->willReturn($result);
@@ -72,10 +72,10 @@ final class MonthSnapshotReconcilerTest extends TestCase
                 ['ids' => [7]],
                 ['ids' => ArrayParameterType::INTEGER]
             )->willReturn(1);
-        $manager = $this->createMock(EntityManagerInterface::class);
+        $manager = $this->createStub(EntityManagerInterface::class);
         $manager->method('getConnection')->willReturn($connection);
 
-        self::assertSame(1, (new MonthSnapshotReconciler())->removeMissingTimesheets(
+        self::assertSame(1, new MonthSnapshotReconciler()->removeMissingTimesheets(
             $manager,
             new DateTimeImmutable('2026-04-01'),
             []

@@ -41,7 +41,7 @@ class Nfse
     #[ORM\Column(type: Types::BIGINT, options: ['unsigned' => true])]
     private int $numero;
     #[ORM\Column(type: Types::BIGINT, nullable: true)]
-    private ?int $numeroSubstituta;
+    private ?int $numeroSubstituta = null;
     #[ORM\Column(length: 14)]
     private string $cnpj;
     #[ORM\Column]
@@ -61,7 +61,7 @@ class Nfse
     #[ORM\Column(type: Types::TEXT)]
     private string $discriminacaoNormalizada;
     #[ORM\Column(nullable: true)]
-    private ?string $setor;
+    private ?string $setor = null;
     #[ORM\Column]
     private string $codigoCliente;
     #[ORM\Column(type: Types::JSON)]

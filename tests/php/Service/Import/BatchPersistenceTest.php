@@ -23,7 +23,7 @@ final class BatchPersistenceTest extends TestCase
         $manager->expects($this->exactly(5))->method('persist');
         $manager->expects($this->exactly(3))->method('flush');
 
-        (new BatchPersistence())->save($manager, [
+        new BatchPersistence()->save($manager, [
             new stdClass(), new stdClass(), new stdClass(), new stdClass(), new stdClass(),
         ], 2);
     }
@@ -34,13 +34,13 @@ final class BatchPersistenceTest extends TestCase
         $manager->expects($this->never())->method('persist');
         $manager->expects($this->never())->method('flush');
 
-        (new BatchPersistence())->save($manager, []);
+        new BatchPersistence()->save($manager, []);
     }
 
     public function testRejectsInvalidChunkSize(): void
     {
         $this->expectException(InvalidArgumentException::class);
 
-        (new BatchPersistence())->save($this->createMock(EntityManagerInterface::class), [], 0);
+        new BatchPersistence()->save($this->createStub(EntityManagerInterface::class), [], 0);
     }
 }

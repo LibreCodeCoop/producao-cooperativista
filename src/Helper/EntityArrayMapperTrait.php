@@ -42,7 +42,6 @@ trait EntityArrayMapperTrait
         $reflectionClass = new ReflectionClass($this);
 
         foreach ($reflectionClass->getProperties() as $property) {
-            $property->setAccessible(true);
             $value = $property->getValue($this);
 
             if ($value instanceof DateTime) {

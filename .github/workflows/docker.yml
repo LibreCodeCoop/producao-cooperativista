@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Docker validation
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/docker.yml'
+      - '.php-version'
+      - '.docker/php/**'
+      - 'docker-compose.yml'
+      - 'composer.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-validation-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Validate Compose
+        run: docker compose -f docker-compose.yml config --quiet
+
+      - name: Build the PHP-FPM runtime used by the application
+        run: |
+          php_version="$(cat .php-version)"
+          jq -e --arg php "^$php_version" '.require.php == $php' composer.json
+          grep -Fqx "ARG PHP_VERSION=$php_version" .docker/php/Dockerfile
+          docker build --pull --build-arg PHP_VERSION="$php_version" --tag librecode-pdc-ci:php-fpm -f .docker/php/Dockerfile .docker/php
+          docker run --rm --entrypoint php librecode-pdc-ci:php-fpm -r 'exit(PHP_MAJOR_VERSION === 8 && PHP_MINOR_VERSION === 5 ? 0 : 1);'

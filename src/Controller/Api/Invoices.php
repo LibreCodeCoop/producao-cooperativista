@@ -70,19 +70,12 @@ class Invoices extends AbstractController
 
         $type = $this->request->query->getString('type', 'all');
         try {
-            switch ($type) {
-                case 'income':
-                    $movimentacao = $this->movimentacao->getEntradas();
-                    break;
-                case 'expense':
-                    $movimentacao = $this->movimentacao->getSaidas();
-                    break;
-                case 'all':
-                    $movimentacao = $this->movimentacao->getMovimentacaoFinanceira();
-                    break;
-                default:
-                    throw new \Exception('Tipo de movimentação invpalido: ' . print_r($type, true));
-            }
+            $movimentacao = match ($type) {
+                'income' => $this->movimentacao->getEntradas(),
+                'expense' => $this->movimentacao->getSaidas(),
+                'all' => $this->movimentacao->getMovimentacaoFinanceira(),
+                default => throw new \Exception('Tipo de movimentação invpalido: ' . print_r($type, true)),
+            };
         } catch (\Throwable $th) {
             return $this->apiErrors->fromThrowable($th, 'Invoices');
         }

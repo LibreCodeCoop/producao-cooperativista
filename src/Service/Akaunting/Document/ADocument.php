@@ -196,9 +196,7 @@ abstract class ADocument
         $item['total'] = round($item['total'], 2);
         $item['discount'] = $discount;
         $item['order'] = $order;
-        $found = array_filter($this->items, function (array $i) use ($item): bool {
-            return $i['name'] === $item['name'] && $i['description'] === $item['description'];
-        });
+        $found = array_filter($this->items, fn (array $i): bool => $i['name'] === $item['name'] && $i['description'] === $item['description']);
         if ($found) {
             $mergedItem = array_merge($this->items[key($found)], $item);
             if (array_diff($this->items[key($found)], $mergedItem)) {
@@ -382,8 +380,7 @@ abstract class ADocument
         }
 
         $this->setId($row['id'])
-            ->setDueAt($row['due_at'])
-            ->loadFromAkaunting($row['id']);
+            ->setDueAt($row['due_at'])->loadFromAkaunting();
         return $this;
     }
 
@@ -499,7 +496,7 @@ abstract class ADocument
             if (!str_contains($note, ': ')) {
                 continue;
             }
-            list($label, $value) = explode(': ', $note);
+            [$label, $value] = explode(': ', $note);
             $this->notes[$label] = $value;
         }
         return $this;

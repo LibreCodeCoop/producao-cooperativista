@@ -26,7 +26,7 @@ final class AssociatedDocumentIndex
     {
         $documents = [];
         $ids = array_values(array_unique(array_filter(
-            array_map('intval', $ids),
+            array_map(intval(...), $ids),
             static fn (int $id): bool => $id > 0
         )));
         foreach (array_chunk($ids, 400) as $batch) {
