@@ -419,6 +419,45 @@ final class ProfileFieldsClientTest extends TestCase
         self::assertSame(['lookup' => 1, 'uid' => 2], $calls);
     }
 
+    public function testUidFallbackRejectsMismatchedTaxNumberBeforeApplyingWeights(): void
+    {
+        putenv('PROFILE_FIELDS_API_BASE_URL=https://nextcloud.example.com');
+        putenv('PROFILE_FIELDS_AUTH_USER=api-user');
+        putenv('PROFILE_FIELDS_AUTH_TOKEN=api-token');
+
+        $http = new MockHttpClient(static function (string $method, string $url): MockResponse {
+            if (str_ends_with($url, '/users/lookup')) {
+                return new MockResponse('not found', ['http_code' => 404]);
+            }
+            if (str_ends_with($url, '/definitions')) {
+                return new MockResponse((string) json_encode(['ocs' => [
+                    'meta' => ['statuscode' => 100],
+                    'data' => [
+                        ['id' => 10, 'field_key' => 'tax_number'],
+                        ['id' => 11, 'field_key' => 'weight'],
+                    ],
+                ]]));
+            }
+            if (str_ends_with($url, '/users/cooperado-a/values')) {
+                return new MockResponse((string) json_encode(['ocs' => [
+                    'meta' => ['statuscode' => 100],
+                    'data' => [
+                        ['field_definition_id' => 10, 'value' => ['value' => '99988877766']],
+                        ['field_definition_id' => 11, 'value' => ['value' => '3.0']],
+                    ],
+                ]]));
+            }
+            self::fail('Unexpected URL: ' . $url);
+        });
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Identificador fiscal divergente');
+        (new ProfileFieldsClient($http, new NullLogger()))->enrichUser([
+            'tax_number' => '11122233344',
+            'kimai_username' => 'cooperado-a',
+        ]);
+    }
+
     /**
      * @param array<string, mixed> $options
      * @param array<string, string> $expectedPayload

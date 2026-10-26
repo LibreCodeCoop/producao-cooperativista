@@ -156,11 +156,30 @@ class ProfileFieldsClient
 
         $fields = $this->getFieldsForTaxNumber($taxNumber);
         if ($fields !== []) {
+            $this->assertMatchingTaxNumber($fields, $taxNumber);
             return $fields;
         }
 
         $this->preferUserUidLookup = true;
-        return $this->getFieldsForUser($userUid);
+        $uidFields = $this->getFieldsForUser($userUid);
+        if ($uidFields === []) {
+            return [];
+        }
+        $this->assertMatchingTaxNumber($uidFields, $taxNumber);
+        return $uidFields;
+    }
+
+    /**
+     * @param array<string, mixed> $fields
+     */
+    private function assertMatchingTaxNumber(array $fields, string $taxNumber): void
+    {
+        $profileTaxNumber = trim((string) ($fields[$this->getTaxNumberFieldKey()] ?? ''));
+        if ($profileTaxNumber === '' || $profileTaxNumber !== $taxNumber) {
+            throw new \DomainException(
+                'Identificador fiscal divergente ou ausente no Profile Fields. Confira o CPF/CNPJ do cooperado no Nextcloud e no Kimai antes do cálculo.'
+            );
+        }
     }
 
     /**
