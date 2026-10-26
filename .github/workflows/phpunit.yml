@@ -95,7 +95,11 @@ jobs:
       - name: PHP coding standards
         run: composer run cs:check
 
-      - name: Print logs
-        if: always()
+      - name: Print logs on failure
+        if: failure()
         run: |
-          cat var/log/test.log
+          if [ -f var/log/test.log ]; then
+            tail -n 200 var/log/test.log
+          else
+            echo 'No test log file was generated.'
+          fi

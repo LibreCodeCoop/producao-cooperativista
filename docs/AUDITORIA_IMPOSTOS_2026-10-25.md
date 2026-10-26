@@ -25,8 +25,8 @@ As correções estão em revisão no PR [LibreCodeCoop/impostos#10](https://gith
 
 ## Etapas obrigatórias antes da ativação
 
-1. Revisar a regra previdenciária de cooperado pessoa física, inclusive a alíquota e seu fato gerador. **A implementação ainda usa alíquota de 20% como padrão**; esta auditoria não homologou que seja correta.
-2. Validar com contador os anos de abrangência, aplicação do desconto simplificado mensal, dedução por dependente, retenções, eventuais compensações e efeitos retrospectivos. Não alterar regras aprovadas de FRRA ou ajuda de custo por dedução.
+1. Confirmar o enquadramento previdenciário do cooperado e o fato gerador com a contabilidade. A IN RFB nº 2.110/2022, art. 37, I, `c`, prevê **20% sobre o valor recebido pelo cooperado por serviços intermediados por cooperativa de trabalho**, ao contrário da regra geral de 11% para outros serviços a empresas. O sistema já usa 20%: não alterar por analogia sem confirmar a situação concreta. Fonte: https://normas.receita.fazenda.gov.br/sijut2consulta/link.action?idAto=126687.
+2. Validar com contador os anos de abrangência, aplicação do desconto simplificado mensal, dedução por dependente, retenções, eventuais compensações e efeitos retrospectivos. **A parcela denominada auxílio (20%) necessita comprovação de sua natureza**: o art. 13 da Lei nº 12.690/2012 distingue retirada pelo trabalho de reembolso de despesas comprovadamente realizadas para a cooperativa. Não reinterpretar o auxílio automaticamente como verba não tributável nem mudar as regras aprovadas de FRRA sem documentação de governança. Fonte: https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2012/lei/l12690.htm.
 3. Preparar code review, release e atualização explícita da dependência no `composer.lock` **somente após autorização**.
 4. Rodar testes de ambos os projetos, calcular diferenças por competência e por cooperado sem emitir ou retificar documentos automaticamente.
 5. Deliberar sobre correções fiscais históricas e documentação de aprovação. Não reinterpretar distribuição de sobras como receita, nem usar saldo bancário como capital elegível.
