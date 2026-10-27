@@ -80,6 +80,41 @@ final class MakeProducaoCommandFailureTest extends TestCase
         $this->assertStringContainsString('HTTP 503', $tester->getDisplay());
     }
 
+    public function testInvalidDownloadOptionNeverTriggersAnImport(): void
+    {
+        [$production, $movements, $logger] = $this->dependencies();
+        $production->expects($this->never())->method('loadFromExternalSources');
+        $production->expects($this->never())->method('getProducaoCooperativista');
+        $logger->expects($this->never())->method('error');
+
+        $tester = new CommandTester(new MakeProducaoCommand($production, $movements, $logger));
+        $status = $tester->execute([
+            '--ano-mes' => '2026-08',
+            '--baixar-dados' => 'false',
+        ]);
+
+        self::assertSame(Command::INVALID, $status);
+        self::assertStringContainsString('--baixar-dados aceita apenas 0 ou 1', $tester->getDisplay());
+    }
+
+    public function testUnsupportedDatabaseOptionDoesNotPretendToSave(): void
+    {
+        [$production, $movements, $logger] = $this->dependencies();
+        $production->expects($this->never())->method('loadFromExternalSources');
+        $production->expects($this->never())->method('getProducaoCooperativista');
+        $logger->expects($this->never())->method('error');
+
+        $tester = new CommandTester(new MakeProducaoCommand($production, $movements, $logger));
+        $status = $tester->execute([
+            '--ano-mes' => '2026-08',
+            '--baixar-dados' => '0',
+            '--database' => true,
+        ]);
+
+        self::assertSame(Command::INVALID, $status);
+        self::assertStringContainsString('--database não é suportado', $tester->getDisplay());
+    }
+
     public function testFebruaryStartsOnFirstDayIndependentlyOfCurrentDay(): void
     {
         // This scenario checks the selected month, not the publication path.

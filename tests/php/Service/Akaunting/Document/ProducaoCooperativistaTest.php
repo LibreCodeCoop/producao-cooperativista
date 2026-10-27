@@ -37,6 +37,7 @@ use App\Service\Cooperado;
 use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use NumberFormatter;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Php\TestCase;
 
 final class ProducaoCooperativistaTest extends TestCase
@@ -112,6 +113,57 @@ final class ProducaoCooperativistaTest extends TestCase
         $document->updateLiquidDiscounts();
 
         $this->assertSame(77.01, round($document->getValues()->getLiquidDiscount(), 2));
+    }
+
+    public function testInvalidDecimalSeparatorInLiquidDiscountAbortsCalculation(): void
+    {
+        $this->persistLiquidDiscountCategoryHierarchy();
+        $this->persistBill(
+            id: 1110,
+            amount: 1592.65,
+            notes: 'Cooperado: ' . self::COOPERADO_NOME . ', CPF: ' . self::COOPERADO_CPF . ', Valor: 1592.65',
+            categoryId: self::PLANO_DE_SAUDE_CATEGORY_ID,
+            categoryName: 'Cooperado > Produção > Desconto líquido > Plano de saúde',
+            itemDescription: 'Valor decimal incorreto',
+            contactName: 'Fornecedor Exemplo'
+        );
+
+        $document = $this->createDocumentForCooperado(self::COOPERADO_NOME, self::COOPERADO_CPF);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Valor monetário de desconto líquido inválido');
+        $document->updateLiquidDiscounts();
+    }
+
+    /**
+     * @return array<string, array{string, float}>
+     */
+    public static function validDiscountValues(): array
+    {
+        return [
+            'centavos com vírgula' => ['781,95', 781.95],
+            'milhar e centavos' => ['1.592,65', 1592.65],
+            'milhar com símbolo' => ['R$ 12.345,67', 12345.67],
+            'inteiro' => ['781', 781.0],
+        ];
+    }
+
+    #[DataProvider('validDiscountValues')]
+    public function testFormattedLiquidDiscountValueIsPreserved(string $value, float $expected): void
+    {
+        $this->persistLiquidDiscountCategoryHierarchy();
+        $this->persistBill(
+            id: 1111,
+            amount: $expected,
+            notes: 'Cooperado: ' . self::COOPERADO_NOME . ', CPF: ' . self::COOPERADO_CPF . ', Valor: ' . $value,
+            categoryId: self::PLANO_DE_SAUDE_CATEGORY_ID,
+            categoryName: 'Cooperado > Produção > Desconto líquido > Plano de saúde',
+            itemDescription: 'Desconto com formatação brasileira',
+            contactName: 'Fornecedor Exemplo'
+        );
+        $document = $this->createDocumentForCooperado(self::COOPERADO_NOME, self::COOPERADO_CPF);
+        $document->updateLiquidDiscounts();
+
+        self::assertEqualsWithDelta($expected, $document->getValues()->getLiquidDiscount(), 0.001);
     }
 
     public function testUpdateLiquidDiscountsFallsBackToOlderBillInSameCategoryWhenLatestCpfDoesNotMatch(): void

@@ -295,11 +295,23 @@ class ProducaoCooperativista extends ADocument
 
     private function parseMoneyValue(string $value): float
     {
-        $value = trim($value);
-        $value = preg_replace('/[^0-9,.-]/', '', $value) ?? '';
-        $value = str_replace('.', '', $value);
-        $value = str_replace(',', '.', $value);
-        return (float) $value;
+        // Never silently turn a decimal dot into a thousands separator:
+        // "1592.65" used to be interpreted as 159265.
+        $normalized = preg_replace('/\s+/u', '', trim($value));
+        $normalized = preg_replace('/^R\$/i', '', $normalized ?? '') ?? '';
+
+        if (!preg_match('/\A-?(?:[0-9]+(?:,[0-9]{1,2})?|[0-9]{1,3}(?:\.[0-9]{3})+(?:,[0-9]{1,2})?)\z/', $normalized)) {
+            throw new \InvalidArgumentException(
+                'Valor monetário de desconto líquido inválido. Use vírgula para centavos e ponto apenas para milhares.'
+            );
+        }
+
+        $amount = (float) str_replace(',', '.', str_replace('.', '', $normalized));
+        if (!is_finite($amount)) {
+            throw new \InvalidArgumentException('Valor monetário de desconto líquido fora do intervalo permitido.');
+        }
+
+        return $amount;
     }
 
     protected function getDocumentNumber(): string
@@ -313,6 +325,15 @@ class ProducaoCooperativista extends ADocument
             );
         }
         return $this->documentNumber;
+    }
+
+    /**
+     * The identifier used by the publisher, exposed for read-only reconciliation.
+     * This does not call the Akaunting API or create a document.
+     */
+    public function getPreviewDocumentNumber(): string
+    {
+        return $this->getDocumentNumber();
     }
 
     private function populateProducaoCooperativistaWithDefault(): self

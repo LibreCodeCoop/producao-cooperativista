@@ -429,7 +429,7 @@ class ProducaoCooperativista
         $this->distribuiProducao();
         $this->atualizaDescontosLiquido();
         $this->atualizaAdiantamentos();
-        $this->logger->debug('Produção por cooperado ooperado: {json}', ['json' => json_encode($this->cooperado)]);
+        $this->logger->debug('Produção calculada para {total} cooperados.', ['total' => count($this->cooperado)]);
         return $this->cooperado;
     }
 
@@ -827,7 +827,9 @@ class ProducaoCooperativista
         $output[] = $this->csvstr(array_keys($cooperado->getProducaoCooperativista()->getValues()->toArray()));
         // body
         foreach ($list as $cooperado) {
-            $toCsv = $cooperado->getProducaoCooperativista()->getValues()->toArray();
+            $document = $cooperado->getProducaoCooperativista();
+            $toCsv = $document->getValues()->toArray();
+            $toCsv['document_number'] = $document->getPreviewDocumentNumber();
             $toCsv['adiantamento'] = array_reduce($toCsv['adiantamento'], fn ($c, $i) => $c + $i['amount'], 0);
             $output[] = $this->csvstr($toCsv);
         }

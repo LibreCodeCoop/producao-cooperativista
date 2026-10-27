@@ -105,12 +105,6 @@ class MakeProducaoCommand extends AbstractBaseCommand
                 null,
                 InputOption::VALUE_REQUIRED,
                 'Data de referência para prévia histórica, no formato YYYY-MM-DD; não permite publicação'
-            )
-            ->addOption(
-                'ods',
-                null,
-                InputOption::VALUE_NONE,
-                'To output as ods'
             );
     }
 
@@ -118,6 +112,15 @@ class MakeProducaoCommand extends AbstractBaseCommand
     {
         if (!$input->getOption('ano-mes')) {
             $output->writeln('<error>--ano-mes é obrigatório</error>');
+            return Command::INVALID;
+        }
+        $baixarDados = (string) $input->getOption('baixar-dados');
+        if (!in_array($baixarDados, ['0', '1'], true)) {
+            $output->writeln('<error>--baixar-dados aceita apenas 0 ou 1.</error>');
+            return Command::INVALID;
+        }
+        if ($input->getOption('database')) {
+            $output->writeln('<error>--database não é suportado por make:producao. Use --csv para uma prévia ou --atualiza-producao para publicar.</error>');
             return Command::INVALID;
         }
         $diasUteis = (int) $input->getOption('dias-uteis');
@@ -151,7 +154,7 @@ class MakeProducaoCommand extends AbstractBaseCommand
             $phase = 'inicialização';
             $this->executionLock?->acquire();
             $phase = 'importação dos dados';
-            if ((bool) $input->getOption('baixar-dados')) {
+            if ($baixarDados === '1') {
                 $this->reportPhase('Importando dados das integrações.');
                 $this->producaoCooperativista->loadFromExternalSources($inicio);
             }
