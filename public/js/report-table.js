@@ -41,35 +41,46 @@
             '</tr></thead><tbody>' + body + '</tbody></table>';
     }
 
-    function safeLinkHtml(value) {
+    function safeLinkHtml(value, allowRelative = false) {
         if (typeof value !== 'string') {
             return null;
         }
-        // Historic API sends an HTML anchor as the URL cell. Parse only the
-        // narrowly supported shape; never insert arbitrary upstream HTML.
-        const match = /^<a href="([^"]+)" target="_blank">([^<]*)<\/a>$/.exec(value);
+        // Legacy APIs return anchors as data. Only accept the known shape
+        // and never reuse upstream HTML attributes or untrusted protocols.
+        const match = /^<a href="([^"]+)"( target="_blank")?>([^<]*)<\/a>$/.exec(value);
         if (!match) {
             return null;
         }
-        let url;
-        try {
-            url = new URL(match[1]);
-        } catch {
+        const href = match[1];
+        const relative = allowRelative && href.startsWith('/') && !href.startsWith('//') &&
+            !/[\\\x00-\x1f]/.test(href);
+        let destination = href;
+        if (!relative) {
+            try {
+                const url = new URL(href);
+                if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+                    return null;
+                }
+                destination = url.href;
+            } catch {
+                return null;
+            }
+        }
+        const external = match[2] === ' target="_blank"';
+        if (allowRelative && !relative) {
             return null;
         }
-        if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-            return null;
-        }
-        return '<a href="' + escapeHtml(url.href) + '" target="_blank" rel="noopener noreferrer">' +
-            escapeHtml(match[2]) + '</a>';
+        return '<a href="' + escapeHtml(destination) + '"' +
+            (external ? ' target="_blank" rel="noopener noreferrer"' : '') +
+            '>' + escapeHtml(match[3]) + '</a>';
     }
 
     function renderCell(value, type, column) {
         if (type !== 'display') {
             return value ?? '';
         }
-        if (column === 'URL') {
-            const link = safeLinkHtml(value);
+        if (column === 'URL' || column === 'nome') {
+            const link = safeLinkHtml(value, column === 'nome');
             if (link !== null) {
                 return link;
             }

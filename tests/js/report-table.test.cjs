@@ -154,6 +154,22 @@ test('only the known Akaunting URL format renders as a safe external link', () =
     assert.equal(renderCell('<img src=x>', 'display', 'URL'), '&lt;img src=x&gt;');
 });
 
+test('capital-social member links remain clickable without accepting unsafe HTML', () => {
+    const internal = '<a href="/capital-social?name=Cooperado%20A">Cooperado A</a>';
+    assert.equal(
+        renderCell(internal, 'display', 'nome'),
+        internal
+    );
+    assert.equal(
+        renderCell('<a href="javascript:alert(1)">Inseguro</a>', 'display', 'nome'),
+        '&lt;a href=&quot;javascript:alert(1)&quot;&gt;Inseguro&lt;/a&gt;'
+    );
+    assert.equal(safeLinkHtml('<a href="//evil.example/" target="_blank">Malicioso</a>', true), null);
+    assert.equal(safeLinkHtml('<a href="https://evil.example/">Externo</a>', true), null);
+    assert.equal(renderCell('<img src=x onerror=alert(1)>', 'display', 'nome'),
+        '&lt;img src=x onerror=alert(1)&gt;');
+});
+
 test('column creation includes keys from later rows while excluding metadata', () => {
     const columns = buildColumns([{ metadata: '{}', nome: 'Pessoa' }, { id: 11, nome: 'Outra' }]);
     assert.deepEqual(columns.map(column => column.data), ['nome', 'id']);

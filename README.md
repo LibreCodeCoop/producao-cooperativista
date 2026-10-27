@@ -202,3 +202,27 @@ tail -f logs/system.log
 - **Dependências:** `composer update -W` no backend, com ferramentas de desenvolvimento isoladas em `vendor-bin`. O Dependabot acompanha Composer, GitHub Actions e Docker Compose; o Renovate acompanha o Dockerfile, `.nvmrc` e a imagem MySQL usada pelo CI. As atualizações exigem revisão e CI aprovada.
 - **Modernização de PHP:** `composer run rector:check` verifica as refatorações, e `composer run rector:fix` aplica as alterações.
 - **Verificação:** `composer run test:unit`, `composer run cs:check` e `composer run psalm`. Os testes de JavaScript usam `node --test tests/js/*.test.cjs`. A CI executa esses testes em um workflow separado, com limites mínimos de cobertura (90% de linhas, 80% de ramos e 75% de funções).
+
+### Arquitetura do ETL e reprodução histórica
+
+O pipeline mantém quatro limites: conectores de origem (Kimai, NFS-e e Akaunting), banco de transformação, apuração econômica e publicação opcional no Akaunting. As etapas de origem implementam `SourceStep` e são orquestradas por `SourcePipeline`, preservando a ordem das dependências. `ProductionDistributionPlanner` calcula a distribuição sem acessar APIs ou saldo bancário. O capital social é consultado separadamente e não integra receitas de clientes.
+
+A competência mensal é validada como `YYYY-MM`. A importação completa do Kimai reconcilia alterações e exclusões. Em casos não cobertos pela reconciliação de lançamentos financeiros, utilize a reconstrução do banco intermediário e importe novamente. A nova classificação contraditória de percentuais fixos e móveis do mesmo cliente interrompe o cálculo para análise, em vez de permitir uma distribuição incompleta.
+
+Audite os dados intermediários sem qualquer escrita financeira:
+
+```bash
+php bin/console audit:inputs --ano-mes=2025-04 --revision="$(git rev-parse HEAD)"
+```
+
+O relatório compacto mostra contagens e fingerprints SHA-256 de entradas, pesos e configurações (incluindo dependências e runtime), sem expor valores financeiros ou dados pessoais. Para preservar as entradas integrais de uma execução, adicione `--save-bundle`. O arquivo ficará em `var/audit/` com permissão privada. **Contém dados pessoais e financeiros confidenciais:** proteja o acesso, os backups e a retenção conforme a LGPD; não publique em Git ou PRs.
+
+Simule o resultado de uma competência antiga com uma data de referência operacional definida:
+
+```bash
+php bin/console make:producao --ano-mes=2025-04 --baixar-dados=0 --as-of=2025-05-10
+```
+
+`--as-of` é exclusivo de prévias e não pode ser combinado com `--atualiza-producao`.
+
+**Limites atuais:** o histórico dos pesos de produção não existe como registro oficial versionado. A tabela atual de usuários não permite reconstruir os pesos aprovados em competências passadas; o snapshot somente preserva aquilo que foi capturado. O projeto também continua configurado **por instalação**, sem isolamento de múltiplas cooperativas na mesma instância e sem versionamento formal de políticas econômicas. Antes da comercialização multiempresa, é necessário implementar e testar esses limites, aprovar a governança de pesos e definir retenção de snapshots.

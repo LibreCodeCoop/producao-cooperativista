@@ -88,6 +88,51 @@ final class DatesTest extends TestCase
         self::assertNotSame($original, $dates->getPrevisaoPagamentoFrra()->format('Y-m-d'));
     }
 
+    public function testBackfillUsesExplicitEvaluationClockRatherThanComputerWallClock(): void
+    {
+        $asOf = new DateTime('2026-10-26 12:30:00');
+        $dates = new Dates(now: $asOf);
+        $dates->setInicio(new DateTime('2024-02-15 10:10:00'));
+
+        self::assertSame('2024-02-01', $dates->getInicio()->format('Y-m-d'));
+        self::assertSame('2026-10-26 12:30:00', $dates->getDataProcessamento()->format('Y-m-d H:i:s'));
+        self::assertSame('2026-10-26 12:30:00', $dates->getDataPagamento()->format('Y-m-d H:i:s'));
+
+        $asOf->modify('+8 years');
+        self::assertSame('2026-10-26 12:30:00', $dates->hoje()->format('Y-m-d H:i:s'));
+        $externalView = $dates->hoje();
+        $externalView->modify('+1 year');
+        self::assertSame('2026-10-26', $dates->hoje()->format('Y-m-d'));
+    }
+
+    public function testChangingReferenceClockForPreviewInvalidatesDerivedPaymentDates(): void
+    {
+        $dates = new Dates(now: new DateTime('2026-02-01'));
+        $dates->setInicio(new DateTime('2024-01-01'));
+        self::assertSame('2026-02-01', $dates->getDataPagamento()->format('Y-m-d'));
+        $reference = new DateTime('2024-02-02');
+        $dates->setEvaluationTime($reference);
+        $reference->modify('+3 years');
+
+        self::assertSame('2024-02-02', $dates->getDataProcessamento()->format('Y-m-d'));
+        self::assertSame('2024-02-02', $dates->hoje()->format('Y-m-d'));
+    }
+
+    public function testScheduledPaymentDateForFutureMonthIsIndependentOfCurrentDate(): void
+    {
+        $january = new Dates(now: new DateTime('2026-10-20 09:00:00'));
+        $february = new Dates(now: new DateTime('2026-11-22 14:00:00'));
+        foreach ([$january, $february] as $dates) {
+            $dates->setInicio(new DateTime('2027-11-17'));
+            $dates->setDiaUtilPagamento(5);
+        }
+        self::assertSame(
+            $january->getDataPagamento()->format('Y-m-d'),
+            $february->getDataPagamento()->format('Y-m-d')
+        );
+        self::assertSame('2027-11', $january->getInicio()->format('Y-m'));
+    }
+
     public static function providerCalculaPrevisaoPagamentoFrra(): array
     {
         return [

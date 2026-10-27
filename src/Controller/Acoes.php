@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Helper\ArrayValue;
+use App\Domain\Competencia;
 use App\Helper\SseLogHandler;
 use App\Kernel;
 use App\Service\Calculation\CalculationActionGuard;
@@ -105,8 +106,10 @@ class Acoes extends AbstractController
         $year = $request->request->getString('year');
         $month = $request->request->getString('month');
         $competencia = $year . '-' . $month;
-        if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/D', $competencia)) {
-            return new Response('Competência inválida. Informe ano e mês no formato YYYY-MM.', Response::HTTP_BAD_REQUEST);
+        try {
+            Competencia::fromString($competencia);
+        } catch (\InvalidArgumentException $error) {
+            return new Response($error->getMessage(), Response::HTTP_BAD_REQUEST);
         }
 
         $download = $request->request->getString('baixar_dados', '0');

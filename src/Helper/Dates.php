@@ -57,6 +57,7 @@ class Dates
         private int $pagamentoFrraMesPadrao = 12,
         private DateTime $now = new DateTime(),
     ) {
+        $this->now = clone $now;
         BusinessDay::enable(\Carbon\Carbon::class, $this->locationHolydays);
         $this->calculaPrevisaoPagamentoFrra();
     }
@@ -77,7 +78,18 @@ class Dates
 
     public function hoje(): DateTime
     {
-        return $this->now;
+        return clone $this->now;
+    }
+
+    /**
+     * Used only for historical previews. Actual financial publication must use
+     * the real processing date to avoid backdated billing or payment documents.
+     */
+    public function setEvaluationTime(DateTime $instant): void
+    {
+        $this->now = clone $instant;
+        unset($this->dataPagamento, $this->dataProcessamento);
+        $this->calculaPrevisaoPagamentoFrra();
     }
 
     public function setInicio(DateTime $inicio): void
@@ -110,7 +122,9 @@ class Dates
             $inicoMes = (clone $this->inicioProximoMes)->modify('first day of next month');
             $carbon = Carbon::parse($inicoMes);
             $dataPagamento = $carbon->addBusinessDays($this->pagamentoNoDiaUtil);
-            $this->dataProcessamento = new DateTime();
+            // Capture the evaluation instant once; historical backfills are
+            // reproducible when a test or audit supplies the same clock.
+            $this->dataProcessamento = $this->hoje();
             $string = $dataPagamento->format('Y-m-d H:i:s');
             if ($string > $this->dataProcessamento->format('Y-m-d H:i:s')) {
                 $this->dataPagamento = new DateTime($string);

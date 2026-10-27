@@ -29,6 +29,7 @@ namespace App\Command;
 use App\Service\Movimentacao;
 use App\Helper\ArrayValue;
 use App\Service\Calculation\CalculationExecutionLock;
+use App\Domain\Competencia;
 use DateTime;
 use App\Service\ProducaoCooperativista;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -98,6 +99,12 @@ class MakeProducaoCommand extends AbstractBaseCommand
                 'Atualiza a produção cooperativista no Akaunting'
             )
             ->addOption(
+                'as-of',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Data de referência para prévia histórica, no formato YYYY-MM-DD; não permite publicação'
+            )
+            ->addOption(
                 'ods',
                 null,
                 InputOption::VALUE_NONE,
@@ -114,11 +121,26 @@ class MakeProducaoCommand extends AbstractBaseCommand
         $diasUteis = (int) $input->getOption('dias-uteis');
         $percentualMaximo = (int) $input->getOption('percentual-maximo');
         $diaUtilPagamento = (int) $input->getOption('dia-util-pagamento');
-        $inicio = DateTime::createFromFormat('!Y-m', $input->getOption('ano-mes'));
-        if (!$inicio instanceof DateTime) {
+        try {
+            $inicio = Competencia::fromString((string) $input->getOption('ano-mes'))->start();
+        } catch (\InvalidArgumentException) {
             $output->writeln('<error>--ano-mes precisa estar no formato YYYY-MM</error>');
             return Command::INVALID;
         }
+        $asOf = $input->getOption('as-of');
+        if (is_string($asOf) && $asOf !== '') {
+            if ($input->getOption('atualiza-producao')) {
+                $output->writeln('<error>--as-of é exclusivo para prévias. Não é permitido emitir documentos com datas históricas simuladas.</error>');
+                return Command::INVALID;
+            }
+            $referenceDate = DateTime::createFromFormat('!Y-m-d', $asOf);
+            if (!$referenceDate instanceof DateTime || $referenceDate->format('Y-m-d') !== $asOf) {
+                $output->writeln('<error>--as-of deve estar no formato YYYY-MM-DD, com dia válido.</error>');
+                return Command::INVALID;
+            }
+            $this->producaoCooperativista->dates->setEvaluationTime($referenceDate);
+        }
+
         $phase = 'inicialização';
         try {
             $this->executionLock?->acquire();

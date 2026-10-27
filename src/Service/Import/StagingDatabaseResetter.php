@@ -21,19 +21,6 @@ use RuntimeException;
  */
 final class StagingDatabaseResetter
 {
-    /** @var list<string> */
-    private const array STAGING_TABLES = [
-        'timesheet',
-        'transactions',
-        'invoices',
-        'nfse',
-        'taxes',
-        'categories',
-        'users',
-        'projects',
-        'customers',
-    ];
-
     public function __construct(
         private Connection $main,
         private Connection $akaunting,
@@ -65,7 +52,7 @@ final class StagingDatabaseResetter
         // Refuse to delete from an unexpected schema, even if an administrator
         // typed the confirmation. This is an ETL reset, never a schema reset.
         $existing = $this->main->createSchemaManager()->listTableNames();
-        $missing = array_diff(self::STAGING_TABLES, $existing);
+        $missing = array_diff(StagingSchema::TABLES, $existing);
         if ($missing !== []) {
             throw new RuntimeException(
                 'O esquema de transformação está incompleto. Confira as migrações antes de limpar os dados importados.'
@@ -74,7 +61,7 @@ final class StagingDatabaseResetter
 
         $deleted = $this->main->transactional(function (Connection $connection): array {
             $results = [];
-            foreach (self::STAGING_TABLES as $table) {
+            foreach (StagingSchema::TABLES as $table) {
                 $results[$table] = (int) $connection->executeStatement(
                     'DELETE FROM ' . $connection->quoteIdentifier($table)
                 );

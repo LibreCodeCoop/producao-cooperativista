@@ -31,25 +31,19 @@ use App\Helper\Colors;
 use App\Helper\Dates;
 use App\Provider\Akaunting\Request;
 use App\Service\Calculation\WeightedAllocator;
+use App\Service\Calculation\ProductionDistributionPlanner;
+use App\Service\Import\SourcePipeline;
 use App\Service\Akaunting\DocumentConfiguration;
 use App\Service\Akaunting\Document\Taxes\Cofins;
 use App\Service\Akaunting\Document\Taxes\IrpfRetidoNaNota;
 use App\Service\Akaunting\Document\Taxes\Iss;
 use App\Service\Akaunting\Document\Taxes\Pis;
-use App\Service\Akaunting\Source\Categories;
 use App\Service\Akaunting\Source\Documents;
-use App\Service\Akaunting\Source\Taxes;
-use App\Service\Akaunting\Source\Transactions;
-use App\Service\Kimai\Source\Customers;
-use App\Service\Kimai\Source\Projects;
-use App\Service\Kimai\Source\Timesheets;
-use App\Service\Kimai\Source\Users;
-use App\Service\Source\Nfse;
+use App\Service\Akaunting\Source\CapitalSocial;
 use DateTime;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\Persistence\ManagerRegistry;
 use Exception;
 use NumberFormatter;
 use Psr\Log\LoggerInterface;
@@ -62,31 +56,23 @@ class ProducaoCooperativista
     private array $cooperado = [];
     private int $totalCooperados = 0;
     private bool $producaoDistribuida = false;
-    private EntityManagerInterface $entityManagerAkaunting;
 
     public function __construct(
-        ManagerRegistry $managerRegistry,
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
-        private Customers $customers,
-        private Nfse $nfse,
-        private Projects $projects,
         private Documents $documents,
-        private Timesheets $timesheets,
-        private Transactions $transactions,
-        private Users $users,
         private Request $request,
         private DocumentConfiguration $documentConfiguration,
         private NumberFormatter $numberFormatter,
-        private Categories $categories,
-        private Taxes $taxes,
         public Dates $dates,
         private UrlGeneratorInterface $urlGenerator,
         private Movimentacao $movimentacao,
         private WeightedAllocator $weightedAllocator,
+        private ProductionDistributionPlanner $distributionPlanner,
+        private SourcePipeline $sourcePipeline,
+        private CapitalSocial $capitalSocialSource,
         private CooperadoContactRegistry $contactRegistry,
     ) {
-        $this->entityManagerAkaunting = $managerRegistry->getManager('akaunting');
     }
 
     private function getTotalTrabalhado(): float
@@ -103,24 +89,7 @@ class ProducaoCooperativista
 
     public function loadFromExternalSources(DateTime $inicio): void
     {
-        $this->dates->setInicio($inicio);
-        $this->logger->info('Baixando dados externos');
-        $this->customers->updateDatabase();
-        $this->nfse->updateDatabase($this->dates->getInicioProximoMes());
-        $this->projects->updateDatabase();
-        $this->documents
-            ->setDate($this->dates->getInicioProximoMes())
-            ->setType('invoice')
-            ->saveList()
-            ->setType('bill')
-            ->saveList();
-        $this->timesheets->updateDatabase($this->dates->getInicio());
-        $this->transactions
-            ->setDate($this->dates->getInicioProximoMes())
-            ->saveList();
-        $this->categories->saveList();
-        $this->taxes->saveList();
-        $this->users->saveList();
+        $this->sourcePipeline->run($inicio);
     }
 
     /**
@@ -152,48 +121,7 @@ class ProducaoCooperativista
      */
     public function getCapitalSocial(): array
     {
-        $sql =
-            <<<SQL
-            SELECT * FROM (
-            -- Transactions
-            SELECT contact_id, c.name, amount,
-                paid_at AS due_at,
-                t.id,
-                'transaction' AS `table`
-            FROM transactions t
-            join contacts c on c.id = t.contact_id
-            WHERE category_id = 25
-            and document_id is null
-            AND t.deleted_at IS NULL
-            UNION
-            -- Documents
-            SELECT contact_id, contact_Name, amount, due_at,
-                d.id,
-                'documents' AS `table`
-            FROM documents d
-            WHERE d.category_id = 25
-            AND d.deleted_at IS NULL
-            UNION
-            -- Documents with items
-            SELECT d.contact_id, d.contact_Name, di.price, d.due_at,
-                d.id,
-                'documents_item' AS `table`
-            FROM document_items as di
-            JOIN documents as d on di.document_id = d.id
-            where di.item_id = 11
-            AND d.deleted_at IS NULL
-            AND di.deleted_at IS NULL
-            ) x
-            ORDER BY x.name, x.due_at
-            SQL;
-        // This is a complete SQL statement. QueryBuilder::executeQuery() does
-        // not accept SQL text; sending it there silently discards the query.
-        $return = $this->entityManagerAkaunting->getConnection()
-            ->executeQuery($sql)->fetchAllAssociative();
-        if (empty($return)) {
-            throw new Exception('Sem capital social');
-        }
-        return $return;
+        return $this->capitalSocialSource->rows();
     }
 
     /**
@@ -237,7 +165,7 @@ class ProducaoCooperativista
                     $this->urlGenerator->generate('app_capitalsocial_index', [
                         'name' => $row['name'],
                     ]) .
-                    '">' . $row['name'] . '</a>',
+                    '">' . htmlspecialchars((string) $row['name'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</a>',
                 'total' => $row['amount'] + ($return[$row['name']]['total'] ?? 0),
             ];
         }
@@ -674,78 +602,21 @@ class ProducaoCooperativista
             return;
         }
 
-        $this->distribuiProducaoDescontoFixo();
-
-        $clientesDescontoFixo = array_fill_keys(
-            array_column($this->movimentacao->getEntradasClientes(percentualDescontoFixo: true), 'customer_reference'),
-            true
+        $plan = $this->distributionPlanner->plan(
+            $this->movimentacao->getEntradasClientes(),
+            $this->getTrabalhadoPorCliente(),
         );
-
-        $rowsForAllocation = [];
-        $listaTempoContratado = [];
-        $listaTempoTrabalhado = [];
-        foreach ($this->getTrabalhadoPorCliente() as $row) {
-            $customerReference = (string) $row['customer_reference'];
-            if (isset($clientesDescontoFixo[$customerReference])) {
-                continue;
-            }
-            $rowsForAllocation[] = $row;
-            $listaTempoContratado[$customerReference] ??= $row['total_cliente'];
-            $listaTempoTrabalhado[$customerReference] = ($listaTempoTrabalhado[$customerReference] ?? 0) + $row['trabalhado'];
+        foreach ($plan->variableWeights as $taxNumber => $weight) {
+            $member = $this->getCooperado((string) $taxNumber);
+            $member->setPesoFinal($member->getPesoFinal() + $weight);
         }
-
-        $weights = $this->weightedAllocator->weightsFromRows($rowsForAllocation, 'Produção cooperativista');
-        foreach ($weights as $taxNumber => $weight) {
-            $cooperado = $this->getCooperado((string) $taxNumber);
-            $cooperado->setPesoFinal($cooperado->getPesoFinal() + $weight);
-        }
-
-        $totalTempoContratado = array_sum($listaTempoContratado);
-        $totalTempoTrabalhado = array_sum($listaTempoTrabalhado);
-        $aDistribuir = array_sum(
-            array_column($this->movimentacao->getEntradasClientes(percentualDescontoFixo: false), 'base_producao')
-        );
-
-        if ($totalTempoTrabalhado < $totalTempoContratado && $totalTempoContratado > 0) {
-            $aDistribuir *= $totalTempoTrabalhado / $totalTempoContratado;
-        }
-
-        $allocation = $this->weightedAllocator->allocate($aDistribuir, $weights, 'Produção cooperativista');
-        foreach ($allocation as $taxNumber => $amount) {
+        foreach ($plan->amounts as $taxNumber => $amount) {
             $values = $this->getCooperado((string) $taxNumber)->getProducaoCooperativista()->getValues();
             $values->setBaseProducao($values->getBaseProducao() + $amount);
         }
 
         $this->distribuiSobras();
         $this->producaoDistribuida = true;
-    }
-
-    private function distribuiProducaoDescontoFixo(): void
-    {
-        $entries = $this->movimentacao->getEntradasClientes(percentualDescontoFixo: true);
-        if (!$entries) {
-            return;
-        }
-
-        // Index once rather than scanning every timesheet for each invoice.
-        $rowsByCustomer = [];
-        foreach ($this->getTrabalhadoPorCliente() as $row) {
-            $rowsByCustomer[(string) $row['customer_reference']][] = $row;
-        }
-
-        foreach ($entries as $entry) {
-            $customerReference = (string) $entry['customer_reference'];
-            $context = sprintf('Cliente %s (desconto fixo)', $customerReference);
-            $weights = $this->weightedAllocator->weightsFromRows(
-                $rowsByCustomer[$customerReference] ?? [],
-                $context
-            );
-            $allocation = $this->weightedAllocator->allocate((float) $entry['base_producao'], $weights, $context);
-            foreach ($allocation as $taxNumber => $amount) {
-                $values = $this->getCooperado((string) $taxNumber)->getProducaoCooperativista()->getValues();
-                $values->setBaseProducao($values->getBaseProducao() + $amount);
-            }
-        }
     }
 
     private function getTotalSobrasDoMes(): float

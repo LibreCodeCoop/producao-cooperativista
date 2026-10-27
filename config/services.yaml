@@ -7,6 +7,10 @@ parameters:
     locale: '%env(LOCALE)%'
 
 services:
+    _instanceof:
+        App\Service\Import\SourceStep:
+            tags: ['app.etl_source']
+
     # default configuration for services in *this* file
     _defaults:
         autowire: true      # Automatically injects dependencies in your services.
@@ -21,12 +25,23 @@ services:
             - '../src/Entity/'
             - '../src/Kernel.php'
             - '../src/Service/Akaunting/DocumentConfiguration.php'
+    App\Service\Import\SourcePipeline:
+        arguments:
+            $steps: !tagged_iterator app.etl_source
+    App\Service\Akaunting\CapitalSocialSettings:
+        factory: ['App\Service\Akaunting\CapitalSocialSettings', 'fromEnvironment']
+    App\Service\Akaunting\Source\CapitalSocial:
+        arguments:
+            $accounting: '@doctrine.dbal.akaunting_connection'
     App\Service\Akaunting\DocumentConfiguration:
     NumberFormatter:
         class: NumberFormatter
         arguments:
             $locale: '%env(LOCALE)%'
             $style: !php/const NumberFormatter::CURRENCY
+    App\Service\Audit\StagingInputReader:
+        arguments:
+            $main: '@doctrine.dbal.main_connection'
     App\Service\Import\StagingDatabaseResetter:
         arguments:
             $main: '@doctrine.dbal.main_connection'

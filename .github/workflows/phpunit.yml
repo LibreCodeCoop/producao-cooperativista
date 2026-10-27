@@ -89,6 +89,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
             > .env
+            php ./bin/console doctrine:database:create --connection=akaunting --if-not-exists
             php ./bin/console doctrine:migrations:migrate -n
 
       - name: PHPUnit
