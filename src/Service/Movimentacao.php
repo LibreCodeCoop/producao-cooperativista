@@ -509,14 +509,52 @@ class Movimentacao
 
         if ($this->taxaMinima > 0) {
             if ($totalNotasParaPercentualMovelSemCustoCliente <= 0) {
+                $costs = $this->getCustosPorCliente();
+                $unmatched = $this->customerCostAllocator->unmatchedCosts(
+                    $this->getEntradasClientes(),
+                    $costs
+                );
                 throw new \DomainException(sprintf(
-                    'Base administrativa indisponível na competência %s: dispêndios internos de R$ %.2f e nenhuma base móvel positiva. Verifique os custos por cliente, o faturamento e a classificação de desconto fixo.',
+                    'Base administrativa indisponível na competência %s: receitas móveis elegíveis R$ %s, '
+                    . 'custos por cliente R$ %s, base após custos R$ %s e dispêndios internos R$ %s. '
+                    . 'Há %d %s com custos sem receita elegível, somando R$ %s. '
+                    . 'Confira recebimentos pagos, despesas, categorias e competência no Akaunting; '
+                    . 'não redistribua custos sem aprovação.',
                     $this->dates->getInicioProximoMes()->format('Y-m'),
-                    $this->taxaMinima
+                    number_format($this->totalNotasPercentualMovel(), 2, ',', '.'),
+                    number_format(array_sum($costs), 2, ',', '.'),
+                    number_format($totalNotasParaPercentualMovelSemCustoCliente, 2, ',', '.'),
+                    number_format($this->taxaMinima, 2, ',', '.'),
+                    count($unmatched),
+                    count($unmatched) === 1 ? 'cliente' : 'clientes',
+                    number_format(array_sum($unmatched), 2, ',', '.')
                 ));
             }
 
             $this->percentualAdministrativo = $this->taxaAdministrativa * 100 / $totalNotasParaPercentualMovelSemCustoCliente;
+            if ($this->percentualAdministrativo > 100.0 + 0.000001) {
+                $orphanCosts = $this->customerCostAllocator->unmatchedCosts(
+                    $this->getEntradasClientes(),
+                    $this->getCustosPorCliente()
+                );
+                throw new \DomainException(sprintf(
+                    'Capital elegível insuficiente na competência %s: a base administrativa após custos por cliente é R$ %s, '
+                    . 'mas os dispêndios internos somam R$ %s (déficit R$ %s). '
+                    . 'A taxa necessária seria %s%%, acima de 100%% e da referência configurada de %d%%. '
+                    . 'Há %d %s com custos sem receita elegível, totalizando R$ %s. '
+                    . 'Confira no Akaunting os recebimentos efetivamente pagos, as despesas, os custos por cliente e as categorias; '
+                    . 'não redistribua custos nem altere a taxa sem aprovação da política econômica.',
+                    $this->dates->getInicioProximoMes()->format('Y-m'),
+                    number_format($totalNotasParaPercentualMovelSemCustoCliente, 2, ',', '.'),
+                    number_format($this->taxaMinima, 2, ',', '.'),
+                    number_format($this->taxaAdministrativa - $totalNotasParaPercentualMovelSemCustoCliente, 2, ',', '.'),
+                    number_format($this->percentualAdministrativo, 2, ',', '.'),
+                    $this->percentualMaximo,
+                    count($orphanCosts),
+                    count($orphanCosts) === 1 ? 'cliente' : 'clientes',
+                    number_format(array_sum($orphanCosts), 2, ',', '.')
+                ));
+            }
             if ($this->percentualAdministrativo > $this->percentualMaximo) {
                 $this->logger->warning(
                     'Despesas administrativas exigem {apurado}% da base, acima do percentual configurado ({limite}%). Requer análise de governança.',
@@ -612,9 +650,18 @@ class Movimentacao
             }
             $row['base_producao'] = $base - ($base * $row['discount_percentage'] / 100);
             if ($row['base_producao'] < -0.000001) {
-                throw new \DomainException(
-                    'A produção do cliente ficou negativa após os custos e a taxa administrativa. Confira despesas, percentual e competência antes de distribuir.'
-                );
+                throw new \DomainException(sprintf(
+                    'Produção negativa no lançamento %s:%s da competência %s: receita R$ %s, custo alocado R$ %s, '
+                    . 'taxa administrativa/desconto de %s%% e base calculada R$ %s. '
+                    . 'Confira o documento, os custos do cliente e as condições aprovadas antes de distribuir.',
+                    (string) ($row['table'] ?? 'movimentacao'),
+                    (string) ($row['id'] ?? $key),
+                    $this->dates->getInicioProximoMes()->format('Y-m'),
+                    number_format((float) $row['amount'], 2, ',', '.'),
+                    number_format((float) ($custosAlocados[$key] ?? 0), 2, ',', '.'),
+                    number_format((float) $row['discount_percentage'], 2, ',', '.'),
+                    number_format((float) $row['base_producao'], 2, ',', '.')
+                ));
             }
             // Calculated output does not alter revenue or expenses. Preserve
             // cached aggregate totals; mutating input via setMovimentacao()

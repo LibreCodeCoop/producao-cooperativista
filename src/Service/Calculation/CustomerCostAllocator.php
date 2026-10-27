@@ -19,6 +19,27 @@ use DomainException;
 final class CustomerCostAllocator
 {
     /**
+     * Locate client-specific costs that have no positive eligible client
+     * receipt in the period. Report them for reconciliation, but do not
+     * silently reallocate or defer costs without an approved policy.
+     *
+     * @param array<int|string, array<string, mixed>> $invoices
+     * @param array<string, float> $costs
+     * @return array<string, float>
+     */
+    public function unmatchedCosts(array $invoices, array $costs): array
+    {
+        $customersWithRevenue = [];
+        foreach ($invoices as $invoice) {
+            if ((float) ($invoice['amount'] ?? 0) > 0) {
+                $customersWithRevenue[(string) ($invoice['customer_reference'] ?? '')] = true;
+            }
+        }
+
+        return array_diff_key($costs, $customersWithRevenue);
+    }
+
+    /**
      * @param array<int|string, array<string, mixed>> $invoices
      * @param array<string, float> $costs
      * @return array<int|string, float> Expense assigned to each invoice.

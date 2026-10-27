@@ -38,3 +38,23 @@ $dotenv->usePutenv()->loadEnv(__DIR__.'/../../.env', overrideExistingVars: true)
 putenv('APP_ENV=test');
 $_ENV['APP_ENV'] = 'test';
 $_SERVER['APP_ENV'] = 'test';
+
+// Fail BEFORE any destructive fixture or test method can run if either named
+// connection accidentally targets an application or staging database.
+$kernel = new \App\Kernel('test', true);
+$kernel->boot();
+try {
+    $doctrine = $kernel->getContainer()->get('doctrine');
+    foreach (['main', 'akaunting'] as $connectionName) {
+        $database = (string) $doctrine->getConnection($connectionName)->getDatabase();
+        if (!preg_match('/_test[A-Za-z0-9]*$/', $database)) {
+            throw new \RuntimeException(sprintf(
+                'Unsafe PHPUnit database on connection %s: %s. Tests require separate *_test databases.',
+                $connectionName,
+                $database
+            ));
+        }
+    }
+} finally {
+    $kernel->shutdown();
+}

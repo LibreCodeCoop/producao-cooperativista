@@ -37,7 +37,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use App\Service\Import\BatchPersistence;
 use App\Service\Import\ExistingEntityIndex;
-use App\Service\Import\AssociatedDocumentIndex;
+use App\Service\Import\AssociatedDocumentResolver;
 
 /**
  * @method self setCategoryId(int $value)
@@ -62,7 +62,7 @@ class Transactions
         private Dataset $dataset,
         private BatchPersistence $batchPersistence,
         private ExistingEntityIndex $entityIndex,
-        private AssociatedDocumentIndex $associatedDocumentIndex,
+        private AssociatedDocumentResolver $associatedDocumentResolver,
     ) {
         $this->companyId = (int) getenv('AKAUNTING_COMPANY_ID');
     }
@@ -95,7 +95,9 @@ class Transactions
         ]);
         $this->list = [];
         $existing = $this->entityIndex->byId($this->entityManager, Transaction::class, array_column($list, 'id'));
-        $linkedDocs = $this->associatedDocumentIndex->byId($this->entityManager, array_column($list, 'document_id'));
+        // Always resolve the current source documents through bounded API
+        // filters; a previously imported month must never change attribution.
+        $linkedDocs = $this->associatedDocumentResolver->resolve($list, $this->getCompanyId());
         foreach ($list as $row) {
             $linked = $linkedDocs[(int) ($row['document_id'] ?? 0)] ?? false;
             $transaction = $this->fromArray($row, $existing[$row['id']] ?? new Transaction(), $linked);

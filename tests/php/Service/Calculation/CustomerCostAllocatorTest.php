@@ -35,6 +35,24 @@ final class CustomerCostAllocatorTest extends TestCase
         ], ['client-a' => 200.0]);
     }
 
+    public function testCostsWithoutPositiveReceiptsAreIdentifiedButNotReallocated(): void
+    {
+        $calculator = new CustomerCostAllocator();
+        $receipts = [
+            ['amount' => 250.0, 'customer_reference' => 'paid-client'],
+            ['amount' => 0.0, 'customer_reference' => 'not-yet-paid-client'],
+        ];
+        $costs = ['paid-client' => 35.0, 'not-yet-paid-client' => 20.0, 'unknown-client' => 15.0];
+        self::assertSame([
+            'not-yet-paid-client' => 20.0,
+            'unknown-client' => 15.0,
+        ], $calculator->unmatchedCosts($receipts, $costs));
+        // An expense assigned to an unpaid customer is not silently paid from
+        // another customer's work; the allocator must still reject that case.
+        $this->expectException(DomainException::class);
+        $calculator->allocate($receipts, $costs);
+    }
+
     public function testAnInvoiceCanHaveZeroCostAndPreservesItsAmount(): void
     {
         $this->assertSame([0 => 0.0], new CustomerCostAllocator()->allocate([

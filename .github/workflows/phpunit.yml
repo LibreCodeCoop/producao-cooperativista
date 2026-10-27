@@ -89,9 +89,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
             > .env
-            # The accounting test schema is separate from the ETL database.
-            # DBAL cannot create a schema when its configured URL does not yet exist.
-            docker exec "${{ job.services.mysql.id }}" sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -h127.0.0.1 -uroot -e "CREATE DATABASE IF NOT EXISTS akaunting"'
+            # Each named Doctrine connection must use its own *_test schema.
+            # Never run destructive PHPUnit fixtures against report or akaunting.
+            docker exec "${{ job.services.mysql.id }}" sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -h127.0.0.1 -uroot -e "CREATE DATABASE IF NOT EXISTS report_test; CREATE DATABASE IF NOT EXISTS akaunting_test"'
             php ./bin/console doctrine:migrations:migrate -n
 
       - name: PHPUnit

@@ -226,6 +226,44 @@ final class MovimentacaoTest extends TestCase
         $this->movimentacao->percentualAdministrativo();
     }
 
+    public function testNegativeAdministrativeBaseReportsUnpaidClientCostsWithoutPersonalIdentifiers(): void
+    {
+        $this->persistCategory(id: 45, name: 'Cliente > Receitas', parentId: null, type: 'income');
+        $this->persistCategory(id: 16, name: 'Dispêndios internos', parentId: null);
+        $this->persistCategory(id: 28, name: 'Custo específico de cliente', parentId: 45);
+
+        foreach ([
+            [902, 16, 700.0, null],
+            [903, 28, 200.0, '98765432000110'],
+        ] as [$id, $category, $amount, $customer]) {
+            $this->movimentacao->setMovimentacao([
+                'table' => 'transaction',
+                'id' => $id,
+                'category_id' => $category,
+                'category_type' => 'expense',
+                'customer_reference' => $customer,
+                'percentual_desconto_fixo' => false,
+                'transaction_of_month' => '2026-05',
+                'amount' => $amount,
+                'archive' => 0,
+            ]);
+        }
+
+        $this->movimentacao->setPercentualMaximo(25);
+        try {
+            $this->movimentacao->percentualAdministrativo();
+            self::fail('The ETL must reject a negative administrative base.');
+        } catch (\DomainException $error) {
+            self::assertStringContainsString('Base administrativa indisponível', $error->getMessage());
+            self::assertStringContainsString('receitas móveis elegíveis R$ 0,00', $error->getMessage());
+            self::assertStringContainsString('custos por cliente R$ 200,00', $error->getMessage());
+            self::assertStringContainsString('base após custos R$ -200,00', $error->getMessage());
+            self::assertStringContainsString('dispêndios internos R$ 700,00', $error->getMessage());
+            self::assertStringContainsString('1 cliente com custos sem receita elegível', $error->getMessage());
+            self::assertStringNotContainsString('98765432000110', $error->getMessage());
+        }
+    }
+
     public function testInvalidAdministrativePercentageCannotBeAppliedSilently(): void
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -282,6 +320,96 @@ final class MovimentacaoTest extends TestCase
         self::assertSame(10.0, $this->movimentacao->getMovimentacaoFinanceira()['invoice:1005']['base_producao']);
         self::assertSame('transaction', $this->movimentacao->getMovimentacaoFinanceira()[1005]['table']);
         self::assertEqualsWithDelta(136.78, array_sum(array_column($this->movimentacao->getSaidas(), 'amount')), 0.001);
+    }
+
+    public function testInsufficientEligibleCapitalIdentifiesCostsAndRequiredRateWithoutRedistribution(): void
+    {
+        $this->persistCategory(id: 45, name: 'Receitas clientes', parentId: null, type: 'income');
+        $this->persistCategory(id: 20, name: 'Serviços', parentId: 45, type: 'income');
+        $this->persistCategory(id: 16, name: 'Dispêndios internos', parentId: null);
+        $this->persistCategory(id: 28, name: 'Custos de cliente', parentId: 45);
+
+        // Synthetic low-revenue scenario: internal expenses exceed the
+        // administrative basis after costs from an unpaid customer.
+        foreach ([
+            [5101, 20, 'income', 1200.0, '12345678000190'],
+            [5102, 16, 'expense', 1050.0, null],
+            [5103, 28, 'expense', 200.0, '98765432000110'],
+        ] as [$id, $category, $type, $amount, $customer]) {
+            $this->movimentacao->setMovimentacao([
+                'table' => 'transaction',
+                'id' => $id,
+                'category_id' => $category,
+                'category_type' => $type,
+                'customer_reference' => $customer,
+                'percentual_desconto_fixo' => false,
+                'discount_percentage' => 0.0,
+                'transaction_of_month' => '2026-05',
+                'amount' => $amount,
+                'archive' => 0,
+            ]);
+        }
+
+        $this->movimentacao->setPercentualMaximo(25);
+        try {
+            $this->movimentacao->percentualAdministrativo();
+            self::fail('A deficit exceeding eligible capital cannot produce a payable distribution.');
+        } catch (\DomainException $e) {
+            self::assertStringContainsString('Capital elegível insuficiente', $e->getMessage());
+            self::assertStringContainsString('2026-05', $e->getMessage());
+            self::assertStringContainsString('R$ 1.000,00', $e->getMessage());
+            self::assertStringContainsString('R$ 1.050,00', $e->getMessage());
+            self::assertStringContainsString('R$ 50,00', $e->getMessage());
+            self::assertStringContainsString('105,00%', $e->getMessage());
+            self::assertStringContainsString('25%', $e->getMessage());
+            self::assertStringContainsString('1 cliente com custos', $e->getMessage());
+            self::assertStringContainsString('R$ 200,00', $e->getMessage());
+            self::assertStringNotContainsString('98765432000110', $e->getMessage());
+        }
+    }
+
+    public function testDocumentWithImpossibleFixedDiscountIdentifiesTheSourceMovement(): void
+    {
+        $this->persistCategory(id: 45, name: 'Receitas clientes', parentId: null, type: 'income');
+        $this->persistCategory(id: 20, name: 'Serviços', parentId: 45, type: 'income');
+
+        $transaction = new Transaction();
+        $transaction->fromArray([
+            'id' => 5110,
+            'type' => 'income',
+            'paid_at' => '2026-05-04 10:00:00',
+            'transaction_of_month' => '2026-05',
+            'amount' => 100.0,
+            'discount_percentage' => 125.0,
+            'currency_code' => 'BRL',
+            'reference' => 'Recebimento de serviço',
+            'nfse' => null,
+            'tax_number' => null,
+            'customer_reference' => '12345678000190',
+            'contact_id' => 51,
+            'contact_reference' => null,
+            'contact_name' => 'Cliente exemplo',
+            'contact_type' => 'customer',
+            'category_id' => 20,
+            'category_name' => 'Serviços',
+            'category_type' => 'income',
+            'archive' => 0,
+            'metadata' => [],
+        ]);
+        $this->entityManager->persist($transaction);
+        $this->entityManager->flush();
+        $this->movimentacao->setPercentualMaximo(25);
+
+        try {
+            $this->movimentacao->getMovimentacaoFinanceira();
+            self::fail('A negative amount from an impossible fixed discount must not be published.');
+        } catch (\DomainException $e) {
+            self::assertStringContainsString('lançamento transaction:5110', $e->getMessage());
+            self::assertStringContainsString('2026-05', $e->getMessage());
+            self::assertStringContainsString('125,00%', $e->getMessage());
+            self::assertStringContainsString('R$ -25,00', $e->getMessage());
+            self::assertStringNotContainsString('12345678000190', $e->getMessage());
+        }
     }
 
     public function testAdministrativeRateUsesEligibleCustomerEntriesNotBankBalance(): void
