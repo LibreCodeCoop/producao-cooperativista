@@ -9,6 +9,8 @@ on:
       - 'vendor/**'
       - 'vendor-bin/**'
       - '.php-cs-fixer.dist.php'
+      - '.docker/php/Dockerfile'
+      - '.github/actions/php-version/**'
       - 'composer.json'
       - 'composer.lock'
 
@@ -29,13 +31,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Read and validate PHP version
+      - name: Resolve PHP version
         id: runtime
-        run: |
-          php_version="$(cat .php-version)"
-          jq -e --arg php "^$php_version" '.require.php == $php' composer.json
-          grep -Fqx "ARG PHP_VERSION=$php_version" .docker/php/Dockerfile
-          echo "php=$php_version" >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/php-version
 
       - name: Set up PHP
         uses: shivammathur/setup-php@cf4cade2721270509d5b1c766ab3549210a39a2a # v2

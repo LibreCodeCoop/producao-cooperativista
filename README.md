@@ -197,8 +197,8 @@ tail -f logs/system.log
 
 ### Requisitos e qualidade
 
-- **PHP:** versão suportada declarada em `.php-version`, no Composer e verificada nos workflows. O Docker utiliza a mesma versão.
+- **PHP:** imagem de execução declarada uma única vez em `ARG PHP_IMAGE` de `.docker/php/Dockerfile`; os workflows leem esse valor automaticamente. O `composer.json` mantém apenas a versão mínima compatível.
 - **Node.js:** versão de execução de testes declarada em `.nvmrc`. O frontend usa JavaScript nativo, sem dependências npm instaladas.
-- **Dependências:** `composer update -W` no backend, com ferramentas de desenvolvimento isoladas em `vendor-bin`.
+- **Dependências:** `composer update -W` no backend, com ferramentas de desenvolvimento isoladas em `vendor-bin`. O Dependabot acompanha Composer, GitHub Actions e Docker Compose; o Renovate acompanha o Dockerfile, `.nvmrc` e a imagem MySQL usada pelo CI. As atualizações exigem revisão e CI aprovada.
 - **Modernização de PHP:** `composer run rector:check` verifica as refatorações, e `composer run rector:fix` aplica as alterações.
-- **Verificação:** `composer run test:unit`, `composer run cs:check` e `composer run psalm`. Os testes de JavaScript usam `node --test tests/js/production-progress.test.cjs`.
+- **Verificação:** `composer run test:unit`, `composer run cs:check` e `composer run psalm`. Os testes de JavaScript usam `node --test tests/js/*.test.cjs`.

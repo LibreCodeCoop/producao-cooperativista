@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Resolve PHP version
+description: Read the PHP runtime version from the Dockerfile's single source of truth
+outputs:
+  php:
+    description: PHP version selected for the runtime and CI
+    value: ${{ steps.detect.outputs.php }}
+  image:
+    description: Full PHP image reference for the Docker build
+    value: ${{ steps.detect.outputs.image }}
+runs:
+  using: composite
+  steps:
+    - id: detect
+      shell: bash
+      run: |
+        mapfile -t images < <(sed -n 's/^ARG PHP_IMAGE=//p' .docker/php/Dockerfile)
+        if (( ${#images[@]} != 1 )); then
+          echo "::error::Dockerfile must declare ARG PHP_IMAGE exactly once"
+          exit 1
+        fi
+        php_image="${images[0]}"
+        if [[ ! "$php_image" =~ ^php:([0-9]+\.[0-9]+(\.[0-9]+)?)-fpm(@sha256:[a-f0-9]{64})?$ ]]; then
+          echo "::error::Invalid PHP image reference in Dockerfile"
+          exit 1
+        fi
+        echo "php=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+        echo "image=$php_image" >> "$GITHUB_OUTPUT"

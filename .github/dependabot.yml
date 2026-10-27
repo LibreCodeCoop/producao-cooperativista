@@ -3,6 +3,8 @@
 
 version: 2
 updates:
+  # The root application and each isolated vendor-bin tool have independent
+  # composer.json/composer.lock files, and all must be updated.
   - package-ecosystem: composer
     directories:
       - /
@@ -12,17 +14,23 @@ updates:
       - /vendor-bin/rector
     schedule:
       interval: weekly
+    open-pull-requests-limit: 10
     groups:
-      composer-dependencies:
-        patterns: ["*"]
+      symfony:
+        patterns:
+          - "symfony/*"
+        update-types:
+          - minor
+          - patch
+      doctrine:
+        patterns:
+          - "doctrine/*"
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: github-actions
     directory: /
-    schedule:
-      interval: weekly
-
-  - package-ecosystem: docker
-    directory: /.docker/php
     schedule:
       interval: weekly
 
@@ -30,3 +38,6 @@ updates:
     directory: /
     schedule:
       interval: weekly
+
+  # Dockerfile ARG/PHP version and COPY --from are handled by Renovate.
+  # Do not enable the Dockerfile ecosystem here or both bots will overlap.
