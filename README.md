@@ -11,44 +11,16 @@ ETL de produção cooperativista com conectores de dados, apuração econômica 
 | [Nextcloud + Profile Fields](https://github.com/LibreCodeCoop/profile_fields/) | Diretório interno dos cooperados com os campos customizados `weight`, `tax_number` e `dependents` usados na produção |
 | Site da prefeitura                 | Emissão de NFSe. Hoje o sistema dá suporte oficial apenas as prefeituras dos municípios do Rio e Niterói. |
 
-## Ambiente de desenvolvimento
+## Ambiente de desenvolvimento e homologação
 
-Crie o arquivo docker-compose.override.yml
-```yml
-networks:
-  external:
-    external: true
+Execute a apuração em uma instalação e bancos **isolados** dos produtivos. Os dados importados podem conter informações pessoais e financeiras: mantenha dumps, `.env`, CSVs e logs fora do Git, sob permissões privadas e uma política de retenção.
 
-services:
-  php:
-    networks:
-      - internal
-      - external
-  nginx:
-    ports:
-      - 8080:80
-  mysql:
-    image: mysql
-    cap_add:
-      - SYS_NICE  # CAP_SYS_NICE
-    volumes:
-      - ./.docker/mysql/conf:/etc/mysql/conf.d
-      - ./volumes/mysql/dump:/docker-entrypoint-initdb.d
-      - ./volumes/mysql/data:/var/lib/mysql
-    ports:
-      - 3301:3306
-    restart: unless-stopped
-    environment:
-      - TZ
-      - MYSQL_HOST
-      - MYSQL_ROOT_PASSWORD
-      - MYSQL_DATABASE
-      - MYSQL_USER
-      - MYSQL_PASSWORD
-    networks:
-      - internal
-```
-E peça o `.env` de prod ao time de infraestrutura. Irão te passar sem as credenciais de produção que você deverá substituir por credenciais de desenvolvimento. Em geral olhando o `.env.example` ajuda a entender.
+1. Copie `.env.example` para `.env` e configure **somente credenciais de desenvolvimento**; não use tokens de escrita, senhas nem chaves de produção para homologar.
+2. Verifique que `DATABASE_URL` aponta para um banco intermediário **próprio da homologação**, `DATABASE_AKAUNTING_URL` para a cópia local do banco do Akaunting e `AKAUNTING_API_BASE_URL` para uma API **local**, nunca para o serviço de produção.
+3. Defina `APP_ENV=dev` (ou `test` para PHPUnit). Selecione `COOPERATIVE_PROFILE=librecode` somente para a política vigente; outros perfis exigem instância/banco próprios.
+4. Evite publicar portas de banco no host e não conecte o ETL a redes externas quando estiver testando snapshots. Configure a infraestrutura de homologação existente em vez de reutilizar bancos de desenvolvimento compartilhados.
+
+O projeto usa duas bases distintas: a do **ETL** (transformações, importações e auditoria) e a do **Akaunting** (documentos contábeis). Restaurar apenas uma delas não reproduz a execução histórica. O Kimai e as demais integrações exigem fontes autorizadas, ou um snapshot previamente importado.
 
 ## Ações para que tudo funcione
 * Emissão de notas fiscais
@@ -90,20 +62,12 @@ E peça o `.env` de prod ao time de infraestrutura. Irão te passar sem as crede
       Cooperado: Ada Lovelace, CPF: 22222222222, Valor: 1.592,65
       Cooperado: Radia Perlman, CPF: 33333333333, Valor: R$12.345,67
       ```
-      > **Dica**: Esta descrição é coletada com a seguinte regex:
-      > ```
-      > /^Cooperado: .*CPF: (?<CPF>\d+)[,;]? Valor: (R\$ ?)?(?<value>.*)$/i
-      > ```
-      > Depois disso, o parse do valor funciona assim:
-      > - remove `R$`, espaços e outros caracteres que não sejam dígitos, vírgula, ponto ou sinal
-      > - remove todos os pontos `.`
-      > - troca a vírgula `,` por ponto `.` antes de converter para número
-      >
-      > Portanto:
-      > - use **vírgula como separador decimal**
-      > - o **ponto é opcional e só pode ser usado como separador de milhar**
-      > - formatos como `781,95`, `R$ 781,95`, `1.592,65` e `R$12.345,67` são aceitos
-      > - **não** use ponto como separador decimal, por exemplo `1592.65`, porque hoje isso seria interpretado como `159265`
+      > **Validação monetária:** use vírgula como separador decimal e ponto
+      > apenas entre grupos de três dígitos para milhares. São aceitos
+      > `781,95`, `R$ 781,95`, `1.592,65` e `R$12.345,67`.
+      > Um valor como `1592.65`, com ponto decimal, **interrompe o cálculo**
+      > com uma mensagem de correção; não será interpretado como `159265`.
+      > O formato é obrigatório: confira as notas antes de apurar a produção.
     * Customização da fatura (compra ou venda) ou transação deve ser inserida na descrição. Valores possíveis:
       | Nome                     | Descrição                                                                                                                                                                         |
       | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -120,9 +84,11 @@ E peça o `.env` de prod ao time de infraestrutura. Irão te passar sem as crede
       Transação do mês: 2023-05
       ```
 
-## TO-DO para prod
-* Todo contact do tipo vendor referente a um cooperado precisa ter tax_number
-* Cadastrar tudo o que está no `.env` no Akaunting e atualizar o `.env` com os id's
+## Checklist de configuração da LibreCode
+
+- Cada contato de cooperado no Akaunting deve ter identificação fiscal válida e verificável.
+- Confira os IDs de categorias, itens e tributos no Akaunting e as variáveis correspondentes do `.env`, sem copiar credenciais de produção.
+- Antes de uma publicação, valide pesos, dependentes e identificação no Profile Fields, apontamentos do Kimai, recebimentos efetivos, categorias e despesas no Akaunting e eventuais campos manuais de competência.
 
 ## Setup
 Primeiro clone o repositório e entre nele.
@@ -143,34 +109,23 @@ php ./bin/console doctrine:migrations:migrate -n
 ```
 
 ## Comandos
-### Exemplos
+### Prévia e publicação
 
-O principal comando é:
+O comando `make:producao` calcula sem publicar por padrão. Para conferir valores, use `--csv`: a prévia inclui agora o número **esperado** do documento `PDC_...-AAAA-MM`, permitindo conciliação por identificador, e não por posição da linha.
 
 ```bash
-make:producao
-
-Description:
-  Produção cooperativista por cooperado
-
-Usage:
-  make:producao [options]
-
-Options:
-      --csv                                    To output as CSV
-      --database                               Save to default database
-      --ano-mes=ANO-MES                        Ano e mês para gerar a produção cooperativista, formato: YYYY-mm
-      --dias-uteis=DIAS-UTEIS                  Total de dias úteis no mês trabalhado. Se não informar, irá calcular com base nos dias úteis de um mês considerando apenas feriados nacionais.
-      --dia-util-pagamento=DIA-UTIL-PAGAMENTO  Número ordinal do dia útil quando o pagamento será feito [default: 5]
-      --percentual-maximo=PERCENTUAL-MAXIMO    Percentual máximo para pagamento de dispêndios [default: 25]
-      --baixar-dados=BAIXAR-DADOS              Acessa todas as bases externas e atualiza o banco de dados local. Valores: 1 = sim, 0 = não. [default: 1]
-      --atualiza-producao                      Atualiza a produção cooperativista no Akaunting
-      --ods                                    To output as ods
+php bin/console make:producao --ano-mes=2026-08 --baixar-dados=0 --as-of=2026-10-07 --csv
 ```
 
-`--baixar-dados=0`
+- `--ano-mes=AAAA-MM` identifica o **mês trabalhado**; 2026-08 corresponde à competência de documentos 2026-09, com pagamento previsto no mês seguinte.
+- `--baixar-dados=1` (padrão) importa novamente as fontes externas e **altera o banco intermediário**. Para importar separadamente, use `etl:sync --ano-mes=AAAA-MM`.
+- `--baixar-dados=0` apenas reutiliza dados já importados: **não** garante, sozinho, uma fotografia histórica, nem corrige importação incompleta. Aceita exclusivamente `0` ou `1`.
+- `--as-of=AAAA-MM-DD` fixa a data de referência em uma prévia e não pode ser combinado com publicação.
+- `--dias-uteis`, `--dia-util-pagamento` e `--percentual-maximo` afetam o cálculo; use somente parâmetros aprovados.
+- `--atualiza-producao` **publica** documentos e tributos no Akaunting configurado; use apenas após conferência e autorização, nunca conectado à produção durante homologação.
+- `--database` não grava dados nem publica por conta própria e agora é recusado explicitamente. `--ods` foi removido: não havia exportação ODS implementada.
 
-Após executar uma vez e constatar que baixou todos os dados corretamente, você pode usar esta opção para não ficar baixando os dados de todas as fontes externas o tempo inteiro pois baixar isto tudo é o que hoje faz este comando demorar um pouco. Esta opção só é útil caso você queira ficar executando o mesmo comando mais de uma vez quando for analizar os dados importados ou os logs do sistema ou debugar a aplicação.
+Uma prévia recalculada pode divergir de uma fatura paga por mudanças posteriores nas fontes, descontos, adiantamentos ou critérios. **Não** altere o valor histórico automaticamente para fazer os relatórios coincidirem.
 
 O comando principal é composto pela execução independente de cada um dos comandos abaixo que você provavelmente não precisará usar:
 
@@ -188,12 +143,23 @@ Available commands:
   get:users                          Get users
 ```
 
-## Logs
-Tudo (ou quase tudo) o que é feito fica registrado em log e pode ser monitorado em:
+## Rotina de conferência mensal
+
+1. **Conferir as origens**: fechamento das horas no Kimai, campos cadastrais no Profile Fields, identificação dos cooperados, pagamentos de clientes, notas, custos e categorias corretas no Akaunting. Campos livres como `Transação do mês`, `Arquivar: sim` e descontos fixos exigem conferência humana. Não use essas marcações para contornar uma diferença não investigada.
+2. **Importar e preservar o corte**: execute `etl:sync --ano-mes=AAAA-MM` com acesso autorizado e gere `audit:inputs --ano-mes=AAAA-MM --revision="$(git rev-parse HEAD)"`. Preserve snapshot intermediário e manifesto em área confidencial. Importar outra competência pode mudar as bases da anterior.
+3. **Calcular sem publicar**: `make:producao --ano-mes=AAAA-MM --baixar-dados=0 --csv`; use `--as-of` em auditoria histórica. Confira todos os números `PDC_`, bases, retenções, adiantamentos, descontos, FRRA, totais e datas. Guarde o CSV com acesso restrito.
+4. **Conciliar em leitura com o Akaunting**: compare `document_number`, situação (`draft`, `paid` ou `cancelled`), competência, itens e notas. Não sobrescreva faturas finalizadas. Toda divergência exige explicação sobre dados de origem, data de corte, política e eventuais ajustes posteriores.
+5. **Aprovar ou bloquear**: obtenha a revisão financeira/contábil aplicável antes de usar `--atualiza-producao` no ambiente aprovado. Ausência de horas, custos sem receita, capital elegível insuficiente ou inconsistência cadastral bloqueiam a publicação. Após uma falha de publicação, confira os registros existentes antes de repetir a operação.
+
+## Logs e sigilo
+
+O Monolog registra a execução em `var/log/<APP_ENV>.log` (por exemplo, `var/log/dev.log`) e os erros em `var/log/calculation-errors.log`, ambos com rotação. Acompanhe localmente com:
 
 ```bash
-tail -f logs/system.log
+tail -f var/log/dev.log var/log/calculation-errors.log
 ```
+
+Logs, relatórios CSV e snapshots podem conter dados pessoais ou financeiros. Nunca os anexe a um PR ou issue públicos.
 
 ### Requisitos e qualidade
 
