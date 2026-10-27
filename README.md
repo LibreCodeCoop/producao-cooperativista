@@ -201,4 +201,4 @@ tail -f logs/system.log
 - **Node.js:** versão de execução de testes declarada em `.nvmrc`. O frontend usa JavaScript nativo, sem dependências npm instaladas.
 - **Dependências:** `composer update -W` no backend, com ferramentas de desenvolvimento isoladas em `vendor-bin`. O Dependabot acompanha Composer, GitHub Actions e Docker Compose; o Renovate acompanha o Dockerfile, `.nvmrc` e a imagem MySQL usada pelo CI. As atualizações exigem revisão e CI aprovada.
 - **Modernização de PHP:** `composer run rector:check` verifica as refatorações, e `composer run rector:fix` aplica as alterações.
-- **Verificação:** `composer run test:unit`, `composer run cs:check` e `composer run psalm`. Os testes de JavaScript usam `node --test tests/js/*.test.cjs`.
+- **Verificação:** `composer run test:unit`, `composer run cs:check` e `composer run psalm`. Os testes de JavaScript usam `node --test tests/js/*.test.cjs`. A CI executa esses testes em um workflow separado, com limites mínimos de cobertura (90% de linhas, 80% de ramos e 75% de funções).
