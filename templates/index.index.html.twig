@@ -1,28 +1,57 @@
 {% extends "layout/index.html.twig" %}
 
-{% block title %}Home{% endblock title %}
+{% block title %}Visão geral{% endblock %}
 
 {% block body %}
-    <ul>
-        <li>
-            Relatórios
-            <ul>
-            {% for relatorio in relatorios %}
-                <li>
-                    <a href="{{ relatorio.url }}">{{relatorio.label}}</a>
-                </li>
-            {% endfor %}
-            </ul>
-        </li>
-        <li>
-            Ações
-            <ul>
-            {% for acao in acoes %}
-                <li>
-                    <a href="{{ acao.url }}">{{acao.label}}</a>
-                </li>
-            {% endfor %}
-            </ul>
-        </li>
-    </ul>
+    <header class="page-heading">
+        <p class="eyebrow">Painel operacional</p>
+        <h1>Produção cooperativista</h1>
+        <p class="page-lead">Consulte relatórios, acompanhe os dados importados e execute as rotinas de produção com segurança.</p>
+    </header>
+
+    <div class="dashboard-layout">
+        <section class="surface dashboard-reports" aria-labelledby="reports-heading">
+            <div class="section-heading">
+                <div>
+                    <p class="section-kicker">Consultas</p>
+                    <h2 id="reports-heading">Relatórios</h2>
+                </div>
+                <p>Explore os dados utilizados na apuração.</p>
+            </div>
+            <div class="reports-grid">
+                {% for relatorio in relatorios %}
+                    <a class="report-link" href="{{ relatorio.url }}">
+                        <span class="report-number" aria-hidden="true">{{ '%02d'|format(loop.index) }}</span>
+                        <span class="item-copy">
+                            <strong>{{ relatorio.label }}</strong>
+                            <small>{{ relatorio.description }}</small>
+                        </span>
+                        <span class="item-arrow" aria-hidden="true">↗</span>
+                    </a>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="surface dashboard-actions" aria-labelledby="actions-heading">
+            <div class="section-heading">
+                <div>
+                    <p class="section-kicker">Operações</p>
+                    <h2 id="actions-heading">Ações</h2>
+                </div>
+            </div>
+            <p class="actions-description">Ações que podem atualizar a base intermediária ou gerar documentos devem ser executadas somente após conferência.</p>
+            <div class="actions-list">
+                {% for acao in acoes %}
+                    <a class="action-link{% if acao.danger|default(false) %} action-link-danger{% endif %}" href="{{ acao.url }}">
+                        <span class="action-link-body">
+                            <strong>{{ acao.label }}</strong>
+                            <small>{{ acao.description }}</small>
+                        </span>
+                        <span class="item-arrow" aria-hidden="true">↗</span>
+                    </a>
+                {% endfor %}
+            </div>
+            <div class="actions-footnote">A prévia permite conferir resultados antes de qualquer publicação no Akaunting.</div>
+        </section>
+    </div>
 {% endblock %}

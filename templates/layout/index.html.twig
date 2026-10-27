@@ -1,12 +1,39 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
     <head>
-        <title>{% block title %}Report{% endblock %}</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="color-scheme" content="light">
+        <title>{% block title %}Visão geral{% endblock %} | Produção cooperativista</title>
         <link rel="icon" href="/img/favico.ico">
+        <link rel="stylesheet" href="/css/app.css">
         <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
         {% block head %}{% endblock %}
     </head>
     <body>
-    {% block body %}{% endblock %}
+        <a class="skip-link" href="#main-content">Ir para o conteúdo</a>
+        <header class="app-header">
+            <div class="container header-inner">
+                <a class="brand" href="/" aria-label="Produção cooperativista — página inicial">
+                    <span class="brand-mark" aria-hidden="true">LC</span>
+                    <span class="brand-text">
+                        <strong>LibreCode</strong>
+                        <small>Produção cooperativista</small>
+                    </span>
+                </a>
+                <nav aria-label="Navegação principal">
+                    <a class="header-nav-link" href="/">Visão geral</a>
+                </nav>
+            </div>
+        </header>
+        <main class="container page-content" id="main-content">
+            {% block body %}{% endblock %}
+        </main>
+        <footer class="app-footer">
+            <div class="container">
+                <span>Produção cooperativista</span>
+                <span>Controle e conciliação de dados</span>
+            </div>
+        </footer>
     </body>
 </html>

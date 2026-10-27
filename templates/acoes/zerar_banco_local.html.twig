@@ -1,32 +1,113 @@
 {% extends "layout/index.html.twig" %}
 
-{% block title %}Limpar dados importados do ETL{% endblock %}
+{% block title %}Reconstruir dados do ETL{% endblock %}
 
 {% block body %}
-    <h2>Reconstruir dados intermediários do ETL</h2>
-    <p>
-        Esta ação remove <strong>somente os dados importados do banco de transformação</strong>.
-        Não remove tabelas, migrações, logs nem registros do Akaunting e Kimai.
-    </p>
-    <p>
-        Use quando um apontamento de horas ou um lançamento financeiro tiver sido alterado,
-        excluído ou reclassificado na origem e os relatórios ainda estiverem desatualizados.
-        Depois de limpar os dados, <strong>execute a importação novamente antes de calcular</strong>.
-    </p>
-    <p>
-        A operação exige que <code>PRODUCAO_STAGING_DATABASE</code> seja o nome exato
-        do banco intermediário, diferente do banco financeiro.
-    </p>
-    <form method="post" action="{{ url }}">
-        <input type="hidden" name="_token" value="{{ token }}">
-        <label for="confirmacao">Digite ZERAR para confirmar:</label>
-        <input id="confirmacao" name="confirmacao" required autocomplete="off">
-        <label for="action_token">Credencial de operação (obrigatória em produção):</label>
-        <input id="action_token" type="password" name="action_token" autocomplete="off">
-        <button type="submit">Limpar dados intermediários</button>
-    </form>
-    {% if response %}
-        <h3>Resultado</h3>
-        <pre>{{ response }}</pre>
-    {% endif %}
+    {% set reset_available = operation_configured and staging_configured %}
+    <nav class="breadcrumbs" aria-label="Localização">
+        <a href="/">Visão geral</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">Reconstruir dados do ETL</span>
+    </nav>
+
+    <header class="page-heading page-heading-compact">
+        <p class="eyebrow">Manutenção · Ação restrita</p>
+        <h1>Reconstruir dados intermediários do ETL</h1>
+        <p class="page-lead">Remova os dados importados do banco de transformação para reconstruir a base a partir das fontes.</p>
+    </header>
+
+    <div class="reset-layout">
+        <section class="surface reset-explainer" aria-labelledby="reset-explainer-heading">
+            <h2 id="reset-explainer-heading">O que essa operação faz?</h2>
+            <div class="reset-facts">
+                <div class="reset-fact">
+                    <span class="fact-icon fact-icon-danger" aria-hidden="true">−</span>
+                    <div>
+                        <h3>Remove dados importados</h3>
+                        <p>Limpa os registros do banco intermediário utilizados pelo ETL.</p>
+                    </div>
+                </div>
+                <div class="reset-fact">
+                    <span class="fact-icon fact-icon-safe" aria-hidden="true">✓</span>
+                    <div>
+                        <h3>Preserva as fontes e a estrutura</h3>
+                        <p>Não remove tabelas, migrações, logs nem registros do Akaunting ou do Kimai.</p>
+                    </div>
+                </div>
+                <div class="reset-fact">
+                    <span class="fact-icon fact-icon-next" aria-hidden="true">↻</span>
+                    <div>
+                        <h3>Exige nova importação</h3>
+                        <p>Depois de limpar, importe novamente os dados <strong>antes de calcular a produção</strong>.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="information-note">
+                <strong>Quando utilizar</strong>
+                <p>Quando horas ou lançamentos financeiros forem alterados, excluídos ou reclassificados na origem e os relatórios ainda mostrarem dados antigos.</p>
+            </div>
+        </section>
+
+        <section class="surface reset-operation" aria-labelledby="reset-operation-heading">
+            <div class="operation-heading">
+                <h2 id="reset-operation-heading">Confirmar limpeza</h2>
+                <span class="operation-tag">Ação destrutiva</span>
+            </div>
+
+            {% if not reset_available %}
+                <div class="status-note status-note-warning" role="status">
+                    <strong>Operação indisponível nesta instalação</strong>
+                    <p>
+                        {% if not staging_configured and not operation_configured %}
+                            O banco intermediário e a senha de operação ainda não foram configurados pelo administrador.
+                        {% elseif not staging_configured %}
+                            O banco intermediário ainda não foi confirmado pelo administrador.
+                        {% else %}
+                            A senha administrativa de operação ainda não foi configurada.
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
+
+            <form method="post" action="{{ url }}" class="reset-form">
+                <input type="hidden" name="_token" value="{{ token }}">
+                <div class="form-field">
+                    <label for="confirmacao">Confirmação obrigatória</label>
+                    <p class="field-help" id="confirmation-help">Digite ZERAR exatamente como indicado.</p>
+                    <input id="confirmacao" name="confirmacao" required pattern="ZERAR"
+                           minlength="5" maxlength="5" spellcheck="false" autocomplete="off"
+                           aria-describedby="confirmation-help" placeholder="ZERAR"
+                           {% if not reset_available %}disabled{% endif %}>
+                </div>
+
+                <div class="form-field">
+                    <label for="action_token">Senha administrativa de operação</label>
+                    <p class="field-help" id="credential-help">Não é a senha de acesso a este site, nem uma senha do Akaunting ou do Kimai. É uma credencial separada, configurada e fornecida por quem administra a instalação.</p>
+                    <input id="action_token" type="password" name="action_token" required
+                           autocomplete="off" aria-describedby="credential-help"
+                           placeholder="Informe a senha de operação"
+                           {% if not reset_available %}disabled{% endif %}>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="button button-danger" {% if not reset_available %}disabled{% endif %}>Limpar dados intermediários</button>
+                    <a href="/" class="button button-secondary">Voltar ao painel</a>
+                </div>
+            </form>
+
+            {% if response %}
+                <div class="result-message{% if response_is_error|default(false) %} result-message-error{% endif %}"
+                     role="{% if response_is_error|default(false) %}alert{% else %}status{% endif %}">
+                    <strong>Resultado da operação</strong>
+                    <p>{{ response }}</p>
+                </div>
+            {% endif %}
+
+            <details class="technical-details">
+                <summary>Orientações para a administração do servidor</summary>
+                <p>O administrador deve configurar <code>PRODUCAO_STAGING_DATABASE</code> com o nome exato do banco intermediário (diferente do financeiro) e definir uma senha exclusiva em <code>PRODUCAO_ACTION_TOKEN</code>.</p>
+                <p>A confirmação e a senha não substituem a validação do banco nem a proteção contra requisições indevidas feita pelo servidor.</p>
+            </details>
+        </section>
+    </div>
 {% endblock %}

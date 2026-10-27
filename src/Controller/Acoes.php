@@ -80,6 +80,10 @@ class Acoes extends AbstractController
 
         return $this->render('acoes/zerar_banco_local.html.twig', [
             'response' => $message,
+            'response_is_error' => $status >= Response::HTTP_BAD_REQUEST,
+            'operation_configured' => $this->kernel->getEnvironment() !== 'prod'
+                || trim((string) getenv('PRODUCAO_ACTION_TOKEN')) !== '',
+            'staging_configured' => trim((string) getenv('PRODUCAO_STAGING_DATABASE')) !== '',
             'token' => $this->guard->token($request),
             'url' => $this->urlGenerator->generate('app_acoes_zerarbancolocal'),
         ], new Response('', $status));
