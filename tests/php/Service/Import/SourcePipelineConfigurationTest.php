@@ -29,6 +29,7 @@ final class SourcePipelineConfigurationTest extends KernelTestCase
             'akaunting.categories',
             'akaunting.taxes',
             'kimai.users',
-        ], $pipeline->stageNames());
+        ], $pipeline->selectedStageNames());
+        self::assertContains('kimai.users.basic', $pipeline->stageNames());
     }
 }

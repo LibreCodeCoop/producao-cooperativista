@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace App\Service\Import;
 
 use App\Helper\Dates;
+use App\Service\Cooperative\ProfileRegistry;
 use DateTime;
 use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
@@ -31,6 +32,7 @@ final class SourcePipeline
         iterable $steps,
         private LoggerInterface $logger,
         private Dates $dates,
+        private ?ProfileRegistry $profiles = null,
     ) {
         $names = [];
         $this->steps = [];
@@ -53,11 +55,36 @@ final class SourcePipeline
         return array_map(static fn (SourceStep $step): string => $step->name(), $this->steps);
     }
 
+    /** @return list<string> */
+    public function selectedStageNames(): array
+    {
+        if ($this->profiles === null) {
+            return $this->stageNames();
+        }
+
+        $selected = $this->profiles->active()->sources();
+        $available = $this->stageNames();
+        $unavailable = array_diff($selected, $available);
+        if ($unavailable !== []) {
+            throw new InvalidArgumentException(sprintf(
+                'Conector requerido pelo perfil cooperativo indisponível: %s.',
+                implode(', ', $unavailable)
+            ));
+        }
+
+        // Preserve the dependency order defined in the existing Symfony pipeline.
+        return array_values(array_filter($available, static fn (string $id): bool => in_array($id, $selected, true)));
+    }
+
     public function run(DateTime $competence): void
     {
         $this->dates->setInicio($competence);
         $normalized = $this->dates->getInicio();
+        $enabled = array_fill_keys($this->selectedStageNames(), true);
         foreach ($this->steps as $step) {
+            if (!isset($enabled[$step->name()])) {
+                continue;
+            }
             $this->logger->info('Importando dados da etapa {step} para a competência {month}', [
                 'step' => $step->name(),
                 'month' => $normalized->format('Y-m'),

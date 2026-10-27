@@ -121,6 +121,9 @@ final class StagingInputReaderTest extends KernelTestCase
             self::assertSame(0600, fileperms($created[0]) & 0777);
             $bundle = json_decode(file_get_contents($created[0]), true, 512, JSON_THROW_ON_ERROR);
             self::assertSame('2024-12', $bundle['manifest']['competencia']);
+            self::assertSame('librecode', $bundle['rules']['__profile_id']);
+            self::assertSame('librecode', $bundle['rules']['__allocation_policy_id']);
+            self::assertStringContainsString('akaunting.documents', $bundle['rules']['__selected_sources']);
             self::assertSame(
                 $bundle['manifest'],
                 new InputManifestBuilder()->build(

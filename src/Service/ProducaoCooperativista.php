@@ -26,18 +26,15 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Service\Akaunting\CooperadoContactRegistry;
 use App\Helper\Colors;
 use App\Helper\Dates;
 use App\Provider\Akaunting\Request;
 use App\Service\Calculation\WeightedAllocator;
 use App\Service\Calculation\ProductionDistributionPlanner;
 use App\Service\Import\SourcePipeline;
+use App\Service\Cooperative\ProfileRegistry;
+use App\Service\Cooperative\PublicationRouter;
 use App\Service\Akaunting\DocumentConfiguration;
-use App\Service\Akaunting\Document\Taxes\Cofins;
-use App\Service\Akaunting\Document\Taxes\IrpfRetidoNaNota;
-use App\Service\Akaunting\Document\Taxes\Iss;
-use App\Service\Akaunting\Document\Taxes\Pis;
 use App\Service\Akaunting\Source\Documents;
 use App\Service\Akaunting\Source\CapitalSocial;
 use DateTime;
@@ -70,8 +67,9 @@ class ProducaoCooperativista
         private WeightedAllocator $weightedAllocator,
         private ProductionDistributionPlanner $distributionPlanner,
         private SourcePipeline $sourcePipeline,
+        private ProfileRegistry $profiles,
+        private PublicationRouter $publisher,
         private CapitalSocial $capitalSocialSource,
-        private CooperadoContactRegistry $contactRegistry,
     ) {
     }
 
@@ -408,107 +406,11 @@ class ProducaoCooperativista
         }
     }
 
-    private function cadastraCooperadoQueProduziuNoAkaunting(): void
-    {
-        $trabalhadoPorCliente =  $this->getTrabalhadoPorCliente();
-        $exists = [];
-        foreach ($trabalhadoPorCliente as $row) {
-            if (empty($row['akaunting_contact_id'])) {
-                if (in_array($row['tax_number'], $exists)) {
-                    continue;
-                }
-                $akauntingContactId = $this->cadastraCooperadoNoAkaunting(
-                    name: $row['alias'],
-                    taxNumber: $row['tax_number']
-                );
-                $this->getCooperado($row['tax_number'])
-                    ->setAkauntingContactId($akauntingContactId);
-                $exists[] = $row['tax_number'];
-            }
-        }
-    }
-
-    private function cadastraCooperadoNoAkaunting(string $name, string $taxNumber): int
-    {
-        return $this->contactRegistry->getOrCreate(
-            $name,
-            $taxNumber,
-            (int) getenv('AKAUNTING_COMPANY_ID'),
-            $this->dates->getDataProcessamento()
-        );
-    }
-
     public function updateProducao(): void
     {
-        $producao = $this->getProducaoCooperativista();
-        // Creating contacts is a write operation and must never run during
-        // read-only previews or CSV exports.
-        $this->cadastraCooperadoQueProduziuNoAkaunting();
-        foreach ($producao as $cooperado) {
-            $producaoCooperativista = $cooperado->getProducaoCooperativista();
-            $producaoCooperativista->save();
-            $this->logger->info('Produção do cooperado {nome} criada. Número: {numero}. Líquido: {liquido}', [
-                'nome' => $cooperado->getName(),
-                'numero' => $producaoCooperativista->getDocumentNumber(),
-                'liquido' => $producaoCooperativista->getValues()->getLiquido(),
-            ]);
-
-            if (strlen($cooperado->getTaxNumber()) > 11) {
-                continue;
-            }
-            if ($this->dates->getDataPagamento()->format('m') === '12') {
-                continue;
-            }
-            $frra = $cooperado->getFrra();
-            $frra->getValues()->setFrra(
-                $producaoCooperativista->getValues()->getFrra()
-            )->setUpdated();
-            $frra->save();
-            $this->logger->info('FRRA do cooperado {nome} criada. Número: {numero}. Líquido: {liquido}', [
-                'nome' => $cooperado->getName(),
-                'numero' => $frra->getDocumentNumber(),
-                'liquido' => $frra->getValues()->getLiquido(),
-            ]);
-        }
-
-        $inssIrpf = new IrpfRetidoNaNota(
-            entityManager: $this->entityManager,
-            dates: $this->dates,
-            documents: $this->documents,
-            request: $this->request,
-            documentConfiguration: $this->documentConfiguration,
-        );
-        $inssIrpf->saveMonthTaxes();
-
-        $cofins = new Cofins(
-            entityManager: $this->entityManager,
-            dates: $this->dates,
-            documents: $this->documents,
-            request: $this->request,
-            documentConfiguration: $this->documentConfiguration,
-        );
-        $cofins->setTotalBrutoNotasClientes($this->movimentacao->getTotalBrutoNotasClientes());
-        $cofins->saveMonthTaxes();
-
-        $pis = new Pis(
-            entityManager: $this->entityManager,
-            dates: $this->dates,
-            documents: $this->documents,
-            request: $this->request,
-            documentConfiguration: $this->documentConfiguration,
-        );
-        $pis->setTotalBrutoNotasClientes($this->movimentacao->getTotalBrutoNotasClientes());
-        $pis->saveMonthTaxes();
-
-        $iss = new Iss(
-            entityManager: $this->entityManager,
-            dates: $this->dates,
-            documents: $this->documents,
-            request: $this->request,
-            documentConfiguration: $this->documentConfiguration,
-        );
-        $iss->setTotalBrutoNotasClientes($this->movimentacao->getTotalBrutoNotasClientes());
-        $iss->saveMonthTaxes();
+        $this->profiles->requireLibreCodeSettlement();
+        $members = $this->getProducaoCooperativista();
+        $this->publisher->publish($members, $this->getTrabalhadoPorCliente());
     }
 
     /**
@@ -516,6 +418,9 @@ class ProducaoCooperativista
      */
     public function getProducaoCooperativista(): array
     {
+        // The legacy settlement objects encode LibreCode-specific FRRA,
+        // benefits and taxes. Never apply them to another cooperative.
+        $this->profiles->requireLibreCodeSettlement();
         if ($this->producaoDistribuida) {
             return $this->cooperado;
         }

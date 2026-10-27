@@ -1,8 +1,8 @@
 # Cálculo de produção cooperativista
 
-Calcular o bruto da produção cooperativista por cooperado com base em dados coletados do Akaunting, Kimai e site da prefeitura.
+ETL de produção cooperativista com conectores de dados, apuração econômica e publicação contábil separados por contratos de integração. O perfil padrão preserva o modelo operacional da LibreCode com Kimai, Akaunting e documentos de NFS-e municipais. Perfis adicionais podem definir outras métricas e políticas sem reutilizar implicitamente as regras financeiras da LibreCode.
 
-## Requisitos
+## Requisitos do perfil LibreCode
 
 | Sistema                            | Descrição                                                                                                 |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------- |
@@ -203,7 +203,7 @@ tail -f logs/system.log
 - **Modernização de PHP:** `composer run rector:check` verifica as refatorações, e `composer run rector:fix` aplica as alterações.
 - **Verificação:** `composer run test:unit`, `composer run cs:check` e `composer run psalm`. Os testes de JavaScript usam `node --test tests/js/*.test.cjs`. A CI executa esses testes em um workflow separado, com limites mínimos de cobertura (90% de linhas, 80% de ramos e 75% de funções).
 
-### Arquitetura do ETL e reprodução histórica
+### Arquitetura do ETL e apuração por competência
 
 O pipeline mantém quatro limites: conectores de origem (Kimai, NFS-e e Akaunting), banco de transformação, apuração econômica e publicação opcional no Akaunting. As etapas de origem implementam `SourceStep` e são orquestradas por `SourcePipeline`, preservando a ordem das dependências. `ProductionDistributionPlanner` calcula a distribuição sem acessar APIs ou saldo bancário. O capital social é consultado separadamente e não integra receitas de clientes.
 
@@ -225,4 +225,36 @@ php bin/console make:producao --ano-mes=2025-04 --baixar-dados=0 --as-of=2025-05
 
 `--as-of` é exclusivo de prévias e não pode ser combinado com `--atualiza-producao`.
 
-**Limites atuais:** o histórico dos pesos de produção não existe como registro oficial versionado. A tabela atual de usuários não permite reconstruir os pesos aprovados em competências passadas; o snapshot somente preserva aquilo que foi capturado. O projeto também continua configurado **por instalação**, sem isolamento de múltiplas cooperativas na mesma instância e sem versionamento formal de políticas econômicas. Antes da comercialização multiempresa, é necessário implementar e testar esses limites, aprovar a governança de pesos e definir retenção de snapshots.
+Os relatórios e arquivos de auditoria permitem conferir os dados **efetivamente disponíveis na execução indicada**, seus parâmetros e a versão do código. A análise de qualquer competência deve considerar o conjunto de comprovantes, políticas aprovadas e dados de origem aplicáveis ao período; a geração de um relatório não equivale, por si só, à certificação contábil da competência.
+
+### Arquitetura por perfis de cooperativa
+
+- **Ingestão:** cada integração implementa `SourceStep`. `SourcePipeline` seleciona somente as etapas declaradas pelo perfil, sem alterar os conectores existentes.
+- **Perfil:** `CooperativeProfile` declara as origens e a política de distribuição. `ProfileRegistry` seleciona o perfil **por instalação** usando `COOPERATIVE_PROFILE` (padrão: `librecode`). Não existe isolamento de múltiplas cooperativas no mesmo banco; cada cooperativa precisa de uma instalação/banco independente.
+- **Métricas:** `MetricStrategy` permite novas unidades de produção. As implementações de exemplo são `elapsed-hours` (horas registradas) e `work-entries` (quantidade de apontamentos faturáveis). Os dados importados do Kimai são normalizados por `WorkMetricsReader`; o perfil de exemplo usa `BasicUsers`, sem exigir CPF, Profile Fields ou vínculo prévio com o Akaunting.
+- **Política de rateio:** `AllocationPolicy` recebe valores elegíveis aprovados e medições normalizadas, sem depender do Akaunting. `HoursProportionalPolicy` é **apenas um exemplo técnico** de cálculo proporcional por cliente, não uma regra atribuída à Inovar ou a qualquer outra cooperativa.
+- **Publicação:** `ProductionPublisher` e `PublicationRouter` isolam a gravação. O único publicador homologado por padrão é o da LibreCode (produção, FRRA e tributos). Para outro perfil, a publicação fica bloqueada até que exista implementação e aprovação contábil específicas.
+
+Configure `COOPERATIVE_PROFILE=hours` em uma **instância de homologação própria**, depois importe as origens desse perfil:
+
+```bash
+php bin/console etl:sync --ano-mes=2026-07
+```
+
+Forneça um arquivo JSON de **bases elegíveis aprovadas**. O programa não presume que saldo bancário, faturamento bruto ou valor de nota seja distribuível:
+
+```json
+[
+  {"customer_reference": "CLIENTE-EXEMPLO", "eligible_amount": 1200.00, "currency": "BRL"}
+]
+```
+
+Execute a prévia com uma métrica configurada:
+
+```bash
+php bin/console allocation:preview --ano-mes=2026-07 --receipts-file=/caminho/restrito/bases.json --metric=elapsed-hours
+```
+
+A prévia inclui valores por cliente/cooperado, total elegível, total distribuído e fingerprint do arquivo de bases, sem emissão de documentos. `work-entries` demonstra uma métrica alternativa. Para usar outra política econômica, implemente a interface de rateio, o perfil e, quando aprovado, um publicador financeiro próprio; não altere diretamente os conectores Kimai ou as regras da LibreCode.
+
+O comando `make:producao` e a interface de produção contábil existente permanecem exclusivos do perfil `librecode`. O Akaunting armazena documentos; a efetiva emissão fiscal municipal/validação de NFS-e, quando aplicável, é responsabilidade da integração específica e precisa ser testada separadamente.

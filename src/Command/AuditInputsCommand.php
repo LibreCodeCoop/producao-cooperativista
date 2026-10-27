@@ -10,6 +10,8 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Domain\Competencia;
+use App\Service\Cooperative\ProfileRegistry;
+use App\Service\Import\SourcePipeline;
 use App\Service\Audit\InputManifestBuilder;
 use App\Service\Audit\StagingInputReader;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -40,6 +42,8 @@ final class AuditInputsCommand extends Command
     public function __construct(
         private readonly StagingInputReader $reader,
         private readonly InputManifestBuilder $builder,
+        private readonly ProfileRegistry $profiles,
+        private readonly SourcePipeline $pipeline,
     ) {
         parent::__construct();
     }
@@ -69,6 +73,10 @@ final class AuditInputsCommand extends Command
             $rules['__composer_lock_sha256'] = is_file($lockfile) ? hash_file('sha256', $lockfile) : null;
             $rules['__php_runtime'] = PHP_VERSION;
             $rules['__timezone'] = date_default_timezone_get();
+            $profile = $this->profiles->active();
+            $rules['__profile_id'] = $profile->id();
+            $rules['__allocation_policy_id'] = $profile->allocationPolicyId();
+            $rules['__selected_sources'] = implode(',', $this->pipeline->selectedStageNames());
             $sources = $this->reader->read($competence);
             $manifest = $this->builder->build($competence, $sources, $rules, $revision);
             $output->writeln(json_encode($manifest, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));

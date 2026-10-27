@@ -29,6 +29,7 @@ namespace App\Command;
 use App\Service\Movimentacao;
 use App\Helper\ArrayValue;
 use App\Service\Calculation\CalculationExecutionLock;
+use App\Service\Cooperative\ProfileRegistry;
 use App\Domain\Competencia;
 use DateTime;
 use App\Service\ProducaoCooperativista;
@@ -51,6 +52,7 @@ class MakeProducaoCommand extends AbstractBaseCommand
         private Movimentacao $movimentacao,
         private LoggerInterface $logger,
         private ?CalculationExecutionLock $executionLock = null,
+        private ?ProfileRegistry $profiles = null,
     ) {
         parent::__construct();
     }
@@ -141,8 +143,12 @@ class MakeProducaoCommand extends AbstractBaseCommand
             $this->producaoCooperativista->dates->setEvaluationTime($referenceDate);
         }
 
-        $phase = 'inicialização';
+        $phase = 'validação do perfil cooperativo';
         try {
+            // Fail before any external import or accounting side effect. The
+            // legacy command is strictly LibreCode-specific.
+            $this->profiles?->requireLibreCodeSettlement();
+            $phase = 'inicialização';
             $this->executionLock?->acquire();
             $phase = 'importação dos dados';
             if ((bool) $input->getOption('baixar-dados')) {
