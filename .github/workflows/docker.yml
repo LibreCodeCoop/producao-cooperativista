@@ -43,3 +43,11 @@ jobs:
             "$php_version"|"$php_version".*) ;;
             *) echo "::error::Built PHP $actual_version instead of $php_version"; exit 1 ;;
           esac
+          # The ETL calls BusinessDay to calculate holidays and payroll dates.
+          # Without ext-calendar, easter_days() aborts make:producao and etl:sync.
+          docker run --rm --entrypoint php librecode-pdc-ci:php-fpm -r '
+            if (!extension_loaded("calendar") || !function_exists("easter_days") || easter_days(2026) !== 15) {
+                fwrite(STDERR, "PHP calendar extension missing or unusable in the runtime image.\n");
+                exit(1);
+            }
+          '
