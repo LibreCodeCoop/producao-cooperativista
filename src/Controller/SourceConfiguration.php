@@ -85,7 +85,10 @@ final class SourceConfiguration extends AbstractController
             }
 
             $member = $this->sources->user($id);
-            $profile = $this->sources->nextcloudForMember($member);
+            $profile = $this->sources->nextcloudForMember([
+                'username' => $member['username'],
+                'preferences' => $member['preferences'],
+            ]);
             if (!$profile['exists']) {
                 return $this->weightResponse([
                     'error' => 'Conta Nextcloud não vinculada. Confira o perfil completo antes de editar.',
