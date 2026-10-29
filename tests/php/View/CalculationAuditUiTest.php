@@ -106,7 +106,7 @@ final class CalculationAuditUiTest extends TestCase
         ] as $name => $value) {
             $class->getProperty($name)->setValue($production, $value);
         }
-        $result = (new ReflectionMethod($production, 'getFormulaBaseProducao'))->invoke($production);
+        $result = new ReflectionMethod($production, 'getFormulaBaseProducao')->invoke($production);
         self::assertStringContainsString(' - 20)', $result);
         self::assertStringContainsString(' - 60)', $result);
         self::assertStringNotContainsString(' - 80)', $result);

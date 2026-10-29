@@ -73,7 +73,7 @@ final class CustomerCostAllocator
             }
             // Apportion real cents by invoice instead of placing a floating
             // point residue on the last invoice (order-dependent).
-            $parts = (new DecimalAllocation())->allocate($cost, $amounts);
+            $parts = new DecimalAllocation()->allocate($cost, $amounts);
             foreach ($parts as $key => $share) {
                 $allocated[$key] = $share;
             }

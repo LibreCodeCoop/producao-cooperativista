@@ -14,7 +14,7 @@ final class CooperativeSettlementDecimalTest extends TestCase
 {
     public function testFrraAndAssistanceCloseToExactCents(): void
     {
-        $cooperado = (new ReflectionClass(Cooperado::class))->newInstanceWithoutConstructor();
+        $cooperado = new ReflectionClass(Cooperado::class)->newInstanceWithoutConstructor();
         $cooperado->setTaxNumber('00000000000');
         $cooperado->setDependentes(0);
         $values = new Values(2026, 1, $cooperado);
@@ -37,7 +37,7 @@ final class CooperativeSettlementDecimalTest extends TestCase
 
     public function testLegalEntityHasNoAutomaticIndividualProvisions(): void
     {
-        $cooperado = (new ReflectionClass(Cooperado::class))->newInstanceWithoutConstructor();
+        $cooperado = new ReflectionClass(Cooperado::class)->newInstanceWithoutConstructor();
         $cooperado->setTaxNumber('00000000000000');
         $values = new Values(2026, 1, $cooperado);
         $values->setBaseProducao(100.015);

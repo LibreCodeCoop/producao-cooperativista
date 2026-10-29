@@ -27,20 +27,20 @@ final class DecimalAllocationTest extends TestCase
         self::assertSame(-11, DecimalAllocation::cents('-0.105'));
         self::assertSame(10001, DecimalAllocation::cents(100.01));
 
-        $parts = (new DecimalAllocation())->allocate('100.01', ['a' => '1', 'b' => '2']);
+        $parts = new DecimalAllocation()->allocate('100.01', ['a' => '1', 'b' => '2']);
         self::assertSame(['a' => 33.34, 'b' => 66.67], $parts);
         self::assertSame(10001, array_sum(array_map(DecimalAllocation::cents(...), $parts)));
     }
 
     public function testZeroAndNoWeightAreUnambiguous(): void
     {
-        self::assertSame([], (new DecimalAllocation())->allocate('0.00', []));
-        self::assertSame(['a' => 0.0], (new DecimalAllocation())->allocate('0.00', ['a' => 1]));
+        self::assertSame([], new DecimalAllocation()->allocate('0.00', []));
+        self::assertSame(['a' => 0.0], new DecimalAllocation()->allocate('0.00', ['a' => 1]));
     }
 
     public function testPositiveAmountWithoutHoursIsRejected(): void
     {
         $this->expectException(\DomainException::class);
-        (new DecimalAllocation())->allocate('0.01', ['a' => 0]);
+        new DecimalAllocation()->allocate('0.01', ['a' => 0]);
     }
 }

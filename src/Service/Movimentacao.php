@@ -521,7 +521,7 @@ class Movimentacao
             }
         }
 
-        $result = (new AdministrativeRate())->evaluate(
+        $result = new AdministrativeRate()->evaluate(
             $totalNotasParaPercentualMovelSemCustoCliente,
             $this->taxaMinima,
             $this->percentualMaximo,

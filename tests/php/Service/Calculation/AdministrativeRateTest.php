@@ -32,7 +32,7 @@ final class AdministrativeRateTest extends TestCase
         float $expectedRate,
         float $expectedEffectivePercent,
     ): void {
-        $result = (new AdministrativeRate())->evaluate($base, $expenses, $reference);
+        $result = new AdministrativeRate()->evaluate($base, $expenses, $reference);
         self::assertEqualsWithDelta($expectedRate, $result['rate'], 0.00001);
         self::assertEqualsWithDelta($expectedEffectivePercent, $result['effective_percent'], 0.00001);
         self::assertGreaterThanOrEqual($result['minimum'], $result['rate']);
@@ -42,12 +42,12 @@ final class AdministrativeRateTest extends TestCase
     public function testMissingBaseFailsClosed(): void
     {
         $this->expectException(\DomainException::class);
-        (new AdministrativeRate())->evaluate(0.0, 1.0, 25);
+        new AdministrativeRate()->evaluate(0.0, 1.0, 25);
     }
 
     public function testNegativeExpensesAreNotAccepted(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        (new AdministrativeRate())->evaluate(500.0, -2.0, 25);
+        new AdministrativeRate()->evaluate(500.0, -2.0, 25);
     }
 }

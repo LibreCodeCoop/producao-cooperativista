@@ -64,13 +64,10 @@ class Calculos extends AbstractController
         } catch (\InvalidArgumentException $error) {
             return new Response($error->getMessage(), Response::HTTP_BAD_REQUEST);
         }
-        $simulation = false;
-        foreach (['percentual-maximo', 'dia-util-pagamento', 'dias-uteis'] as $key) {
-            if ($this->request->query->has($key)) {
-                $simulation = true;
-                break;
-            }
-        }
+        $simulation = array_any(
+            ['percentual-maximo', 'dia-util-pagamento', 'dias-uteis'],
+            fn (string $key): bool => $this->request->query->has($key),
+        );
 
         try {
             $this->producao->dates->setDiaUtilPagamento(
