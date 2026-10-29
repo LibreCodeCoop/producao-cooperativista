@@ -44,10 +44,10 @@ function fixture(href = 'https://librecode.example/configuracao?competencia=2026
         location.href = new URL(url, location.href).href;
     } };
     const data = rows ?? [
-        ['Ana', 'ana', '10,00 h', 'Com horas', 'Ativo'],
-        ['Bruno', 'bruno', '0,00 h', 'Sem horas', 'Desativado'],
-        ['Celia', 'celia', '14,00 h', 'Com horas', 'Ativo'],
-        ['Serviço', 'robot', '0,00 h', 'Sem horas', 'Conta de serviço'],
+        ['Ana', 'ana', '10,00 h', '1,5', 'Com horas', 'Ativo', 'Conferir e editar'],
+        ['Bruno', 'bruno', '0,00 h', '', 'Sem horas', 'Desativado', 'Conferir e editar'],
+        ['Celia', 'celia', '14,00 h', '2,5', 'Com horas', 'Ativo', 'Conferir e editar'],
+        ['Serviço', 'robot', '0,00 h', '', 'Sem horas', 'Conta de serviço', 'Não editável'],
     ];
     class DataTable {
         constructor(selector, settings) {
@@ -137,11 +137,16 @@ test('default state shows active cooperatives, but keeps pagination and ordering
     assert.equal(dt.settings.scrollX, true);
     assert.deepEqual(dt.settings.lengthMenu, [10, 25, 50, 100]);
     assert.deepEqual(dt.settings.order, [[0, 'asc']]);
-    assert.deepEqual(dt.settings.layout.topStart.buttons,
+    const buttons = dt.settings.layout.topStart.buttons;
+    assert.deepEqual(buttons.map(button => typeof button === 'string' ? button : button.extend),
         ['pageLength', 'colvis', 'copy', 'csv', 'excel', 'pdf', 'print']);
-    assert.deepEqual(dt.settings.columnDefs, [{targets: 5, orderable: false, searchable: false}]);
+    for (const button of buttons.slice(2)) {
+        assert.deepEqual(button.exportOptions.columns, [0, 1, 2, 4, 5],
+            'Do not export partially loaded live weights or hidden editing controls');
+    }
+    assert.deepEqual(dt.settings.columnDefs, [{targets: [3, 6], orderable: false, searchable: false}]);
     assert.equal(f.elements['settings-status-filter'].value, 'Ativo');
-    assert.deepEqual(dt.queries.get(4), {value: '^Ativo$', regex: true});
+    assert.deepEqual(dt.queries.get(5), {value: '^Ativo$', regex: true});
     assert.equal(f.elements['settings-visible-count'].textContent, '2');
     assert.equal(f.history.urls.length, 0);
 });
@@ -159,7 +164,7 @@ test('name, username and hours have editable filters and update URL', () => {
     assert.equal(dt.queries.get(1).value, 'cel');
     f.elements['settings-hours-filter'].value = 'Com horas';
     f.elements['settings-hours-filter'].emit('change');
-    assert.equal(dt.queries.get(3).value, '^Com horas$');
+    assert.equal(dt.queries.get(4).value, '^Com horas$');
     assert.equal(new URL(f.history.urls.at(-1), f.location.href).searchParams.get('dtactivity'), 'Com horas');
 });
 
@@ -168,7 +173,7 @@ test('clear all filters shows inactive and service accounts; restore hides them'
     const dt = initializeSettingsTable(f.doc, {DataTable: f.DataTable, location: f.location, history: f.history});
     f.elements['settings-clear-filters'].emit('click');
     assert.equal(f.elements['settings-status-filter'].value, 'all');
-    assert.equal(dt.queries.get(4).value, '');
+    assert.equal(dt.queries.get(5).value, '');
     assert.equal(f.elements['settings-visible-count'].textContent, '4');
     assert.equal(new URL(f.history.urls.at(-1), f.location.href).searchParams.get('dtstatus'), 'all');
     f.elements['settings-status-filter'].value = 'Desativado';
@@ -220,6 +225,7 @@ test('invalid URL filter values cannot inject custom regex or invalid sorting', 
     assert.deepEqual(state.order, [0, 'asc']);
     assert.equal(state.page, 0);
     assert.equal(state.length, 10);
+    assert.deepEqual(readState('?dtorder=3:desc').order, [0, 'asc'], 'Live field cannot be sorted from partial async data');
     assert.equal(exactFilter('all'), '');
     assert.equal(exactFilter('Ativo'), '^Ativo$');
 });

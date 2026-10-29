@@ -55,6 +55,36 @@ final class CooperativeSourcesTest extends TestCase
         self::assertArrayNotHasKey('apiToken', $roster[0]);
     }
 
+    public function testImportedWeightsUseOnlyLocalSnapshotAndPreservePrecision(): void
+    {
+        $http = new MockHttpClient(static function (): MockResponse {
+            self::fail('Rendering the imported snapshot must not make an external HTTP request.');
+        });
+        $db = $this->createMock(Connection::class);
+        $db->expects(self::once())->method('fetchAllAssociative')
+            ->with('SELECT id, peso FROM users WHERE peso IS NOT NULL')
+            ->willReturn([
+                ['id' => 2, 'peso' => '1.2500'],
+                ['id' => 3, 'peso' => null],
+                ['id' => 4, 'peso' => '2.75'],
+                ['id' => 0, 'peso' => '3'],
+                ['id' => 5, 'peso' => 'invalid'],
+            ]);
+        $logger = new NullLogger();
+        $sources = new CooperativeSources(
+            $http,
+            $logger,
+            new ProfileFieldsClient($http, $logger),
+            new AkauntingContactGateway(
+                new AkauntingRequest($logger, $http),
+                $this->createStub(Connection::class),
+            ),
+            $db,
+        );
+
+        self::assertSame([2 => '1.2500', 4 => '2.75'], $sources->importedWeights());
+    }
+
     public function testUpdatesKimaiOnlyApprovedPreferenceAndConfirmsReadback(): void
     {
         $updated = false;

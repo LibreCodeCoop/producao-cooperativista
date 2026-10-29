@@ -45,11 +45,11 @@ final class SourceConfigurationUiTest extends TestCase
             'users' => [
                 [
                     'id' => 12, 'username' => 'ativa', 'alias' => 'Cooperada ativa',
-                    'hours' => 8.5, 'participates' => true, 'system' => false, 'enabled' => true,
+                    'hours' => 8.5, 'participates' => true, 'system' => false, 'enabled' => true, 'imported_weight' => '1.25',
                 ],
                 [
                     'id' => 13, 'username' => 'desativada', 'alias' => 'Cooperada desativada',
-                    'hours' => 0.0, 'participates' => false, 'system' => false, 'enabled' => false,
+                    'hours' => 0.0, 'participates' => false, 'system' => false, 'enabled' => false, 'imported_weight' => null,
                 ],
             ],
             'member' => null,
@@ -65,6 +65,15 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('id="settings-status-filter"', $html);
         self::assertStringContainsString('value="Ativo" selected', $html);
         self::assertStringContainsString('value="all">Todos</option>', $html);
+        self::assertStringContainsString('Peso de participação', $html);
+        self::assertStringContainsString('data-weight-url="/configuracao/cooperado/12/peso"', $html);
+        self::assertStringContainsString('data-weight-url="/configuracao/cooperado/13/peso"', $html);
+        self::assertStringContainsString('No ETL: 1,25', $html);
+        self::assertStringContainsString('No ETL: —', $html);
+        self::assertStringContainsString('data-weight-form', $html);
+        self::assertStringContainsString('name="_token" value="csrf-value"', $html);
+        self::assertStringContainsString('name="field" value="weight"', $html);
+        self::assertStringContainsString('src="/js/settings-inline-weight.js"', $html);
         self::assertStringContainsString('id="settings-hours-filter"', $html);
         self::assertStringContainsString('id="settings-name-filter"', $html);
         self::assertStringContainsString('id="settings-user-filter"', $html);
