@@ -53,8 +53,8 @@ final class WeightedAllocator
     }
 
     /**
-     * @param array<int|string, float|int> $weights Aggregated, nonnegative weights.
-     * @return array<int|string, float> The sum of allocations equals the eligible amount.
+     * @param array<string, float|int> $weights Aggregated, nonnegative weights.
+     * @return array<string, float> The sum of allocations equals the eligible amount.
      */
     public function allocate(float $eligibleAmount, array $weights, string $context): array
     {
@@ -80,6 +80,11 @@ final class WeightedAllocator
             ));
         }
 
-        return new DecimalAllocation()->allocate($eligibleAmount, $weights);
+        $shares = new DecimalAllocation()->allocate($eligibleAmount, $weights);
+        $result = [];
+        foreach ($weights as $cooperado => $_weight) {
+            $result[$cooperado] = $shares[$cooperado];
+        }
+        return $result;
     }
 }
