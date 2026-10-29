@@ -37,6 +37,47 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringNotContainsString('/configuracao/bloquear', $html);
     }
 
+    public function testConfigurationRosterUsesTheSameDataTablesAssetsAndFilteringAsReports(): void
+    {
+        $html = $this->twig()->render('configuracao.index.html.twig', [
+            'token' => 'csrf-value',
+            'month' => '2026-08',
+            'users' => [
+                [
+                    'id' => 12, 'username' => 'ativa', 'alias' => 'Cooperada ativa',
+                    'hours' => 8.5, 'participates' => true, 'system' => false, 'enabled' => true,
+                ],
+                [
+                    'id' => 13, 'username' => 'desativada', 'alias' => 'Cooperada desativada',
+                    'hours' => 0.0, 'participates' => false, 'system' => false, 'enabled' => false,
+                ],
+            ],
+            'member' => null,
+            'services' => [],
+            'error' => '',
+            'notifications' => [],
+        ]);
+
+        self::assertStringContainsString('cdn.datatables.net/2.1.8', $html);
+        self::assertStringContainsString('cdn.datatables.net/buttons/3.1.2', $html);
+        self::assertStringContainsString('id="settings-members"', $html);
+        self::assertStringContainsString('src="/js/settings-panel.js"', $html);
+        self::assertStringContainsString('id="settings-status-filter"', $html);
+        self::assertStringContainsString('value="Ativo" selected', $html);
+        self::assertStringContainsString('value="all">Todos</option>', $html);
+        self::assertStringContainsString('id="settings-hours-filter"', $html);
+        self::assertStringContainsString('id="settings-name-filter"', $html);
+        self::assertStringContainsString('id="settings-user-filter"', $html);
+        self::assertStringContainsString('id="settings-clear-filters"', $html);
+        self::assertStringContainsString('id="settings-default-filters"', $html);
+        self::assertStringContainsString('data-order="8.5"', $html);
+        self::assertStringContainsString('Cooperada desativada', $html);
+        self::assertStringContainsString('<td>Desativado</td>', $html);
+        self::assertStringNotContainsString('id="member-search"', $html);
+        self::assertStringNotContainsString('id="example"', $html);
+        self::assertStringNotContainsString('src="/js/report-table.js"', $html);
+    }
+
     public function testSourceEditFormsKeepCsrfWithoutSecondPassword(): void
     {
         $html = $this->twig()->render('configuracao.index.html.twig', [

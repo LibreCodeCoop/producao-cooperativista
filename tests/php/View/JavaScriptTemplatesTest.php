@@ -23,6 +23,18 @@ final class JavaScriptTemplatesTest extends TestCase
         );
     }
 
+    public function testSharedDatatableComponentCanIncludeOnlyItsAssets(): void
+    {
+        $html = $this->twig()->render('layout/components/datatable.html.twig', [
+            'datatablesAssetsOnly' => true,
+        ]);
+        self::assertStringContainsString('cdn.datatables.net/2.1.8/js/dataTables.js', $html);
+        self::assertStringContainsString('buttons.html5.min.js', $html);
+        self::assertStringNotContainsString('id="example"', $html);
+        self::assertStringNotContainsString('src="/js/report-table.js"', $html);
+        self::assertStringNotContainsString('id="erros"', $html);
+    }
+
     public function testReportTemplateEscapesApiUrlAndFilterConfiguration(): void
     {
         $url = '/api/v1/invoices?ano-mes=2026-05&filter="><script>alert(1)</script>';
