@@ -62,7 +62,7 @@ final class DecimalAllocation
             throw new DomainException('A distribuição exige um valor não negativo.');
         }
         $sum = '0';
-        foreach ($weights as $identifier => $weight) {
+        foreach ($weights as $weight) {
             $decimal = self::decimal($weight);
             if (bccomp($decimal, '0', 12) < 0) {
                 throw new DomainException('O peso da distribuição não pode ser negativo.');

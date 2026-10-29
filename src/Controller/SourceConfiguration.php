@@ -12,6 +12,7 @@ use Symfony\Component\Routing\Attribute\Route;
  * Operator's read-only source registry. Never stores CPF, weight, secret,
  * or duplicated source settings in the ETL database.
  */
+/** @psalm-suppress UnusedClass Used by Symfony attribute routing. */
 final class SourceConfiguration extends AbstractController
 {
     #[Route('/configuracao', methods: ['GET'])]

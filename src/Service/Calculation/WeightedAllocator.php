@@ -53,8 +53,8 @@ final class WeightedAllocator
     }
 
     /**
-     * @param array<string, float|int> $weights Aggregated, nonnegative weights.
-     * @return array<string, float> The sum of allocations equals the eligible amount.
+     * @param array<int|string, float|int> $weights Aggregated, nonnegative weights.
+     * @return array<int|string, float> The sum of allocations equals the eligible amount.
      */
     public function allocate(float $eligibleAmount, array $weights, string $context): array
     {
@@ -63,13 +63,9 @@ final class WeightedAllocator
         }
 
         $totalWeight = 0.0;
-        $lastPositive = null;
         foreach ($weights as $cooperado => $weight) {
             if (!is_finite((float) $weight) || $weight < 0) {
                 throw new DomainException(sprintf('%s: peso acumulado inválido para %s.', $context, $cooperado));
-            }
-            if ($weight > 0) {
-                $lastPositive = $cooperado;
             }
             $totalWeight += $weight;
         }
@@ -84,6 +80,6 @@ final class WeightedAllocator
             ));
         }
 
-        return (new DecimalAllocation())->allocate($eligibleAmount, $weights);
+        return new DecimalAllocation()->allocate($eligibleAmount, $weights);
     }
 }
