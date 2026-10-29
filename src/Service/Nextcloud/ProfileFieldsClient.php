@@ -35,6 +35,91 @@ class ProfileFieldsClient
     }
 
     /**
+     * Confirm the Kimai username is a real Nextcloud user before creating
+     * profile values; Profile Fields can otherwise store orphaned UIDs.
+     */
+    public function userExists(string $userUid): bool
+    {
+        if (!$this->isConfigured() || trim($userUid) === '') {
+            return false;
+        }
+        $record = $this->requestOcs(
+            '/ocs/v2.php/cloud/users/' . rawurlencode($userUid),
+            allowNotFound: true,
+        );
+        return ($record['id'] ?? null) === $userUid;
+    }
+
+    /**
+     * @return array<string, array{id: int, type: string}>
+     */
+    public function activeDefinitions(): array
+    {
+        $definitions = [];
+        foreach ($this->requestOcs('/ocs/v2.php/apps/profile_fields/api/v1/definitions') as $item) {
+            if (!is_array($item) || !($item['active'] ?? false)) {
+                continue;
+            }
+            $id = (int) ($item['id'] ?? 0);
+            $key = $item['field_key'] ?? null;
+            if ($id > 0 && is_string($key) && $key !== '') {
+                $definitions[$key] = ['id' => $id, 'type' => (string) ($item['type'] ?? '')];
+            }
+        }
+        return $definitions;
+    }
+
+    /**
+     * Match a different Nextcloud UID only through an exact, unique CPF/CNPJ
+     * lookup. An ambiguous lookup fails closed at the OCS boundary.
+     */
+    public function findUserUidByTaxNumber(string $taxNumber): ?string
+    {
+        if (!$this->isConfigured() || trim($taxNumber) === '') {
+            return null;
+        }
+        $row = $this->requestOcs(
+            '/ocs/v2.php/apps/profile_fields/api/v1/users/lookup',
+            method: 'POST',
+            options: ['json' => [
+                'fieldKey' => $this->getTaxNumberFieldKey(),
+                'fieldValue' => trim($taxNumber),
+            ]],
+            allowNotFound: true,
+        );
+        $uid = trim((string) ($row['user_uid'] ?? ''));
+        return $uid !== '' && $this->userExists($uid) ? $uid : null;
+    }
+
+    public function updateUserField(string $userUid, string $fieldKey, string|int|float $value): void
+    {
+        $allowed = [
+            $this->getTaxNumberFieldKey() => 'text',
+            $this->getWeightFieldKey() => 'number',
+            $this->getDependentsFieldKey() => 'number',
+        ];
+        if (!isset($allowed[$fieldKey])) {
+            throw new \InvalidArgumentException('Este campo não é permitido no painel.');
+        }
+        if (!$this->userExists($userUid)) {
+            throw new \DomainException('Usuário Kimai sem conta correspondente no Nextcloud. Vincule as contas antes de editar.');
+        }
+        $definition = $this->activeDefinitions()[$fieldKey] ?? null;
+        if ($definition === null || $definition['type'] !== $allowed[$fieldKey]) {
+            throw new \DomainException('Definição do campo não encontrada ou com tipo incompatível no Profile Fields.');
+        }
+
+        $this->requestOcs(
+            '/ocs/v2.php/apps/profile_fields/api/v1/users/' . rawurlencode($userUid)
+                . '/values/' . $definition['id'],
+            method: 'PUT',
+            options: ['json' => ['value' => $value]],
+        );
+        unset($this->fieldsByUserUid[$userUid]);
+        $this->fieldsByTaxNumber = [];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function getFieldsForUser(string $userUid): array
