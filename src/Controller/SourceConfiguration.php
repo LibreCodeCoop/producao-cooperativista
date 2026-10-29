@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Service\Integration\CooperativeSources;
-use App\Service\Integration\SettingsAccessGuard;
+use App\Service\Calculation\CalculationActionGuard;
 use App\Service\Integration\MemberParameterValidator;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -18,7 +18,7 @@ final class SourceConfiguration extends AbstractController
 {
     public function __construct(
         private CooperativeSources $sources,
-        private SettingsAccessGuard $access,
+        private CalculationActionGuard $guard,
         private MemberParameterValidator $validator,
         private LoggerInterface $logger,
     ) {
@@ -29,8 +29,7 @@ final class SourceConfiguration extends AbstractController
     {
         $month = $this->month($request->query->getString('competencia'));
         $data = [
-            'unlocked' => $this->access->isUnlocked($request),
-            'token' => $this->access->csrf($request),
+            'token' => $this->guard->token($request),
             'month' => $month,
             'users' => [],
             'member' => null,
@@ -38,9 +37,6 @@ final class SourceConfiguration extends AbstractController
             'error' => '',
             'notifications' => $this->popNotice($request),
         ];
-        if (!$data['unlocked']) {
-            return $this->privatePage($data);
-        }
         try {
             $users = $this->sources->users();
             $hours = $this->sources->monthlyHours($month);
@@ -69,25 +65,11 @@ final class SourceConfiguration extends AbstractController
         return $this->privatePage($data);
     }
 
-    #[Route('/configuracao/desbloquear', methods: ['POST'])]
-    public function unlock(Request $request): Response
-    {
-        $this->access->unlock($request);
-        $this->addNotice($request, 'success', 'Edição habilitada nesta sessão por 15 minutos.');
-        return $this->redirectToRoute('app_sourceconfiguration_index', [], Response::HTTP_SEE_OTHER);
-    }
-
-    #[Route('/configuracao/bloquear', methods: ['POST'])]
-    public function lock(Request $request): Response
-    {
-        $this->access->lock($request);
-        return $this->redirectToRoute('app_sourceconfiguration_index', [], Response::HTTP_SEE_OTHER);
-    }
-
     #[Route('/configuracao/cooperado/{id}/{source}', requirements: ['id' => '\\d+', 'source' => 'nextcloud|kimai|akaunting'], methods: ['POST'])]
     public function save(Request $request, int $id, string $source): Response
     {
-        $this->access->assertCanWrite($request);
+        // HTTP Basic is enforced by Nginx. Only reject forged cross-site POSTs here.
+        $this->guard->assertAuthorized($request, false);
         $field = $request->request->getString('field');
         $allowed = [
             'nextcloud' => ['tax_number', 'weight', 'dependents'],
@@ -114,7 +96,7 @@ final class SourceConfiguration extends AbstractController
                 'akaunting' => $this->akauntingValue($id),
             };
             $expected = $request->request->getString('expected');
-            if ($expected === '' || !hash_equals($this->access->fingerprint($id, $source, $field, $old), $expected)) {
+            if ($expected === '' || !hash_equals(self::revision($id, $source, $field, $old), $expected)) {
                 return new Response('Dados alterados na origem desde a abertura do formulário. Atualize a página antes de salvar.', Response::HTTP_CONFLICT);
             }
 
@@ -210,7 +192,7 @@ final class SourceConfiguration extends AbstractController
                 default => 'Dependentes',
             },
             'value' => $value,
-            'expected' => $this->access->fingerprint($id, $source, $field, $value),
+            'expected' => self::revision($id, $source, $field, $value),
             'kind' => $field === 'dependents' ? 'number' : 'text',
         ];
     }
@@ -270,6 +252,17 @@ final class SourceConfiguration extends AbstractController
     private function addNotice(Request $request, string $type, string $message): void
     {
         $request->getSession()->set('production_settings_notice', [$type => [$message]]);
+    }
+
+    /**
+     * Optimistic concurrency checksum, not an authorization mechanism.
+     * No additional password, secret or service login is required.
+     */
+    private static function revision(int $id, string $source, string $field, mixed $value): string
+    {
+        return hash('sha256', json_encode([
+            $id, $source, $field, (string) ($value ?? ''),
+        ], JSON_THROW_ON_ERROR));
     }
 
     private function month(string $input): string

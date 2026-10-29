@@ -19,28 +19,9 @@
     {% endfor %}
 {% endfor %}
 
-{% if not unlocked %}
-    <section class="settings-gate surface">
-        <h2>Desbloquear administração</h2>
-        <p>Os cadastros incluem dados pessoais e informações usadas na distribuição financeira. Confirme a senha administrativa de operações para consultar e editar por 15 minutos. A autenticação HTTP do portal continua obrigatória.</p>
-        <form method="post" action="/configuracao/desbloquear" autocomplete="off">
-            <input type="hidden" name="_token" value="{{ token }}">
-            <label for="admin-token">Senha administrativa de operações</label>
-            <div class="settings-gate-controls">
-                <input id="admin-token" name="action_token" type="password" autocomplete="off" required>
-                <button class="settings-primary" type="submit">Desbloquear por 15 minutos</button>
-            </div>
-        </form>
-        <p class="settings-help">É a credencial <code>PRODUCAO_ACTION_TOKEN</code> utilizada nas operações de escrita, não a senha do Nextcloud, Kimai ou Akaunting. Ela não é exibida na aplicação.</p>
-    </section>
-{% else %}
-    <div class="settings-topbar">
-        <div class="settings-live"><span class="settings-dot" aria-hidden="true"></span> Consultas às APIs habilitadas</div>
-        <form method="post" action="/configuracao/bloquear">
-            <input type="hidden" name="_token" value="{{ token }}">
-            <button class="settings-secondary" type="submit">Bloquear painel</button>
-        </form>
-    </div>
+<div class="settings-topbar">
+    <div class="settings-live"><span class="settings-dot" aria-hidden="true"></span> APIs de origem disponíveis para configuração</div>
+</div>
     <section class="settings-note" role="note">
         <strong>Competência x cadastro global.</strong> O mês selecionado filtra os apontamentos já importados. CPF, peso e dependentes do Profile Fields e preferências do Kimai são <strong>globais</strong> nas respectivas APIs; estas origens não têm histórico de vigência mensal no contrato atual. Após corrigir, reimporte a competência e revise a prévia antes de qualquer gravação financeira.
     </section>
@@ -146,6 +127,5 @@
             <a href="/calculos">Revisar memória de cálculo</a>
         </div>
     </section>
-{% endif %}
 <script defer src="/js/settings-panel.js"></script>
 {% endblock %}

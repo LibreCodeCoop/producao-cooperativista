@@ -37,6 +37,22 @@ final class CalculationActionGuardTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
+    public function testSettingsSaveUsesCsrfWithoutOperationPassword(): void
+    {
+        [$guard, $session] = $this->guardAndSession('prod');
+        $request = Request::create('/configuracao/cooperado/12/kimai', 'POST', [
+            '_token' => $this->token($guard, $session),
+            'field' => 'dependents',
+            'value' => '1',
+        ]);
+        $request->setSession($session);
+
+        // Source-setting writes are protected by Nginx Basic and CSRF only.
+        // The older financial publication flows retain their own separate policy.
+        $guard->assertAuthorized($request, false);
+        $this->addToAssertionCount(1);
+    }
+
     public function testImportOrPublishingRequiresServerConfiguredSecret(): void
     {
         [$guard, $session] = $this->guardAndSession('prod');

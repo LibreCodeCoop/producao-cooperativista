@@ -1,21 +1,18 @@
 /* Operational cooperative configuration panel, full available width. */
-.settings-gate, .settings-section, .settings-actions {padding:24px; margin:18px 0;}
-.settings-gate {max-width:740px;}
-.settings-gate h2, .settings-section h2, .settings-actions h2 {margin:0 0 12px;}
-.settings-gate p, .settings-section-heading p, .settings-source p, .settings-actions p {color:#455f69;line-height:1.55;}
-.settings-gate label, .settings-edit-field label, .settings-filter-label, .settings-month label {display:block;font-weight:650;margin-bottom:6px;color:#1d3c47;}
-.settings-gate-controls,.settings-field-row {display:flex;gap:9px;align-items:stretch;flex-wrap:wrap;}
-.settings-gate-controls input,.settings-edit-field input,.settings-month input,.settings-section input[type=search] {
+.settings-section, .settings-actions {padding:24px; margin:18px 0;}
+.settings-section h2, .settings-actions h2 {margin:0 0 12px;}
+.settings-section-heading p, .settings-source p, .settings-actions p {color:#455f69;line-height:1.55;}
+.settings-edit-field label, .settings-filter-label, .settings-month label {display:block;font-weight:650;margin-bottom:6px;color:#1d3c47;}
+.settings-field-row {display:flex;gap:9px;align-items:stretch;flex-wrap:wrap;}
+.settings-edit-field input,.settings-month input,.settings-section input[type=search] {
   min-height:40px;min-width:140px;padding:8px 12px;border:1px solid #a3b9c1;
   background:#fff;color:#1c3039;border-radius:8px;font:inherit;
 }
-.settings-gate-controls input {flex:1;max-width:400px;}
 .settings-primary,.settings-secondary {font:inherit;cursor:pointer;border-radius:8px;padding:9px 15px;min-height:40px;font-weight:650;}
 .settings-primary{background:#176a65;color:white;border:1px solid #176a65;}
 .settings-primary:hover{background:#10524e;}
 .settings-secondary{background:white;color:#194a49;border:1px solid #9db9b7;}
 .settings-secondary:hover{background:#f0f8f7;}
-.settings-help{font-size:.88rem;}
 .settings-topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:18px 0;}
 .settings-live{font-weight:650;display:flex;gap:8px;align-items:center;}
 .settings-dot{display:inline-block;width:9px;height:9px;background:#119073;border-radius:50%;}
@@ -54,7 +51,6 @@
 .settings-shortcuts{display:flex;flex-wrap:wrap;gap:18px;}
 .settings-shortcuts a{color:#12675f;font-weight:700;text-decoration:underline;}
 @media(max-width:760px){
- .settings-gate,.settings-section,.settings-actions{padding:17px;}
+ .settings-section,.settings-actions{padding:17px;}
  .settings-field-row input,.settings-field-row button{width:100%;}
- .settings-gate-controls input,.settings-gate-controls button{width:100%;max-width:none;}
 }

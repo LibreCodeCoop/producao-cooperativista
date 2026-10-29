@@ -15,10 +15,9 @@ final class SourceConfigurationUiTest extends TestCase
         return new Environment(new FilesystemLoader(dirname(__DIR__, 3) . '/templates'));
     }
 
-    public function testLockedPortalDoesNotExposePersonalProfilesOrEditForms(): void
+    public function testSettingsAreAvailableWithoutSecondPassword(): void
     {
         $html = $this->twig()->render('configuracao.index.html.twig', [
-            'unlocked' => false,
             'token' => 'csrf-value',
             'month' => '2026-08',
             'users' => [],
@@ -27,17 +26,20 @@ final class SourceConfigurationUiTest extends TestCase
             'error' => '',
             'notifications' => [],
         ]);
-        self::assertStringContainsString('Desbloquear administração', $html);
-        self::assertStringContainsString('action="/configuracao/desbloquear"', $html);
-        self::assertStringContainsString('name="action_token"', $html);
-        self::assertStringNotContainsString('cooperado/12', $html);
-        self::assertStringNotContainsString('Kimai · Preferências', $html);
+
+        self::assertStringContainsString('Painel de configuração da produção', $html);
+        self::assertStringContainsString('Cooperados do Kimai', $html);
+        self::assertStringContainsString('APIs de origem disponíveis para configuração', $html);
+        self::assertStringNotContainsString('Desbloquear administração', $html);
+        self::assertStringNotContainsString('PRODUCAO_ACTION_TOKEN', $html);
+        self::assertStringNotContainsString('name="action_token"', $html);
+        self::assertStringNotContainsString('/configuracao/desbloquear', $html);
+        self::assertStringNotContainsString('/configuracao/bloquear', $html);
     }
 
-    public function testUnlockedPortalHasRealSourceEditActionsAndReadOnlySnapshotNotice(): void
+    public function testSourceEditFormsKeepCsrfWithoutSecondPassword(): void
     {
         $html = $this->twig()->render('configuracao.index.html.twig', [
-            'unlocked' => true,
             'token' => 'csrf-value',
             'month' => '2026-08',
             'users' => [[
@@ -50,13 +52,13 @@ final class SourceConfigurationUiTest extends TestCase
                     'title' => 'Nextcloud · Profile Fields', 'configured' => true,
                     'error' => '', 'description' => 'Fonte Nextcloud',
                     'fields' => [['field' => 'weight', 'label' => 'Peso', 'value' => '2',
-                        'kind' => 'text', 'expected' => 'opaque-hmac']],
+                        'kind' => 'text', 'expected' => 'revision-placeholder']],
                 ],
                 'kimai' => [
                     'title' => 'Kimai · Preferências', 'configured' => true,
                     'error' => '', 'description' => 'Fonte Kimai',
                     'fields' => [['field' => 'dependents', 'label' => 'Dependentes', 'value' => '0',
-                        'kind' => 'number', 'expected' => 'opaque-hmac']],
+                        'kind' => 'number', 'expected' => 'revision-placeholder']],
                 ],
                 'akaunting' => [
                     'title' => 'Akaunting · Contato', 'configured' => false, 'description' => '',
@@ -67,7 +69,8 @@ final class SourceConfigurationUiTest extends TestCase
             'notifications' => [],
         ]);
         self::assertStringContainsString('10,50 h', $html);
-        self::assertStringContainsString('name="expected" value="opaque-hmac"', $html);
+        self::assertStringContainsString('name="expected" value="revision-placeholder"', $html);
+        self::assertStringContainsString('name="_token" value="csrf-value"', $html);
         self::assertStringContainsString('action="/configuracao/cooperado/12/nextcloud"', $html);
         self::assertStringContainsString('action="/configuracao/cooperado/12/kimai"', $html);
         self::assertStringContainsString('HTTP 403', $html);
