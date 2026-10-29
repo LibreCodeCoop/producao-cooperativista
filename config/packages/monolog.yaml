@@ -6,13 +6,13 @@ monolog:
             path: "%kernel.logs_dir%/%kernel.environment%.log"
             level: info
             max_files: 30
-            file_permission: 0640
+            file_permission: 0660
         errors:
             type: rotating_file
             path: "%kernel.logs_dir%/calculation-errors.log"
             level: error
             max_files: 90
-            file_permission: 0640
+            file_permission: 0660
         sse:
             type: service
             id: App\Helper\SseLogHandler

@@ -224,3 +224,7 @@ php bin/console allocation:preview --ano-mes=2026-07 --receipts-file=/caminho/re
 A prévia inclui valores por cliente/cooperado, total elegível, total distribuído e fingerprint do arquivo de bases, sem emissão de documentos. `work-entries` demonstra uma métrica alternativa. Para usar outra política econômica, implemente a interface de rateio, o perfil e, quando aprovado, um publicador financeiro próprio; não altere diretamente os conectores Kimai ou as regras da LibreCode.
 
 O comando `make:producao` e a interface de produção contábil existente permanecem exclusivos do perfil `librecode`. O Akaunting armazena documentos; a efetiva emissão fiscal municipal/validação de NFS-e, quando aplicável, é responsabilidade da integração específica e precisa ser testada separadamente.
+
+## Implantação em produção
+
+A instalação produtiva usa o [Compose versionado e o procedimento operacional](docs/production-deployment.md). As configurações da aplicação, Nginx e PHP ficam no Git; credenciais, bancos de dados e hashes do HTTP Basic Auth ficam exclusivamente no servidor.

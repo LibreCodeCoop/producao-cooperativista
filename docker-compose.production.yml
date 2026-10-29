@@ -1,0 +1,32 @@
+# Versioned deployment overlay for Conceicao.
+# Keep application credentials in .env and Basic Auth hashes in .htpasswd.
+networks:
+  mysql:
+    external: true
+    name: mysql
+  reverse-proxy:
+    external: true
+    name: reverse-proxy
+
+services:
+  php:
+    restart: unless-stopped
+    environment:
+      XDEBUG_MODE: "off"
+    networks:
+      - internal
+      - mysql
+    volumes:
+      - ./.docker/php/config/php.production.ini:/usr/local/etc/php/conf.d/99-production.ini:ro
+
+  nginx:
+    networks:
+      - internal
+      - reverse-proxy
+    volumes:
+      - ./.docker/web/nginx.production.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./.htpasswd:/etc/nginx/auth/users:ro
+    environment:
+      VIRTUAL_HOST: ${PRODUCAO_HOST:-producao.librecode.coop}
+      LETSENCRYPT_HOST: ${PRODUCAO_HOST:-producao.librecode.coop}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-adm@librecode.coop}

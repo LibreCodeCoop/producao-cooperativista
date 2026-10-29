@@ -25,5 +25,9 @@ final class LogConfigurationTest extends TestCase
         $this->assertGreaterThanOrEqual(30, $main['max_files']);
         $this->assertGreaterThanOrEqual(90, $errors['max_files']);
         $this->assertSame('error', $errors['level']);
+        $this->assertSame(2, substr_count(
+            (string) file_get_contents(dirname(__DIR__, 3) . '/config/packages/monolog.yaml'),
+            'file_permission: 0660'
+        ));
     }
 }
