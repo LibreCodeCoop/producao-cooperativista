@@ -1,41 +1,151 @@
 {% extends "layout/index.html.twig" %}
-{% block title %}Conferir dados nas fontes{% endblock %}
+{% block title %}Configuração da produção{% endblock %}
+{% block head %}
+    <link rel="stylesheet" href="/css/settings-panel.css">
+{% endblock %}
 {% block body %}
-<nav class="breadcrumbs" aria-label="Localização"><a href="/">Visão geral</a><span>/</span><span aria-current="page">Configuração e conferência</span></nav>
+<nav class="breadcrumbs" aria-label="Localização">
+    <a href="/">Visão geral</a><span>/</span><span aria-current="page">Configuração</span>
+</nav>
 <header class="page-heading">
-  <p class="eyebrow">Auditoria · Fontes de verdade</p>
-  <h1>Conferir dados nas fontes</h1>
-  <p class="page-lead">A produção utiliza os dados do Nextcloud, Kimai e Akaunting. Corrija os dados no sistema responsável e reimporte a competência para recalcular.</p>
+    <p class="eyebrow">Administração · APIs conectadas</p>
+    <h1>Painel de configuração da produção</h1>
+    <p class="page-lead">Consulte os cooperados, compare os parâmetros e corrija cada dado diretamente no sistema que o mantém. Nenhuma alteração é armazenada como substituição local no ETL.</p>
 </header>
-<div class="calc-notice" role="note"><strong>Somente consulta.</strong> Esta página não grava CPF, peso, horas, lançamentos financeiros ou credenciais. A edição nas origens requer permissões próprias e integrações verificadas; uma senha de acesso ao relatório não concede permissão de administração nas outras aplicações.</div>
-<div class="dashboard-layout">
-  <section class="surface dashboard-reports" id="nextcloud">
-    <h2>Nextcloud · Profile Fields</h2>
-    <p>Origem dos identificadores de cooperados, CPF/CNPJ, peso de participação e dependentes. Os pesos só entram na apuração após a próxima importação da competência.</p>
-    <p><strong>Conexão de leitura:</strong> {{ nextcloud_ready ? 'Configurada' : 'Requer configuração' }}.</p>
-    {% if nextcloud_url %}<a class="button button-secondary" href="{{ nextcloud_url }}" target="_blank" rel="noopener noreferrer">Abrir Nextcloud</a>{% endif %}
-    <p class="field-help">Confira os campos <code>tax_number</code>, <code>weight</code> e <code>dependents</code> nas configurações de perfis de cooperados.</p>
-  </section>
-  <section class="surface dashboard-reports" id="kimai">
-    <h2>Kimai · Apontamentos</h2>
-    <p>Origem das horas, projetos, clientes, usuários e competência do trabalho. Confira exclusões, duração e vínculos antes de reimportar.</p>
-    <p><strong>Integração:</strong> {{ kimai_ready ? 'Configurada' : 'Requer configuração' }}.</p>
-    {% if kimai_url %}<a class="button button-secondary" href="{{ kimai_url }}" target="_blank" rel="noopener noreferrer">Abrir Kimai</a>{% endif %}
-  </section>
-  <section class="surface dashboard-reports" id="akaunting">
-    <h2>Akaunting · Financeiro e documentos</h2>
-    <p>Origem das receitas recebidas, faturas, pagamentos, classificações de custo, adiantamentos e documentos emitidos. A correção deve ocorrer no cadastro ou lançamento original, não no banco ETL.</p>
-    <a class="button button-secondary" href="/invoices">Conferir entradas e saídas importadas</a>
-  </section>
-  <section class="surface dashboard-actions">
-    <h2>Etapas para corrigir</h2>
-    <ol>
-      <li>Identifique o campo e o mês que precisam de correção na memória de cálculo.</li>
-      <li>Abra a fonte de verdade e corrija com uma conta autorizada.</li>
-      <li>Reimporte a competência e confira se a alteração foi refletida.</li>
-      <li>Recalcule em prévia, compare os totais e só então considere a publicação.</li>
-    </ol>
-    <a class="button button-secondary" href="/calculos">Voltar à memória de cálculo</a>
-  </section>
-</div>
+
+{% for type, messages in notifications %}
+    {% for message in messages %}
+        <div class="settings-alert {{ type == 'success' ? 'settings-success' : 'settings-notice' }}" role="status">{{ message }}</div>
+    {% endfor %}
+{% endfor %}
+
+{% if not unlocked %}
+    <section class="settings-gate surface">
+        <h2>Desbloquear administração</h2>
+        <p>Os cadastros incluem dados pessoais e informações usadas na distribuição financeira. Confirme a senha administrativa de operações para consultar e editar por 15 minutos. A autenticação HTTP do portal continua obrigatória.</p>
+        <form method="post" action="/configuracao/desbloquear" autocomplete="off">
+            <input type="hidden" name="_token" value="{{ token }}">
+            <label for="admin-token">Senha administrativa de operações</label>
+            <div class="settings-gate-controls">
+                <input id="admin-token" name="action_token" type="password" autocomplete="off" required>
+                <button class="settings-primary" type="submit">Desbloquear por 15 minutos</button>
+            </div>
+        </form>
+        <p class="settings-help">É a credencial <code>PRODUCAO_ACTION_TOKEN</code> utilizada nas operações de escrita, não a senha do Nextcloud, Kimai ou Akaunting. Ela não é exibida na aplicação.</p>
+    </section>
+{% else %}
+    <div class="settings-topbar">
+        <div class="settings-live"><span class="settings-dot" aria-hidden="true"></span> Consultas às APIs habilitadas</div>
+        <form method="post" action="/configuracao/bloquear">
+            <input type="hidden" name="_token" value="{{ token }}">
+            <button class="settings-secondary" type="submit">Bloquear painel</button>
+        </form>
+    </div>
+    <section class="settings-note" role="note">
+        <strong>Competência x cadastro global.</strong> O mês selecionado filtra os apontamentos já importados. CPF, peso e dependentes do Profile Fields e preferências do Kimai são <strong>globais</strong> nas respectivas APIs; estas origens não têm histórico de vigência mensal no contrato atual. Após corrigir, reimporte a competência e revise a prévia antes de qualquer gravação financeira.
+    </section>
+
+    <section class="surface settings-section">
+        <div class="settings-section-heading">
+            <div>
+                <h2>Cooperados do Kimai</h2>
+                <p>Usuários consultados ao vivo no Kimai. As horas são uma fotografia do último ETL da competência — não a quantidade de horas em tempo real.</p>
+            </div>
+            <form action="/configuracao" method="get" class="settings-month">
+                <label for="settings-month">Competência</label>
+                <input type="month" name="competencia" id="settings-month" value="{{ month }}" min="2020-01" max="2099-12">
+                <button class="settings-secondary" type="submit">Aplicar</button>
+            </form>
+        </div>
+        {% if error %}
+            <div class="settings-alert settings-error" role="alert">{{ error }}</div>
+        {% endif %}
+        <div class="settings-summary">
+            <span><strong>{{ users|length }}</strong> usuários encontrados no Kimai</span>
+            <span><strong>{{ users|filter(u => u.participates)|length }}</strong> com horas importadas na competência</span>
+        </div>
+        <label class="settings-filter-label" for="member-search">Buscar por nome ou usuário</label>
+        <input type="search" id="member-search" placeholder="Filtrar lista..." autocomplete="off">
+        <div class="settings-table-container">
+            <table class="settings-members">
+                <thead><tr><th>Cooperado</th><th>Usuário Kimai</th><th>Horas importadas</th><th>Estado</th><th>Ação</th></tr></thead>
+                <tbody>
+                    {% for user in users %}
+                        <tr data-member-row data-search="{{ (user.alias ~ ' ' ~ user.username)|lower }}" {% if member and member.id == user.id %}class="settings-selected"{% endif %}>
+                            <td><strong>{{ user.alias }}</strong></td>
+                            <td><code>{{ user.username }}</code></td>
+                            <td>{{ user.hours|number_format(2, ',', '.') }} h</td>
+                            <td>
+                                {% if user.system %}Conta de serviço
+                                {% elseif user.participates %}Com apontamentos importados
+                                {% elseif not user.enabled %}Desativado
+                                {% else %}Sem apontamentos no período{% endif %}
+                            </td>
+                            <td>
+                                {% if not user.system %}
+                                    <a href="/configuracao?competencia={{ month|url_encode }}&cooperado={{ user.id }}" class="settings-link">Conferir e editar</a>
+                                {% else %}<span class="settings-muted">Não editável</span>{% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="5">Nenhum usuário retornado pela API do Kimai.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    {% if member %}
+        <section class="settings-section settings-edit-section" id="edicao">
+            <div class="settings-section-heading">
+                <div>
+                    <p class="eyebrow">Edição em tempo real</p>
+                    <h2>{{ member.alias }}</h2>
+                    <p>Kimai: <code>{{ member.username }}</code> · ID {{ member.id }} · cada botão grava somente o campo indicado na origem correspondente.</p>
+                </div>
+            </div>
+            <div class="settings-services">
+                {% for source, service in services %}
+                    <article class="surface settings-source">
+                        <div class="settings-source-heading">
+                            <h3>{{ service.title }}</h3>
+                            {% if service.configured %}
+                                <span class="settings-chip settings-chip-ok">API disponível</span>
+                            {% else %}
+                                <span class="settings-chip settings-chip-warn">Atenção</span>
+                            {% endif %}
+                        </div>
+                        <p>{{ service.description }}</p>
+                        {% if service.error %}
+                            <div class="settings-alert settings-error" role="status">{{ service.error }}</div>
+                        {% endif %}
+                        {% for item in service.fields %}
+                            <form method="post" class="settings-edit-field" action="/configuracao/cooperado/{{ member.id }}/{{ source }}">
+                                <input type="hidden" name="_token" value="{{ token }}">
+                                <input type="hidden" name="expected" value="{{ item.expected }}">
+                                <input type="hidden" name="field" value="{{ item.field }}">
+                                <input type="hidden" name="competencia" value="{{ month }}">
+                                <label for="{{ source }}-{{ item.field }}">{{ item.label }}</label>
+                                <div class="settings-field-row">
+                                    <input id="{{ source }}-{{ item.field }}" name="value" type="{{ item.kind }}" value="{{ item.value }}" {% if item.field == 'weight' %}inputmode="decimal"{% elseif item.field == 'tax_number' %}inputmode="numeric"{% endif %} autocomplete="off" required>
+                                    <button type="submit" class="settings-primary">Salvar no {{ source == 'nextcloud' ? 'Nextcloud' : (source == 'kimai' ? 'Kimai' : 'Akaunting') }}</button>
+                                </div>
+                            </form>
+                        {% endfor %}
+                    </article>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+
+    <section class="settings-actions surface">
+        <h2>Depois de salvar</h2>
+        <p>Os dados passam a valer na origem imediatamente, mas os valores previamente importados não são alterados automaticamente. Reimporte a competência, confira CPF, peso, deduções, horas e valores no relatório e execute a apuração somente em prévia.</p>
+        <div class="settings-shortcuts">
+            <a href="/acoes/make-producao">Reimportar e calcular prévia</a>
+            <a href="/calculos">Revisar memória de cálculo</a>
+        </div>
+    </section>
+{% endif %}
+<script defer src="/js/settings-panel.js"></script>
 {% endblock %}
