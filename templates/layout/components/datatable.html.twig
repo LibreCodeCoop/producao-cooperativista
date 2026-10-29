@@ -15,10 +15,7 @@
     <!-- button visibility toggle button -->
     <script type="text/javascript" language="javascript" src="//cdn.datatables.net/buttons/3.1.2/js/buttons.colVis.min.js"></script>
 
-    <style>
-        table.dataTable tr{ background-color:  darkgray; }
-        table.dataTable tr:nth-child(even)  { background-color: lightgrey;  }
-    </style>
+    {# Row backgrounds are now handled by the shared appearance stylesheet. #}
 {% endblock %}
 
 {% if not datatablesAssetsOnly|default(false) %}

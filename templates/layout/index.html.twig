@@ -3,12 +3,16 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="color-scheme" content="light">
+        <meta name="color-scheme" content="light dark">
+        {# This script must run before the CSS to prevent a light-theme flash. #}
+        <script src="/js/theme.js"></script>
         <title>{% block title %}Visão geral{% endblock %} | Produção cooperativista</title>
         <link rel="icon" href="/img/favico.ico">
         <link rel="stylesheet" href="/css/app.css">
         <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
         {% block head %}{% endblock %}
+        {# Page styles and DataTables load first; theme overrides load last. #}
+        <link rel="stylesheet" href="/css/theme.css">
     </head>
     <body>
         <a class="skip-link" href="#main-content">Ir para o conteúdo</a>
@@ -21,10 +25,20 @@
                         <small>Produção cooperativista</small>
                     </span>
                 </a>
-                <nav aria-label="Navegação principal">
-                    <a class="header-nav-link" href="/">Visão geral</a>
-                    <a class="header-nav-link" href="/configuracao">Configuração</a>
-                </nav>
+                <div class="header-actions">
+                    <nav aria-label="Navegação principal">
+                        <a class="header-nav-link" href="/">Visão geral</a>
+                        <a class="header-nav-link" href="/configuracao">Configuração</a>
+                    </nav>
+                    <div class="theme-controls" aria-label="Aparência do sistema">
+                        <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Ativar tema escuro">
+                            <span id="theme-toggle-icon" class="theme-toggle-icon" aria-hidden="true">☾</span>
+                            <span id="theme-toggle-label">Tema escuro</span>
+                        </button>
+                        <button type="button" id="theme-system" class="theme-system" hidden title="Voltar ao padrão do navegador">Seguir navegador</button>
+                        <span id="theme-status" class="theme-status" role="status" aria-live="polite">Navegador</span>
+                    </div>
+                </div>
             </div>
         </header>
         <main class="container page-content" id="main-content">
