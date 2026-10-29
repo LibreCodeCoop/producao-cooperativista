@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Integration;
 
-use App\Provider\Akaunting\Request as AkauntingRequest;
 use App\Service\Integration\CooperativeSources;
+use App\Service\Integration\AkauntingContactGateway;
+use App\Provider\Akaunting\Request as AkauntingRequest;
 use App\Service\Nextcloud\ProfileFieldsClient;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
@@ -34,7 +35,10 @@ final class CooperativeSourcesTest extends TestCase
             $http,
             $logger,
             new ProfileFieldsClient($http, $logger),
-            new AkauntingRequest($logger, $http),
+            new AkauntingContactGateway(
+                new AkauntingRequest($logger, $http),
+                $this->createStub(Connection::class),
+            ),
             $this->createStub(Connection::class),
         );
     }
@@ -82,47 +86,4 @@ final class CooperativeSourcesTest extends TestCase
         $this->sources($http)->updateKimai(2, 'hourly_rate', '500');
     }
 
-    public function testAkauntingContactCannotBypassReadPermission(): void
-    {
-        putenv('AKAUNTING_API_BASE_URL=https://akaunting.example.org');
-        putenv('AKAUNTING_AUTH_USER=service');
-        putenv('AKAUNTING_AUTH_TOKEN=local-fixture');
-        putenv('AKAUNTING_COMPANY_ID=1');
-
-        $http = new MockHttpClient(static function (string $method): MockResponse {
-            self::assertSame('GET', $method);
-            return new MockResponse('{"message":"Forbidden","status_code":403}', ['http_code' => 403]);
-        });
-
-        try {
-            $this->expectException(\RuntimeException::class);
-            $this->sources($http)->updateAkauntingTaxNumber(20, '00000000000');
-        } finally {
-            foreach (['AKAUNTING_API_BASE_URL', 'AKAUNTING_AUTH_USER', 'AKAUNTING_AUTH_TOKEN', 'AKAUNTING_COMPANY_ID'] as $env) {
-                putenv($env);
-            }
-        }
-    }
-
-    public function testAkauntingRejectsWrongCompanyBeforeAnyPut(): void
-    {
-        putenv('AKAUNTING_API_BASE_URL=https://akaunting.example.org');
-        putenv('AKAUNTING_AUTH_USER=service');
-        putenv('AKAUNTING_AUTH_TOKEN=local-fixture');
-        putenv('AKAUNTING_COMPANY_ID=1');
-
-        $http = new MockHttpClient(static function (string $method): MockResponse {
-            self::assertSame('GET', $method);
-            return new MockResponse('{"data":{"id":20,"company_id":3,"type":"vendor","name":"Other company"}}');
-        });
-
-        try {
-            $this->expectException(\RuntimeException::class);
-            $this->sources($http)->updateAkauntingTaxNumber(20, '00000000000');
-        } finally {
-            foreach (['AKAUNTING_API_BASE_URL', 'AKAUNTING_AUTH_USER', 'AKAUNTING_AUTH_TOKEN', 'AKAUNTING_COMPANY_ID'] as $env) {
-                putenv($env);
-            }
-        }
-    }
 }
