@@ -18,7 +18,7 @@
         const page = params.get('dtpage') || '0';
         const length = params.get('dtlength') || '10';
         const order = params.get('dtorder') || '0:asc';
-        const orderMatch = /^([0-4]):(asc|desc)$/.exec(order);
+        const orderMatch = /^([0-2]|[4-5]):(asc|desc)$/.exec(order);
 
         return {
             name: params.get('dtname') || '',
@@ -64,8 +64,8 @@
     function columnFilters(api, fields) {
         api.column(0).search(fields.name.value.trim());
         api.column(1).search(fields.user.value.trim());
-        api.column(3).search(exactFilter(fields.activity.value), true, false);
-        api.column(4).search(exactFilter(fields.status.value), true, false);
+        api.column(4).search(exactFilter(fields.activity.value), true, false);
+        api.column(5).search(exactFilter(fields.status.value), true, false);
     }
 
     function initializeSettingsTable(doc = scope.document, options = {}) {
@@ -160,6 +160,7 @@
             clear?.addEventListener('click', () => reset('all'));
             defaults?.addEventListener('click', () => reset(DEFAULT_STATUS));
             api.on('draw.dt', () => updateVisibleCount(api));
+            (options.inlineWeight || scope.SettingsInlineWeight)?.initialize?.(table, api, options);
             api.on('search.dt page.dt length.dt order.dt', () => persist(api));
             restoring = false;
             updateVisibleCount(api);
@@ -185,10 +186,18 @@
             pageLength: 10,
             lengthMenu: [10, 25, 50, 100],
             order: [[0, 'asc']],
-            columnDefs: [{targets: 5, orderable: false, searchable: false}],
+            columnDefs: [{targets: [3, 6], orderable: false, searchable: false}],
             layout: {
                 topStart: {
-                    buttons: ['pageLength', 'colvis', 'copy', 'csv', 'excel', 'pdf', 'print'],
+                    // Live Nextcloud weights load per visible page. Never export
+                    // partial values or hidden inline forms as if they were a full dataset.
+                    buttons: [
+                        'pageLength', 'colvis',
+                        ...['copy', 'csv', 'excel', 'pdf', 'print'].map(extend => ({
+                            extend,
+                            exportOptions: {columns: [0, 1, 2, 4, 5]},
+                        })),
+                    ],
                 },
             },
             language: {

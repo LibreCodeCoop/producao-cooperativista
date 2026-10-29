@@ -116,6 +116,21 @@ final class CooperativeSources
     }
 
     /**
+     * @return array<int, string> Last ETL snapshot, not live Nextcloud values.
+     */
+    public function importedWeights(): array
+    {
+        $result = [];
+        foreach ($this->staging->fetchAllAssociative('SELECT id, peso FROM users WHERE peso IS NOT NULL') as $row) {
+            if ((int) ($row['id'] ?? 0) > 0 && is_numeric($row['peso'] ?? null)) {
+                $result[(int) $row['id']] = (string) $row['peso'];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * @param array{username: string, preferences: array<string, string>} $member
      * @return array{exists: bool, uid: string, values: array<string, mixed>}
      */

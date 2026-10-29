@@ -32,7 +32,7 @@
         <div class="settings-section-heading">
             <div>
                 <h2>Cooperados do Kimai</h2>
-                <p>Usuários consultados ao vivo no Kimai. As horas são uma fotografia do último ETL da competência — não a quantidade de horas em tempo real.</p>
+                <p>Usuários consultados ao vivo no Kimai. Horas e pesos do ETL são fotografias da última importação; o peso atual aparece diretamente do Nextcloud nas linhas visíveis.</p>
             </div>
             <form action="/configuracao" method="get" class="settings-month">
                 <label for="settings-month">Competência</label>
@@ -49,7 +49,7 @@
             <span><strong id="settings-visible-count">—</strong> cooperados exibidos após filtros</span>
         </div>
         <div class="settings-filter-actions">
-            <p>Filtros por coluna no rodapé · clique nos títulos para ordenar · use a busca geral e a paginação do DataTables.</p>
+            <p>Filtros por coluna no rodapé · clique nos títulos para ordenar · o peso atual é consultado no Nextcloud ao visualizar a linha. Após editar, reimporte a competência. Pesos em consulta não entram na exportação em lote.</p>
             <div>
                 <button class="settings-secondary" type="button" id="settings-clear-filters">Limpar filtros e exibir todos</button>
                 <button class="settings-secondary" type="button" id="settings-default-filters">Restaurar padrão (ativos)</button>
@@ -63,6 +63,7 @@
                         <th scope="col">Cooperado</th>
                         <th scope="col">Usuário Kimai</th>
                         <th scope="col">Horas importadas</th>
+                        <th scope="col">Peso de participação <small class="settings-column-note">(Nextcloud atual / ETL)</small></th>
                         <th scope="col">Apontamentos</th>
                         <th scope="col">Situação</th>
                         <th scope="col">Ação</th>
@@ -75,6 +76,30 @@
                             <td>{{ user.alias }}</td>
                             <td>{{ user.username }}</td>
                             <td data-order="{{ user.hours }}">{{ user.hours|number_format(2, ',', '.') }} h</td>
+                            <td class="settings-weight-cell" {% if not user.system %}data-weight-url="/configuracao/cooperado/{{ user.id }}/peso"{% endif %}>
+                                {% if not user.system %}
+                                    <div class="settings-weight-display">
+                                        <span class="settings-weight-current" data-weight-current aria-label="Peso atual no Nextcloud" role="status">Consultando…</span>
+                                        <button type="button" class="settings-weight-edit" data-weight-edit disabled aria-label="Editar peso de {{ user.alias }}">Editar</button>
+                                    </div>
+                                    <small class="settings-weight-snapshot">No ETL: {{ user.imported_weight is defined and user.imported_weight is not null ? user.imported_weight|replace({'.': ','}) : '—' }}</small>
+                                    <form class="settings-inline-weight-form" data-weight-form action="/configuracao/cooperado/{{ user.id }}/nextcloud" method="post" hidden>
+                                        <input type="hidden" name="_token" value="{{ token }}">
+                                        <input type="hidden" name="field" value="weight">
+                                        <input type="hidden" name="expected" value="">
+                                        <input type="hidden" name="competencia" value="{{ month }}">
+                                        <label for="peso-inline-{{ user.id }}">Peso atual no Nextcloud</label>
+                                        <div class="settings-inline-weight-controls">
+                                            <input id="peso-inline-{{ user.id }}" name="value" type="text" inputmode="decimal" maxlength="8" autocomplete="off" required aria-describedby="peso-feedback-{{ user.id }}">
+                                            <button class="button settings-inline-weight-save" type="submit">Salvar</button>
+                                            <button class="button settings-inline-weight-cancel" type="button" data-weight-cancel>Cancelar</button>
+                                        </div>
+                                    </form>
+                                    <span class="settings-weight-message" id="peso-feedback-{{ user.id }}" data-weight-message role="status" aria-live="polite"></span>
+                                {% else %}
+                                    <span class="settings-muted">—</span>
+                                {% endif %}
+                            </td>
                             <td>{{ user.participates ? 'Com horas' : 'Sem horas' }}</td>
                             <td>{{ status }}</td>
                             <td>
@@ -89,6 +114,7 @@
                     <tr>
                         <th><label class="settings-column-label" for="settings-name-filter">Nome</label><input id="settings-name-filter" type="search" placeholder="Filtrar nome"></th>
                         <th><label class="settings-column-label" for="settings-user-filter">Usuário</label><input id="settings-user-filter" type="search" placeholder="Filtrar usuário"></th>
+                        <th></th>
                         <th></th>
                         <th>
                             <label class="settings-column-label" for="settings-hours-filter">Apontamentos</label>
@@ -166,4 +192,5 @@
         </div>
     </section>
 <script defer src="/js/settings-panel.js"></script>
+<script defer src="/js/settings-inline-weight.js"></script>
 {% endblock %}
