@@ -36,7 +36,7 @@ final class SourceConfiguration extends AbstractController
             'member' => null,
             'services' => [],
             'error' => '',
-            'notifications' => $request->getSession()->getFlashBag()->all(),
+            'notifications' => $this->popNotice($request),
         ];
         if (!$data['unlocked']) {
             return $this->privatePage($data);
@@ -73,7 +73,7 @@ final class SourceConfiguration extends AbstractController
     public function unlock(Request $request): Response
     {
         $this->access->unlock($request);
-        $request->getSession()->getFlashBag()->add('success', 'Edição habilitada nesta sessão por 15 minutos.');
+        $this->addNotice($request, 'success', 'Edição habilitada nesta sessão por 15 minutos.');
         return $this->redirectToRoute('app_sourceconfiguration_index', [], Response::HTTP_SEE_OTHER);
     }
 
@@ -133,9 +133,9 @@ final class SourceConfiguration extends AbstractController
                 $this->logger->notice('Parâmetro de cooperado alterado na origem.', [
                     'source' => $source, 'field' => $field, 'member_id' => $id,
                 ]);
-                $request->getSession()->getFlashBag()->add('success', 'Alteração confirmada na API do ' . ucfirst($source) . '. Reimporte a competência antes de recalcular.');
+                $this->addNotice($request, 'success', 'Alteração confirmada na API do ' . ucfirst($source) . '. Reimporte a competência antes de recalcular.');
             } else {
-                $request->getSession()->getFlashBag()->add('info', 'O valor informado já está salvo na origem.');
+                $this->addNotice($request, 'info', 'O valor informado já está salvo na origem.');
             }
         } catch (\InvalidArgumentException | \DomainException $error) {
             return new Response($error->getMessage(), Response::HTTP_BAD_REQUEST);
@@ -172,7 +172,7 @@ final class SourceConfiguration extends AbstractController
                 }
                 $services['nextcloud']['configured'] = true;
             }
-        } catch (\Throwable $error) {
+        } catch (\Throwable) {
             $services['nextcloud']['error'] = 'Consulta Nextcloud indisponível ou sem permissão de administração.';
         }
         foreach (['tax_number', 'dependents'] as $field) {
@@ -187,7 +187,7 @@ final class SourceConfiguration extends AbstractController
                 $contact = $this->sources->akauntingContact($contactId);
                 $services['akaunting']['fields'][] = $this->field($id, 'akaunting', 'tax_number', (string) $contact['tax_number']);
                 $services['akaunting']['configured'] = true;
-            } catch (\Throwable $error) {
+            } catch (\Throwable) {
                 $services['akaunting']['error'] = 'API de contatos indisponível ou com acesso negado. Confira permissões de leitura/edição da conta de integração no Akaunting (HTTP 403 observado na implantação).';
             }
         }
@@ -257,10 +257,25 @@ final class SourceConfiguration extends AbstractController
         return $keys[$field];
     }
 
+    /** @return array<string, list<string>> */
+    private function popNotice(Request $request): array
+    {
+        $session = $request->getSession();
+        $notice = $session->get('production_settings_notice', []);
+        $session->remove('production_settings_notice');
+
+        return is_array($notice) ? $notice : [];
+    }
+
+    private function addNotice(Request $request, string $type, string $message): void
+    {
+        $request->getSession()->set('production_settings_notice', [$type => [$message]]);
+    }
+
     private function month(string $input): string
     {
         if ($input === '') {
-            return (new \DateTimeImmutable('first day of -2 months'))->format('Y-m');
+            return new \DateTimeImmutable('first day of -2 months')->format('Y-m');
         }
         if (!preg_match('/^20[0-9]{2}-(?:0[1-9]|1[0-2])$/D', $input)) {
             throw new \InvalidArgumentException('Competência inválida.');

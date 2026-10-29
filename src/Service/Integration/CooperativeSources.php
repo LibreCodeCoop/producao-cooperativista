@@ -21,6 +21,7 @@ final class CooperativeSources
 {
     use Kimai;
 
+    /** @psalm-suppress PossiblyUnusedMethod Injected by Symfony */
     public function __construct(
         private HttpClientInterface $http,
         private LoggerInterface $logger,

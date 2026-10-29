@@ -41,12 +41,10 @@ final class CooperativeSourcesTest extends TestCase
 
     public function testRosterNeverExposesKimaiTokensOrOtherPrivateAttributes(): void
     {
-        $http = new MockHttpClient(static function (): MockResponse {
-            return new MockResponse((string) json_encode([
+        $http = new MockHttpClient(static fn (): MockResponse => new MockResponse((string) json_encode([
                 ['id' => 2, 'username' => 'member-b', 'alias' => 'Bruna', 'apiToken' => 'sensitive'],
                 ['id' => 1, 'username' => 'member-a', 'alias' => 'Ana', 'apiToken' => 'secret-value'],
-            ]));
-        });
+            ])));
         $roster = $this->sources($http)->users();
         self::assertSame([1, 2], array_column($roster, 'id'));
         self::assertSame('Ana', $roster[0]['alias']);

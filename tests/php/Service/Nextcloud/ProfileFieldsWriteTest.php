@@ -57,12 +57,10 @@ final class ProfileFieldsWriteTest extends TestCase
 
     public function testCannotCreateOrphanedProfileValuesForUnknownUid(): void
     {
-        $http = new MockHttpClient(function (): MockResponse {
-            return new MockResponse((string) json_encode(['ocs' => [
+        $http = new MockHttpClient(fn (): MockResponse => new MockResponse((string) json_encode(['ocs' => [
                 'meta' => ['statuscode' => 404],
                 'data' => [],
-            ]]), ['http_code' => 404]);
-        });
+            ]]), ['http_code' => 404]));
         $client = new ProfileFieldsClient($http, new NullLogger());
         $this->expectException(\DomainException::class);
         $client->updateUserField('missing-account', 'weight', 2.5);

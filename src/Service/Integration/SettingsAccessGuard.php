@@ -16,6 +16,7 @@ final readonly class SettingsAccessGuard
 {
     private const string SESSION_KEY = 'production_settings_unlocked_until';
 
+    /** @psalm-suppress PossiblyUnusedMethod Injected by Symfony */
     public function __construct(private CalculationActionGuard $operations)
     {
     }

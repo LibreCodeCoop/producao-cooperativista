@@ -64,7 +64,7 @@ final class MemberParameterValidator
             $weights = $position === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
             $sum = 0;
             for ($i = 0; $i < $position; $i++) {
-                $sum += (int) $digits[$i] * $weights[$i];
+                $sum += (int) $digits[$i] * ($weights[$i] ?? throw new \LogicException('Índice inválido no cálculo de verificação do CNPJ.'));
             }
             if (($sum % 11 < 2 ? 0 : 11 - $sum % 11) !== (int) $digits[$position]) {
                 return false;
