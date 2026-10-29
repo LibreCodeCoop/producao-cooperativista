@@ -70,6 +70,11 @@ class Index extends AbstractController
                 ],
             ],
             'acoes' => [
+                'configuracao' => [
+                    'url' => '/configuracao',
+                    'label' => 'Conferir dados nas fontes',
+                    'description' => 'Onde revisar CPF, peso, horas, faturas e categorias antes do cálculo.',
+                ],
                 'zerar_banco_local' => [
                     'url' => $this->urlGenerator->generate('app_acoes_zerarbancolocal'),
                     'label' => 'Limpar dados importados (ETL)',

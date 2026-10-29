@@ -1,0 +1,41 @@
+{% extends "layout/index.html.twig" %}
+{% block title %}Conferir dados nas fontes{% endblock %}
+{% block body %}
+<nav class="breadcrumbs" aria-label="Localização"><a href="/">Visão geral</a><span>/</span><span aria-current="page">Configuração e conferência</span></nav>
+<header class="page-heading">
+  <p class="eyebrow">Auditoria · Fontes de verdade</p>
+  <h1>Conferir dados nas fontes</h1>
+  <p class="page-lead">A produção utiliza os dados do Nextcloud, Kimai e Akaunting. Corrija os dados no sistema responsável e reimporte a competência para recalcular.</p>
+</header>
+<div class="calc-notice" role="note"><strong>Somente consulta.</strong> Esta página não grava CPF, peso, horas, lançamentos financeiros ou credenciais. A edição nas origens requer permissões próprias e integrações verificadas; uma senha de acesso ao relatório não concede permissão de administração nas outras aplicações.</div>
+<div class="dashboard-layout">
+  <section class="surface dashboard-reports" id="nextcloud">
+    <h2>Nextcloud · Profile Fields</h2>
+    <p>Origem dos identificadores de cooperados, CPF/CNPJ, peso de participação e dependentes. Os pesos só entram na apuração após a próxima importação da competência.</p>
+    <p><strong>Conexão de leitura:</strong> {{ nextcloud_ready ? 'Configurada' : 'Requer configuração' }}.</p>
+    {% if nextcloud_url %}<a class="button button-secondary" href="{{ nextcloud_url }}" target="_blank" rel="noopener noreferrer">Abrir Nextcloud</a>{% endif %}
+    <p class="field-help">Confira os campos <code>tax_number</code>, <code>weight</code> e <code>dependents</code> nas configurações de perfis de cooperados.</p>
+  </section>
+  <section class="surface dashboard-reports" id="kimai">
+    <h2>Kimai · Apontamentos</h2>
+    <p>Origem das horas, projetos, clientes, usuários e competência do trabalho. Confira exclusões, duração e vínculos antes de reimportar.</p>
+    <p><strong>Integração:</strong> {{ kimai_ready ? 'Configurada' : 'Requer configuração' }}.</p>
+    {% if kimai_url %}<a class="button button-secondary" href="{{ kimai_url }}" target="_blank" rel="noopener noreferrer">Abrir Kimai</a>{% endif %}
+  </section>
+  <section class="surface dashboard-reports" id="akaunting">
+    <h2>Akaunting · Financeiro e documentos</h2>
+    <p>Origem das receitas recebidas, faturas, pagamentos, classificações de custo, adiantamentos e documentos emitidos. A correção deve ocorrer no cadastro ou lançamento original, não no banco ETL.</p>
+    <a class="button button-secondary" href="/invoices">Conferir entradas e saídas importadas</a>
+  </section>
+  <section class="surface dashboard-actions">
+    <h2>Etapas para corrigir</h2>
+    <ol>
+      <li>Identifique o campo e o mês que precisam de correção na memória de cálculo.</li>
+      <li>Abra a fonte de verdade e corrija com uma conta autorizada.</li>
+      <li>Reimporte a competência e confira se a alteração foi refletida.</li>
+      <li>Recalcule em prévia, compare os totais e só então considere a publicação.</li>
+    </ol>
+    <a class="button button-secondary" href="/calculos">Voltar à memória de cálculo</a>
+  </section>
+</div>
+{% endblock %}
