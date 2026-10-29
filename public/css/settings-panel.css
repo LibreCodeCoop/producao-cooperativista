@@ -1,0 +1,60 @@
+/* Operational cooperative configuration panel, full available width. */
+.settings-gate, .settings-section, .settings-actions {padding:24px; margin:18px 0;}
+.settings-gate {max-width:740px;}
+.settings-gate h2, .settings-section h2, .settings-actions h2 {margin:0 0 12px;}
+.settings-gate p, .settings-section-heading p, .settings-source p, .settings-actions p {color:#455f69;line-height:1.55;}
+.settings-gate label, .settings-edit-field label, .settings-filter-label, .settings-month label {display:block;font-weight:650;margin-bottom:6px;color:#1d3c47;}
+.settings-gate-controls,.settings-field-row {display:flex;gap:9px;align-items:stretch;flex-wrap:wrap;}
+.settings-gate-controls input,.settings-edit-field input,.settings-month input,.settings-section input[type=search] {
+  min-height:40px;min-width:140px;padding:8px 12px;border:1px solid #a3b9c1;
+  background:#fff;color:#1c3039;border-radius:8px;font:inherit;
+}
+.settings-gate-controls input {flex:1;max-width:400px;}
+.settings-primary,.settings-secondary {font:inherit;cursor:pointer;border-radius:8px;padding:9px 15px;min-height:40px;font-weight:650;}
+.settings-primary{background:#176a65;color:white;border:1px solid #176a65;}
+.settings-primary:hover{background:#10524e;}
+.settings-secondary{background:white;color:#194a49;border:1px solid #9db9b7;}
+.settings-secondary:hover{background:#f0f8f7;}
+.settings-help{font-size:.88rem;}
+.settings-topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:18px 0;}
+.settings-live{font-weight:650;display:flex;gap:8px;align-items:center;}
+.settings-dot{display:inline-block;width:9px;height:9px;background:#119073;border-radius:50%;}
+.settings-note,.settings-alert{padding:13px 15px;border-radius:9px;line-height:1.5;margin:14px 0;}
+.settings-note{background:#edf5f4;border:1px solid #bad6d2;color:#193e43;}
+.settings-alert.settings-error{background:#fff1e9;border:1px solid #debb9f;color:#603a29;}
+.settings-alert.settings-success{background:#e8f5eb;border:1px solid #b0d7b5;color:#17492d;}
+.settings-alert.settings-notice{background:#edf4fa;border:1px solid #bbd6e7;}
+.settings-section-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:22px;flex-wrap:wrap;}
+.settings-section-heading p{margin:4px 0 10px;}
+.settings-month{display:flex;align-items:end;gap:8px;flex-wrap:wrap;}
+.settings-month label{width:100%;margin-bottom:0;}
+.settings-summary{display:flex;flex-wrap:wrap;gap:16px;margin:8px 0 18px;}
+.settings-summary span{background:#f1f6f5;border-radius:8px;padding:9px 12px;}
+.settings-filter-label{margin-bottom:6px;}
+#member-search {width:min(100%,450px);margin-bottom:12px;}
+.settings-table-container{width:100%;max-width:100%;overflow-x:auto;}
+.settings-members{width:100%;min-width:720px;border-collapse:collapse;text-align:left;}
+.settings-members th,.settings-members td{padding:12px 14px;border-bottom:1px solid #dfebea;vertical-align:middle;}
+.settings-members th{background:#eff5f4;position:sticky;top:0;color:#27504f;}
+.settings-members tbody tr:hover,.settings-members tr.settings-selected{background:#edf8f6;}
+.settings-members code{word-break:break-all;}
+.settings-link{color:#12675f;text-decoration:underline;text-underline-offset:3px;font-weight:650;}
+.settings-muted{color:#687b82;}
+.settings-edit-section{margin-top:26px;}
+.settings-services{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:17px;}
+.settings-source{padding:22px;min-width:0;}
+.settings-source-heading{display:flex;justify-content:space-between;gap:9px;flex-wrap:wrap;align-items:center;}
+.settings-source-heading h3{margin:0;font-size:1.12rem;}
+.settings-chip{font-size:.76rem;white-space:nowrap;padding:5px 9px;border-radius:999px;font-weight:700;}
+.settings-chip-ok{background:#e7f6f0;color:#176b4c;}
+.settings-chip-warn{background:#fff0df;color:#744b20;}
+.settings-edit-field{border-top:1px solid #dfebea;padding:14px 0;}
+.settings-field-row input{flex:1;max-width:100%;min-width:0;}
+.settings-field-row button{white-space:normal;}
+.settings-shortcuts{display:flex;flex-wrap:wrap;gap:18px;}
+.settings-shortcuts a{color:#12675f;font-weight:700;text-decoration:underline;}
+@media(max-width:760px){
+ .settings-gate,.settings-section,.settings-actions{padding:17px;}
+ .settings-field-row input,.settings-field-row button{width:100%;}
+ .settings-gate-controls input,.settings-gate-controls button{width:100%;max-width:none;}
+}
