@@ -144,9 +144,6 @@
     </UnusedClass>
   </file>
   <file src="src/Controller/CapitalSocialSummarized.php">
-    <UnevaluatedCode>
-      <code><![CDATA[return $response;]]></code>
-    </UnevaluatedCode>
     <UnusedClass>
       <code><![CDATA[CapitalSocialSummarized]]></code>
     </UnusedClass>

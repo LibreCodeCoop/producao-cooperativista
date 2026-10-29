@@ -147,6 +147,9 @@ final class AkauntingContactGateway
             method: 'GET',
         )['data'] ?? null;
 
+        if (!is_array($data)) {
+            throw new DomainException('API Akaunting não retornou os dados do fornecedor.');
+        }
         $this->assertContact($data, $contactId, $company, 'vendor');
 
         return $data;

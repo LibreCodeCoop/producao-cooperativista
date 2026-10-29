@@ -153,15 +153,14 @@ class ProducaoCooperativista
     }
 
     /**
-     * @return (string)[][]
+     * @return array<int, array{nome: string, integralizado: int|float, devolvido: int|float, total: int|float, pendencias: int}>
      */
     public function getCapitalSocialSummarized(?string $until = null): array
     {
         $summary = [];
         foreach ($this->getCapitalSocial(null, $until) as $row) {
             $id = (int) $row['contact_id'];
-            if (!isset($summary[$id])) {
-                $summary[$id] = [
+            $summary[$id] ??= [
                     'nome' => '<a href="' . $this->urlGenerator->generate('app_capitalsocial_index', [
                         'contact_id' => $id,
                         'ate' => $until,
@@ -170,8 +169,7 @@ class ProducaoCooperativista
                     'devolvido' => 0,
                     'total' => 0,
                     'pendencias' => 0,
-                ];
-            }
+            ];
             if ($row['status'] !== 'confirmado') {
                 ++$summary[$id]['pendencias'];
                 continue;

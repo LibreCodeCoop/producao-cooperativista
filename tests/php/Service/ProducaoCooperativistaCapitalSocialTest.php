@@ -87,7 +87,7 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
         self::assertCount(5, $confirmed);
         self::assertEqualsWithDelta(-115.0, array_sum(array_column($confirmed, 'amount')), 0.001);
         self::assertSame(['integralizacao','devolucao','retencao'], array_values(array_unique(array_column($confirmed, 'kind'))));
-        self::assertSame('revisar', array_values(array_filter($rows, static fn (array $r): bool => $r['contact_id'] === 2))[0]['status']);
+        self::assertSame('revisar', array_first(array_filter($rows, static fn (array $r): bool => $r['contact_id'] === 2))['status']);
     }
 
     public function testPartialAndMixedOrUnpaidDocumentsAreNotAccidentallyConfirmed(): void
@@ -97,7 +97,7 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
         $this->document(12, 1, 'bill', 16, '100.00', [11 => '20.00',12 => '80.00']);
         $this->transaction(11, 1, 'expense', 16, '100.00', 12);
         $this->document(13, 1, 'invoice', 2, '30.00', [11 => '30.00'], 'draft');
-        $rows = (new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11)))->rows();
+        $rows = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows();
         self::assertCount(3, $rows);
         self::assertSame(['revisar'], array_values(array_unique(array_column($rows, 'status'))));
         self::assertEqualsWithDelta(0, array_sum(array_column($rows, 'amount')), 0.001);
@@ -108,7 +108,7 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
         $this->transaction(1, 1, 'income', 25, '50.00', null, '2025-05-01 08:00:00');
         $this->transaction(2, 1, 'income', 25, '50.00', null, '2025-06-01 08:00:00');
         $this->transaction(3, 2, 'income', 25, '100.00', null, '2025-05-01 08:00:00');
-        $rows = (new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11)))->rows(1, '2025-05-31');
+        $rows = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows(1, '2025-05-31');
         self::assertCount(1, $rows);
         self::assertSame(1, $rows[0]['contact_id']);
         self::assertEqualsWithDelta(50, $rows[0]['amount'], 0.001);
@@ -125,7 +125,7 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
     {
         $this->document(16, 1, 'invoice', 25, '75.00', [11 => '75.00']);
         $this->transaction(16, 1, 'expense', 25, '75.00', 16);
-        $rows = (new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11)))->rows();
+        $rows = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows();
         self::assertCount(1, $rows);
         self::assertSame('revisar', $rows[0]['status']);
         self::assertEqualsWithDelta(0, $rows[0]['amount'], 0.001);
@@ -136,13 +136,13 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
         $this->document(16, 1, 'invoice', 25, '75.00', [11 => '75.00']);
         $this->transaction(16, 1, 'income', 25, '75.00', 16);
         $this->connection->update('transactions', ['currency_code' => 'USD'], ['id' => 16]);
-        $rows = (new CapitalSocial($this->connection,new CapitalSocialSettings(25,11)))->rows();
-        self::assertSame('revisar',$rows[0]['status']);
-        self::assertEqualsWithDelta(0,$rows[0]['amount'],0.001);
+        $rows = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows();
+        self::assertSame('revisar', $rows[0]['status']);
+        self::assertEqualsWithDelta(0, $rows[0]['amount'], 0.001);
     }
 
     public function testEmptyLedgerDoesNotProduceError500(): void
     {
-        self::assertSame([],(new CapitalSocial($this->connection,new CapitalSocialSettings(25,11)))->rows());
+        self::assertSame([], new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows());
     }
 }

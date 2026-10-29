@@ -23,6 +23,7 @@ final class CapitalSocial
 {
     private CapitalSocialSettings $settings;
 
+    /** @psalm-suppress PossiblyUnusedMethod Injected by Symfony */
     public function __construct(
         private Connection $accounting,
         ?CapitalSocialSettings $settings = null,
