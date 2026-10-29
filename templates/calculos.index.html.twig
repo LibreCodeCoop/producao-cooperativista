@@ -74,6 +74,7 @@
             <button type="submit">Consultar</button>
         </form>
         <a class="calc-help-link" href="/calculos/ajuda">Entenda as regras e as referências</a>
+        <a class="calc-help-link" href="/configuracao">Corrigir dados nas fontes</a>
     </div>
 
     {% if simulation|default(false) %}
@@ -130,7 +131,7 @@
                             <tr id="{{ nome }}" data-calc-row="{{ nome }}">
                                 <th scope="row" class="label_{{ nome }}" data-highlight-key="{{ nome }}" tabindex="0" title="{{ glossary[nome]|default(item.label) }}">
                                     <span>{{ item.label }}</span>
-                                    <a class="calc-definition" href="/calculos/ajuda#{{ nome }}" title="Ver explicação de {{ item.label }}">?</a>
+                                    <a class="calc-definition" href="/calculos/ajuda#{{ nome }}" data-help="{{ glossary[nome]|default(item.label) }}" aria-label="Ajuda sobre {{ item.label }}: {{ glossary[nome]|default(item.label) }}">?</a>
                                 </th>
                                 <td class="calc-value">
                                     {% if nome in ['percentual_seguranca', 'percentual_administrativo'] %}

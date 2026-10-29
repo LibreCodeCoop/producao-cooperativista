@@ -46,6 +46,8 @@ final class CalculationAuditUiTest extends TestCase
         self::assertStringContainsString('rel="stylesheet" href="/css/calculation-report.css"', $html);
         self::assertStringContainsString('data-highlight-key="total_notas_clientes"', $html);
         self::assertStringContainsString('href="/calculos/ajuda#total_notas_clientes"', $html);
+        self::assertStringContainsString('data-help=', $html);
+        self::assertStringContainsString('href="/configuracao"', $html);
         self::assertStringContainsString('R$ 100,00', $html);
         self::assertStringContainsString('Fundo de Reserva', $html);
         self::assertStringContainsString('2. Custos e base móvel', $html);

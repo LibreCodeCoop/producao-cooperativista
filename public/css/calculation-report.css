@@ -58,3 +58,18 @@
   .calc-period-form { width:100%; }
   .calc-help-link { width:100%; justify-content:center; }
 }
+
+/* Explain the exact row on hover or keyboard focus without navigation. */
+.calc-definition { position:relative; overflow:visible; }
+.calc-definition::after {
+    content: attr(data-help);
+    position:absolute; z-index:30; bottom:calc(100% + 10px); right:0;
+    min-width:230px; width:min(340px, 78vw);
+    padding:12px 14px; border:1px solid #a9c5c0; border-radius:9px;
+    background:#fff; box-shadow:0 6px 22px rgba(0,0,0,.14);
+    color:#18303a; font:500 13px/1.45 system-ui,sans-serif; text-align:left;
+    white-space:normal; visibility:hidden; opacity:0; pointer-events:none;
+}
+.calc-definition:hover::after, .calc-definition:focus-visible::after {
+    visibility:visible; opacity:1;
+}
