@@ -28,6 +28,7 @@ namespace App\Service\Akaunting\Document;
 
 use Impostos\Service\INSS;
 use Impostos\Service\IRPF;
+use App\Service\Calculation\DecimalAllocation;
 use App\Service\Cooperado;
 
 /**
@@ -122,38 +123,56 @@ class Values
         $this->updated = self::STATUS_UPDATING;
 
         if (strlen($this->cooperado->getTaxNumber()) === 11) {
+            $base = self::brl($this->getBaseProducao());
             if (!$this->lockFrra) {
-                $this->setFrra($this->getBaseProducao() * (1 / 12));
+                $this->setFrra(self::brl($base / 12));
             }
-            $this->setAuxilio($this->getBaseProducao() * 0.2);
-            $this->setBruto(
-                $this->getBaseProducao()
-                - $this->getAuxilio()
-                - $this->getFrra()
-            );
+            $this->setAuxilio(self::brl($base * 0.2));
+            $this->setBruto(self::brl($base - $this->getAuxilio() - $this->getFrra()));
         } else {
-            $this->setBruto($this->getBaseProducao());
+            $this->setBruto(self::brl($this->getBaseProducao()));
         }
-        $liquido = $this->getBruto()
-            - $this->getLiquidDiscount()
-            - $this->getTotalAdiantamento();
+
+        $liquido = bcsub(
+            bcsub(
+                DecimalAllocation::decimal($this->getBruto()),
+                DecimalAllocation::decimal($this->getLiquidDiscount()),
+                12,
+            ),
+            DecimalAllocation::decimal($this->getTotalAdiantamento()),
+            12,
+        );
         if (strlen($this->cooperado->getTaxNumber()) === 11) {
-            $liquido = $liquido
-                - $this->getInss()
-                - $this->getIrpf()
-                + $this->getAuxilio();
+            $liquido = bcadd(
+                bcsub(
+                    bcsub(
+                        $liquido,
+                        DecimalAllocation::decimal($this->getInss()),
+                        12,
+                    ),
+                    DecimalAllocation::decimal($this->getIrpf()),
+                    12,
+                ),
+                DecimalAllocation::decimal($this->getAuxilio()),
+                12,
+            );
         }
-        $this->setLiquido($liquido);
+        $this->setLiquido(self::brl((float) $liquido));
         $this->setUpdated();
+    }
+
+    private static function brl(float $amount): float
+    {
+        return DecimalAllocation::amount(DecimalAllocation::cents($amount));
     }
 
     private function getTotalAdiantamento(): float
     {
-        $total = 0;
+        $total = '0';
         foreach ($this->getAdiantamento() as $linha) {
-            $total += $linha['amount'];
+            $total = bcadd($total, DecimalAllocation::decimal($linha['amount']), 12);
         }
-        return $total;
+        return self::brl((float) $total);
     }
 
     /**
@@ -192,13 +211,13 @@ class Values
             $this->mes
         );
 
-        $this->setInss($inss->calcula($this->getBruto()));
-        $this->setBaseIrpf($irpf->calculaBase(
+        $this->setInss(self::brl($inss->calcula($this->getBruto())));
+        $this->setBaseIrpf(self::brl($irpf->calculaBase(
             $this->getBruto(),
             $this->getInss(),
-            $this->getCooperado()->getDependentes()
-        ));
-        $this->setIrpf($irpf->calcula($this->getBaseIrpf(), $this->getCooperado()->getDependentes()));
+            $this->getCooperado()->getDependentes(),
+        )));
+        $this->setIrpf(self::brl($irpf->calcula($this->getBaseIrpf(), $this->getCooperado()->getDependentes())));
         $this->calculaLiquido();
     }
 
