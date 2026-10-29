@@ -1,10 +1,20 @@
 {% extends "layout/index.html.twig" %}
 
-{% block title %}Capital Social - analítico{% endblock title %}
+{% block title %}Capital social - resumo{% endblock title %}
 
 {% block body %}
-
-Os itens desta lista vem de transações ou faturas com categoria "<b>Cliente > Interno > Cooperado > Capital Social</b>" ou itens de fatura do tipo "<b>Capital social</b>"
-
-    {{ include('layout/components/datatable.html.twig') }}
+    <header class="page-heading">
+        <p class="eyebrow">Conciliação financeira</p>
+        <h1>Capital social por cooperado</h1>
+        <p class="page-lead">Saldo confirmado = integralizações e retenções menos devoluções. Pendências são excluídas, e devem ser verificadas antes de conciliar com o balanço.</p>
+        <p>Para lançamentos decorrentes de capitalização de sobras em assembleia, é necessário um registro individual de origem e aprovação; não são inferidos automaticamente de pagamentos bancários.</p>
+    </header>
+    <form method="get" class="surface" aria-label="Selecionar data da posição de capital">
+        <label for="capital-ate">Data de corte (opcional)</label>
+        <input id="capital-ate" name="ate" type="date" value="{{ ate|default('') }}">
+        <button type="submit">Atualizar posição</button>
+    </form>
+    <section class="surface" aria-label="Resumo de capital social">
+        {{ include('layout/components/datatable.html.twig') }}
+    </section>
 {% endblock %}

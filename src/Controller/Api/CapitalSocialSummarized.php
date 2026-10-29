@@ -29,6 +29,7 @@ namespace App\Controller\Api;
 use App\Service\ProducaoCooperativista;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 use App\Service\Calculation\ApiProblemResponder;
 
@@ -41,10 +42,10 @@ class CapitalSocialSummarized extends AbstractController
     }
 
     #[Route('/api/v1/capital-social-summarized', methods: ['GET'])]
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         try {
-            $capitalSocial = $this->producao->getCapitalSocialSummarized();
+            $capitalSocial = $this->producao->getCapitalSocialSummarized($request->query->get('ate'));
         } catch (\Throwable $th) {
             return $this->apiErrors->fromThrowable($th, 'CapitalSocialSummarized');
         }

@@ -1,7 +1,23 @@
 {% extends "layout/index.html.twig" %}
 
-{% block title %}Capital Social - analítico{% endblock title %}
+{% block title %}Capital social - movimentações{% endblock title %}
 
 {% block body %}
-    {{ include('layout/components/datatable.html.twig') }}
+    <header class="page-heading">
+        <p class="eyebrow">Conciliação financeira</p>
+        <h1>Movimentações de capital social</h1>
+        <p class="page-lead">Entradas e retenções aumentam o capital; devoluções diminuem. Registros pendentes não compõem o saldo confirmado.</p>
+        <p><a href="{{ path('app_capitalsocialsummarized_index') }}">Voltar ao resumo por cooperado</a></p>
+    </header>
+    <form method="get" class="surface" aria-label="Selecionar data da posição de capital">
+        <input type="hidden" name="contact_id" value="{{ contact_id|default('') }}">
+        <label for="capital-ate">Data de corte (opcional)</label>
+        <input id="capital-ate" name="ate" type="date" value="{{ ate|default('') }}">
+        <button type="submit">Atualizar posição</button>
+    </form>
+    <section class="surface" aria-label="Movimentações de capital social">
+        <p>Confira as colunas <strong>Status</strong> e <strong>Motivo</strong> antes de utilizar os saldos. Movimentações sem pagamento vinculado exigem conciliação.</p>
+        {% set filterColumns = ['contact_id', 'kind'] %}
+        {{ include('layout/components/datatable.html.twig') }}
+    </section>
 {% endblock %}
