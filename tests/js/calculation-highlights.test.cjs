@@ -78,3 +78,14 @@ test('special characters in formula names never enter a CSS selector', () => {
     labels[0].emit('mouseenter');
     assert.equal(elements.filter(el => el.classList.contains('active')).length, 3);
 });
+
+test('click pins the highlighted lineage until clicked again', () => {
+    const { doc, labels, elements } = fixture();
+    bindHighlights(doc);
+    labels[0].emit('click');
+    assert.equal(elements.filter(el => el.classList.contains('active')).length, 3);
+    labels[0].emit('mouseleave');
+    assert.equal(elements.filter(el => el.classList.contains('active')).length, 3);
+    labels[0].emit('click');
+    assert.equal(elements.filter(el => el.classList.contains('active')).length, 0);
+});

@@ -42,6 +42,9 @@ code {
 }
 pre { overflow-x: auto; max-width: 100%; }
 .container { width: min(100% - 48px, 1160px); margin-inline: auto; }
+.page-content { width: calc(100% - 48px); max-width: none; }
+.page-content .dt-container { width: 100%; max-width: 100%; overflow-x: auto; }
+.page-content table.dataTable { width: 100% !important; }
 .skip-link {
     position: absolute;
     z-index: 100;

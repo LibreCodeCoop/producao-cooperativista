@@ -1,0 +1,90 @@
+{% extends "layout/index.html.twig" %}
+{% block title %}Ajuda — memória de cálculo{% endblock %}
+{% block head %}<link rel="stylesheet" href="/css/calculation-report.css">{% endblock %}
+{% block body %}
+<nav class="breadcrumbs" aria-label="Localização"><a href="/">Visão geral</a><span>/</span><a href="/calculos">Cálculos</a><span>/</span><span aria-current="page">Ajuda</span></nav>
+<header class="page-heading calc-page-heading">
+    <p class="eyebrow">Guia de auditoria</p>
+    <h1>Como ler a memória de cálculo</h1>
+    <p class="page-lead">Referências para rastrear entradas, despesas, taxas e trabalho até a apuração gerencial da produção cooperativista.</p>
+</header>
+<div class="calc-notice">
+    <strong>Distinção contábil essencial.</strong> A apuração mensal da produção, as retiradas dos cooperados, o saldo gerencial, o FRRA e a destinação anual das sobras são fenômenos diferentes. Uma fórmula do sistema não prova, por si só, autorização estatutária ou conformidade tributária.
+</div>
+<article class="calc-help-content">
+    <section id="total_notas_clientes"><h2>1. Entradas e recebimentos</h2>
+        <h3>Total de notas dos clientes</h3><p class="calc-help-key">total_notas_clientes</p>
+        <p>Soma dos valores elegíveis de entradas de clientes na competência contábil. Para faturas vinculadas a pagamentos, o ETL utiliza os pagamentos conciliados; faturas sem confirmação de pagamento não devem ser tratadas como capital disponível.</p>
+    </section>
+    <section id="total_notas_percentual_fixo"><h3>Notas com percentual fixo</h3><p class="calc-help-key">total_notas_percentual_fixo</p>
+        <p>Recebimentos com desconto administrativo específico no cadastro, separados das receitas submetidas à taxa móvel. O desconto fixo não corresponde automaticamente a tributo.</p>
+    </section>
+    <section id="total_notas_percentual_movel"><h3>Notas com percentual móvel</h3><p class="calc-help-key">total_notas_percentual_movel</p>
+        <p>Diferença entre recebimentos de clientes e recebimentos com desconto fixo. É a origem da base sujeita ao cálculo da taxa administrativa variável.</p>
+    </section>
+    <section id="total_percentual_desconto_fixo"><h3>Desconto fixo total</h3><p class="calc-help-key">total_percentual_desconto_fixo</p>
+        <p>Soma de cada receita de cliente com desconto fixo multiplicada pelo percentual contratado e dividida por 100. Valores e critérios devem ser reconciliados por contrato/documento.</p>
+    </section>
+    <section id="total_sobras_clientes_percentual_fixo"><h3>Ajuste dos contratos com desconto fixo</h3><p class="calc-help-key">total_sobras_clientes_percentual_fixo</p>
+        <p>Considera o desconto fixo e o ajuste pelas retenções informadas nos documentos. Em recebimentos parciais, a lógica existente proporcionaliza os tributos ao recebimento. Exige conferência com os comprovantes e o tratamento fiscal efetivo.</p>
+    </section>
+    <section id="total_dispendios_clientes_percentual_movel"><h2>2. Custos e base móvel</h2><h3>Custos por cliente</h3><p class="calc-help-key">total_dispendios_clientes_percentual_movel</p>
+        <p>Custos classificados para um cliente específico, rateados entre suas faturas elegíveis proporcionalmente às receitas. A classificação e o vínculo com o cliente são fundamentais para não transferir custos indevidamente.</p>
+    </section>
+    <section id="total_notas_para_percentual_movel_sem_custo_cliente"><h3>Base móvel líquida de custos por cliente</h3><p class="calc-help-key">total_notas_para_percentual_movel_sem_custo_cliente</p>
+        <p>Recebimentos de taxa móvel menos custos associados aos clientes. Não é o saldo do banco e não inclui capital social como receita de produção.</p>
+    </section>
+    <section id="total_dispendios_internos"><h3>Dispêndios internos</h3><p class="calc-help-key">total_dispendios_internos</p>
+        <p>Saídas classificadas nas categorias de despesas internas da cooperativa. Devem ser conciliadas com documentos fiscais, competência e natureza de atos cooperativos/não cooperativos.</p>
+    </section>
+    <section id="taxa_minima"><h2>3. Taxa administrativa</h2><h3>Taxa mínima</h3><p class="calc-help-key">taxa_minima</p>
+        <p>Equivale ao total dos dispêndios internos reconhecidos na competência. É o piso gerencial de cobertura dos custos, não um piso criado pela legislação.</p>
+    </section>
+    <section id="taxa_maxima"><h3>Taxa máxima de referência</h3><p class="calc-help-key">taxa_maxima</p>
+        <p>O modelo atual usa duas vezes a taxa mínima. Essa relação decorre da fórmula operacional existente e requer fundamento em política aprovada, não da Lei 5.764/1971.</p>
+    </section>
+    <section id="percentual_seguranca"><h3>Percentual de segurança</h3><p class="calc-help-key">percentual_seguranca</p>
+        <p>Parâmetro configurável <code>PERCENTUAL_MAXIMO</code> (valor de exemplo no repositório: 25%). Incide sobre a base móvel líquida de custos. É um limite de referência gerencial: quando o mínimo necessário para cobrir despesas internas o excede, o percentual efetivo pode ficar maior.</p>
+    </section>
+    <section id="valor_seguranca"><h3>Valor de segurança</h3><p class="calc-help-key">valor_seguranca</p>
+        <p>Base móvel após custos por cliente × percentual de segurança ÷ 100. Não se confunde com os fundos obrigatórios anuais.</p>
+    </section>
+    <section id="taxa_administrativa"><h3>Taxa administrativa condicional</h3><p class="calc-help-key">taxa_administrativa</p>
+        <p>O algoritmo seleciona a maior entre a taxa mínima e a menor entre o valor de segurança e a taxa máxima: <code>max(taxa mínima, min(valor de segurança, taxa máxima))</code>. A regra assegura o piso de custos mesmo quando ele supera a referência percentual.</p>
+    </section>
+    <section id="percentual_administrativo"><h3>Percentual administrativo efetivo</h3><p class="calc-help-key">percentual_administrativo</p>
+        <p>Taxa administrativa ÷ base móvel líquida × 100. Pode superar o percentual de segurança. O sistema bloqueia bases insuficientes e sinaliza a necessidade de revisão da política econômica.</p>
+    </section>
+    <section id="base_producao"><h2>4. Produção e saldo mensal</h2><h3>Base de produção</h3><p class="calc-help-key">base_producao</p>
+        <p>Para cada recebimento elegível: <code>(recebimento − custo alocado ao documento) × (1 − desconto/100)</code>. A base total é a soma desses documentos; seu rateio posterior depende de horas ponderadas, cliente, competência e políticas do perfil.</p>
+    </section>
+    <section id="reserva"><h3>Reserva gerencial</h3><p class="calc-help-key">reserva</p>
+        <p>Taxa administrativa menos a taxa mínima. Essa margem gerencial <strong>não é automaticamente</strong> o Fundo de Reserva obrigatório, nem o FATES/RATES. Os fundos legais incidem sobre sobras líquidas do exercício e dependem de escrituração específica.</p>
+    </section>
+    <section id="total_sobras_do_mes"><h3>Saldo gerencial do mês</h3><p class="calc-help-key">total_sobras_do_mes</p>
+        <p>Concilia recebimentos menos custos por cliente, despesas internas, base de produção, reserva gerencial e descontos fixos, mais os ajustes previstos para clientes fixos. O nome histórico “sobras do mês” não autoriza tratá-lo como saldo disponível para distribuição assemblear anual.</p>
+    </section>
+    <section id="total_sobras_distribuidas"><h3>Saldo e distribuições já lançadas</h3><p class="calc-help-key">total_sobras_distribuidas</p>
+        <p>Somatório dos documentos registrados na categoria de distribuição de sobras e do saldo gerencial calculado da competência. Requer conciliação contábil e conferência para evitar duplicidade.</p>
+    </section>
+    <section id="total_horas_trabalhadas"><h2>5. Trabalho e competências</h2><h3>Horas trabalhadas</h3><p>Tempo informado nos apontamentos do Kimai. Atribuição por cooperado depende de identificadores, peso e cliente. Verifique o corte temporal.</p></section>
+    <section id="total_horas_possiveis"><h3>Horas possíveis</h3><p>Quantidade de cooperados × 8 horas × dias úteis. É parâmetro de capacidade de referência, não garantia de remuneração ou prova de horas efetivas.</p></section>
+    <section id="total_cooperados"><h3>Cooperados</h3><p>Conjunto identificado na base de trabalho do período. Conferir elegibilidade, cadastro, peso e participação efetiva.</p></section>
+    <section id="dias_uteis_no_mes"><h3>Dias úteis</h3><p>Calendário e exceções adotados na competência; o parâmetro pode variar conforme feriados e as definições aprovadas.</p></section>
+    <section id="transacao_do_mes"><h3>Competência da transação</h3><p>Período de reconhecimento do documento/recebimento. Pode divergir da competência dos trabalhos executados.</p></section>
+    <section id="ano_mes_trabalhado"><h3>Competência do trabalho</h3><p>Mês de referência para as horas e produção; conferir a associação com a competência contábil.</p></section>
+    <section id="referencias">
+        <h2>Referências legais, contábeis e técnicas</h2>
+        <ul>
+            <li><a href="https://www2.camara.leg.br/legin/fed/lei/1970-1979/lei-5764-16-dezembro-1971-357788-normaatualizada-pl.html" target="_blank" rel="noopener noreferrer">Lei 5.764/1971</a>, arts. 28 (fundos) e 44 (deliberação assemblear).</li>
+            <li><a href="https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2012/lei/l12690.htm" target="_blank" rel="noopener noreferrer">Lei 12.690/2012</a>, arts. 7º, 11, 13 e 14 (direitos, retiradas e assembleia).</li>
+            <li><a href="https://cfc.org.br/noticias/plenario-do-cfc-aprova-a-norma-itg-2004-entidade-cooperativa/" target="_blank" rel="noopener noreferrer">CFC — ITG 2004, Entidade Cooperativa</a>: classificação e apresentação contábil.</li>
+            <li><a href="https://ica.coop/en/cooperatives/cooperative-identity" target="_blank" rel="noopener noreferrer">Aliança Cooperativa Internacional — 3º princípio</a>: participação econômica e destinação de excedentes.</li>
+            <li><a href="https://www.php.net/manual/pt_BR/bcmath-number.round.php" target="_blank" rel="noopener noreferrer">PHP BCMath</a>: aritmética decimal para uma futura migração completa, sujeita a política de arredondamento.</li>
+            <li><a href="https://journals.sagepub.com/doi/10.1177/08863687261420502" target="_blank" rel="noopener noreferrer">Morshed (2026)</a>: transparência contábil e credibilidade do compartilhamento de ganhos em organizações de trabalhadores.</li>
+        </ul>
+        <p>Essas referências oferecem contexto, mas não aprovam os percentuais operacionais nem substituem o Estatuto, as atas, as políticas econômicas da LibreCode ou o parecer do responsável técnico.</p>
+        <p>O relatório técnico de riscos, fórmulas e plano de precisão está em <a href="https://github.com/LibreCodeCoop/producao-cooperativista/blob/fix/production-calculation-integrity-2026/docs/calculation-audit.md" target="_blank" rel="noopener noreferrer">docs/calculation-audit.md</a>.</p>
+    </section>
+</article>
+{% endblock %}
