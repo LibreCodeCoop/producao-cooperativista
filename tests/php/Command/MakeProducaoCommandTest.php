@@ -93,8 +93,8 @@ final class MakeProducaoCommandTest extends TestCase
                 '2023-08',
                 <<<CSV
                 akaunting_contact_id,auxilio,base_irpf,base_producao,bruto,dependentes,document_number,peso,frra,liquid_discount,inss,irpf,adiantamento,liquido,name,tax_number
-                6,5000,16415.168666667,25000,17916.666666667,0,PDC_CPF______02-2023-09,1,2083.3333333333,0,1501.498,3629.2113833333,0,17785.957283333,"Pessoa 02",CPF______02
-                7,5000,16225.578666667,25000,17916.666666667,1,PDC_CPF______03-2023-09,1,2083.3333333333,0,1501.498,3577.0741333333,0,17838.094533333,"Pessoa 03",CPF______03
+                6,5000,16415.17,25000,17916.67,0,PDC_CPF______02-2023-09,1,2083.33,0,1501.5,3629.21,0,17785.96,"Pessoa 02",CPF______02
+                7,5000,16225.58,25000,17916.67,1,PDC_CPF______03-2023-09,1,2083.33,0,1501.5,3577.07,0,17838.1,"Pessoa 03",CPF______03
                 CSV
             ],
             'recebe_metade' => [
@@ -102,8 +102,8 @@ final class MakeProducaoCommandTest extends TestCase
                 '2023-08',
                 <<<CSV
                 akaunting_contact_id,auxilio,base_irpf,base_producao,bruto,dependentes,document_number,peso,frra,liquid_discount,inss,irpf,adiantamento,liquido,name,tax_number
-                6,3333.3333333333,10442.946444444,16666.666666667,11944.444444444,0,PDC_CPF______02-2023-09,1,1388.8888888889,0,1501.498,1986.8502722222,0,11789.429505556,"Pessoa 02",CPF______02
-                7,6666.6666666667,22197.800888889,33333.333333333,23888.888888889,1,PDC_CPF______03-2023-09,2,2777.7777777778,0,1501.498,5219.4352444444,0,23834.622311111,"Pessoa 03",CPF______03
+                6,3333.33,10442.95,16666.67,11944.45,0,PDC_CPF______02-2023-09,1,1388.89,0,1501.5,1986.85,0,11789.43,"Pessoa 02",CPF______02
+                7,6666.67,22197.79,33333.33,23888.88,1,PDC_CPF______03-2023-09,2,2777.78,0,1501.5,5219.43,0,23834.62,"Pessoa 03",CPF______03
                 CSV
             ],
         ];

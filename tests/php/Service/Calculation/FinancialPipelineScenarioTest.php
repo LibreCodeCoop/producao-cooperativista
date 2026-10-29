@@ -143,7 +143,11 @@ final class FinancialPipelineScenarioTest extends KernelTestCase
         ];
         $distribution = $planner->plan($incomes, $work);
         self::assertEqualsWithDelta(8000.0, array_sum($distribution->amounts), 0.001);
-        self::assertEqualsWithDelta(8000 * 2 / 3, $distribution->amounts['member-a'], 0.001);
-        self::assertEqualsWithDelta(8000 / 3, $distribution->amounts['member-b'], 0.001);
+        self::assertSame(5333.33, $distribution->amounts['member-a']);
+        self::assertSame(2666.67, $distribution->amounts['member-b']);
+        self::assertSame(800000, array_sum(array_map(
+            \App\Service\Calculation\DecimalAllocation::cents(...),
+            $distribution->amounts,
+        )));
     }
 }
