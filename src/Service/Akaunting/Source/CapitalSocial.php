@@ -53,16 +53,27 @@ final class CapitalSocial
         $types = ['company_id' => ParameterType::INTEGER, 'category_id' => ParameterType::INTEGER, 'item_id' => ParameterType::INTEGER];
         $dateFilterT = '';
         $dateFilterP = '';
+        $dateFilterD = '';
         if ($until !== null) {
             $params['end_of_day'] = $until . ' 23:59:59';
             $dateFilterT = ' AND t.paid_at <= :end_of_day';
+            $dateFilterD = ' AND d.issued_at <= :end_of_day';
             $dateFilterP = ' AND pt.paid_at <= :end_of_day';
         }
         $entries = $this->accounting->executeQuery(
-            "SELECT t.id, t.contact_id, c.name, c.tax_number, t.amount, t.currency_code, t.paid_at AS date, t.type, t.category_id
+            "SELECT t.id, t.contact_id, c.name, c.tax_number, t.amount, t.description, t.document_id, t.currency_code, t.paid_at AS date, t.type, t.category_id
              FROM transactions t
              JOIN contacts c ON c.id = t.contact_id AND c.company_id = t.company_id
-             WHERE (t.category_id = :category_id OR LOWER(t.description) LIKE '%capital social%') AND t.document_id IS NULL
+             WHERE (t.category_id = :category_id OR LOWER(t.description) LIKE '%capital social%'
+                    OR REPLACE(LOWER(t.description), ' ', '') LIKE '%capitalsocial%')
+               AND (t.document_id IS NULL OR NOT EXISTS (
+                 SELECT 1 FROM documents dx
+                 WHERE dx.id = t.document_id AND dx.company_id = t.company_id
+                   AND dx.deleted_at IS NULL AND (dx.category_id = :category_id OR EXISTS (
+                     SELECT 1 FROM document_items dix
+                     WHERE dix.document_id = dx.id AND dix.item_id = :item_id
+                       AND dix.deleted_at IS NULL))
+               ))
                AND t.deleted_at IS NULL AND t.contact_id IS NOT NULL AND t.company_id = :company_id" . $dateFilterT,
             $params,
             $types
@@ -90,7 +101,7 @@ final class CapitalSocial
                                    AND pt.currency_code = d.currency_code" . $dateFilterP . ") AS paid_at
                 FROM documents d
                 JOIN contacts co ON co.id = d.contact_id AND co.company_id = d.company_id
-                WHERE d.deleted_at IS NULL AND d.company_id = :company_id
+                WHERE d.deleted_at IS NULL AND d.company_id = :company_id" . $dateFilterD . "
                   AND d.contact_id IS NOT NULL
                   AND (d.category_id = :category_id OR EXISTS (
                         SELECT 1 FROM document_items di
@@ -106,8 +117,22 @@ final class CapitalSocial
         $rows = [];
 
         foreach ($entries as $entry) {
+            // This source category has historically also been used for returns of
+            // third-party cooperative capital and refunds of overpayments. Those
+            // are not subscriptions by a LibreCode member.
+            $description = mb_strtolower((string) $entry['description'], 'UTF-8');
+            $looksLikeReturn = (bool) preg_match('/devolu|restitui|estorn|pag[oa] a maior/u', $description);
             $income = $entry['type'] === 'income' && (int) $entry['category_id'] === $this->settings->categoryId
-                && $entry['currency_code'] === 'BRL' && self::cents($entry['amount']) > 0;
+                && $entry['currency_code'] === 'BRL' && self::cents($entry['amount']) > 0 && !$looksLikeReturn;
+            $reason = '';
+            if ($entry['document_id'] !== null) {
+                $income = false;
+                $reason = 'Lançamento menciona capital social, mas a fatura vinculada não contém item/categoria de capital.';
+            } elseif ($looksLikeReturn) {
+                $reason = 'Descrição de restituição/estorno: corrigir a classificação na origem antes de incluir no capital social.';
+            } elseif (!$income) {
+                $reason = 'Movimentação possivelmente relacionada ao capital social, mas sem classificação confiável.';
+            }
             $rows[] = $this->movement(
                 'transaction',
                 (int) $entry['id'],
@@ -116,7 +141,7 @@ final class CapitalSocial
                 (string) $entry['date'],
                 $income ? 'integralizacao' : 'revisao',
                 $income ? self::cents($entry['amount']) : 0,
-                !$income ? 'Movimentação possivelmente relacionada ao capital social, mas sem classificação confiável.' : '',
+                $reason,
                 abs(self::cents($entry['amount'])),
                 (string) $entry['currency_code']
             );

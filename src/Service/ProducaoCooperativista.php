@@ -153,7 +153,7 @@ class ProducaoCooperativista
     }
 
     /**
-     * @return array<int, array{nome: string, integralizado: int|float, devolvido: int|float, total: int|float, pendencias: int}>
+     * @return array<int, array{nome: string, integralizado: int|float, devolvido: int|float, total: int|float, pendencias: int, situacao: string}>
      */
     public function getCapitalSocialSummarized(?string $until = null): array
     {
@@ -169,6 +169,7 @@ class ProducaoCooperativista
                     'devolvido' => 0,
                     'total' => 0,
                     'pendencias' => 0,
+                    'situacao' => 'Aguardando conciliação documental',
             ];
             if ($row['status'] !== 'confirmado') {
                 ++$summary[$id]['pendencias'];
@@ -182,12 +183,23 @@ class ProducaoCooperativista
             }
             $summary[$id]['total'] += $cents;
         }
-        foreach ($summary as &$entry) {
+        foreach ($summary as $id => $entry) {
             foreach (['integralizado', 'devolvido', 'total'] as $field) {
                 $entry[$field] /= 100;
             }
+
+            // Zero unclassified records does not mean the member's historical
+            // position has been reconciled to society records and accounting.
+            if ($entry['total'] < 0) {
+                ++$entry['pendencias'];
+                $entry['situacao'] = 'Histórico incompleto: devolução superior aos aportes registrados';
+            } elseif ($entry['pendencias'] > 0) {
+                $entry['situacao'] = 'Movimentações a conferir';
+            } else {
+                $entry['situacao'] = 'Aguardando conciliação documental';
+            }
+            $summary[$id] = $entry;
         }
-        unset($entry);
         return $summary;
     }
 

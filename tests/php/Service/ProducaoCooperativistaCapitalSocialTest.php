@@ -11,6 +11,9 @@ namespace App\Tests\Service;
 
 use App\Service\Akaunting\CapitalSocialSettings;
 use App\Service\Akaunting\Source\CapitalSocial;
+use App\Service\ProducaoCooperativista;
+use ReflectionClass;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -29,7 +32,7 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
         }
         $this->connection->executeStatement('CREATE TABLE contacts (id INT PRIMARY KEY, company_id INT NOT NULL, name VARCHAR(191) NOT NULL, tax_number VARCHAR(20) NULL)');
         $this->connection->executeStatement('CREATE TABLE transactions (id INT PRIMARY KEY, company_id INT NOT NULL, contact_id INT NOT NULL, category_id INT NOT NULL, amount DECIMAL(15,2) NOT NULL, currency_code VARCHAR(5) NOT NULL, description VARCHAR(191) NOT NULL DEFAULT \'\', paid_at DATETIME NOT NULL, type VARCHAR(30) NOT NULL, document_id INT NULL, deleted_at DATETIME NULL)');
-        $this->connection->executeStatement('CREATE TABLE documents (id INT PRIMARY KEY, company_id INT NOT NULL, contact_id INT NOT NULL, contact_name VARCHAR(191) NOT NULL, type VARCHAR(30) NOT NULL, status VARCHAR(30) NOT NULL, currency_code VARCHAR(5) NOT NULL, category_id INT NOT NULL, amount DECIMAL(15,2) NOT NULL, due_at DATETIME NOT NULL, deleted_at DATETIME NULL)');
+        $this->connection->executeStatement('CREATE TABLE documents (id INT PRIMARY KEY, company_id INT NOT NULL, contact_id INT NOT NULL, contact_name VARCHAR(191) NOT NULL, type VARCHAR(30) NOT NULL, status VARCHAR(30) NOT NULL, currency_code VARCHAR(5) NOT NULL, issued_at DATETIME NOT NULL, category_id INT NOT NULL, amount DECIMAL(15,2) NOT NULL, due_at DATETIME NOT NULL, deleted_at DATETIME NULL)');
         $this->connection->executeStatement('CREATE TABLE document_items (id INT PRIMARY KEY, document_id INT NOT NULL, item_id INT NOT NULL, total DECIMAL(15,2) NOT NULL, deleted_at DATETIME NULL)');
         foreach ([1,2] as $person) {
             $this->connection->insert('contacts', ['id' => $person, 'company_id' => 1, 'name' => 'Cooperado ' . $person, 'tax_number' => null]);
@@ -59,7 +62,7 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
         $this->connection->insert('documents', [
             'id' => $id, 'company_id' => 1, 'contact_id' => $contact, 'contact_name' => 'Cooperado ' . $contact,
             'category_id' => $category, 'type' => $type, 'status' => $status, 'amount' => $amount, 'currency_code' => 'BRL',
-            'due_at' => '2025-05-01 12:00:00', 'deleted_at' => null,
+            'due_at' => '2025-05-01 12:00:00', 'issued_at' => '2025-04-28 12:00:00', 'deleted_at' => null,
         ]);
         foreach ($items as $itemId => $value) {
             $this->connection->insert('document_items', [
@@ -139,6 +142,63 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
         $rows = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows();
         self::assertSame('revisar', $rows[0]['status']);
         self::assertEqualsWithDelta(0, $rows[0]['amount'], 0.001);
+    }
+
+    public function testRefundLabeledAsCapitalDoesNotBecomeAnIntegralization(): void
+    {
+        $this->connection->insert('transactions', [
+            'id' => 50, 'company_id' => 1, 'contact_id' => 1,
+            'category_id' => 25, 'amount' => '101.81',
+            'currency_code' => 'BRL', 'type' => 'income',
+            'description' => 'Restituição do Capital Social - outro banco',
+            'paid_at' => '2025-05-03 12:00:00',
+            'document_id' => null, 'deleted_at' => null,
+        ]);
+        $rows = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows();
+        self::assertCount(1, $rows);
+        self::assertSame('revisar', $rows[0]['status']);
+        self::assertEqualsWithDelta(0.0, $rows[0]['amount'], 0.001);
+        self::assertStringContainsString('restituição', $rows[0]['reason']);
+    }
+
+    public function testRefundDescriptionWithIncorrectLinkedItemIsFlaggedForAudit(): void
+    {
+        $this->document(19, 1, 'bill', 11, '34.79', [23 => '34.79']);
+        $this->transaction(19, 1, 'expense', 11, '34.79', 19);
+        $this->connection->update('transactions', [
+            'description' => 'DevoluçãodeCapitalSocial',
+        ], ['id' => 19]);
+        $rows = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows();
+        self::assertCount(1, $rows);
+        self::assertSame('revisar', $rows[0]['status']);
+        self::assertEqualsWithDelta(0.0, $rows[0]['amount'], 0.001);
+        self::assertStringContainsString('fatura vinculada', $rows[0]['reason']);
+    }
+
+    public function testCutoffExcludesDocumentsIssuedLater(): void
+    {
+        $this->document(90, 1, 'invoice', 25, '62.50', [11 => '62.50']);
+        $this->transaction(90, 1, 'income', 25, '62.50', 90);
+        $this->connection->update('documents', ['issued_at' => '2025-06-02 12:00:00'], ['id' => 90]);
+        $rows = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows(null, '2025-05-31');
+        self::assertSame([], $rows);
+    }
+
+    public function testNegativeHistoricalBalanceIsNotMarkedAsZeroPending(): void
+    {
+        $this->document(31, 1, 'bill', 16, '300.00', [11 => '300.00']);
+        $this->transaction(31, 1, 'expense', 16, '300.00', 31);
+        $service = new ReflectionClass(ProducaoCooperativista::class)->newInstanceWithoutConstructor();
+        $source = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11));
+        new ReflectionClass(ProducaoCooperativista::class)->getProperty('capitalSocialSource')->setValue($service, $source);
+        $router = $this->createStub(UrlGeneratorInterface::class);
+        $router->method('generate')->willReturn('/capital-social?contact_id=1');
+        new ReflectionClass(ProducaoCooperativista::class)->getProperty('urlGenerator')->setValue($service, $router);
+        $rows = array_values($service->getCapitalSocialSummarized());
+        self::assertCount(1, $rows);
+        self::assertEqualsWithDelta(-300.00, $rows[0]['total'], 0.001);
+        self::assertSame(1, $rows[0]['pendencias']);
+        self::assertStringContainsString('Histórico incompleto', $rows[0]['situacao']);
     }
 
     public function testEmptyLedgerDoesNotProduceError500(): void
