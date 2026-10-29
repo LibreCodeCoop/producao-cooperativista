@@ -43,6 +43,34 @@ final class OperationalUiTest extends TestCase
         self::assertStringNotContainsString('<ul>\n        <li>', $html);
     }
 
+    public function testThemeSelectorUsesSharedLayoutAndLoadsBeforePageStyles(): void
+    {
+        $html = $this->twig()->render('index.index.html.twig', [
+            'relatorios' => [],
+            'acoes' => [],
+        ]);
+
+        self::assertStringContainsString('<meta name="color-scheme" content="light dark">', $html);
+        self::assertStringContainsString('src="/js/theme.js"', $html);
+        self::assertStringContainsString('href="/css/theme.css"', $html);
+        self::assertStringContainsString('id="theme-toggle"', $html);
+        self::assertStringContainsString('id="theme-toggle-label"', $html);
+        self::assertStringContainsString('id="theme-status"', $html);
+        self::assertStringContainsString('id="theme-system" class="theme-system" hidden', $html);
+        self::assertStringContainsString('aria-live="polite"', $html);
+        self::assertStringContainsString('type="button" id="theme-toggle"', $html);
+        self::assertLessThan(
+            strpos($html, 'href="/css/app.css"'),
+            strpos($html, 'src="/js/theme.js"'),
+            'Theme must be applied before the first stylesheet to avoid a flash of the wrong colors.'
+        );
+        self::assertGreaterThan(
+            strpos($html, 'href="/css/app.css"'),
+            strpos($html, 'href="/css/theme.css"'),
+            'Theme overrides must be loaded after the global stylesheet.'
+        );
+    }
+
     public function testResetPageExplainsItsScopeAndDisablesUnavailableOperation(): void
     {
         $html = $this->renderReset(false, false);
