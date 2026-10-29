@@ -28,6 +28,7 @@ namespace App\Service;
 
 use App\Helper\Dates;
 use App\Service\Akaunting\Source\Categories;
+use App\Service\Calculation\AdministrativeRate;
 use App\Service\Calculation\CustomerCostAllocator;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
@@ -494,19 +495,7 @@ class Movimentacao
 
         $totalNotasParaPercentualMovelSemCustoCliente = $this->totalNotasParaPercentualMovelSemCustoCliente();
 
-        $valorSeguranca = $totalNotasParaPercentualMovelSemCustoCliente * $this->percentualMaximo / 100;
-
         $this->taxaMinima = $this->getTotalDispendiosInternos();
-
-        $this->taxaMaxima = $this->taxaMinima * 2;
-        if ($this->taxaMinima >= $valorSeguranca) {
-            $this->taxaAdministrativa = $this->taxaMinima;
-        } elseif ($this->taxaMaxima >= $valorSeguranca) {
-            $this->taxaAdministrativa = $valorSeguranca;
-        } else {
-            $this->taxaAdministrativa = $this->taxaMaxima;
-        }
-
         if ($this->taxaMinima > 0) {
             if ($totalNotasParaPercentualMovelSemCustoCliente <= 0) {
                 $costs = $this->getCustosPorCliente();
@@ -530,8 +519,21 @@ class Movimentacao
                     number_format(array_sum($unmatched), 2, ',', '.')
                 ));
             }
+        }
 
-            $this->percentualAdministrativo = $this->taxaAdministrativa * 100 / $totalNotasParaPercentualMovelSemCustoCliente;
+        $result = (new AdministrativeRate())->evaluate(
+            $totalNotasParaPercentualMovelSemCustoCliente,
+            $this->taxaMinima,
+            $this->percentualMaximo,
+        );
+        $this->taxaMinima = $result['minimum'];
+        $this->taxaMaxima = $result['maximum'];
+        $this->taxaAdministrativa = $result['rate'];
+
+        if ($this->taxaMinima > 0) {
+
+
+            $this->percentualAdministrativo = $result['effective_percent'];
             if ($this->percentualAdministrativo > 100.0 + 0.000001) {
                 $orphanCosts = $this->customerCostAllocator->unmatchedCosts(
                     $this->getEntradasClientes(),
@@ -557,7 +559,7 @@ class Movimentacao
             }
             if ($this->percentualAdministrativo > $this->percentualMaximo) {
                 $this->logger->warning(
-                    'Despesas administrativas exigem {apurado}% da base, acima do percentual configurado ({limite}%). Requer análise de governança.',
+                    'Taxa efetiva {apurado}% superior à referência {limite}% para cobrir dispêndios, conforme contingência operacional.',
                     ['apurado' => $this->percentualAdministrativo, 'limite' => $this->percentualMaximo]
                 );
             }
