@@ -27,14 +27,30 @@
 .settings-month label{width:100%;margin-bottom:0;}
 .settings-summary{display:flex;flex-wrap:wrap;gap:16px;margin:8px 0 18px;}
 .settings-summary span{background:#f1f6f5;border-radius:8px;padding:9px 12px;}
-.settings-filter-label{margin-bottom:6px;}
-#member-search {width:min(100%,450px);margin-bottom:12px;}
-.settings-table-container{width:100%;max-width:100%;overflow-x:auto;}
-.settings-members{width:100%;min-width:720px;border-collapse:collapse;text-align:left;}
-.settings-members th,.settings-members td{padding:12px 14px;border-bottom:1px solid #dfebea;vertical-align:middle;}
-.settings-members th{background:#eff5f4;position:sticky;top:0;color:#27504f;}
-.settings-members tbody tr:hover,.settings-members tr.settings-selected{background:#edf8f6;}
-.settings-members code{word-break:break-all;}
+/* The grid and rows inherit the shared DataTables stylesheet used by reports. */
+.settings-filter-actions{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px;flex-wrap:wrap;margin:12px 0 20px;
+}
+.settings-filter-actions p{margin:0;color:#536b73;font-size:.89rem;}
+.settings-filter-actions > div{display:flex;gap:9px;flex-wrap:wrap;}
+.settings-table-container{width:100%;max-width:100%;}
+.settings-members{width:100% !important;}
+.settings-members tfoot th{vertical-align:top;}
+.settings-members tfoot input,.settings-members tfoot select{
+  display:block;min-width:130px;width:100%;max-width:220px;
+  box-sizing:border-box;min-height:37px;padding:6px 9px;
+  border:1px solid #a3b9c1;border-radius:6px;background:#fff;color:#1c3039;
+}
+.settings-members .settings-column-label{
+  display:block;font-size:.82rem;font-weight:650;margin-bottom:6px;
+  color:#1d3c47;
+}
+.settings-members tbody tr.settings-selected td{box-shadow:inset 0 0 0 1px #a2d4cb;}
+.settings-table-container .dt-container{width:100%;}
+.settings-table-container .dt-layout-row{gap:10px;flex-wrap:wrap;}
+.settings-table-container .dt-buttons{display:flex;flex-wrap:wrap;gap:4px;}
+#settings-table-error:not(:empty){margin:10px 0;color:#822b22;}
 .settings-link{color:#12675f;text-decoration:underline;text-underline-offset:3px;font-weight:650;}
 .settings-muted{color:#687b82;}
 .settings-edit-section{margin-top:26px;}

@@ -1,6 +1,8 @@
 {% extends "layout/index.html.twig" %}
 {% block title %}Configuração da produção{% endblock %}
 {% block head %}
+    {# Reuse the same DataTables and Buttons resources as financial reports. #}
+    {{ include('layout/components/datatable.html.twig', {datatablesAssetsOnly: true}) }}
     <link rel="stylesheet" href="/css/settings-panel.css">
 {% endblock %}
 {% block body %}
@@ -44,34 +46,70 @@
         <div class="settings-summary">
             <span><strong>{{ users|length }}</strong> usuários encontrados no Kimai</span>
             <span><strong>{{ users|filter(u => u.participates)|length }}</strong> com horas importadas na competência</span>
+            <span><strong id="settings-visible-count">—</strong> cooperados exibidos após filtros</span>
         </div>
-        <label class="settings-filter-label" for="member-search">Buscar por nome ou usuário</label>
-        <input type="search" id="member-search" placeholder="Filtrar lista..." autocomplete="off">
+        <div class="settings-filter-actions">
+            <p>Filtros por coluna no rodapé · clique nos títulos para ordenar · use a busca geral e a paginação do DataTables.</p>
+            <div>
+                <button class="settings-secondary" type="button" id="settings-clear-filters">Limpar filtros e exibir todos</button>
+                <button class="settings-secondary" type="button" id="settings-default-filters">Restaurar padrão (ativos)</button>
+            </div>
+        </div>
+        <div id="settings-table-error" role="alert" aria-live="polite"></div>
         <div class="settings-table-container">
-            <table class="settings-members">
-                <thead><tr><th>Cooperado</th><th>Usuário Kimai</th><th>Horas importadas</th><th>Estado</th><th>Ação</th></tr></thead>
+            <table id="settings-members" class="settings-members display" style="width:100%">
+                <thead>
+                    <tr>
+                        <th scope="col">Cooperado</th>
+                        <th scope="col">Usuário Kimai</th>
+                        <th scope="col">Horas importadas</th>
+                        <th scope="col">Apontamentos</th>
+                        <th scope="col">Situação</th>
+                        <th scope="col">Ação</th>
+                    </tr>
+                </thead>
                 <tbody>
                     {% for user in users %}
-                        <tr data-member-row data-search="{{ (user.alias ~ ' ' ~ user.username)|lower }}" {% if member and member.id == user.id %}class="settings-selected"{% endif %}>
-                            <td><strong>{{ user.alias }}</strong></td>
-                            <td><code>{{ user.username }}</code></td>
-                            <td>{{ user.hours|number_format(2, ',', '.') }} h</td>
-                            <td>
-                                {% if user.system %}Conta de serviço
-                                {% elseif user.participates %}Com apontamentos importados
-                                {% elseif not user.enabled %}Desativado
-                                {% else %}Sem apontamentos no período{% endif %}
-                            </td>
+                        {% set status = user.system ? 'Conta de serviço' : (user.enabled ? 'Ativo' : 'Desativado') %}
+                        <tr data-member-row{% if member and member.id == user.id %} class="settings-selected"{% endif %}>
+                            <td>{{ user.alias }}</td>
+                            <td>{{ user.username }}</td>
+                            <td data-order="{{ user.hours }}">{{ user.hours|number_format(2, ',', '.') }} h</td>
+                            <td>{{ user.participates ? 'Com horas' : 'Sem horas' }}</td>
+                            <td>{{ status }}</td>
                             <td>
                                 {% if not user.system %}
-                                    <a href="/configuracao?competencia={{ month|url_encode }}&cooperado={{ user.id }}" class="settings-link">Conferir e editar</a>
+                                    <a href="/configuracao?competencia={{ month|url_encode }}&cooperado={{ user.id }}" class="settings-link" data-settings-member-link>Conferir e editar</a>
                                 {% else %}<span class="settings-muted">Não editável</span>{% endif %}
                             </td>
                         </tr>
-                    {% else %}
-                        <tr><td colspan="5">Nenhum usuário retornado pela API do Kimai.</td></tr>
                     {% endfor %}
                 </tbody>
+                <tfoot>
+                    <tr>
+                        <th><label class="settings-column-label" for="settings-name-filter">Nome</label><input id="settings-name-filter" type="search" placeholder="Filtrar nome"></th>
+                        <th><label class="settings-column-label" for="settings-user-filter">Usuário</label><input id="settings-user-filter" type="search" placeholder="Filtrar usuário"></th>
+                        <th></th>
+                        <th>
+                            <label class="settings-column-label" for="settings-hours-filter">Apontamentos</label>
+                            <select id="settings-hours-filter">
+                                <option value="all">Todos</option>
+                                <option value="Com horas">Com horas</option>
+                                <option value="Sem horas">Sem horas</option>
+                            </select>
+                        </th>
+                        <th>
+                            <label class="settings-column-label" for="settings-status-filter">Situação</label>
+                            <select id="settings-status-filter">
+                                <option value="Ativo" selected>Ativos (padrão)</option>
+                                <option value="Desativado">Desativados</option>
+                                <option value="Conta de serviço">Contas de serviço</option>
+                                <option value="all">Todos</option>
+                            </select>
+                        </th>
+                        <th></th>
+                    </tr>
+                </tfoot>
             </table>
         </div>
     </section>
