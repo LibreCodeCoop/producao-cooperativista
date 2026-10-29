@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service\Integration;
 
-use App\Provider\Akaunting\Request as AkauntingRequest;
 use App\Provider\Kimai;
 use App\Service\Nextcloud\ProfileFieldsClient;
 use Doctrine\DBAL\Connection;
@@ -26,7 +25,7 @@ final class CooperativeSources
         private HttpClientInterface $http,
         private LoggerInterface $logger,
         private ProfileFieldsClient $profileFields,
-        private AkauntingRequest $akaunting,
+        private AkauntingContactGateway $akauntingContacts,
         #[Autowire(service: 'doctrine.dbal.main_connection')]
         private Connection $staging,
     ) {
@@ -174,37 +173,11 @@ final class CooperativeSources
     /** @return array<string, mixed> */
     public function akauntingContact(int $id): array
     {
-        if ($id <= 0) {
-            throw new \InvalidArgumentException('Contato não vinculado ao cooperado no ETL.');
-        }
-        $data = $this->akaunting->send('/api/contacts/' . $id, method: 'GET')['data'] ?? [];
-        $company = (int) getenv('AKAUNTING_COMPANY_ID');
-        if (!is_array($data) || (int) ($data['id'] ?? 0) !== $id
-            || (int) ($data['company_id'] ?? 0) !== $company
-            || !in_array($data['type'] ?? null, ['vendor', 'employee'], true)) {
-            throw new RuntimeException('Akaunting retornou contato incompatível com a empresa ou tipo.');
-        }
-        return [
-            'id' => $id,
-            'company_id' => $company,
-            'type' => (string) $data['type'],
-            'name' => (string) ($data['name'] ?? ''),
-            'tax_number' => (string) ($data['tax_number'] ?? ''),
-            'email' => (string) ($data['email'] ?? ''),
-        ];
+        return $this->akauntingContacts->contact($id);
     }
 
     public function updateAkauntingTaxNumber(int $contactId, string $newNumber): void
     {
-        $contact = $this->akauntingContact($contactId); // Verify record/tenancy before write.
-        $this->akaunting->send('/api/contacts/' . $contactId, [
-            'company_id' => $contact['company_id'],
-            'type' => $contact['type'],
-            'name' => $contact['name'],
-            'tax_number' => $newNumber,
-        ], method: 'PUT');
-        if ($this->akauntingContact($contactId)['tax_number'] !== $newNumber) {
-            throw new RuntimeException('Akaunting não confirmou o CPF/CNPJ gravado. Revise o cadastro.');
-        }
+        $this->akauntingContacts->updateTaxNumber($contactId, $newNumber);
     }
 }

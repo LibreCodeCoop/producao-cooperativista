@@ -167,10 +167,14 @@ final class SourceConfiguration extends AbstractController
         } else {
             try {
                 $contact = $this->sources->akauntingContact($contactId);
-                $services['akaunting']['fields'][] = $this->field($id, 'akaunting', 'tax_number', (string) $contact['tax_number']);
-                $services['akaunting']['configured'] = true;
+                if ($contact['editable']) {
+                    $services['akaunting']['fields'][] = $this->field($id, 'akaunting', 'tax_number', (string) $contact['tax_number']);
+                    $services['akaunting']['configured'] = true;
+                } else {
+                    $services['akaunting']['error'] = $contact['reason'];
+                }
             } catch (\Throwable) {
-                $services['akaunting']['error'] = 'API de contatos indisponível ou com acesso negado. Confira permissões de leitura/edição da conta de integração no Akaunting (HTTP 403 observado na implantação).';
+                $services['akaunting']['error'] = 'Não foi possível consultar o contato vinculado no Akaunting. Confira identidade, empresa, tipo de contato e logs do ETL.';
             }
         }
 
