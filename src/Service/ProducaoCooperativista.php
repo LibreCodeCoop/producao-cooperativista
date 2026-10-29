@@ -29,6 +29,7 @@ namespace App\Service;
 use App\Helper\Colors;
 use App\Helper\Dates;
 use App\Provider\Akaunting\Request;
+use App\Service\Calculation\CustomerCostAllocator;
 use App\Service\Calculation\WeightedAllocator;
 use App\Service\Calculation\ProductionDistributionPlanner;
 use App\Service\Import\SourcePipeline;
@@ -64,6 +65,7 @@ class ProducaoCooperativista
         public Dates $dates,
         private UrlGeneratorInterface $urlGenerator,
         private Movimentacao $movimentacao,
+        private CustomerCostAllocator $customerCostAllocator,
         private WeightedAllocator $weightedAllocator,
         private ProductionDistributionPlanner $distributionPlanner,
         private SourcePipeline $sourcePipeline,
@@ -727,33 +729,29 @@ class ProducaoCooperativista
     private function getFormulaBaseProducao(): string
     {
         $entradasClientes = $this->movimentacao->getEntradasClientes();
-
-        $custosPorCliente = $this->movimentacao->getCustosPorCliente();
+        $custosAlocados = $this->customerCostAllocator->allocate(
+            $entradasClientes,
+            $this->movimentacao->getCustosPorCliente(),
+        );
 
         $formula = [];
-        foreach ($entradasClientes as $row) {
-            if (isset($custosPorCliente[$row['customer_reference']])) {
-                $base = '(<a href="'.
-                    $this->urlGenerator->generate('app_invoices_index', [
-                        'ano-mes' => $this->dates->getInicio()->format('Y-m'),
-                        'id' => $row['id'],
-                    ]).
-                    '" title="'.$row['contact_name'].'">' . $row['amount'] . "</a> - {$custosPorCliente[$row['customer_reference']]})";
-                unset($custosPorCliente[$row['customer_reference']]);
-            } else {
-                $base = '<a href="'.
-                    $this->urlGenerator->generate('app_invoices_index', [
-                        'ano-mes' => $this->dates->getInicio()->format('Y-m'),
-                        'id' => $row['id'],
-                    ]).
-                    '" title="'.$row['contact_name'].'">' . $row['amount'] . '</a>';
-            }
-            if (!$row['percentual_desconto_fixo']) {
-                $row['discount_percentage'] = '{percentual_administrativo}';
-            }
-            $formula[] = "($base - ($base * {$row['discount_percentage']} / 100))";
+        foreach ($entradasClientes as $key => $row) {
+            $title = htmlspecialchars((string) ($row['contact_name'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $link = '<a href="' . $this->urlGenerator->generate('app_invoices_index', [
+                'ano-mes' => $this->dates->getInicio()->format('Y-m'),
+                'id' => $row['id'],
+            ]) . '" title="' . $title . '">' . (float) $row['amount'] . '</a>';
+            // Same cost allocation as the financial motor: a client with
+            // multiple invoices must have the expense distributed among them.
+            $cost = (float) ($custosAlocados[$key] ?? 0);
+            $percentual = $row['percentual_desconto_fixo']
+                ? (string) (float) $row['discount_percentage']
+                : '{percentual_administrativo}';
+            $base = '(' . $link . ' - ' . $cost . ')';
+            $formula[] = $base . ' - (' . $base . ' * ' . $percentual . ' / 100)';
         }
-        return implode("<br /> + ", $formula);
+
+        return implode('<br> + ', $formula);
     }
 
     private function getFormulaTotalNotasClientes(): string
@@ -766,7 +764,7 @@ class ProducaoCooperativista
                     'ano-mes' => $this->dates->getInicio()->format('Y-m'),
                     'id' => $row['id'],
                 ]).
-                '" title="'.$row['contact_name'].'">' . $row['amount'] . '</a>';
+                '" title="' . htmlspecialchars((string) ($row['contact_name'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '">' . (float) $row['amount'] . '</a>';
         }
         return implode(' + ', $formula);
     }
@@ -789,29 +787,53 @@ class ProducaoCooperativista
 
     private function formatData(array $data): array
     {
+        if ($data === []) {
+            return [];
+        }
         $positions = $this->listToNumber(array_keys($data), count(Colors::list));
         $colorList = array_keys(Colors::list);
         $sequence = 0;
-        foreach ($data as $key => $value) {
-            if (!empty($data[$key]['formula'])) {
-                preg_match_all('/\{(?<name>\w+)\}/', $value['formula'], $matches, PREG_SET_ORDER, 0);
-                foreach ($matches as $match) {
-                    $value['formula'] = preg_replace(
-                        '/\{' . $match['name'] . '\}/',
-                        '<span class="' . $match['name'] . '">' . $data[$match['name']]['valor'] . '</span>',
-                        $value['formula']
-                    );
-                }
-                $data[$key]['formula'] = preg_replace(['/{/', '/}/'], ['<span class="', '"></span>'], $value['formula']);
+        foreach ($data as $key => $item) {
+            $formula = (string) ($item['formula'] ?? '');
+            if ($formula === '') {
+                $data[$key]['formula'] = '<span class="' . $key . '">'
+                    . htmlspecialchars((string) $item['valor'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+                    . '</span>';
             } else {
-                $data[$key]['formula'] = "<span class=\"$key\">{$data[$key]['valor']}</span>";
+                $rendered = preg_replace_callback(
+                    '/\{(?<name>[A-Za-z0-9_]+)\}/',
+                    static function (array $match) use ($data): string {
+                        $name = $match['name'];
+                        if (!array_key_exists($name, $data)) {
+                            throw new \LogicException('Unknown calculation reference: ' . $name);
+                        }
+                        $value = htmlspecialchars(
+                            (string) $data[$name]['valor'],
+                            ENT_QUOTES | ENT_SUBSTITUTE,
+                            'UTF-8',
+                        );
+                        $title = htmlspecialchars(
+                            ucfirst(str_replace('_', ' ', $name)) . ': ' . (string) $data[$name]['valor'],
+                            ENT_QUOTES | ENT_SUBSTITUTE,
+                            'UTF-8',
+                        );
+                        return '<span class="' . $name . '" title="' . $title . '">' . $value . '</span>';
+                    },
+                    $formula,
+                );
+                $data[$key]['formula'] = str_replace(
+                    'target="_blank"',
+                    'target="_blank" rel="noopener noreferrer"',
+                    $rendered ?? '',
+                );
             }
-            if (empty($value['color'])) {
+
+            if (empty($item['color'])) {
                 $data[$key]['color'] = Colors::list[$colorList[$positions[$sequence]]];
                 $sequence++;
             }
             $data[$key]['font_color'] = Colors::colorContrast(...$data[$key]['color']);
-            $data[$key]['label'] = $value['label'] ?? ucfirst(str_replace('_', ' ', $key));
+            $data[$key]['label'] = $item['label'] ?? ucfirst(str_replace('_', ' ', $key));
         }
         return $data;
     }
