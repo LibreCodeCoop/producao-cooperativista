@@ -119,9 +119,9 @@ class ProducaoCooperativista
     /**
      * @return array[]
      */
-    public function getCapitalSocial(): array
+    public function getCapitalSocial(?int $contactId = null, ?string $until = null): array
     {
-        return $this->capitalSocialSource->rows();
+        return $this->capitalSocialSource->rows($contactId, $until);
     }
 
     /**
@@ -155,24 +155,42 @@ class ProducaoCooperativista
     /**
      * @return (string)[][]
      */
-    public function getCapitalSocialSummarized(): array
+    public function getCapitalSocialSummarized(?string $until = null): array
     {
-        $capitalSocial = $this->getCapitalSocial();
-        $return = [];
-        foreach ($capitalSocial as $row) {
-            $return[$row['name']] = [
-                'nome' => '<a href="' .
-                    $this->urlGenerator->generate('app_capitalsocial_index', [
-                        'name' => $row['name'],
-                    ]) .
-                    '">' . htmlspecialchars((string) $row['name'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</a>',
-                'total' => $row['amount'] + ($return[$row['name']]['total'] ?? 0),
-            ];
+        $summary = [];
+        foreach ($this->getCapitalSocial(null, $until) as $row) {
+            $id = (int) $row['contact_id'];
+            if (!isset($summary[$id])) {
+                $summary[$id] = [
+                    'nome' => '<a href="' . $this->urlGenerator->generate('app_capitalsocial_index', [
+                        'contact_id' => $id,
+                        'ate' => $until,
+                    ]) . '">' . htmlspecialchars((string) $row['name'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</a>',
+                    'integralizado' => 0,
+                    'devolvido' => 0,
+                    'total' => 0,
+                    'pendencias' => 0,
+                ];
+            }
+            if ($row['status'] !== 'confirmado') {
+                ++$summary[$id]['pendencias'];
+                continue;
+            }
+            $cents = (int) round(((float) $row['amount']) * 100);
+            if ($cents >= 0) {
+                $summary[$id]['integralizado'] += $cents;
+            } else {
+                $summary[$id]['devolvido'] -= $cents;
+            }
+            $summary[$id]['total'] += $cents;
         }
-        if (empty($return)) {
-            throw new Exception('Sem capital social');
+        foreach ($summary as &$entry) {
+            foreach (['integralizado', 'devolvido', 'total'] as $field) {
+                $entry[$field] /= 100;
+            }
         }
-        return $return;
+        unset($entry);
+        return $summary;
     }
 
     /**
