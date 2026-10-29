@@ -71,15 +71,11 @@ final class CustomerCostAllocator
                     $total
                 ));
             }
-            $assigned = 0.0;
-            $positive = array_keys(array_filter($amounts, static fn (float $value): bool => $value > 0));
-            $last = $positive === [] ? null : end($positive);
-            foreach ($amounts as $key => $amount) {
-                $share = ($amount > 0 && $total > 0)
-                    ? ($key === $last ? $cost - $assigned : $cost * $amount / $total)
-                    : 0.0;
+            // Apportion real cents by invoice instead of placing a floating
+            // point residue on the last invoice (order-dependent).
+            $parts = (new DecimalAllocation())->allocate($cost, $amounts);
+            foreach ($parts as $key => $share) {
                 $allocated[$key] = $share;
-                $assigned += $share;
             }
         }
         return $allocated;

@@ -84,21 +84,6 @@ final class WeightedAllocator
             ));
         }
 
-        $allocated = 0.0;
-        $result = [];
-        foreach ($weights as $cooperado => $weight) {
-            if ($weight <= 0 || $eligibleAmount === 0.0) {
-                $result[$cooperado] = 0.0;
-                continue;
-            }
-
-            $value = $cooperado === $lastPositive
-                ? $eligibleAmount - $allocated
-                : $eligibleAmount * $weight / $totalWeight;
-            $result[$cooperado] = $value;
-            $allocated += $value;
-        }
-
-        return $result;
+        return (new DecimalAllocation())->allocate($eligibleAmount, $weights);
     }
 }

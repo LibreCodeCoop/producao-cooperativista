@@ -58,8 +58,8 @@ final class ProductionDistributionPlannerTest extends TestCase
         ];
         $result = $this->planner->plan($incomes, $work);
         self::assertEqualsWithDelta(3000.0, array_sum($result->amounts), 0.00001);
-        self::assertEqualsWithDelta(250 + 2000 * 2 / 3, $result->amounts['alice'], 0.00001);
-        self::assertEqualsWithDelta(750 + 2000 / 3, $result->amounts['bob'], 0.00001);
+        self::assertEqualsWithDelta(1583.33, $result->amounts['alice'], 0.00001);
+        self::assertEqualsWithDelta(1416.67, $result->amounts['bob'], 0.00001);
         self::assertSame(['alice' => 4000.0, 'bob' => 2000.0], $result->variableWeights);
     }
 

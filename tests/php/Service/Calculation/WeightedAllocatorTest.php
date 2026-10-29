@@ -48,8 +48,8 @@ final class WeightedAllocatorTest extends TestCase
 
         $allocation = $this->allocator->allocate(100.01, $weights, 'Produção mensal');
 
-        $this->assertEqualsWithDelta(100.01 / 3, $allocation['a'], 0.000001);
-        $this->assertEqualsWithDelta(100.01 * 2 / 3, $allocation['b'], 0.000001);
+        $this->assertEqualsWithDelta(33.34, $allocation['a'], 0.000001);
+        $this->assertEqualsWithDelta(66.67, $allocation['b'], 0.000001);
         $this->assertSame(0.0, $allocation['c']);
         $this->assertEqualsWithDelta(100.01, array_sum($allocation), 0.000001);
     }
