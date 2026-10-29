@@ -13,6 +13,7 @@ RUN apt-get update \
 # Pin the extension installer rather than downloading a mutable latest binary.
 COPY --from=ghcr.io/mlocati/php-extension-installer:2.12.3 /usr/bin/install-php-extensions /usr/local/bin/install-php-extensions
 RUN install-php-extensions \
+    bcmath \
     calendar \
     gd \
     intl \
