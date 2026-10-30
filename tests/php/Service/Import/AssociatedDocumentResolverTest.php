@@ -102,6 +102,15 @@ final class AssociatedDocumentResolverTest extends TestCase
         );
     }
 
+    public function testUnknownCustomerNeverBecomesCooperativeCnpj(): void
+    {
+        $resolver = $this->resolver(static fn (): MockResponse => new MockResponse(
+            '{"data":[{"id":91,"type":"invoice","company_id":1,"notes":"","contact":{}}]}'
+        ));
+        $documents = $resolver->resolve($this->transactions([91]), 1);
+        self::assertSame('', $documents[91]['customer_reference']);
+    }
+
     public function testHistoricalReferenceMissingFromAkauntingFailsWithoutInventingCompetence(): void
     {
         $requests = [];

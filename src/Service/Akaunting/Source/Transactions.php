@@ -217,7 +217,10 @@ class Transactions
         } elseif (!empty($row['contact']['tax_number'])) {
             $row['customer_reference'] = $row['contact']['tax_number'];
         } else {
-            $row['customer_reference'] = getenv('CNPJ_COMPANY');
+            // Unknown customer identity is not the same as an internal
+            // cooperative transaction. Keep it unresolved so categories
+            // requiring a customer reference fail during reconciliation.
+            $row['customer_reference'] = '';
         }
         return $row;
     }

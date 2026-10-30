@@ -147,6 +147,7 @@ Available commands:
 ## Rotina de conferência mensal
 
 1. **Conferir as origens**: fechamento das horas no Kimai, campos cadastrais no Profile Fields, identificação dos cooperados, pagamentos de clientes, notas, custos e categorias corretas no Akaunting. Campos livres como `Transação do mês`, `Arquivar: sim` e descontos fixos exigem conferência humana. Não use essas marcações para contornar uma diferença não investigada.
+   Receitas e despesas vinculadas a clientes devem ter identificador explícito; referências ausentes não serão mais presumidas como o CNPJ da própria cooperativa.
 2. **Importar e preservar o corte**: execute `etl:sync --ano-mes=AAAA-MM` com acesso autorizado e gere `audit:inputs --ano-mes=AAAA-MM --revision="$(git rev-parse HEAD)"`. Preserve snapshot intermediário e manifesto em área confidencial. Importar outra competência pode mudar as bases da anterior.
 3. **Calcular sem publicar**: `make:producao --ano-mes=AAAA-MM --baixar-dados=0 --csv`; use `--as-of` em auditoria histórica. Confira todos os números `PDC_`, bases, retenções, adiantamentos, descontos, FRRA, totais e datas. Guarde o CSV com acesso restrito.
 4. **Conciliar em leitura com o Akaunting**: compare `document_number`, situação (`draft`, `paid` ou `cancelled`), competência, itens e notas. Não sobrescreva faturas finalizadas. Toda divergência exige explicação sobre dados de origem, data de corte, política e eventuais ajustes posteriores.

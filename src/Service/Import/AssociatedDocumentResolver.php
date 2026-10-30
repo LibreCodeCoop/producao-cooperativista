@@ -113,6 +113,8 @@ final readonly class AssociatedDocumentResolver
         if (!empty($document['contact']['tax_number'])) {
             return (string) $document['contact']['tax_number'];
         }
-        return (string) getenv('CNPJ_COMPANY');
+        // Never substitute the cooperative's CNPJ for a missing client.
+        // Movimentacao validates mandatory customer references by category.
+        return '';
     }
 }

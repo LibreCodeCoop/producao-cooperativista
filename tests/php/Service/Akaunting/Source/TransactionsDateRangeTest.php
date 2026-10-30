@@ -121,6 +121,34 @@ final class TransactionsDateRangeTest extends TestCase
         }
     }
 
+    public function testUnidentifiedPaymentDoesNotUseTheCooperativeAsCustomer(): void
+    {
+        $source = $this->source($this->createStub(Dataset::class));
+        $payment = $source->fromArray([
+            'id' => 901,
+            'paid_at' => '2026-08-12T12:00:00-03:00',
+            'document_id' => null,
+            'amount' => 123.45,
+            'type' => 'income',
+            'currency_code' => 'BRL',
+            'contact' => [
+                'id' => 8,
+                'reference' => null,
+                'name' => 'Cliente sem identificador',
+                'type' => 'customer',
+                'tax_number' => null,
+            ],
+            'category_id' => 20,
+            'category' => ['name' => 'Servico', 'type' => 'income'],
+            'customer_reference' => null,
+            'description' => '',
+            'archive' => 'nao',
+            'discount_percentage' => null,
+            'nfse' => null,
+        ], new \App\Entity\Producao\Transaction(), false);
+        self::assertSame('', $payment->getCustomerReference());
+    }
+
     private function source(Dataset $dataset): Transactions
     {
         return new Transactions(
