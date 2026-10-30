@@ -17,6 +17,7 @@ use App\Service\Calculation\CalculationActionGuard;
 use App\Service\Calculation\CalculationExecutionLock;
 use App\Service\Import\StagingDatabaseResetter;
 use App\Service\Calculation\ExecutionOutcome;
+use App\Service\Calculation\CalculationCommandOptions;
 use Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -143,10 +144,7 @@ class Acoes extends AbstractController
                     $output = new BufferedOutput();
                     $exitCode = $app->run(new ArrayInput([
                         'make:producao',
-                        '--ano-mes' => $competencia,
-                        '--baixar-dados' => $download,
-                        '--atualiza-producao' => $publish === '1',
-                        '--database' => true,
+                        ...CalculationCommandOptions::forWeb($competencia, $download, $publish === '1'),
                     ]), $output);
                     $details = $output->fetch();
                     $outcome = new ExecutionOutcome($exitCode, $runId, $details);

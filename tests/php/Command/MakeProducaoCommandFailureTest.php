@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace App\Tests\Command;
 
 use App\Command\MakeProducaoCommand;
+use App\Service\Calculation\CalculationCommandOptions;
 use App\Helper\Dates;
 use App\Service\Movimentacao;
 use App\Service\ProducaoCooperativista;
@@ -113,6 +114,32 @@ final class MakeProducaoCommandFailureTest extends TestCase
 
         self::assertSame(Command::INVALID, $status);
         self::assertStringContainsString('--database não é suportado', $tester->getDisplay());
+    }
+
+    public function testWebPreviewOptionsExecuteWithoutUnsupportedDatabaseFlag(): void
+    {
+        [$production, $movements, $logger] = $this->dependencies();
+        $production->expects($this->once())->method('getProducaoCooperativista')->willReturn([]);
+        $production->expects($this->never())->method('updateProducao');
+        $production->expects($this->never())->method('loadFromExternalSources');
+
+        $tester = new CommandTester(new MakeProducaoCommand($production, $movements, $logger));
+        $status = $tester->execute(CalculationCommandOptions::forWeb('2026-08', '0', false));
+
+        self::assertSame(Command::SUCCESS, $status);
+        self::assertStringNotContainsString('--database', $tester->getDisplay());
+    }
+
+    public function testWebPublishOptionIsExplicitAndNeverEquivalentToPreview(): void
+    {
+        [$production, $movements, $logger] = $this->dependencies();
+        $production->method('getProducaoCooperativista')->willReturn([]);
+        $production->expects($this->once())->method('updateProducao');
+
+        $tester = new CommandTester(new MakeProducaoCommand($production, $movements, $logger));
+        self::assertSame(Command::SUCCESS, $tester->execute(
+            CalculationCommandOptions::forWeb('2026-08', '0', true)
+        ));
     }
 
     public function testFebruaryStartsOnFirstDayIndependentlyOfCurrentDay(): void
