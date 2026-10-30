@@ -72,3 +72,18 @@ A migração do motor deve ocorrer em dois estágios: (1) apurador decimal paral
 - Aliança Cooperativa Internacional (2021), [Examinando a identidade cooperativa](https://coopidentity.ica.coop/assets/resources/congress_discussion_paper_final_en_2021-10-09.pdf), seção sobre remuneração do trabalho e excedentes.
 - Morshed (2026), [Workplace Democracy Through Numbers](https://journals.sagepub.com/doi/10.1177/08863687261420502): o resumo acadêmico aborda transparência contábil e credibilidade das regras de participação em resultados; **não constitui validação das alíquotas brasileiras**.
 - PHP, [BCMath\Number::round](https://www.php.net/manual/pt_BR/bcmath-number.round.php) e [round](https://www.php.net/manual/en/function.round.php).
+
+### Recuperação automática de consultas à API Akaunting
+
+A integração repete **somente GET/HEAD** após falhas de transporte ou HTTP
+429, 502, 503 e 504, por no máximo três tentativas com intervalo limitado.
+O cabeçalho numérico `Retry-After` é respeitado até dois segundos; uma
+janela maior é devolvida como erro para nova execução posterior. Os logs
+registram método/tentativa/status, sem tokens, parâmetros ou corpos HTTP.
+
+**POST, PUT, PATCH e DELETE não recebem retry automático:** uma resposta
+perdida não prova que a transação financeira não foi efetuada. Em especial,
+uma falha após emitir um documento exige reconciliação no Akaunting antes
+de qualquer repetição. As falhas 401/403 (permissões), 404 (endpoint),
+422 (validação), configuração inválida, divergência de schema e regras
+econômicas também não são corrigidas por nova tentativa automática.

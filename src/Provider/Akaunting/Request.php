@@ -64,8 +64,43 @@ class Request
         $path = parse_url($url, PHP_URL_PATH) ?: '/';
         $this->logger->debug('Akaunting HTTP {method} {path}', ['method' => $method, 'path' => $path]);
         try {
-            $result = $this->client->request($method, $url, $options);
-            $status = $result->getStatusCode();
+            // Only safe reads may be retried automatically. A failed write can
+            // have reached Akaunting even if the response was lost.
+            $safeRead = in_array(strtoupper($method), ['GET', 'HEAD'], true);
+            $attempt = 0;
+            do {
+                ++$attempt;
+                try {
+                    $result = $this->client->request($method, $url, $options);
+                    $status = $result->getStatusCode();
+                    if ($safeRead && $attempt < 3 && in_array($status, [429, 502, 503, 504], true)) {
+                        $retryAfter = $result->getHeaders(false)['retry-after'][0] ?? null;
+                        // Respect bounded Retry-After; longer windows fail
+                        // clearly rather than holding a web request open.
+                        $delay = is_string($retryAfter) && ctype_digit($retryAfter)
+                            ? (int) $retryAfter
+                            : $attempt;
+                        if ($delay > 2) {
+                            break;
+                        }
+                        $this->logger->notice('Akaunting: consulta temporariamente indisponível, tentativa {attempt}, HTTP {status}.', [
+                            'attempt' => $attempt,
+                            'status' => $status,
+                        ]);
+                        usleep($delay * 1000000);
+                        continue;
+                    }
+                    break;
+                } catch (TransportExceptionInterface $error) {
+                    if (!$safeRead || $attempt >= 3) {
+                        throw $error;
+                    }
+                    $this->logger->notice('Akaunting: falha de transporte em consulta, tentativa {attempt}.', [
+                        'attempt' => $attempt,
+                    ]);
+                    usleep($attempt * 1000000);
+                }
+            } while (true);
             $payload = $result->toArray(false);
         } catch (TransportExceptionInterface $error) {
             throw new RuntimeException(

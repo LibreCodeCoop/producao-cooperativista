@@ -71,6 +71,54 @@ final class RequestTest extends TestCase
         self::assertArrayHasKey('document_number', $provider->send('/api/documents')['errors']);
     }
 
+    public function testRateLimitedReadRecoversWithoutRepeatingWrites(): void
+    {
+        $attempts = 0;
+        $http = new MockHttpClient(function () use (&$attempts) {
+            ++$attempts;
+            return $attempts === 1
+                ? new MockResponse('{"message":"limited"}', ['http_code' => 429, 'response_headers' => ['Retry-After: 0']])
+                : new MockResponse('{"data":[{"id":1}]}');
+        });
+        $provider = new Request(new \Psr\Log\NullLogger(), $http);
+        self::assertSame([['id' => 1]], $provider->send('/api/documents', method: 'GET')['data']);
+        self::assertSame(2, $attempts);
+    }
+
+    public function testRateLimitedWriteIsNeverRetried(): void
+    {
+        $attempts = 0;
+        $http = new MockHttpClient(function () use (&$attempts) {
+            ++$attempts;
+            return new MockResponse('{"message":"limited"}', ['http_code' => 429]);
+        });
+        $provider = new Request(new \Psr\Log\NullLogger(), $http);
+        try {
+            $provider->send('/api/documents', ['name' => 'example'], method: 'POST');
+            self::fail('A rate-limited write must fail.');
+        } catch (RuntimeException $error) {
+            self::assertStringContainsString('429', $error->getMessage());
+        }
+        self::assertSame(1, $attempts);
+    }
+
+    public function testReadWithLongRetryAfterFailsWithoutExcessiveWaiting(): void
+    {
+        $attempts = 0;
+        $http = new MockHttpClient(function () use (&$attempts) {
+            ++$attempts;
+            return new MockResponse('{"message":"limited"}', ['http_code' => 429, 'response_headers' => ['Retry-After: 60']]);
+        });
+        $provider = new Request(new \Psr\Log\NullLogger(), $http);
+        try {
+            $provider->send('/api/documents', method: 'GET');
+            self::fail('A long rate-limit window must fail explicitly.');
+        } catch (RuntimeException $error) {
+            self::assertStringContainsString('429', $error->getMessage());
+        }
+        self::assertSame(1, $attempts);
+    }
+
     public function testRejectsSchemeDowngradeOnPagination(): void
     {
         $provider = new Request(new \Psr\Log\NullLogger(), new MockHttpClient([]));
