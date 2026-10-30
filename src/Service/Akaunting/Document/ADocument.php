@@ -325,6 +325,9 @@ abstract class ADocument
                             $this->getDocumentNumber()
                         ));
                     }
+                    // Document-number equality alone is not sufficient:
+                    // never update another company, supplier or document type.
+                    $this->assertSameDocumentIdentity($existing);
                     $this->setId((int) $existing['id']);
                     $this->save();
                     return $this;
@@ -352,6 +355,33 @@ abstract class ADocument
         $document = $this->documents->fromArray($response['data']);
         $this->documents->saveRow($document);
         return $this;
+    }
+
+    /**
+     * A duplicate-number response is not authorization to update the record.
+     * Require a complete, matching tenant/type/contact identity.
+     *
+     * @param array<string, mixed> $existing
+     */
+    private function assertSameDocumentIdentity(array $existing): void
+    {
+        $companyId = (int) getenv('AKAUNTING_COMPANY_ID');
+        if ($companyId <= 0
+            || (int) ($existing['company_id'] ?? 0) !== $companyId
+            || (string) ($existing['type'] ?? '') !== $this->getType()
+            || $this->getContactId() <= 0
+            || (int) ($existing['contact_id'] ?? 0) !== $this->getContactId()) {
+            throw new \RuntimeException(sprintf(
+                'Documento %s existe no Akaunting, mas sua empresa, tipo ou contato não coincide com a operação. Não será atualizado.',
+                $this->getDocumentNumber()
+            ));
+        }
+        if (!in_array((string) ($existing['status'] ?? ''), ['draft', 'sent'], true)) {
+            throw new \RuntimeException(sprintf(
+                'Documento %s tem situação não habilitada para atualização. Confira o estado no Akaunting.',
+                $this->getDocumentNumber()
+            ));
+        }
     }
 
     protected function coletaInvoiceNaoPago(): self
