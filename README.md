@@ -183,7 +183,7 @@ Audite os dados intermediários sem qualquer escrita financeira:
 php bin/console audit:inputs --ano-mes=2025-04 --revision="$(git rev-parse HEAD)"
 ```
 
-O relatório compacto mostra contagens e fingerprints SHA-256 de entradas, pesos e configurações (incluindo dependências e runtime), sem expor valores financeiros ou dados pessoais. Para preservar as entradas integrais de uma execução, adicione `--save-bundle`. O arquivo ficará em `var/audit/` com permissão privada. **Contém dados pessoais e financeiros confidenciais:** proteja o acesso, os backups e a retenção conforme a LGPD; não publique em Git ou PRs.
+O relatório compacto mostra contagens e fingerprints SHA-256 de entradas, pesos e configurações (incluindo dependências e runtime), sem expor valores financeiros ou dados pessoais. Para preservar as entradas integrais de uma execução, adicione `--save-bundle`. O arquivo ficará em `var/audit/` com permissão privada. Verifique posteriormente com `php bin/console audit:verify --file=var/audit/AAAA-MM/NOME.json`; a verificação detecta alterações no conteúdo em relação ao manifesto, mas não substitui armazenamento imutável externo nem uma assinatura digital independente. **Contém dados pessoais e financeiros confidenciais:** proteja o acesso, os backups e a retenção conforme a LGPD; não publique em Git ou PRs.
 
 Simule o resultado de uma competência antiga com uma data de referência operacional definida:
 
