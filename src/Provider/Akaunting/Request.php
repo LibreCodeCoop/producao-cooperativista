@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace App\Provider\Akaunting;
 
 use RuntimeException;
+use App\Service\Integration\TestConnectionGuard;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -18,11 +19,13 @@ use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 class Request
 {
     private HttpClientInterface $client;
+    private bool $usesRealHttpClient;
 
     public function __construct(
         private LoggerInterface $logger,
         ?HttpClientInterface $client = null,
     ) {
+        $this->usesRealHttpClient = $client === null;
         $this->client = $client ?? HttpClient::create();
     }
 
@@ -33,6 +36,10 @@ class Request
         $token = (string) getenv('AKAUNTING_AUTH_TOKEN');
         if ($baseUrl === '' || $username === '' || $token === '') {
             throw new RuntimeException('Configuração de acesso ao Akaunting incompleta (URL, usuário ou credencial).');
+        }
+
+        if ($this->usesRealHttpClient && getenv('APP_ENV') === 'test') {
+            TestConnectionGuard::assertHttpTarget($baseUrl);
         }
 
         $url = str_starts_with($endpoint, 'http') ? $endpoint : $baseUrl . $endpoint;

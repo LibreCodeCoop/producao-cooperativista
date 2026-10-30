@@ -27,6 +27,21 @@ final class RequestTest extends TestCase
         putenv('AKAUNTING_AUTH_TOKEN');
     }
 
+    public function testRealHttpClientCannotCallProductionInTestEnvironment(): void
+    {
+        $old = getenv('APP_ENV');
+        putenv('APP_ENV=test');
+        try {
+            // No client mock: the guard must run before the first network call.
+            $provider = new Request(new \Psr\Log\NullLogger());
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessage('real integration tests must use a local API');
+            $provider->send('/api/documents', method: 'GET');
+        } finally {
+            putenv($old === false ? 'APP_ENV' : 'APP_ENV=' . $old);
+        }
+    }
+
     public function testBasicAuthenticationNeverAppearsInLogs(): void
     {
         $logger = new class () extends AbstractLogger {

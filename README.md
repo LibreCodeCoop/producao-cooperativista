@@ -17,6 +17,7 @@ Execute a apuração em uma instalação e bancos **isolados** dos produtivos. O
 
 1. Copie `.env.example` para `.env` e configure **somente credenciais de desenvolvimento**; não use tokens de escrita, senhas nem chaves de produção para homologar.
 2. Verifique que `DATABASE_URL` aponta para um banco intermediário **próprio da homologação**, `DATABASE_AKAUNTING_URL` para a cópia local do banco do Akaunting e `AKAUNTING_API_BASE_URL` para uma API **local**, nunca para o serviço de produção.
+   O bootstrap de testes recusa bancos remotos e URLs de API não locais. Chamadas HTTP reais sob APP_ENV=test também são bloqueadas fora de serviços locais; clientes HTTP simulados não acessam a rede.
 3. Defina `APP_ENV=dev` (ou `test` para PHPUnit). Selecione `COOPERATIVE_PROFILE=librecode` somente para a política vigente; outros perfis exigem instância/banco próprios.
 4. Evite publicar portas de banco no host e não conecte o ETL a redes externas quando estiver testando snapshots. Configure a infraestrutura de homologação existente em vez de reutilizar bancos de desenvolvimento compartilhados.
 

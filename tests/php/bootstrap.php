@@ -47,6 +47,10 @@ try {
     $doctrine = $kernel->getContainer()->get('doctrine');
     foreach (['main', 'akaunting'] as $connectionName) {
         $database = (string) $doctrine->getConnection($connectionName)->getDatabase();
+        \App\Service\Integration\TestConnectionGuard::assertDatabaseHost(
+            (string) ($doctrine->getConnection($connectionName)->getParams()['host'] ?? ''),
+            $connectionName,
+        );
         if (!preg_match('/_test[A-Za-z0-9]*$/', $database)) {
             throw new \RuntimeException(sprintf(
                 'Unsafe PHPUnit database on connection %s: %s. Tests require separate *_test databases.',
@@ -54,6 +58,10 @@ try {
                 $database
             ));
         }
+    }
+    $apiUrl = (string) getenv('AKAUNTING_API_BASE_URL');
+    if ($apiUrl !== '') {
+        \App\Service\Integration\TestConnectionGuard::assertHttpTarget($apiUrl);
     }
 } finally {
     $kernel->shutdown();
