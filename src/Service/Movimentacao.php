@@ -78,7 +78,7 @@ class Movimentacao
                         FROM JSON_TABLE(
                             i.metadata,
                             '$.items.data[*]' COLUMNS (
-                                price DOUBLE PATH '$.price'
+                                price DECIMAL(30, 12) PATH '$.price'
                             )
                         ) price
                     ), t.amount
@@ -112,7 +112,7 @@ class Movimentacao
                             FROM JSON_TABLE(
                                 i.metadata,
                                 '$.items.data[*]' COLUMNS (
-                                    price DOUBLE PATH '$.price'
+                                    price DECIMAL(30, 12) PATH '$.price'
                                 )
                             ) price
                         ),
@@ -154,7 +154,7 @@ class Movimentacao
                         FROM JSON_TABLE(
                             i.metadata,
                             '$.items.data[*]' COLUMNS (
-                                price DOUBLE PATH '$.price'
+                                price DECIMAL(30, 12) PATH '$.price'
                             )
                         ) price
                     ), i.amount

@@ -112,7 +112,7 @@ class Tax extends ADocument
             FROM invoices i ,
                 JSON_TABLE(i.metadata, '$.item_taxes.data[*]' COLUMNS (
                     id INTEGER PATH '$.tax_id',
-                    amount DOUBLE PATH '$.amount'
+                    amount DECIMAL(30, 12) PATH '$.amount'
                 )) jt
             WHERE jt.id = :tax_id
             AND i.transaction_of_month = :ano_mes

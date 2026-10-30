@@ -18,6 +18,15 @@ A integração usa BRL e separa **cálculo intermediário** de **valor pagável*
 4. O portal `/configuracao` identifica as fontes e dá caminhos de correção, **sem escrever em Nextcloud, Kimai ou Akaunting**. Alterações remotas desses sistemas exigem autorização por sistema, verificação dos endpoints de escrita, controle de acesso e rastreabilidade.
 5. Antes de emissão/pagamento em produção, validar o resultado por competência com responsável contábil, inclusive IRPF, INSS, FRRA, auxílio e direitos dos cooperados.
 
+### Extração dos itens monetários em JSON
+
+As consultas de preços de itens e tributos em JSON passam a extrair os valores como
+DECIMAL(30,12) (em vez de DOUBLE), de modo que o somatório desses itens no MySQL
+não acrescente arredondamento binário. Os campos legados de staging ainda usam
+DOUBLE e os cálculos PHP ainda contêm float; esta alteração é incremental, não
+equivale a precisão decimal ponta a ponta. Não reprocesse documentos pagos para
+substituir diferenças históricas sem conciliação.
+
 ## Referências
 
 - Planilha LibreCode, `Conselho Administrativo/Financeiro/Contabilidade/Produção/Arquivo/Proposta Fernanda/Produção (Release Candidate).ods`, 17/11/2022, aba `Parametros`, parâmetro `Taxa Ideal=25%`.
