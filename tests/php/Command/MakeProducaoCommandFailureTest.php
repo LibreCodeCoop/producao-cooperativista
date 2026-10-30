@@ -119,6 +119,7 @@ final class MakeProducaoCommandFailureTest extends TestCase
     public function testWebPreviewOptionsExecuteWithoutUnsupportedDatabaseFlag(): void
     {
         [$production, $movements, $logger] = $this->dependencies();
+        $logger->expects($this->atLeastOnce())->method('info');
         $production->expects($this->once())->method('getProducaoCooperativista')->willReturn([]);
         $production->expects($this->never())->method('updateProducao');
         $production->expects($this->never())->method('loadFromExternalSources');
@@ -133,6 +134,7 @@ final class MakeProducaoCommandFailureTest extends TestCase
     public function testWebPublishOptionIsExplicitAndNeverEquivalentToPreview(): void
     {
         [$production, $movements, $logger] = $this->dependencies();
+        $logger->expects($this->atLeastOnce())->method('info');
         $production->method('getProducaoCooperativista')->willReturn([]);
         $production->expects($this->once())->method('updateProducao');
 
