@@ -19,6 +19,7 @@ final class TestConnectionGuard
         'mysql', 'mariadb', 'db', 'akaunting', 'akaunting.localhost',
     ];
 
+    /** @psalm-suppress PossiblyUnusedMethod Invoked by the PHPUnit bootstrap outside Psalm source scanning. */
     public static function assertDatabaseHost(string $host, string $connectionName): void
     {
         if (!self::isLocal($host)) {
