@@ -19,6 +19,7 @@ use RuntimeException;
  */
 final readonly class InputBundleVerifier
 {
+    /** @psalm-suppress PossiblyUnusedMethod Instantiated through Symfony DI and separate tests. */
     public function __construct(private InputManifestBuilder $builder)
     {
     }
