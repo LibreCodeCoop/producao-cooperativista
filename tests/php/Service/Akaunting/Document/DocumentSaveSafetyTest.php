@@ -248,7 +248,10 @@ final class DocumentSaveSafetyTest extends TestCase
             $request = $this->getMockBuilder(Request::class)
                 ->disableOriginalConstructor()->onlyMethods(['send', 'handleError'])->getMock();
             $request->expects($this->once())->method('send')->with(
-                '/api/documents/48', [], ['search' => 'type:bill'], 'GET'
+                '/api/documents/48',
+                [],
+                ['search' => 'type:bill'],
+                'GET'
             )->willReturn(['data' => [
                 'id' => 48, 'document_number' => 'OUTRO', 'company_id' => 1,
                 'type' => 'bill', 'contact_id' => 123, 'status' => 'draft',

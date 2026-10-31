@@ -43,6 +43,7 @@ final readonly class LibreCodeAkauntingPublisher implements ProductionPublisher
         private DocumentConfiguration $documentConfiguration,
         private CooperadoContactRegistry $contactRegistry,
         private ProfileRegistry $profiles,
+        private TaxYearPublicationGuard $taxYearGuard,
     ) {
     }
 
@@ -62,6 +63,18 @@ final readonly class LibreCodeAkauntingPublisher implements ProductionPublisher
                 'Publicação contábil bloqueada: o publicador da LibreCode não corresponde ao perfil ativo.'
             );
         }
+        // IRRF reference still comes from the work month; do not publish an
+        // individual payout in another calendar year without fiscal review.
+        foreach ($members as $member) {
+            if (strlen($member->getTaxNumber()) === 11) {
+                $this->taxYearGuard->assertSafeForIndividual(
+                    $this->dates->getInicio(),
+                    $this->dates->getDataPagamento(),
+                );
+                break;
+            }
+        }
+
         // Contacts are financial writes: never run while preparing previews.
         $registered = [];
         foreach ($work as $row) {
