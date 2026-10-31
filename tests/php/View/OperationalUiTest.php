@@ -103,35 +103,26 @@ final class OperationalUiTest extends TestCase
         self::assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt;', $html);
     }
 
-    public function testProductionJourneyShowsReviewLinksAndNoSecondPassword(): void
+    public function testProductionWizardSeparatesImportAuditSelectionAndPublish(): void
     {
         $html = $this->twig()->render('acoes/make_producao.html.twig', [
             'inicio_ano' => '2026', 'inicio_mes' => '08',
-            'url' => '/acoes/do-make-producao',
-            'baixar_dados' => 0, 'atualiza_producao' => 0, 'token' => 'csrf-token',
+            'url' => '/acoes/do-make-producao', 'token' => 'csrf-token',
         ]);
         self::assertStringContainsString('href="/css/production-workflow.css"', $html);
+        self::assertStringContainsString('src="/js/production-workflow.js"', $html);
         self::assertStringContainsString('name="_token" value="csrf-token"', $html);
-        self::assertStringContainsString('name="baixar_dados" value="0" checked', $html);
-        self::assertStringContainsString('name="atualiza_producao" value="0" checked', $html);
+        self::assertStringContainsString('name="operation" value="import"', $html);
+        self::assertStringContainsString('data-workflow-step="1"', $html);
+        self::assertStringContainsString('data-workflow-step="2" hidden', $html);
+        self::assertStringContainsString('data-workflow-step="3" hidden', $html);
+        self::assertStringContainsString('data-workflow-step="4" hidden', $html);
         self::assertStringContainsString('href="/producao?ano-mes=2026-08"', $html);
         self::assertStringContainsString('href="/calculos?ano-mes=2026-08"', $html);
         self::assertStringContainsString('href="/invoices?ano-mes=2026-08"', $html);
-        self::assertStringContainsString('Apuração não é pagamento', $html);
+        self::assertStringContainsString('Não publicar agora', $html);
+        self::assertStringContainsString('id="publication-confirmation"', $html);
         self::assertStringNotContainsString('name="action_token"', $html);
-        self::assertStringNotContainsString('PRODUCAO_ACTION_TOKEN', $html);
-    }
-
-    public function testPublicationModeIsExplicitAndHasReviewWarning(): void
-    {
-        $html = $this->twig()->render('acoes/make_producao.html.twig', [
-            'inicio_ano' => '2026', 'inicio_mes' => '08',
-            'url' => '/acoes/do-make-producao',
-            'baixar_dados' => 0, 'atualiza_producao' => 1, 'token' => 'csrf-token',
-        ]);
-        self::assertStringContainsString('name="atualiza_producao" value="1" checked', $html);
-        self::assertStringContainsString('id="publication-warning" role="note"', $html);
-        self::assertStringContainsString('Publicar documentos no Akaunting', $html);
     }
 
     public function testAuditPagesKeepTheSelectedPeriodAndReturnPath(): void

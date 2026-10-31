@@ -72,3 +72,75 @@
 .production-report-nav { display:flex; flex-wrap:wrap; gap:12px; font-size:13px; }
 .production-report-nav a { text-decoration:none; font-weight:650; }
 .production-report-nav a:hover { text-decoration:underline; }
+
+/* Real month-close workflow: one focused decision per step, no duplicated reports. */
+.production-steps {
+    display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:8px; margin:0 0 18px;
+}
+.production-steps > span {
+    display:flex; align-items:center; justify-content:center; gap:9px;
+    padding:12px 8px; border:1px solid var(--line); border-radius:11px;
+    background:var(--surface); color:var(--muted); font-size:13px; font-weight:650;
+}
+.production-steps b {
+    display:grid; place-items:center; width:25px; height:25px; flex:0 0 25px;
+    border-radius:50%; background:var(--brand-soft); color:var(--brand);
+}
+.production-steps .is-active { border-color:var(--brand); color:var(--text); background:var(--brand-soft); }
+.production-wizard { max-width:100%; padding:clamp(20px,4vw,36px); }
+.production-wizard [data-workflow-step][hidden] { display:none; }
+.production-wizard h2 { margin:0 0 9px; font-size:clamp(21px,2.5vw,27px); }
+.production-wizard [data-workflow-step] > p:not(.section-kicker) {
+    color:var(--muted); line-height:1.65; max-width:790px; margin:0 0 23px;
+}
+.production-wizard .production-period-fields { padding-left:0; margin:12px 0; }
+.production-wizard-actions { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:24px; }
+.production-wizard-actions .button { min-height:43px; }
+.production-wizard .production-help { margin-left:0; max-width:830px; line-height:1.55; }
+.production-summary, .production-selection-summary {
+    display:block; padding:16px 18px; border:1px solid var(--line);
+    border-radius:11px; background:var(--brand-soft); margin:18px 0; font-weight:650;
+}
+.production-preview-table { overflow-x:auto; border:1px solid var(--line); border-radius:11px; margin:14px 0; }
+.production-preview-table table { width:100%; border-collapse:collapse; font-size:13px; }
+.production-preview-table th, .production-preview-table td { padding:12px 15px; border-bottom:1px solid var(--line); text-align:left; }
+.production-preview-table tbody tr:last-child td { border-bottom:0; }
+.production-preview-table thead { background:var(--brand-soft); }
+.production-preview-table th { font-weight:700; white-space:nowrap; }
+.production-preview-table td:nth-child(n+2) { font-variant-numeric:tabular-nums; }
+.production-preview-table tbody tr:hover { background:var(--brand-soft); }
+.production-wizard .production-review-links { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.production-confirm-label, .production-exclude-label {
+    display:flex; align-items:start; gap:10px; cursor:pointer; font-size:13px;
+}
+.production-confirm-label {
+    padding:15px; background:var(--surface); border:1px solid var(--line);
+    border-radius:9px; margin-top:15px; font-weight:650;
+}
+.production-confirm-label input, .production-exclude-label input { accent-color:var(--brand); width:17px; height:17px; flex:0 0 17px; }
+.production-exclude-label { font-weight:500; white-space:nowrap; }
+.production-wizard .production-publication-warning { margin:15px 0; padding:16px 18px; }
+.money-cell { font-variant-numeric:tabular-nums; white-space:nowrap; }
+#example [data-weight-url] { min-width:160px; }
+#example .settings-weight-display { display:flex; align-items:center; gap:9px; }
+#example [data-weight-current] { font-weight:700; }
+#example .settings-weight-edit {
+    background:transparent; border:1px solid var(--line); border-radius:6px;
+    padding:5px 8px; color:var(--brand); font-weight:650; cursor:pointer;
+}
+#example .settings-weight-snapshot { display:block; font-size:11px; color:var(--muted); margin-top:4px; }
+#example [data-weight-form] { display:grid; gap:6px; margin-top:8px; }
+#example [data-weight-form][hidden] { display:none; }
+#example [data-weight-form] input[name="value"] {
+    max-width:105px; border:1px solid var(--line); border-radius:6px; padding:7px; color:var(--text); background:var(--surface);
+}
+#example [data-weight-form] button { border:1px solid var(--line); border-radius:6px; padding:6px 9px; color:var(--text); background:var(--surface); cursor:pointer; }
+#example [data-weight-message] { display:block; font-size:11px; margin-top:5px; color:var(--muted); }
+@media (max-width:670px) {
+    .production-steps { gap:4px; }
+    .production-steps > span { flex-direction:column; font-size:10px; gap:5px; padding:9px 3px; }
+    .production-wizard .production-review-links { grid-template-columns:1fr; }
+    .production-wizard-actions .button { width:100%; }
+    .production-preview-table th, .production-preview-table td { padding:10px; }
+}

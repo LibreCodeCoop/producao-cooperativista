@@ -198,7 +198,7 @@
         const form = doc?.getElementById('form-gera-producao');
         const messages = doc?.getElementById('messages');
         const submitButton = doc?.getElementById('submit');
-        if (!form || !messages || !submitButton) {
+        if (!form || !messages || !submitButton || form.dataset?.workflow === 'yes') {
             return false;
         }
 
@@ -214,6 +214,7 @@
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = { SseParser, addMessage, submit, updateView, bind };
     } else {
+        scope.ProductionProgress = {submit, addMessage};
         scope.addEventListener('DOMContentLoaded', () => bind());
     }
 })(typeof window === 'undefined' ? {} : window);
