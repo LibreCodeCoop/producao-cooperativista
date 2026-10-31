@@ -99,7 +99,6 @@
         return '<div class="settings-weight-cell" data-weight-url="' + base + '/peso">' +
             '<div class="settings-weight-display"><span data-weight-current>' + snapshot + '</span>' +
             '<button type="button" class="settings-weight-edit" data-weight-edit>Editar</button></div>' +
-            '<small class="settings-weight-snapshot" data-weight-snapshot>Peso no ETL (última importação)</small>' +
             '<form data-weight-form action="' + base + '/nextcloud" method="post" hidden>' +
             '<input type="hidden" name="_token" value="' + escapeHtml(token) + '">' +
             '<input type="hidden" name="field" value="weight">' +
@@ -139,16 +138,37 @@
                 '<td>' + escapeHtml(share) + '</td></tr>';
         }).join('');
         const moneyFields = [
-            ['Auxílio', 'auxilio'], ['FRRA', 'frra'], ['INSS', 'inss'],
-            ['IRPF', 'irpf'], ['Base IRPF', 'base_irpf'],
-            ['Desconto líquido', 'liquid_discount'], ['Adiantamentos', 'adiantamento'],
+            ['Base da produção', 'base_producao'], ['Auxílio', 'auxilio'],
+            ['FRRA', 'frra'], ['Bruto', 'bruto'], ['INSS', 'inss'],
+            ['Base IRPF', 'base_irpf'], ['IRPF', 'irpf'],
+            ['Desconto líquido', 'liquid_discount'],
+            ['Adiantamentos', 'adiantamento'], ['Líquido', 'liquido'],
         ];
         const facts = moneyFields.filter(([,key]) => record[key] !== undefined &&
-            record[key] !== null && record[key] !== '').map(([label,key]) =>
-            '<div><dt>' + escapeHtml(label) + '</dt><dd>' +
-            (key === 'adiantamento' ? escapeHtml(record[key])
-                : escapeHtml(brl.format(Number(record[key])))) + '</dd></div>'
-        ).join('');
+            record[key] !== null && record[key] !== '').map(([label,key]) => {
+            const explanation = record.explanations?.[key];
+            let amount = Number(record[key]);
+            if (key === 'adiantamento') {
+                try {
+                    const values = typeof record[key] === 'string'
+                        ? JSON.parse(record[key]) : record[key];
+                    amount = Array.isArray(values)
+                        ? values.reduce((sum, value) => sum + Number(value.amount || 0), 0) : 0;
+                } catch {
+                    amount = NaN;
+                }
+            }
+            const value = Number.isFinite(amount)
+                ? escapeHtml(brl.format(Number(amount))) : '—';
+            const help = explanation && typeof explanation.detail === 'string'
+                ? '<details class="finance-help' + (explanation.attention ? ' is-warning' : '') +
+                    '"><summary aria-label="Como é calculado ' + escapeHtml(label) +
+                    '" title="Entender ' + escapeHtml(label) + '">?</summary><div>' +
+                    '<strong>' + escapeHtml(explanation.summary || label) + '</strong><p>' +
+                    escapeHtml(explanation.detail) + '</p></div></details>' : '';
+            return '<div><dt>' + escapeHtml(label) + help + '</dt><dd>' +
+                value + '</dd></div>';
+        }).join('');
         return '<div class="production-row-details"><div><h4>Horas por cliente</h4>' +
             (work ? '<div class="production-detail-scroll"><table><thead><tr><th>Cliente</th>' +
             '<th>Horas do cooperado</th><th>Tempo total do cliente</th>' +
@@ -160,7 +180,18 @@
     function buildProductionColumns(options = {}) {
         const cell = (key, title) => ({
             data: key, title, name: key, defaultContent: '',
-            render: (value, type, row) => renderCell(value, type, key, row, options),
+            render: (value, type, row) => {
+                if (key === 'name' && type === 'display') {
+                    const id = Number(row?.kimai_user_id);
+                    if (!Number.isSafeInteger(id) || id <= 0) return escapeHtml(value);
+                    const href = '/configuracao/cooperado/' + id + '/editar?competencia=' +
+                        encodeURIComponent(options.competence || '');
+                    return '<a class="production-member-link" data-member-editor-open href="' +
+                        escapeHtml(href) + '" title="Conferir cadastro e editar fontes">' +
+                        escapeHtml(value) + '<span aria-hidden="true">↗</span></a>';
+                }
+                return renderCell(value, type, key, row, options);
+            },
         });
         const columns = [
             cell('name', 'Cooperado'),
@@ -183,15 +214,17 @@
         ];
         if (options.financialReview) {
             columns.push({
-                data: null, title: 'Publicação', name: 'decisao',
+                data: null, title: 'Exceção', name: 'decisao',
                 orderable: false, searchable: false, defaultContent: '',
                 render: (_value, type, row) => {
                     if (type !== 'display') return '';
                     const id = Number(row.kimai_user_id);
                     if (!Number.isSafeInteger(id) || id <= 0) return '';
-                    return '<label class="production-exclude-label"><input type="checkbox" data-omit-user-id="' +
-                        id + '"' + (options.omitted?.has(id) ? ' checked' : '') +
-                        '> Não publicar agora</label>';
+                    return '<label class="production-exclude-label" title="Não publicar agora">' +
+                        '<input type="checkbox" data-omit-user-id="' + id +
+                        '" aria-label="Não publicar agora: ' + escapeHtml(row.name || '') + '"' +
+                        (options.omitted?.has(id) ? ' checked' : '') +
+                        '><span>Omitir</span></label>';
                 },
             });
         }

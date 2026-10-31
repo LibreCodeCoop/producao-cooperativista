@@ -359,7 +359,7 @@ test('production report weight reuses the existing Nextcloud editor, escaping un
     assert.match(html, /data-weight-url="\/configuracao\/cooperado\/14\/peso"/);
     assert.match(html, /name="field" value="weight"/);
     assert.match(html, /csrf&lt;&amp;/);
-    assert.match(html, /Peso no ETL \(última importação\)/);
+    assert.ok(!html.includes('Peso no ETL'), 'Keep the weight column compact');
     assert.equal(renderCell(row.peso, 'sort', 'peso', row, opts), '1.25');
     assert.ok(!renderCell(1, 'display', 'peso', {kimai_user_id: 0}, opts).includes('data-weight-edit'));
 });

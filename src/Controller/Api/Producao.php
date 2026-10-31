@@ -28,6 +28,7 @@ namespace App\Controller\Api;
 
 use App\Service\Movimentacao;
 use App\Service\Calculation\ProductionPublicationSelection;
+use App\Service\Calculation\ProductionValueExplanations;
 use App\Service\Calculation\DecimalAllocation;
 use DateTime;
 use App\Service\ProducaoCooperativista;
@@ -47,6 +48,7 @@ class Producao extends AbstractController
         private Movimentacao $movimentacao,
         private ApiProblemResponder $apiErrors,
         private ProductionPublicationSelection $selection,
+        private ProductionValueExplanations $valueExplanations,
     ) {
         $this->request = $requestStack->getCurrentRequest();
     }
@@ -86,6 +88,11 @@ class Producao extends AbstractController
                 $array['adiantamento'] = $adiantamento;
                 $taxNumber = $cooperado->getTaxNumber();
                 $array['kimai_user_id'] = $snapshot['ids'][$taxNumber];
+                $array['explanations'] = $this->valueExplanations->describe(
+                    $array,
+                    (int) $inicio->format('Y'),
+                    (int) $inicio->format('m'),
+                );
                 // The settlement calculation retains intermediate precision.
                 // The report and payable document present values in BRL cents.
                 $array['base_producao'] = DecimalAllocation::amount(

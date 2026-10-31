@@ -50,9 +50,11 @@ test('a single compact production grid keeps currency numeric for sorting and sa
     const cols = buildProductionColumns(opts);
     assert.deepEqual(cols.map(col => col.title), [
         'Cooperado','Horas','Peso','Base de produção','Bruto','Líquido',
-        'Conferir','Publicação',
+        'Conferir','Exceção',
     ]);
-    assert.equal(cols[0].render('<script>', 'display', row(5)), '&lt;script&gt;');
+    assert.match(cols[0].render('<script>', 'display', row(5)), /&lt;script&gt;/);
+    assert.match(cols[0].render('Pessoa A', 'display', row(5)), /data-member-editor-open/);
+    assert.match(cols[0].render('Pessoa A', 'display', row(5)), /\/cooperado\/5\/editar/);
     assert.equal(cols[1].render(3600, 'display', row(5)), '1:00:00');
     assert.equal(cols[1].render(3600, 'sort', row(5)), 3600);
     const weight = cols[2].render(2.5, 'display', row(5));

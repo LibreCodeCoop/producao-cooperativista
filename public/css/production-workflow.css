@@ -171,3 +171,42 @@
     .production-table-intro .button { width:100%; }
     .production-final { padding:17px; }
 }
+
+/* Compact review controls; detailed calculations stay one click away. */
+#example [data-weight-url] { min-width:95px; }
+#example .settings-weight-display { gap:5px; flex-wrap:nowrap; white-space:nowrap; }
+#example .settings-weight-edit { padding:4px 7px; font-size:11px; }
+#example .production-exclude-label {
+    display:inline-flex; gap:5px; font-weight:600; white-space:nowrap;
+    align-items:center; font-size:11px;
+}
+#example .production-exclude-label input { width:15px; height:15px; flex:0 0 15px; }
+#example th:last-child, #example td:last-child { width:80px; }
+.finance-help {
+    position:relative; display:inline-block; vertical-align:middle; margin-left:6px;
+    font-size:12px; line-height:1.5; font-weight:400; color:var(--text);
+}
+.finance-help summary {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:18px; height:18px; border-radius:50%; cursor:pointer;
+    border:1px solid var(--line); background:var(--surface); color:var(--brand);
+    font-size:11px; font-weight:750; list-style:none;
+}
+.finance-help summary::-webkit-details-marker { display:none; }
+.finance-help summary:hover,.finance-help[open] summary { border-color:var(--brand); background:var(--brand-soft); }
+.finance-help.is-warning summary { color:var(--danger); border-color:var(--danger); }
+.finance-help > div {
+    position:relative; z-index:1; width:min(350px,70vw); max-width:350px;
+    padding:12px 13px; margin-top:6px; background:var(--surface);
+    border:1px solid var(--line); border-radius:9px; box-shadow:0 8px 26px rgba(0,0,0,.12);
+    white-space:normal; font-weight:400;
+}
+.finance-help > div strong { display:block; font-size:12px; margin-bottom:5px; }
+.finance-help > div p { margin:0; font-size:12px; line-height:1.6; }
+.production-row-details dt { display:flex; flex-wrap:wrap; align-items:center; }
+.production-row-details dd { font-weight:650; }
+.production-reset-link { margin-left:auto; font-size:12px; }
+@media(max-width:620px) {
+    .finance-help > div { width:min(245px,60vw); }
+    .production-reset-link { margin-left:0; }
+}
