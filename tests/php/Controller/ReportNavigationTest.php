@@ -9,6 +9,14 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class ReportNavigationTest extends WebTestCase
 {
+    public function testHomeIsOnlyAnEntryPointToTheClosingWorkflow(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/');
+        self::assertSame(Response::HTTP_FOUND, $client->getResponse()->getStatusCode());
+        self::assertSame('/acoes/make-producao', $client->getResponse()->headers->get('Location'));
+    }
+
     public function testCanonicalReportsAreRoutedAndAvailableInDedicatedCatalog(): void
     {
         $client = static::createClient();

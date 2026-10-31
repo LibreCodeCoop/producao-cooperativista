@@ -6,7 +6,9 @@
         <meta name="color-scheme" content="light dark">
         {# This script must run before the CSS to prevent a light-theme flash. #}
         <script src="/js/theme.js"></script>
-        <title>{% block title %}Visão geral{% endblock %} | Produção cooperativista</title>
+        {% set brandName = app_brand is defined ? app_brand.name : "LibreCode" %}
+        {% set brandLogo = app_brand is defined ? app_brand.logoUrl : "https://librecode.coop/assets/images/logo/librecode.png" %}
+        <title>{% block title %}Fechamento{% endblock %} | {{ brandName }}</title>
         <link rel="icon" href="/img/favico.ico">
         <link rel="stylesheet" href="/css/app.css">
         <link rel="stylesheet" href="/css/member-editor.css">
@@ -20,19 +22,23 @@
         <a class="skip-link" href="#main-content">Ir para o conteúdo</a>
         <header class="app-header">
             <div class="container header-inner">
-                <a class="brand" href="/" aria-label="Produção cooperativista — página inicial">
-                    <span class="brand-mark" aria-hidden="true">LC</span>
+                <a class="brand" href="/acoes/make-producao" aria-label="Fechamento da produção cooperativista">
+                    {% if brandLogo %}
+                        <img class="brand-logo" src="{{ brandLogo }}" alt="" width="74" height="44">
+                    {% else %}
+                        <span class="brand-mark" aria-hidden="true">{{ brandName|slice(0, 2)|upper }}</span>
+                    {% endif %}
                     <span class="brand-text">
-                        <strong>LibreCode</strong>
+                        <strong>{{ brandName }}</strong>
                         <small>Produção cooperativista</small>
                     </span>
                 </a>
                 <div class="header-actions">
+                    {% set currentPath = app is defined and app.request is defined ? app.request.pathInfo : '' %}
                     <nav aria-label="Navegação principal">
-                        <a class="header-nav-link" href="/">Visão geral</a>
-                        <a class="header-nav-link" href="/acoes/make-producao">Fechamento</a>
-                        <a class="header-nav-link" href="/relatorios">Relatórios</a>
-                        <a class="header-nav-link" href="/configuracao">Configuração</a>
+                        <a class="header-nav-link" href="/acoes/make-producao"{% if currentPath == '/' or currentPath starts with '/acoes/' %} aria-current="page"{% endif %}>Fechamento</a>
+                        <a class="header-nav-link" href="/relatorios"{% if currentPath starts with '/relatorios' %} aria-current="page"{% endif %}>Relatórios</a>
+                        <a class="header-nav-link" href="/configuracao"{% if currentPath starts with '/configuracao' %} aria-current="page"{% endif %}>Configuração</a>
                     </nav>
                     <div class="theme-controls" aria-label="Aparência do sistema">
                         <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Ativar tema escuro">
@@ -51,7 +57,7 @@
         {{ include('layout/components/member_editor_dialog.html.twig') }}
         <footer class="app-footer">
             <div class="container">
-                <span>Produção cooperativista</span>
+                <span>{{ brandName }} · Produção cooperativista</span>
                 <span>Controle e conciliação de dados</span>
             </div>
         </footer>

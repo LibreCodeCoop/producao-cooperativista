@@ -41,9 +41,7 @@ class Index extends AbstractController
     #[Route('/', methods: ['GET'])]
     public function index(): Response
     {
-        return $this->render('index.index.html.twig', [
-            'actionUrl' => $this->urlGenerator->generate('app_acoes_makeproducao'),
-        ]);
+        return $this->redirectToRoute('app_acoes_makeproducao', [], Response::HTTP_FOUND);
     }
 
     #[Route('/relatorios', methods: ['GET'])]

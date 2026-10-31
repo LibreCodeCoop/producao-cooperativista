@@ -61,6 +61,11 @@ final class SystemConfiguration extends AbstractController
     {
         return [
             [
+                'title' => 'Identidade visual',
+                'purpose' => 'Nome e logotipo exibidos na navegação. Não altera a razão social nem os dados fiscais.',
+                'keys' => ['APP_BRAND_NAME', 'APP_BRAND_LOGO_URL'],
+            ],
+            [
                 'title' => 'Nextcloud · Profile Fields',
                 'purpose' => 'Cadastro de referência: CPF/CNPJ, peso e dependentes.',
                 'keys' => ['PROFILE_FIELDS_API_BASE_URL', 'PROFILE_FIELDS_AUTH_USER', 'PROFILE_FIELDS_AUTH_TOKEN',
@@ -173,6 +178,12 @@ final class SystemConfiguration extends AbstractController
         }
         if ($value === '') {
             return '';
+        }
+        if ($key === 'APP_BRAND_NAME' && (mb_strlen($value) > 70 || trim($value) === '')) {
+            throw new \InvalidArgumentException('Nome da organização inválido.');
+        }
+        if ($key === 'APP_BRAND_LOGO_URL' && !\App\Service\Config\BrandSettings::isValidLogoUrl($value)) {
+            throw new \InvalidArgumentException('A URL da marca deve ser HTTPS.');
         }
         if (self::isJson($key)) {
             $parsed = json_decode($value, true, 16, JSON_THROW_ON_ERROR);

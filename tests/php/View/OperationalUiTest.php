@@ -23,22 +23,18 @@ final class OperationalUiTest extends TestCase
         );
     }
 
-    public function testHomePagePrioritizesClosingAndLinksToSeparateReports(): void
+    public function testMainNavigationHasOneClosingItemAndConfigurableBrand(): void
     {
-        $html = $this->twig()->render('index.index.html.twig', [
-            'actionUrl' => '/acoes/make-producao',
-        ]);
+        $html = $this->twig()->render('index.relatorios.html.twig', ['relatorios' => []]);
 
         self::assertStringContainsString('<html lang="pt-BR">', $html);
         self::assertStringContainsString('href="/css/app.css"', $html);
         self::assertStringContainsString('href="#main-content"', $html);
-        self::assertStringContainsString('aria-labelledby="home-closing-title"', $html);
-        self::assertStringContainsString('href="/acoes/make-producao"', $html);
+        self::assertSame(1, preg_match_all('/class="header-nav-link"[^>]*>Fechamento<\/a>/', $html));
         self::assertStringContainsString('href="/relatorios"', $html);
-        self::assertStringContainsString('Abrir fechamento', $html);
-        self::assertStringNotContainsString('closing-journey', $html);
-        self::assertStringNotContainsString('Outras atividades', $html);
-        self::assertStringNotContainsString('class="reports-grid"', $html);
+        self::assertStringContainsString('href="/configuracao"', $html);
+        self::assertStringNotContainsString('>Visão geral</a>', $html);
+        self::assertStringContainsString('src="https://librecode.coop/assets/images/logo/librecode.png"', $html);
     }
 
     public function testReportsCatalogExposesTheFinancialReports(): void
@@ -56,9 +52,7 @@ final class OperationalUiTest extends TestCase
 
     public function testThemeSelectorUsesSharedLayoutAndLoadsBeforePageStyles(): void
     {
-        $html = $this->twig()->render('index.index.html.twig', [
-            'actionUrl' => '/acoes/make-producao',
-        ]);
+        $html = $this->twig()->render('index.relatorios.html.twig', ['relatorios' => []]);
 
         self::assertStringContainsString('<meta name="color-scheme" content="light dark">', $html);
         self::assertStringContainsString('src="/js/theme.js"', $html);
