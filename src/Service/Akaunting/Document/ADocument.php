@@ -312,18 +312,17 @@ abstract class ADocument
                         fn ($row): bool => is_array($row)
                             && ($row['document_number'] ?? '') === $this->getDocumentNumber()
                     );
-                    $existing = reset($matches);
+                    // Search result ordering must not decide which financial record to update.
+                    $existing = count($matches) === 1 ? reset($matches) : null;
                     if (!is_array($existing) || empty($existing['id'])) {
-                        throw new \RuntimeException(sprintf(
-                            'Documento %s já existe no Akaunting, mas a consulta não retornou um registro exato. Verifique o cadastro antes de tentar novamente.',
-                            $this->getDocumentNumber()
-                        ));
+                        throw new \RuntimeException(
+                            'Documento já existe no Akaunting, mas a consulta não retornou um registro exato e único. Verifique o cadastro antes de tentar novamente.'
+                        );
                     }
                     if (in_array($existing['status'] ?? '', ['paid', 'cancelled'], true)) {
-                        throw new \RuntimeException(sprintf(
-                            'Documento %s já está finalizado no Akaunting e não pode ser sobrescrito.',
-                            $this->getDocumentNumber()
-                        ));
+                        throw new \RuntimeException(
+                            'Documento já finalizado no Akaunting. A atualização foi bloqueada.'
+                        );
                     }
                     // Document-number equality alone is not sufficient:
                     // never update another company, supplier or document type.
@@ -333,7 +332,9 @@ abstract class ADocument
                     return $this;
                 }
             } else {
-                // Update if exists
+                // Staged IDs are only hints: the document may have been paid,
+                // cancelled or reassigned since it was imported.
+                $this->assertRemoteDocumentCanBeUpdated();
                 $response = $this->request->send(
                     endpoint: '/api/documents/' . $this->getId(),
                     body: $this->toArray(),
@@ -358,6 +359,35 @@ abstract class ADocument
     }
 
     /**
+     * Fetch the current remote state before a PATCH. Never trust an earlier
+     * local snapshot, a prior successful GET, or a duplicate-number conflict.
+     */
+    private function assertRemoteDocumentCanBeUpdated(): void
+    {
+        $response = $this->request->send(
+            endpoint: '/api/documents/' . $this->getId(),
+            query: ['search' => 'type:' . $this->getType()],
+            method: 'GET',
+        );
+        $this->request->handleError($response);
+        $existing = $response['data'] ?? null;
+        if (!is_array($existing)
+            || (int) ($existing['id'] ?? 0) !== $this->getId()
+            || ($existing['document_number'] ?? null) !== $this->getDocumentNumber()) {
+            throw new \RuntimeException(
+                'Identificação remota do documento divergente da referência local. A atualização foi bloqueada.'
+            );
+        }
+
+        if (in_array($existing['status'] ?? null, ['paid', 'cancelled'], true)) {
+            throw new \RuntimeException(
+                'Documento já finalizado no Akaunting. A atualização foi bloqueada.'
+            );
+        }
+        $this->assertSameDocumentIdentity($existing);
+    }
+
+    /**
      * A duplicate-number response is not authorization to update the record.
      * Require a complete, matching tenant/type/contact identity.
      *
@@ -371,16 +401,14 @@ abstract class ADocument
             || (string) ($existing['type'] ?? '') !== $this->getType()
             || $this->getContactId() <= 0
             || (int) ($existing['contact_id'] ?? 0) !== $this->getContactId()) {
-            throw new \RuntimeException(sprintf(
-                'Documento %s existe no Akaunting, mas sua empresa, tipo ou contato não coincide com a operação. Não será atualizado.',
-                $this->getDocumentNumber()
-            ));
+            throw new \RuntimeException(
+                'Documento existente no Akaunting tem empresa, tipo ou contato divergente. Atualização bloqueada.'
+            );
         }
         if (!in_array((string) ($existing['status'] ?? ''), ['draft', 'sent'], true)) {
-            throw new \RuntimeException(sprintf(
-                'Documento %s tem situação não habilitada para atualização. Confira o estado no Akaunting.',
-                $this->getDocumentNumber()
-            ));
+            throw new \RuntimeException(
+                'Documento tem situação não habilitada para atualização. Confira o estado no Akaunting.'
+            );
         }
     }
 
@@ -428,7 +456,33 @@ abstract class ADocument
             ],
             method: 'GET'
         );
-        foreach ($response['data'] as $property => $value) {
+        $this->request->handleError($response);
+        $remote = $response['data'] ?? null;
+        // Never populate a document from a remote ID that no longer points
+        // to the expected source; this would poison subsequent comparisons.
+        $companyId = (int) getenv('AKAUNTING_COMPANY_ID');
+        if (!is_array($remote)
+            || $companyId <= 0
+            || (int) ($remote['id'] ?? 0) !== $this->getId()
+            || ($remote['document_number'] ?? null) !== $this->getDocumentNumber()
+            || (int) ($remote['company_id'] ?? 0) !== $companyId
+            || ($this->getType() !== '' && ($remote['type'] ?? null) !== $this->getType())
+            || ($this->getContactId() > 0 && (int) ($remote['contact_id'] ?? 0) !== $this->getContactId())) {
+            throw new \RuntimeException(
+                'Identificação remota do documento divergente da referência local. A leitura foi bloqueada.'
+            );
+        }
+        if (in_array($remote['status'] ?? null, ['paid', 'cancelled'], true)) {
+            throw new \RuntimeException(
+                'Documento já finalizado no Akaunting. Atualize os dados locais antes de recalcular.'
+            );
+        }
+        if (!in_array($remote['status'] ?? null, ['draft', 'sent'], true)) {
+            throw new \RuntimeException(
+                'Documento tem situação não reconhecida durante a reconciliação.'
+            );
+        }
+        foreach ($remote as $property => $value) {
             $property = $this->camelize($property);
             $methodName = 'set' . ucfirst($property);
             if (method_exists($this, $methodName)) {
@@ -439,7 +493,7 @@ abstract class ADocument
                 $this->$methodName($value);
             }
         }
-        $document = $this->documents->fromArray($response['data']);
+        $document = $this->documents->fromArray($remote);
         $this->documents->saveRow($document);
         $this->loadedFromAkaunting = true;
     }
