@@ -155,6 +155,8 @@ Available commands:
 
 Para o procedimento seguro de reconciliação e retomada após publicação parcial, consulte `docs/publication-recovery.md`.
 
+Publicações de cooperados pessoa física cuja previsão de pagamento atravesse o ano civil ficam bloqueadas até revisão do período de incidência do IRRF. Consulte `docs/tax-period-boundary.md`. A prévia continua disponível; isso não homologa pagamentos dentro do mesmo exercício.
+
 ## Logs e sigilo
 
 O Monolog registra a execução em `var/log/<APP_ENV>.log` (por exemplo, `var/log/dev.log`) e os erros em `var/log/calculation-errors.log`, ambos com rotação. Acompanhe localmente com:
