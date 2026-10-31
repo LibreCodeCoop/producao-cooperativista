@@ -23,24 +23,32 @@ final class OperationalUiTest extends TestCase
         );
     }
 
-    public function testHomePageUsesTheLocalStylesheetAndAccessibleNavigation(): void
+    public function testHomePagePrioritizesClosingAndLinksToSeparateReports(): void
     {
         $html = $this->twig()->render('index.index.html.twig', [
-            'relatorios' => [
-                ['label' => 'Cálculos', 'url' => '/calculos', 'description' => 'Bases da apuração'],
-            ],
-            'acoes' => [
-                ['label' => 'Processar produção', 'url' => '/acoes/make-producao', 'description' => 'Prévia'],
-            ],
+            'actionUrl' => '/acoes/make-producao', 'reportsUrl' => '/relatorios',
         ]);
 
         self::assertStringContainsString('<html lang="pt-BR">', $html);
         self::assertStringContainsString('href="/css/app.css"', $html);
         self::assertStringContainsString('href="#main-content"', $html);
-        self::assertStringContainsString('aria-labelledby="reports-heading"', $html);
+        self::assertStringContainsString('aria-labelledby="actions-heading"', $html);
+        self::assertStringContainsString('href="/acoes/make-producao"', $html);
+        self::assertStringContainsString('href="/relatorios"', $html);
+        self::assertStringContainsString('Conferir dados já importados', $html);
+        self::assertStringNotContainsString('class="reports-grid"', $html);
+    }
+
+    public function testReportsCatalogExposesTheFinancialReports(): void
+    {
+        $html = $this->twig()->render('index.relatorios.html.twig', [
+            'relatorios' => [
+                ['label' => 'Cálculos', 'url' => '/relatorios/calculos', 'description' => 'Bases da apuração'],
+            ],
+        ]);
+        self::assertStringContainsString('id="reports-heading"', $html);
+        self::assertStringContainsString('href="/relatorios/calculos"', $html);
         self::assertStringContainsString('Bases da apuração', $html);
-        self::assertStringContainsString('Processar produção', $html);
-        self::assertStringNotContainsString('<ul>\n        <li>', $html);
     }
 
     public function testThemeSelectorUsesSharedLayoutAndLoadsBeforePageStyles(): void
@@ -116,6 +124,8 @@ final class OperationalUiTest extends TestCase
         self::assertStringContainsString('name="_token" value="csrf-token"', $html);
         self::assertStringContainsString('name="operation" value="import"', $html);
         self::assertStringContainsString('data-workflow-step="1"', $html);
+        self::assertStringContainsString('data-step-indicator="1"', $html);
+        self::assertStringContainsString('data-step-indicator="2" disabled', $html);
         self::assertStringContainsString('data-workflow-step="2" hidden', $html);
         self::assertStringNotContainsString('data-workflow-step="3"', $html);
         self::assertStringNotContainsString('data-workflow-step="4"', $html);
@@ -126,8 +136,8 @@ final class OperationalUiTest extends TestCase
         self::assertStringNotContainsString('src="/js/settings-inline-weight.js"', $html);
         self::assertStringContainsString('data-manual-init="yes"', $html);
         self::assertStringContainsString('id="example"', $html);
-        self::assertStringContainsString('href="/calculos?ano-mes=2026-08"', $html);
-        self::assertStringContainsString('href="/invoices?ano-mes=2026-08"', $html);
+        self::assertStringContainsString('href="/relatorios/calculos?ano-mes=2026-08"', $html);
+        self::assertStringContainsString('href="/relatorios/invoices?ano-mes=2026-08"', $html);
         self::assertStringContainsString('Não publicar agora', $html);
         self::assertStringContainsString('id="publication-confirmation"', $html);
         self::assertStringContainsString('id="submit"', $html);
@@ -145,13 +155,14 @@ final class OperationalUiTest extends TestCase
             $html = $this->twig()->render($view, [
                 'competencia' => '2026-08',
                 'url' => '/api/v1/producao?ano-mes=2026-08',
+                'productionMode' => true,
             ]);
             self::assertStringContainsString('name="ano-mes" value="2026-08"', $html);
             if ($view === 'producao.index.html.twig') {
                 self::assertStringContainsString('data-production-mode="yes"', $html);
                 self::assertStringNotContainsString('src="/js/settings-inline-weight.js"', $html);
             }
-            self::assertStringContainsString('href="/calculos?ano-mes=2026-08"', $html);
+            self::assertStringContainsString('href="/relatorios/calculos?ano-mes=2026-08"', $html);
             self::assertStringContainsString(
                 'href="/acoes/make-producao?ano-mes=2026-08"',
                 $html

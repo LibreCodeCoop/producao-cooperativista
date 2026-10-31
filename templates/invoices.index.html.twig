@@ -13,14 +13,14 @@
         <p class="page-lead">Confira os lançamentos e volte à memória de cálculo para verificar sua participação na apuração.</p>
     </header>
     <div class="production-report-tools">
-        <form method="get" action="/invoices" class="production-month-picker">
+        <form method="get" action="/relatorios/invoices" class="production-month-picker">
             <label for="invoices-competence">Competência do trabalho</label>
             <input type="month" id="invoices-competence" name="ano-mes" value="{{ competencia }}" required>
             <button type="submit" class="button button-primary">Consultar</button>
         </form>
         <nav aria-label="Outras conferências" class="production-report-nav">
-            <a href="/calculos?ano-mes={{ competencia }}">Memória de cálculo</a>
-            <a href="/producao?ano-mes={{ competencia }}">Produção por cooperado</a>
+            <a href="/relatorios/calculos?ano-mes={{ competencia }}">Memória de cálculo</a>
+            <a href="/relatorios/producao?ano-mes={{ competencia }}">Produção por cooperado</a>
             <a href="/acoes/make-producao?ano-mes={{ competencia }}">Voltar ao processamento</a>
         </nav>
     </div>

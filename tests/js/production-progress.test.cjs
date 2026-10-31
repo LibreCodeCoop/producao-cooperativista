@@ -258,7 +258,7 @@ test('workflow selection keeps the chosen month in review links and separates im
             return radios[name]?.find(input => value ? input.value === value : input.checked);
         },
     };
-    const links = ['/producao', '/calculos', '/invoices'].map(path => ({
+    const links = ['/relatorios/producao', '/relatorios/calculos', '/relatorios/invoices'].map(path => ({
         getAttribute() { return path; },
         href: '',
     }));
@@ -279,8 +279,8 @@ test('workflow selection keeps the chosen month in review links and separates im
     assert.equal(warning.hidden, false);
     assert.equal(button.textContent, 'Publicar documentos no Akaunting');
     assert.deepEqual(links.map(link => link.href), [
-        '/producao?ano-mes=2026-09', '/calculos?ano-mes=2026-09',
-        '/invoices?ano-mes=2026-09',
+        '/relatorios/producao?ano-mes=2026-09', '/relatorios/calculos?ano-mes=2026-09',
+        '/relatorios/invoices?ano-mes=2026-09',
     ]);
 
     radios.baixar_dados[0].checked = false;

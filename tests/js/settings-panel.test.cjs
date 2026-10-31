@@ -33,7 +33,7 @@ function fixture(href = 'https://librecode.example/configuracao?competencia=2026
         'settings-table-error': element(),
     };
     const links = [{
-        href: '/configuracao?competencia=2026-08&cooperado=2',
+        href: '/configuracao/cooperado/2/editar?competencia=2026-08',
         handlers: new Map(),
         addEventListener(type, callback) { this.handlers.set(type, callback); },
         emit(type) { this.handlers.get(type)?.(); },
@@ -44,10 +44,10 @@ function fixture(href = 'https://librecode.example/configuracao?competencia=2026
         location.href = new URL(url, location.href).href;
     } };
     const data = rows ?? [
-        ['Ana', 'ana', '10,00 h', '1,5', 'Com horas', 'Ativo', 'Conferir e editar'],
-        ['Bruno', 'bruno', '0,00 h', '', 'Sem horas', 'Desativado', 'Conferir e editar'],
-        ['Celia', 'celia', '14,00 h', '2,5', 'Com horas', 'Ativo', 'Conferir e editar'],
-        ['Serviço', 'robot', '0,00 h', '', 'Sem horas', 'Conta de serviço', 'Não editável'],
+        ['Ana', 'ana', '10,00 h', '1,5', 'Com horas', 'Ativo'],
+        ['Bruno', 'bruno', '0,00 h', '', 'Sem horas', 'Desativado'],
+        ['Celia', 'celia', '14,00 h', '2,5', 'Com horas', 'Ativo'],
+        ['Serviço', 'robot', '0,00 h', '', 'Sem horas', 'Conta de serviço'],
     ];
     class DataTable {
         constructor(selector, settings) {
@@ -141,10 +141,10 @@ test('default state shows active cooperatives, but keeps pagination and ordering
     assert.deepEqual(buttons.map(button => typeof button === 'string' ? button : button.extend),
         ['pageLength', 'colvis', 'copy', 'csv', 'excel', 'pdf', 'print']);
     for (const button of buttons.slice(2)) {
-        assert.deepEqual(button.exportOptions.columns, [0, 1, 2, 4, 5],
-            'Do not export partially loaded live weights or hidden editing controls');
+        assert.deepEqual(button.exportOptions.columns, [0, 1, 2, 3, 4, 5],
+            'Export the imported snapshot without editing controls');
     }
-    assert.deepEqual(dt.settings.columnDefs, [{targets: [3, 6], orderable: false, searchable: false}]);
+    assert.equal(dt.settings.columnDefs, undefined);
     assert.equal(f.elements['settings-status-filter'].value, 'Ativo');
     assert.deepEqual(dt.queries.get(5), {value: '^Ativo$', regex: true});
     assert.equal(f.elements['settings-visible-count'].textContent, '2');
@@ -213,7 +213,7 @@ test('member link preserves changed filters on navigation', () => {
     f.links[0].emit('click');
     const dest = new URL(f.links[0].href, f.location.href);
     assert.equal(dest.searchParams.get('competencia'), '2026-08');
-    assert.equal(dest.searchParams.get('cooperado'), '2');
+    assert.equal(dest.pathname, '/configuracao/cooperado/2/editar');
     assert.equal(dest.searchParams.get('dtstatus'), 'all');
     assert.equal(dest.searchParams.get('dtname'), 'Bruno');
 });
@@ -225,7 +225,7 @@ test('invalid URL filter values cannot inject custom regex or invalid sorting', 
     assert.deepEqual(state.order, [2, 'desc']);
     assert.equal(state.page, 0);
     assert.equal(state.length, 10);
-    assert.deepEqual(readState('?dtorder=3:desc').order, [2, 'desc'], 'Live field cannot be sorted from partial async data');
+    assert.deepEqual(readState('?dtorder=3:desc').order, [3, 'desc'], 'Imported weight supports sorting');
     assert.equal(exactFilter('all'), '');
     assert.equal(exactFilter('Ativo'), '^Ativo$');
 });

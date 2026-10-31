@@ -1,57 +1,43 @@
 {% extends "layout/index.html.twig" %}
-
 {% block title %}Visão geral{% endblock %}
-
 {% block body %}
     <header class="page-heading">
         <p class="eyebrow">Painel operacional</p>
         <h1>Produção cooperativista</h1>
-        <p class="page-lead">Consulte relatórios, acompanhe os dados importados e execute as rotinas de produção com segurança.</p>
+        <p class="page-lead">Comece pelo fechamento mensal. A importação prepara os dados para conferência, sem emitir documentos financeiros.</p>
     </header>
-
     <div class="dashboard-layout">
-        <section class="surface dashboard-reports" aria-labelledby="reports-heading">
+        <section class="surface dashboard-reports" aria-labelledby="actions-heading">
             <div class="section-heading">
                 <div>
-                    <p class="section-kicker">Consultas</p>
-                    <h2 id="reports-heading">Relatórios</h2>
+                    <p class="section-kicker">Comece aqui</p>
+                    <h2 id="actions-heading">Fechar produção mensal</h2>
                 </div>
-                <p>Explore os dados utilizados na apuração.</p>
             </div>
-            <div class="reports-grid">
-                {% for relatorio in relatorios %}
-                    <a class="report-link" href="{{ relatorio.url }}">
-                        <span class="report-number" aria-hidden="true">{{ '%02d'|format(loop.index) }}</span>
-                        <span class="item-copy">
-                            <strong>{{ relatorio.label }}</strong>
-                            <small>{{ relatorio.description }}</small>
-                        </span>
-                        <span class="item-arrow" aria-hidden="true">↗</span>
-                    </a>
-                {% endfor %}
-            </div>
+            <ol class="closing-journey">
+                <li><strong>Importar a competência</strong><span>Reúna horas e dados financeiros das fontes, sem publicar no Akaunting.</span></li>
+                <li><strong>Conferir a apuração</strong><span>Revise valores, horas e cooperados. Se corrigir um cadastro, importe novamente.</span></li>
+                <li><strong>Autorizar a publicação</strong><span>Após conferir, selecione exceções e confirme os documentos previstos.</span></li>
+            </ol>
+            <a class="button dashboard-primary-action" href="{{ actionUrl }}">Iniciar ou retomar fechamento mensal</a>
+            <p class="actions-footnote">Já importou os dados? Na primeira etapa, escolha <strong>Conferir dados já importados</strong>.</p>
         </section>
-
-        <section class="surface dashboard-actions" aria-labelledby="actions-heading">
+        <section class="surface dashboard-actions" aria-labelledby="consult-heading">
             <div class="section-heading">
                 <div>
-                    <p class="section-kicker">Operações</p>
-                    <h2 id="actions-heading">Ações</h2>
+                    <p class="section-kicker">Consultas e cadastros</p>
+                    <h2 id="consult-heading">Outras atividades</h2>
                 </div>
             </div>
-            <p class="actions-description">O fechamento mensal reúne importação, conferência, ajustes de cooperados e publicação.</p>
+            <p class="actions-description">Estas opções são complementares e não publicam documentos financeiros.</p>
             <div class="actions-list">
-                {% for acao in acoes %}
-                    <a class="action-link{% if acao.danger|default(false) %} action-link-danger{% endif %}" href="{{ acao.url }}">
-                        <span class="action-link-body">
-                            <strong>{{ acao.label }}</strong>
-                            <small>{{ acao.description }}</small>
-                        </span>
-                        <span class="item-arrow" aria-hidden="true">↗</span>
-                    </a>
-                {% endfor %}
+                <a class="action-link" href="{{ reportsUrl }}">
+                    <span class="action-link-body"><strong>Consultar relatórios</strong><small>Produção, memória de cálculo, entradas, saídas e capital social.</small></span><span class="item-arrow" aria-hidden="true">↗</span>
+                </a>
+                <a class="action-link" href="/configuracao">
+                    <span class="action-link-body"><strong>Configurar cooperados</strong><small>Conferir vínculos e editar parâmetros nas fontes responsáveis.</small></span><span class="item-arrow" aria-hidden="true">↗</span>
+                </a>
             </div>
-            <div class="actions-footnote">Limpeza da base de trabalho e edição de cooperados estão disponíveis dentro do fluxo de fechamento.</div>
         </section>
     </div>
 {% endblock %}

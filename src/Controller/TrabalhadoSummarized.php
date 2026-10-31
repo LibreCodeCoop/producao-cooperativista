@@ -44,7 +44,7 @@ class TrabalhadoSummarized extends AbstractController
         $this->request = $requestStack->getCurrentRequest();
     }
 
-    #[Route('/trabalhado-summarized', methods: ['GET'])]
+    #[Route('/relatorios/trabalhado-summarized', methods: ['GET'])]
     public function index(): Response
     {
         $inicio = \DateTime::createFromFormat('!Y-m', $this->request->query->getString('ano-mes'));

@@ -353,3 +353,11 @@ pre { overflow-x: auto; max-width: 100%; }
     .report-link, .button { transition: none; }
     .report-link:hover { transform: none; }
 }
+
+.closing-journey { margin:0 0 24px; padding:0; list-style:none; counter-reset:closing; display:grid; gap:12px; }
+.closing-journey li { counter-increment:closing; display:grid; grid-template-columns:32px minmax(0,1fr); column-gap:12px; padding:12px; border:1px solid var(--line); border-radius:9px; }
+.closing-journey li::before { content:counter(closing); grid-row:span 2; width:32px; height:32px; display:grid; place-items:center; border-radius:50%; background:var(--brand-soft); color:var(--brand); font-weight:700; }
+.closing-journey strong { font-size:14px; }
+.closing-journey span { color:var(--muted); font-size:13px; }
+.dashboard-primary-action { background:var(--brand); color:#fff; border-color:var(--brand); font-weight:700; }
+.dashboard-primary-action:hover { background:var(--brand-deep); color:#fff; }

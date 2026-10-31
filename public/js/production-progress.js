@@ -187,7 +187,7 @@
         if (/^[0-9]{4}$/.test(year || '') && /^(0[1-9]|1[0-2])$/.test(month || '')) {
             for (const link of doc.querySelectorAll?.('[data-report-path]') || []) {
                 const path = link.getAttribute?.('data-report-path');
-                if (['/producao', '/calculos', '/invoices'].includes(path)) {
+                if (['/relatorios/producao', '/relatorios/calculos', '/relatorios/invoices'].includes(path)) {
                     link.href = path + '?ano-mes=' + year + '-' + month;
                 }
             }

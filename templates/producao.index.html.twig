@@ -13,14 +13,14 @@
         <p class="page-lead">Confira horas e valores em reais. O peso exibido é o da última importação. Para editar o cadastro, clique no nome do cooperado e reimporte antes de conferir novamente.</p>
     </header>
     <div class="production-report-tools">
-        <form method="get" action="/producao" class="production-month-picker">
+        <form method="get" action="/relatorios/producao" class="production-month-picker">
             <label for="report-competence">Competência do trabalho</label>
             <input type="month" id="report-competence" name="ano-mes" value="{{ competencia }}" required>
             <button type="submit" class="button button-primary">Consultar</button>
         </form>
         <nav aria-label="Próximas etapas" class="production-report-nav">
-            <a href="/calculos?ano-mes={{ competencia }}">Memória de cálculo</a>
-            <a href="/invoices?ano-mes={{ competencia }}">Entradas e saídas</a>
+            <a href="/relatorios/calculos?ano-mes={{ competencia }}">Memória de cálculo</a>
+            <a href="/relatorios/invoices?ano-mes={{ competencia }}">Entradas e saídas</a>
             <a href="/acoes/make-producao?ano-mes={{ competencia }}">Voltar ao processamento</a>
         </nav>
     </div>

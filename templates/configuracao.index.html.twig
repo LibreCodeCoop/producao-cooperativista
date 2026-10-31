@@ -32,7 +32,7 @@
         <div class="settings-section-heading">
             <div>
                 <h2>Cooperados do Kimai</h2>
-                <p>Usuários do Kimai. Horas e pesos são os valores da última importação; clique em Editar para consultar o peso atual no Nextcloud sem realizar uma consulta por cooperado na listagem.</p>
+                <p>Usuários do Kimai. Horas e pesos refletem a última importação. Clique no nome do cooperado para conferir e editar os dados nas fontes de origem.</p>
             </div>
             <form action="/configuracao" method="get" class="settings-month">
                 <label for="settings-month">Competência</label>
@@ -49,7 +49,7 @@
             <span><strong id="settings-visible-count">—</strong> cooperados exibidos após filtros</span>
         </div>
         <div class="settings-filter-actions">
-            <p>Por padrão, aparecem os usuários ativos com mais horas primeiro. O peso exibido é o último importado; o valor atual é consultado no Nextcloud apenas ao editar. Após salvar, reimporte e recalcule a competência.</p>
+            <p>Por padrão, aparecem os usuários ativos com mais horas primeiro. O peso exibido é o da última importação; consulte o cadastro atualizado clicando no nome. Após salvar, reimporte e recalcule a competência.</p>
             <div>
                 <button class="settings-secondary" type="button" id="settings-clear-filters">Limpar filtros e exibir todos</button>
                 <button class="settings-secondary" type="button" id="settings-default-filters">Restaurar padrão (ativos)</button>
@@ -66,46 +66,18 @@
                         <th scope="col">Peso</th>
                         <th scope="col">Apontamentos</th>
                         <th scope="col">Situação</th>
-                        <th scope="col">Ação</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for user in users %}
                         {% set status = user.system ? 'Conta de serviço' : (user.enabled ? 'Ativo' : 'Desativado') %}
                         <tr data-member-row{% if member and member.id == user.id %} class="settings-selected"{% endif %}>
-                            <td>{{ user.alias }}</td>
+                            <td>{% if not user.system %}<a href="/configuracao/cooperado/{{ user.id }}/editar?competencia={{ month|url_encode }}" class="settings-link" data-member-editor-open data-settings-member-link>{{ user.alias }}</a>{% else %}{{ user.alias }}{% endif %}</td>
                             <td>{{ user.username }}</td>
                             <td data-order="{{ user.hours }}">{{ user.hours|number_format(2, ',', '.') }} h</td>
-                            <td class="settings-weight-cell" {% if not user.system %}data-weight-url="/configuracao/cooperado/{{ user.id }}/peso"{% endif %}>
-                                {% if not user.system %}
-                                    <div class="settings-weight-display">
-                                        <span class="settings-weight-current" data-weight-current aria-label="Peso da última importação" role="status">{{ user.imported_weight is defined and user.imported_weight is not null ? user.imported_weight|replace({'.': ','}) : 'Não importado' }}</span>
-                                        <button type="button" class="settings-weight-edit" data-weight-edit aria-label="Consultar e editar peso de {{ user.alias }}">Editar</button>
-                                    </div>
-                                    <form class="settings-inline-weight-form" data-weight-form action="/configuracao/cooperado/{{ user.id }}/nextcloud" method="post" hidden>
-                                        <input type="hidden" name="_token" value="{{ token }}">
-                                        <input type="hidden" name="field" value="weight">
-                                        <input type="hidden" name="expected" value="">
-                                        <input type="hidden" name="competencia" value="{{ month }}">
-                                        <label for="peso-inline-{{ user.id }}">Peso atual no Nextcloud</label>
-                                        <div class="settings-inline-weight-controls">
-                                            <input id="peso-inline-{{ user.id }}" name="value" type="text" inputmode="decimal" maxlength="8" autocomplete="off" required aria-describedby="peso-feedback-{{ user.id }}">
-                                            <button class="button settings-inline-weight-save" type="submit">Salvar</button>
-                                            <button class="button settings-inline-weight-cancel" type="button" data-weight-cancel>Cancelar</button>
-                                        </div>
-                                    </form>
-                                    <span class="settings-weight-message" id="peso-feedback-{{ user.id }}" data-weight-message role="status" aria-live="polite"></span>
-                                {% else %}
-                                    <span class="settings-muted">—</span>
-                                {% endif %}
-                            </td>
+                            <td data-order="{{ user.imported_weight is not null ? user.imported_weight : '' }}" title="Peso da última importação">{{ user.imported_weight is not null ? user.imported_weight|replace({'.': ','}) : 'Não importado' }}</td>
                             <td>{{ user.participates ? 'Com horas' : 'Sem horas' }}</td>
                             <td>{{ status }}</td>
-                            <td>
-                                {% if not user.system %}
-                                    <a href="/configuracao/cooperado/{{ user.id }}/editar?competencia={{ month|url_encode }}" class="settings-link" data-member-editor-open data-settings-member-link>Conferir e editar</a>
-                                {% else %}<span class="settings-muted">Não editável</span>{% endif %}
-                            </td>
                         </tr>
                     {% endfor %}
                 </tbody>
@@ -132,23 +104,21 @@
                                 <option value="all">Todos</option>
                             </select>
                         </th>
-                        <th></th>
                     </tr>
                 </tfoot>
             </table>
         </div>
     </section>
 
-    <p class="settings-editor-hint">Selecione <strong>Conferir e editar</strong> para consultar Nextcloud, Kimai e Akaunting em uma janela, sem sair da lista.</p>
+    <p class="settings-editor-hint">Clique no <strong>nome do cooperado</strong> para consultar Nextcloud, Kimai e Akaunting em uma janela, sem sair da lista.</p>
 
     <section class="settings-actions surface">
         <h2>Depois de salvar</h2>
         <p>Os dados passam a valer na origem imediatamente, mas os valores previamente importados não são alterados automaticamente. Reimporte a competência, confira CPF, peso, deduções, horas e valores no relatório e execute a apuração somente em prévia.</p>
         <div class="settings-shortcuts">
             <a href="/acoes/make-producao">Reimportar e calcular prévia</a>
-            <a href="/calculos">Revisar memória de cálculo</a>
+            <a href="/relatorios/calculos">Revisar memória de cálculo</a>
         </div>
     </section>
 <script defer src="/js/settings-panel.js"></script>
-<script defer src="/js/settings-inline-weight.js"></script>
 {% endblock %}

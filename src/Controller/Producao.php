@@ -45,7 +45,7 @@ class Producao extends AbstractController
         $this->request = $requestStack->getCurrentRequest();
     }
 
-    #[Route('/producao', methods: ['GET'])]
+    #[Route('/relatorios/producao', methods: ['GET'])]
     public function index(): Response
     {
         $requested = $this->request->query->getString('ano-mes');

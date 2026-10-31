@@ -100,7 +100,7 @@ final class AcoesHttpTest extends WebTestCase
         $client = static::createClient();
         $client->request('GET', '/acoes/make-producao?ano-mes=2026-08');
         self::assertSame(Response::HTTP_OK, $client->getResponse()->getStatusCode());
-        self::assertStringContainsString('href="/calculos?ano-mes=2026-08"', $client->getResponse()->getContent());
+        self::assertStringContainsString('href="/relatorios/calculos?ano-mes=2026-08"', $client->getResponse()->getContent());
     }
 
     public function testInvalidMonthQueryIsRejected(): void

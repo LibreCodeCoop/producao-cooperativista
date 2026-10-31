@@ -45,7 +45,7 @@ class Invoices extends AbstractController
         $this->request = $requestStack->getCurrentRequest();
     }
 
-    #[Route('/invoices', methods: ['GET'])]
+    #[Route('/relatorios/invoices', methods: ['GET'])]
     public function index(): Response
     {
         $requested = $this->request->query->getString('ano-mes');

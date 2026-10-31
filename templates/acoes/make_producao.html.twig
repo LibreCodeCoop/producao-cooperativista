@@ -16,12 +16,12 @@
     </header>
 
     <nav class="production-steps" aria-label="Etapas do fechamento">
-        <span data-step-indicator="1" aria-current="step"><b>1</b> Importar dados</span>
-        <span data-step-indicator="2"><b>2</b> Conferir e publicar</span>
+        <button type="button" data-step-indicator="1" aria-current="step"><b>1</b> Importar dados</button>
+        <button type="button" data-step-indicator="2" disabled title="Disponível após consultar os dados importados"><b>2</b> Conferir e publicar</button>
     </nav>
 
     <div class="production-wizard surface" id="production-wizard" data-preview-url="/api/v1/producao">
-        {# The financial form must NOT wrap the table: its weight editor has an independent Nextcloud form. #}
+        {# Separate the publication form from the read-only review table. #}
         <form id="form-gera-producao" data-workflow="yes" method="post" action="{{ url }}">
             <input type="hidden" name="_token" value="{{ token }}">
             <input type="hidden" name="year" value="{{ inicio_ano }}">
@@ -94,16 +94,16 @@
             <p class="production-help">Não publicar agora não redistribui valores, não transfere horas para outro mês e não cancela documentos já existentes no Akaunting.</p>
 
             <nav class="production-review-links" aria-label="Conferência complementar">
-                <a data-report-path="/calculos" href="/calculos?ano-mes={{ inicio_ano }}-{{ inicio_mes }}" target="_blank" rel="noopener">
+                <a data-report-path="/relatorios/calculos" href="/relatorios/calculos?ano-mes={{ inicio_ano }}-{{ inicio_mes }}" target="_blank" rel="noopener">
                     <strong>Memória de cálculo</strong><small>Fórmulas, rateio e bases financeiras</small>
                 </a>
-                <a data-report-path="/invoices" href="/invoices?ano-mes={{ inicio_ano }}-{{ inicio_mes }}" target="_blank" rel="noopener">
+                <a data-report-path="/relatorios/invoices" href="/relatorios/invoices?ano-mes={{ inicio_ano }}-{{ inicio_mes }}" target="_blank" rel="noopener">
                     <strong>Entradas e saídas</strong><small>Documentos e classificações de origem</small>
                 </a>
-                <a href="/categorias" target="_blank" rel="noopener">
+                <a href="/relatorios/categorias" target="_blank" rel="noopener">
                     <strong>Categorias financeiras</strong><small>Conferir lançamentos classificados</small>
                 </a>
-                <a data-report-path="/producao" href="/producao?ano-mes={{ inicio_ano }}-{{ inicio_mes }}" target="_blank" rel="noopener">
+                <a data-report-path="/relatorios/producao" href="/relatorios/producao?ano-mes={{ inicio_ano }}-{{ inicio_mes }}" target="_blank" rel="noopener">
                     <strong>Abrir relatório separado</strong><small>Mesmos dados e filtros para consulta isolada</small>
                 </a>
             </nav>
@@ -117,7 +117,6 @@
                 </label>
                 <div class="production-wizard-actions">
                     <button type="button" id="submit" class="button button-primary" disabled>Publicar documentos no Akaunting</button>
-                    <button type="button" id="back-import" class="button">Voltar à importação</button>
                 </div>
             </div>
         </section>

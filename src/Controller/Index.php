@@ -42,6 +42,15 @@ class Index extends AbstractController
     public function index(): Response
     {
         return $this->render('index.index.html.twig', [
+            'actionUrl' => $this->urlGenerator->generate('app_acoes_makeproducao'),
+            'reportsUrl' => $this->urlGenerator->generate('app_index_reports'),
+        ]);
+    }
+
+    #[Route('/relatorios', methods: ['GET'])]
+    public function reports(): Response
+    {
+        return $this->render('index.relatorios.html.twig', [
             'relatorios' => [
                 'calculos' => [
                     'url' => $this->urlGenerator->generate('app_calculos_index'),
@@ -68,14 +77,11 @@ class Index extends AbstractController
                     'label' => 'Produção',
                     'description' => 'Distribuição da produção por cooperado e competência.',
                 ],
-            ],
-            'acoes' => [
-                'executa_producao' => [
-                    'url' => $this->urlGenerator->generate('app_acoes_makeproducao'),
-                    'label' => 'Fechar produção mensal',
-                    'description' => 'Importe dados, confira os cooperados e publique após a revisão.',
+                'trabalhado' => [
+                    'url' => $this->urlGenerator->generate('app_trabalhadosummarized_index'),
+                    'label' => 'Horas por cliente',
+                    'description' => 'Apontamentos importados por cliente e competência.',
                 ],
-
             ],
         ]);
     }

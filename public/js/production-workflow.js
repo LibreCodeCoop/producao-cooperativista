@@ -71,20 +71,28 @@
         let preview = null;
         let table = null;
         let loading = false;
+        let processing = false;
         let finished = false;
         let needsImport = false;
 
         const competence = () => el('year').value + '-' + el('month').value;
+        const stepButtons = [...doc.querySelectorAll('[data-step-indicator]')];
+        const activeStep = () => Number([...wizard.querySelectorAll('[data-workflow-step]')].find(section => !section.hidden)?.dataset.workflowStep || 1);
+        const syncNavigation = () => {
+            for (const button of stepButtons) {
+                const step = Number(button.dataset.stepIndicator);
+                button.disabled = loading || processing || finished || (step === 2 && (!preview || needsImport));
+                const active = step === activeStep();
+                button.classList.toggle('is-active', active);
+                if (active) button.setAttribute('aria-current', 'step');
+                else button.removeAttribute('aria-current');
+            }
+        };
         const show = step => {
             for (const section of wizard.querySelectorAll('[data-workflow-step]')) {
                 section.hidden = Number(section.dataset.workflowStep) !== step;
             }
-            for (const indicator of doc.querySelectorAll('[data-step-indicator]')) {
-                const active = Number(indicator.dataset.stepIndicator) === step;
-                indicator.classList.toggle('is-active', active);
-                if (active) indicator.setAttribute('aria-current', 'step');
-                else indicator.removeAttribute('aria-current');
-            }
+            syncNavigation();
         };
         const setAction = (operation) => {
             form.elements.year.value = el('year').value;
@@ -97,6 +105,11 @@
                 ? [...omitted].sort((a, b) => a - b).join(',') : '';
         };
         const notice = message => progress.addMessage(messages, 'warning', message, doc);
+        const goToImport = () => {
+            if (loading || processing || finished) return;
+            invalidateApproval();
+            show(1);
+        };
         const updateLinks = () => {
             const period = competence();
             for (const link of wizard.querySelectorAll('[data-report-path]')) {
@@ -180,6 +193,7 @@
                 });
                 if (!table) throw new Error('Não foi possível montar a tabela de conferência.');
                 preview = valid;
+                syncNavigation();
                 el('review-competence').textContent = competence();
                 el('metric-members').textContent = String(valid.rows.length);
                 el('metric-hours').textContent = hours(valid.rows.reduce((sum, row) => sum + row.seconds, 0));
@@ -195,43 +209,61 @@
                 return false;
             } finally {
                 loading = false;
+                syncNavigation();
             }
         };
 
         importButton.addEventListener('click', async () => {
-            if (loading || finished || importButton.disabled) return;
+            if (loading || processing || finished || importButton.disabled) return;
+            processing = true;
             resetReview();
+            syncNavigation();
             setAction('import');
             messages.replaceChildren();
-            if (await progress.submit(form, messages, importButton, options)) {
-                needsImport = false;
-                el('use-existing').disabled = false;
-                await loadPreview();
+            try {
+                if (await progress.submit(form, messages, importButton, options)) {
+                    needsImport = false;
+                    el('use-existing').disabled = false;
+                    await loadPreview();
+                }
+            } finally {
+                processing = false;
+                syncNavigation();
             }
         });
         el('use-existing').addEventListener('click', () => {
             if (!needsImport) return loadPreview();
         });
+        for (const button of stepButtons) {
+            button.addEventListener('click', () => {
+                if (button.disabled || loading || processing || finished) return;
+                if (button.dataset.stepIndicator === '1') goToImport();
+                else if (preview && !needsImport) show(2);
+                wizard.scrollIntoView?.({block: 'start'});
+            });
+        }
         el('publication-confirmation').addEventListener('change', updateSummary);
-        el('back-import').addEventListener('click', () => {
-            if (finished) return;
-            resetReview();
-            show(1);
-        });
         publishButton.addEventListener('click', async () => {
             if (!preview || finished || loading || needsImport ||
                 !el('publication-confirmation').checked ||
                 selectedMembers(preview.rows, omitted).included.length === 0) return;
+            processing = true;
+            syncNavigation();
             setAction('publish');
             messages.replaceChildren();
-            const success = await progress.submit(form, messages, publishButton, options);
-            if (success) {
-                finished = true;
-                publishButton.textContent = 'Publicação concluída';
-                publishButton.disabled = true;
-            } else {
-                invalidateApproval();
-                notice('Verifique no Akaunting o que foi gravado antes de tentar publicar novamente.');
+            try {
+                const success = await progress.submit(form, messages, publishButton, options);
+                if (success) {
+                    finished = true;
+                    publishButton.textContent = 'Publicação concluída';
+                    publishButton.disabled = true;
+                } else {
+                    invalidateApproval();
+                    notice('Verifique no Akaunting o que foi gravado antes de tentar publicar novamente.');
+                }
+            } finally {
+                processing = false;
+                syncNavigation();
             }
         });
         for (const input of [el('month'), el('year')]) {

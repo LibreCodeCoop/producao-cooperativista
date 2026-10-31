@@ -39,7 +39,7 @@ class CapitalSocialSummarized extends AbstractController
     ) {
     }
 
-    #[Route('/capital-social-summarized', methods: ['GET'])]
+    #[Route('/relatorios/capital-social-summarized', methods: ['GET'])]
     public function index(Request $request): Response
     {
         return $this->render('capitalSocialSummarized.index.html.twig', [

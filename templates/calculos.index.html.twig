@@ -68,14 +68,14 @@
     </header>
 
     <div class="calc-toolbar">
-        <form method="get" action="/calculos" class="calc-period-form">
+        <form method="get" action="/relatorios/calculos" class="calc-period-form">
             <label for="calc-competence">Competência do trabalho</label>
             <input type="month" id="calc-competence" name="ano-mes" value="{{ competencia|default('') }}" required>
             <button type="submit">Consultar</button>
         </form>
-        <a class="calc-help-link" href="/calculos/ajuda">Entenda as regras e as referências</a>
+        <a class="calc-help-link" href="/relatorios/calculos/ajuda">Entenda as regras e as referências</a>
         <a class="calc-help-link" href="/configuracao">Corrigir dados nas fontes</a>
-        <a class="calc-help-link" href="/producao?ano-mes={{ competencia }}">Produção por cooperado</a>
+        <a class="calc-help-link" href="/relatorios/producao?ano-mes={{ competencia }}">Produção por cooperado</a>
         <a class="calc-help-link" href="/acoes/make-producao?ano-mes={{ competencia }}">Voltar ao processamento</a>
     </div>
 
@@ -133,7 +133,7 @@
                             <tr id="{{ nome }}" data-calc-row="{{ nome }}">
                                 <th scope="row" class="label_{{ nome }}" data-highlight-key="{{ nome }}" tabindex="0" title="{{ glossary[nome]|default(item.label) }}">
                                     <span>{{ item.label }}</span>
-                                    <a class="calc-definition" href="/calculos/ajuda#{{ nome }}" data-help="{{ glossary[nome]|default(item.label) }}" aria-label="Ajuda sobre {{ item.label }}: {{ glossary[nome]|default(item.label) }}">?</a>
+                                    <a class="calc-definition" href="/relatorios/calculos/ajuda#{{ nome }}" data-help="{{ glossary[nome]|default(item.label) }}" aria-label="Ajuda sobre {{ item.label }}: {{ glossary[nome]|default(item.label) }}">?</a>
                                 </th>
                                 <td class="calc-value">
                                     {% if nome in ['percentual_seguranca', 'percentual_administrativo'] %}

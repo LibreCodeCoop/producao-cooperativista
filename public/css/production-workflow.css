@@ -17,12 +17,15 @@
 .production-steps {
     display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
     width:min(100%,690px); gap:9px; margin-bottom:18px;
+    position:sticky; top:0; z-index:6; background:var(--canvas); padding:8px 0;
 }
-.production-steps > span {
+.production-steps > button {
     display:flex; align-items:center; justify-content:center; gap:10px;
     padding:13px 10px; border:1px solid var(--line); border-radius:10px;
-    background:var(--surface); color:var(--muted); font-size:13px; font-weight:700;
+    background:var(--surface); color:var(--muted); font:inherit; font-size:13px; font-weight:700;
 }
+.production-steps button:disabled { cursor: not-allowed; opacity: .6; }
+.production-steps button:not(:disabled) { cursor: pointer; }
 .production-steps b {
     display:grid; place-items:center; flex:0 0 28px; width:28px; height:28px;
     border-radius:50%; background:var(--brand-soft); color:var(--brand);
@@ -149,7 +152,7 @@
 }
 @media (max-width:520px) {
     .production-wizard-actions .button { width:100%; }
-    .production-steps > span { font-size:12px; padding:10px 5px; gap:6px; }
+    .production-steps > button { font-size:12px; padding:10px 5px; gap:6px; }
     .production-metrics > div { padding:12px; }
     .production-table-intro .button { width:100%; }
     .production-final { padding:17px; }

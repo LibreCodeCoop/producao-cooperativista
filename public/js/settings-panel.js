@@ -18,7 +18,7 @@
         const page = params.get('dtpage') || '0';
         const length = params.get('dtlength') || '10';
         const order = params.get('dtorder') || '2:desc';
-        const orderMatch = /^([0-2]|[4-5]):(asc|desc)$/.exec(order);
+        const orderMatch = /^([0-5]):(asc|desc)$/.exec(order);
 
         return {
             name: params.get('dtname') || '',
@@ -160,7 +160,6 @@
             clear?.addEventListener('click', () => reset('all'));
             defaults?.addEventListener('click', () => reset(DEFAULT_STATUS));
             api.on('draw.dt', () => updateVisibleCount(api));
-            (options.inlineWeight || scope.SettingsInlineWeight)?.initialize?.(table, api, options);
             api.on('search.dt page.dt length.dt order.dt', () => persist(api));
             restoring = false;
             updateVisibleCount(api);
@@ -186,16 +185,14 @@
             pageLength: 10,
             lengthMenu: [10, 25, 50, 100],
             order: [[2, 'desc']],
-            columnDefs: [{targets: [3, 6], orderable: false, searchable: false}],
             layout: {
                 topStart: {
-                    // Live Nextcloud weights load per visible page. Never export
-                    // partial values or hidden inline forms as if they were a full dataset.
+                    // Export the complete imported ETL snapshot, never live source values.
                     buttons: [
                         'pageLength', 'colvis',
                         ...['copy', 'csv', 'excel', 'pdf', 'print'].map(extend => ({
                             extend,
-                            exportOptions: {columns: [0, 1, 2, 4, 5]},
+                            exportOptions: {columns: [0, 1, 2, 3, 4, 5]},
                         })),
                     ],
                 },

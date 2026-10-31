@@ -70,30 +70,3 @@
  .settings-section,.settings-actions{padding:17px;}
  .settings-field-row input,.settings-field-row button{width:100%;}
 }
-
-/* Inline participation weight: live Nextcloud value with a separate ETL snapshot. */
-.settings-members .settings-weight-cell { min-width: 220px; vertical-align: top; }
-.settings-column-note { display:block; font-size:.75rem; font-weight:400; }
-.settings-weight-display { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
-.settings-weight-current { font-variant-numeric:tabular-nums; font-weight:750; }
-.settings-weight-snapshot { display:block; color:var(--muted); font-size:.75rem; margin-top:4px; }
-.settings-weight-edit { background:var(--brand-soft); color:var(--brand-deep); border:1px solid var(--line); border-radius:7px; padding:3px 8px; font:inherit; font-size:.8rem; cursor:pointer; }
-.settings-weight-edit:hover:not(:disabled) { border-color:var(--brand); }
-.settings-weight-edit:disabled { opacity:.55; cursor:not-allowed; }
-.settings-inline-weight-form { margin:9px 0 0; border-top:1px solid var(--line); padding-top:9px; }
-.settings-inline-weight-form[hidden] { display:none !important; }
-.settings-inline-weight-form label { display:block; color:var(--text); font-size:.8rem; font-weight:650; margin-bottom:5px; }
-.settings-inline-weight-controls { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-.settings-inline-weight-controls input { flex:1; min-width:90px; max-width:110px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--text); font:inherit; }
-.settings-inline-weight-controls button { font:inherit; font-size:.78rem; cursor:pointer; border-radius:6px; padding:6px 9px; }
-.settings-inline-weight-save { background:var(--brand); color:#fff; border:1px solid var(--brand); }
-.settings-inline-weight-cancel { background:var(--surface); color:var(--text); border:1px solid var(--line); }
-.settings-weight-message:not(:empty) { display:block; max-width:230px; color:var(--muted); font-size:.75rem; margin-top:6px; }
-
-/* Keep native-like neutral actions distinct from the generic form submit style. */
-.page-content .settings-inline-weight-form .settings-inline-weight-save {
-    background:var(--brand);color:#fff;border-color:var(--brand);
-}
-.page-content .settings-inline-weight-form .settings-inline-weight-cancel {
-    background:var(--surface);color:var(--text);border-color:var(--line);
-}

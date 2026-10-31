@@ -28,7 +28,7 @@ function fixture({previewError = false, malformed = false, importSuccess = true,
         'import-button','use-existing','review-competence',
         'metric-members','metric-hours','metric-base','metric-net',
         'selection-summary','publication-summary','publication-confirmation',
-        'submit','back-import','year','month']) items.set(id, element());
+        'submit','year','month']) items.set(id, element());
 
     items.get('year').value = '2026';
     items.get('month').value = '08';
@@ -50,7 +50,7 @@ function fixture({previewError = false, malformed = false, importSuccess = true,
         node.dataset.stepIndicator = String(n);
         return node;
     });
-    const links = ['/producao','/calculos','/invoices'].map(path => {
+    const links = ['/relatorios/producao','/relatorios/calculos','/relatorios/invoices'].map(path => {
         const node = element();
         node.dataset.reportPath = path;
         return node;
@@ -128,8 +128,10 @@ test('import and review are the only two stages, with a sortable shared grid', a
     const f = fixture();
     assert.equal(f.step(),1);
     assert.equal(f.indicators[0].attributes.get('aria-current'),'step');
+    assert.equal(f.indicators[1].disabled,true);
     await f.click('use-existing');
     assert.equal(f.step(),2);
+    assert.equal(f.indicators[1].disabled,false);
     assert.equal(f.calls.fetch.length,1);
     assert.equal(f.calls.mount.length,1);
     assert.equal(f.calls.mount[0].payload.data.length,2);
@@ -139,8 +141,8 @@ test('import and review are the only two stages, with a sortable shared grid', a
     assert.match(f.get('metric-net').textContent,/R\$\s?107,35/);
     assert.equal(f.get('metric-hours').textContent,'3 h');
     assert.deepEqual(f.links.map(link=>link.href),[
-        '/producao?ano-mes=2026-08','/calculos?ano-mes=2026-08',
-        '/invoices?ano-mes=2026-08',
+        '/relatorios/producao?ano-mes=2026-08','/relatorios/calculos?ano-mes=2026-08',
+        '/relatorios/invoices?ano-mes=2026-08',
     ]);
 });
 
@@ -220,6 +222,9 @@ test('editing via member modal invalidates review and requires reimporting origi
     assert.equal(f.step(),1);
     assert.equal(f.get('submit').disabled,true);
     assert.equal(f.get('use-existing').disabled,true);
+    assert.equal(f.indicators[1].disabled,true);
+    f.indicators[1].trigger('click');
+    assert.equal(f.step(),1);
     await f.click('use-existing');
     assert.equal(f.calls.fetch.length,1,'Cannot bypass reimport within this session');
     await f.click('import-button');
@@ -228,19 +233,38 @@ test('editing via member modal invalidates review and requires reimporting origi
     assert.equal(f.calls.destroy,1);
 });
 
+test('step buttons allow returning to import and review without re-fetching or retaining approval', async () => {
+    const f = fixture();
+    assert.equal(f.indicators[1].disabled, true);
+    f.indicators[1].trigger('click');
+    assert.equal(f.step(), 1);
+    await f.click('use-existing');
+    f.decide(8, true);
+    f.setConsent(true);
+    assert.equal(f.get('submit').disabled, false);
+    f.indicators[0].trigger('click');
+    assert.equal(f.step(), 1);
+    assert.equal(f.get('publication-confirmation').checked, false);
+    f.indicators[1].trigger('click');
+    assert.equal(f.step(), 2);
+    assert.deepEqual([...f.calls.mount[0].omitted], [8]);
+    assert.equal(f.calls.fetch.length, 1);
+    assert.equal(f.get('submit').disabled, true);
+});
+
 test('returning to import and reviewing again resets decisions and approval', async () => {
     const f=fixture();
     await f.click('use-existing');
     f.decide(8,true);
     f.setConsent(true);
-    await f.click('back-import');
+    f.indicators[0].trigger('click');
     assert.equal(f.step(),1);
     await f.click('use-existing');
     assert.equal(f.calls.destroy,1);
     assert.equal(f.calls.mount.at(-1).omitted.size,0);
     assert.equal(f.get('publication-confirmation').checked,false);
     assert.equal(f.get('submit').disabled,true);
-    await f.click('back-import');
+    f.indicators[0].trigger('click');
     assert.equal(f.step(),1);
     f.get('month').value='09';
     f.change('month');

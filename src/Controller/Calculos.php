@@ -49,7 +49,7 @@ class Calculos extends AbstractController
         $this->request = $requestStack->getCurrentRequest();
     }
 
-    #[Route('/calculos', methods: ['GET'])]
+    #[Route('/relatorios/calculos', methods: ['GET'])]
     public function index(): Response
     {
         $requested = $this->request->query->getString('ano-mes');
@@ -100,7 +100,7 @@ class Calculos extends AbstractController
             'erros' => $erros ?? [],
         ]);
     }
-    #[Route('/calculos/ajuda', methods: ['GET'])]
+    #[Route('/relatorios/calculos/ajuda', methods: ['GET'])]
     public function ajuda(): Response
     {
         return $this->render('calculos.ajuda.html.twig');
