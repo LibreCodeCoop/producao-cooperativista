@@ -125,7 +125,7 @@ final class SourceConfiguration extends AbstractController
     public function save(Request $request, int $id, string $source): Response
     {
         // HTTP Basic is enforced by Nginx. Only reject forged cross-site POSTs here.
-        $this->guard->assertAuthorized($request, false);
+        $this->guard->assertAuthorized($request);
         $field = $request->request->getString('field');
         $allowed = [
             'nextcloud' => ['tax_number', 'weight', 'dependents'],

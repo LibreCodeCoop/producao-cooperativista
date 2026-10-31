@@ -3,7 +3,7 @@
 {% block title %}Reconstruir dados do ETL{% endblock %}
 
 {% block body %}
-    {% set reset_available = operation_configured and staging_configured %}
+    {% set reset_available = staging_configured %}
     <nav class="breadcrumbs" aria-label="Localização">
         <a href="/">Visão geral</a>
         <span aria-hidden="true">/</span>
@@ -58,13 +58,7 @@
                 <div class="status-note status-note-warning" role="status">
                     <strong>Operação indisponível nesta instalação</strong>
                     <p>
-                        {% if not staging_configured and not operation_configured %}
-                            O banco intermediário e a senha de operação ainda não foram configurados pelo administrador.
-                        {% elseif not staging_configured %}
-                            O banco intermediário ainda não foi confirmado pelo administrador.
-                        {% else %}
-                            A senha administrativa de operação ainda não foi configurada.
-                        {% endif %}
+                        O banco intermediário ainda não foi confirmado pelo administrador.
                     </p>
                 </div>
             {% endif %}
@@ -77,15 +71,6 @@
                     <input id="confirmacao" name="confirmacao" required pattern="ZERAR"
                            minlength="5" maxlength="5" spellcheck="false" autocomplete="off"
                            aria-describedby="confirmation-help" placeholder="ZERAR"
-                           {% if not reset_available %}disabled{% endif %}>
-                </div>
-
-                <div class="form-field">
-                    <label for="action_token">Senha administrativa de operação</label>
-                    <p class="field-help" id="credential-help">Não é a senha de acesso a este site, nem uma senha do Akaunting ou do Kimai. É uma credencial separada, configurada e fornecida por quem administra a instalação.</p>
-                    <input id="action_token" type="password" name="action_token" required
-                           autocomplete="off" aria-describedby="credential-help"
-                           placeholder="Informe a senha de operação"
                            {% if not reset_available %}disabled{% endif %}>
                 </div>
 
@@ -105,8 +90,8 @@
 
             <details class="technical-details">
                 <summary>Orientações para a administração do servidor</summary>
-                <p>O administrador deve configurar <code>PRODUCAO_STAGING_DATABASE</code> com o nome exato do banco intermediário (diferente do financeiro) e definir uma senha exclusiva em <code>PRODUCAO_ACTION_TOKEN</code>.</p>
-                <p>A confirmação e a senha não substituem a validação do banco nem a proteção contra requisições indevidas feita pelo servidor.</p>
+                <p>Configure <code>PRODUCAO_STAGING_DATABASE</code> com o nome exato do banco intermediário, diferente do banco financeiro. A autenticação de acesso é feita pelo Nginx.</p>
+                <p>A confirmação textual e a proteção CSRF permanecem ativas para evitar uma limpeza involuntária.</p>
             </details>
         </section>
     </div>

@@ -51,10 +51,9 @@ class Acoes extends AbstractController
         $message = '';
         $status = Response::HTTP_OK;
         if ($request->isMethod('POST')) {
-            // The staging database is disposable, but the operation is still
-            // destructive. Production use requires a CSRF token and an
-            // independently configured operations credential.
-            $this->guard->assertAuthorized($request, true);
+            // Basic authentication is enforced at Nginx; keep CSRF and a
+            // deliberate confirmation for this destructive staging action.
+            $this->guard->assertAuthorized($request);
             if ($request->request->getString('confirmacao') !== 'ZERAR') {
                 return new Response('Confirmação inválida: escreva ZERAR.', Response::HTTP_BAD_REQUEST);
             }
@@ -82,8 +81,6 @@ class Acoes extends AbstractController
         return $this->render('acoes/zerar_banco_local.html.twig', [
             'response' => $message,
             'response_is_error' => $status >= Response::HTTP_BAD_REQUEST,
-            'operation_configured' => $this->kernel->getEnvironment() !== 'prod'
-                || trim((string) getenv('PRODUCAO_ACTION_TOKEN')) !== '',
             'staging_configured' => trim((string) getenv('PRODUCAO_STAGING_DATABASE')) !== '',
             'token' => $this->guard->token($request),
             'url' => $this->urlGenerator->generate('app_acoes_zerarbancolocal'),
@@ -93,14 +90,22 @@ class Acoes extends AbstractController
     #[Route('/acoes/make-producao', methods: ['GET'])]
     public function makeProducao(Request $request): Response
     {
-        $inicio = new \DateTimeImmutable('first day of -2 months');
+        $requested = $request->query->getString('ano-mes');
+        try {
+            $inicio = $requested === ''
+                ? new \DateTimeImmutable('first day of -2 months')
+                : Competencia::fromString($requested)->start();
+        } catch (\InvalidArgumentException $error) {
+            return new Response($error->getMessage(), Response::HTTP_BAD_REQUEST);
+        }
 
         return $this->render('acoes/make_producao.html.twig', [
             'inicio_ano' => $inicio->format('Y'),
             'inicio_mes' => $inicio->format('m'),
             'url' => $this->urlGenerator->generate('app_acoes_domakeproducao'),
             'baixar_dados' => $request->query->getBoolean('baixar_dados') ? 1 : 0,
-            'atualiza_producao' => $request->query->getBoolean('atualiza_producao') ? 1 : 0,
+            'atualiza_producao' => $request->query->getBoolean('atualiza_producao')
+                && !$request->query->getBoolean('baixar_dados') ? 1 : 0,
             'token' => $this->guard->token($request),
         ]);
     }
@@ -123,7 +128,17 @@ class Acoes extends AbstractController
             return new Response('Opção de execução inválida.', Response::HTTP_BAD_REQUEST);
         }
 
-        $this->guard->assertAuthorized($request, $download === '1' || $publish === '1');
+        $this->guard->assertAuthorized($request);
+
+        // Importation and publication must be separate operations so that
+        // the financial manager can review the reports between them.
+        if ($download === '1' && $publish === '1') {
+            return new Response(
+                'Importe e confira a prévia antes de gravar no Akaunting. '
+                . 'Desmarque a importação para publicar.',
+                Response::HTTP_BAD_REQUEST
+            );
+        }
         $runId = bin2hex(random_bytes(8));
 
         return new StreamedResponse(

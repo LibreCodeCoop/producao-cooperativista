@@ -10,76 +10,67 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
-use Symfony\Component\HttpKernel\KernelInterface;
 
 final class CalculationActionGuardTest extends TestCase
 {
-    protected function tearDown(): void
-    {
-        putenv('PRODUCAO_ACTION_TOKEN');
-    }
-
     public function testMissingCsrfFailsEvenForPreview(): void
     {
-        [$guard, $session] = $this->guardAndSession('prod');
+        [$guard, $session] = $this->guardAndSession();
         $request = Request::create('/acoes/do-make-producao', 'POST');
         $request->setSession($session);
         $this->expectException(AccessDeniedHttpException::class);
-        $guard->assertAuthorized($request, false);
+        $guard->assertAuthorized($request);
     }
 
-    public function testDryRunDoesNotRequireAdministrativeSecret(): void
+    public function testInvalidCsrfBlocksFinancialPublication(): void
     {
-        [$guard, $session] = $this->guardAndSession('prod');
-        $request = Request::create('/acoes/do-make-producao', 'POST', ['_token' => $this->token($guard, $session)]);
+        [$guard, $session] = $this->guardAndSession();
+        $request = Request::create('/acoes/do-make-producao', 'POST', ['_token' => 'forged']);
         $request->setSession($session);
-        $guard->assertAuthorized($request, false);
-        $this->addToAssertionCount(1);
-    }
-
-    public function testSettingsSaveUsesCsrfWithoutOperationPassword(): void
-    {
-        [$guard, $session] = $this->guardAndSession('prod');
-        $request = Request::create('/configuracao/cooperado/12/kimai', 'POST', [
-            '_token' => $this->token($guard, $session),
-            'field' => 'dependents',
-            'value' => '1',
-        ]);
-        $request->setSession($session);
-
-        // Source-setting writes are protected by Nginx Basic and CSRF only.
-        // The older financial publication flows retain their own separate policy.
-        $guard->assertAuthorized($request, false);
-        $this->addToAssertionCount(1);
-    }
-
-    public function testImportOrPublishingRequiresServerConfiguredSecret(): void
-    {
-        [$guard, $session] = $this->guardAndSession('prod');
-        $request = Request::create('/acoes/do-make-producao', 'POST', ['_token' => $this->token($guard, $session)]);
-        $request->setSession($session);
+        $this->token($guard, $session);
         $this->expectException(AccessDeniedHttpException::class);
-        $guard->assertAuthorized($request, true);
+        $guard->assertAuthorized($request);
     }
 
-    public function testCorrectConfiguredSecretAllowsWriting(): void
+    public function testPreviewRequiresOnlyCsrf(): void
     {
-        putenv('PRODUCAO_ACTION_TOKEN=protected-by-server');
-        [$guard, $session] = $this->guardAndSession('prod');
+        [$guard, $session] = $this->guardAndSession();
         $request = Request::create('/acoes/do-make-producao', 'POST', [
             '_token' => $this->token($guard, $session),
-            'action_token' => 'protected-by-server',
         ]);
         $request->setSession($session);
-        $guard->assertAuthorized($request, true);
+        $guard->assertAuthorized($request);
         $this->addToAssertionCount(1);
     }
 
-    private function guardAndSession(string $environment): array
+    public function testFinancialPublicationRequiresNoSecondPassword(): void
     {
-        $kernel = $this->createStub(KernelInterface::class);
-        $kernel->method('getEnvironment')->willReturn($environment);
-        return [new CalculationActionGuard($kernel), new Session(new MockArraySessionStorage())];
+        [$guard, $session] = $this->guardAndSession();
+        $request = Request::create('/acoes/do-make-producao', 'POST', [
+            '_token' => $this->token($guard, $session),
+            'atualiza_producao' => '1',
+        ]);
+        $request->setSession($session);
+        $guard->assertAuthorized($request);
+        $this->addToAssertionCount(1);
+    }
+
+    public function testSettingsSaveUsesTheSameCsrfProtection(): void
+    {
+        [$guard, $session] = $this->guardAndSession();
+        $request = Request::create('/configuracao/cooperado/12/kimai', 'POST', [
+            '_token' => $this->token($guard, $session),
+            'field' => 'tax_number',
+            'value' => '52998224725',
+        ]);
+        $request->setSession($session);
+        $guard->assertAuthorized($request);
+        $this->addToAssertionCount(1);
+    }
+
+    private function guardAndSession(): array
+    {
+        return [new CalculationActionGuard(), new Session(new MockArraySessionStorage())];
     }
 
     private function token(CalculationActionGuard $guard, Session $session): string

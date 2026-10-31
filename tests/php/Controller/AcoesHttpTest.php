@@ -54,6 +54,35 @@ final class AcoesHttpTest extends WebTestCase
         self::assertSame(Response::HTTP_FORBIDDEN, $client->getResponse()->getStatusCode());
     }
 
+    public function testImportAndFinancialPublicationCannotOccurInSameRequest(): void
+    {
+        $client = static::createClient();
+        $crawler = $client->request('GET', '/acoes/make-producao?ano-mes=2026-08');
+        self::assertSame(Response::HTTP_OK, $client->getResponse()->getStatusCode());
+        $csrf = $crawler->filter('input[name="_token"]')->attr('value');
+        $client->request('POST', '/acoes/do-make-producao', [
+            '_token' => $csrf, 'year' => '2026', 'month' => '08',
+            'baixar_dados' => '1', 'atualiza_producao' => '1',
+        ]);
+        self::assertSame(Response::HTTP_BAD_REQUEST, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('antes de gravar no Akaunting', $client->getResponse()->getContent());
+    }
+
+    public function testProcessPageRestoresPeriodFromAuditLinks(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/acoes/make-producao?ano-mes=2026-08');
+        self::assertSame(Response::HTTP_OK, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('href="/calculos?ano-mes=2026-08"', $client->getResponse()->getContent());
+    }
+
+    public function testInvalidMonthQueryIsRejected(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/acoes/make-producao?ano-mes=2026-13');
+        self::assertSame(Response::HTTP_BAD_REQUEST, $client->getResponse()->getStatusCode());
+    }
+
     public function testMalformedPeriodReturnsErrorBeforeAnyExecution(): void
     {
         $client = static::createClient();
