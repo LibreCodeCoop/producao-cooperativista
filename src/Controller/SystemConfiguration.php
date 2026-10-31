@@ -214,7 +214,7 @@ final class SystemConfiguration extends AbstractController
     private function assertAdmin(Request $request): string
     {
         $user = $request->server->getString('REMOTE_USER');
-        $allowed = array_filter(array_map('trim', explode(',', (string) getenv('CONFIG_ADMIN_USERS'))));
+        $allowed = array_filter(array_map(trim(...), explode(',', (string) getenv('CONFIG_ADMIN_USERS'))));
         if ($user === '' || !in_array($user, $allowed, true)) {
             throw new AccessDeniedHttpException('Administração de integrações não autorizada.');
         }
