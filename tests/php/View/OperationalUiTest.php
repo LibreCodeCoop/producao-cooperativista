@@ -26,16 +26,18 @@ final class OperationalUiTest extends TestCase
     public function testHomePagePrioritizesClosingAndLinksToSeparateReports(): void
     {
         $html = $this->twig()->render('index.index.html.twig', [
-            'actionUrl' => '/acoes/make-producao', 'reportsUrl' => '/relatorios',
+            'actionUrl' => '/acoes/make-producao',
         ]);
 
         self::assertStringContainsString('<html lang="pt-BR">', $html);
         self::assertStringContainsString('href="/css/app.css"', $html);
         self::assertStringContainsString('href="#main-content"', $html);
-        self::assertStringContainsString('aria-labelledby="actions-heading"', $html);
+        self::assertStringContainsString('aria-labelledby="home-closing-title"', $html);
         self::assertStringContainsString('href="/acoes/make-producao"', $html);
         self::assertStringContainsString('href="/relatorios"', $html);
-        self::assertStringContainsString('Conferir dados já importados', $html);
+        self::assertStringContainsString('Abrir fechamento', $html);
+        self::assertStringNotContainsString('closing-journey', $html);
+        self::assertStringNotContainsString('Outras atividades', $html);
         self::assertStringNotContainsString('class="reports-grid"', $html);
     }
 
@@ -43,19 +45,19 @@ final class OperationalUiTest extends TestCase
     {
         $html = $this->twig()->render('index.relatorios.html.twig', [
             'relatorios' => [
-                ['label' => 'Cálculos', 'url' => '/relatorios/calculos', 'description' => 'Bases da apuração'],
+                ['label' => 'Memória de cálculo', 'url' => '/relatorios/calculos', 'description' => 'Bases da apuração'],
             ],
         ]);
         self::assertStringContainsString('id="reports-heading"', $html);
         self::assertStringContainsString('href="/relatorios/calculos"', $html);
         self::assertStringContainsString('Bases da apuração', $html);
+        self::assertStringContainsString('Memória de cálculo', $html);
     }
 
     public function testThemeSelectorUsesSharedLayoutAndLoadsBeforePageStyles(): void
     {
         $html = $this->twig()->render('index.index.html.twig', [
-            'relatorios' => [],
-            'acoes' => [],
+            'actionUrl' => '/acoes/make-producao',
         ]);
 
         self::assertStringContainsString('<meta name="color-scheme" content="light dark">', $html);

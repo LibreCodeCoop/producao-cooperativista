@@ -1,43 +1,16 @@
 {% extends "layout/index.html.twig" %}
 {% block title %}Visão geral{% endblock %}
 {% block body %}
-    <header class="page-heading">
-        <p class="eyebrow">Painel operacional</p>
+<div class="home-main">
+    <header class="page-heading page-heading-compact">
+        <p class="eyebrow">Visão geral</p>
         <h1>Produção cooperativista</h1>
-        <p class="page-lead">Comece pelo fechamento mensal. A importação prepara os dados para conferência, sem emitir documentos financeiros.</p>
     </header>
-    <div class="dashboard-layout">
-        <section class="surface dashboard-reports" aria-labelledby="actions-heading">
-            <div class="section-heading">
-                <div>
-                    <p class="section-kicker">Comece aqui</p>
-                    <h2 id="actions-heading">Fechar produção mensal</h2>
-                </div>
-            </div>
-            <ol class="closing-journey">
-                <li><strong>Importar a competência</strong><span>Reúna horas e dados financeiros das fontes, sem publicar no Akaunting.</span></li>
-                <li><strong>Conferir a apuração</strong><span>Revise valores, horas e cooperados. Se corrigir um cadastro, importe novamente.</span></li>
-                <li><strong>Autorizar a publicação</strong><span>Após conferir, selecione exceções e confirme os documentos previstos.</span></li>
-            </ol>
-            <a class="button dashboard-primary-action" href="{{ actionUrl }}">Iniciar ou retomar fechamento mensal</a>
-            <p class="actions-footnote">Já importou os dados? Na primeira etapa, escolha <strong>Conferir dados já importados</strong>.</p>
-        </section>
-        <section class="surface dashboard-actions" aria-labelledby="consult-heading">
-            <div class="section-heading">
-                <div>
-                    <p class="section-kicker">Consultas e cadastros</p>
-                    <h2 id="consult-heading">Outras atividades</h2>
-                </div>
-            </div>
-            <p class="actions-description">Estas opções são complementares e não publicam documentos financeiros.</p>
-            <div class="actions-list">
-                <a class="action-link" href="{{ reportsUrl }}">
-                    <span class="action-link-body"><strong>Consultar relatórios</strong><small>Produção, memória de cálculo, entradas, saídas e capital social.</small></span><span class="item-arrow" aria-hidden="true">↗</span>
-                </a>
-                <a class="action-link" href="/configuracao">
-                    <span class="action-link-body"><strong>Configurar cooperados</strong><small>Conferir vínculos e editar parâmetros nas fontes responsáveis.</small></span><span class="item-arrow" aria-hidden="true">↗</span>
-                </a>
-            </div>
-        </section>
-    </div>
+    <section class="surface home-closing" aria-labelledby="home-closing-title">
+        <p class="section-kicker">Rotina mensal</p>
+        <h2 id="home-closing-title">Fechamento mensal</h2>
+        <p>Importe, confira e publique os documentos da competência.</p>
+        <a class="button dashboard-primary-action" href="{{ actionUrl }}">Abrir fechamento</a>
+    </section>
+</div>
 {% endblock %}

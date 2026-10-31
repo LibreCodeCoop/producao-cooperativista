@@ -4,7 +4,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {editorUrl, initialize} = require('../../public/js/member-editor.js');
+const {editorUrl, initialize, bindFieldControls, copyTaxNumber} = require('../../public/js/member-editor.js');
 
 function node() {
     const handlers = new Map();
@@ -47,7 +47,7 @@ function fixture({failGet=false, failPost=false, changed=true, location='https:/
                 return {
                     ok:!failPost, status:failPost?409:200,
                     text:async()=> 'Dados alterados na origem. Atualize a página.',
-                    json:async()=>({changed,message:changed?'Salvo na origem.':'Sem alteração.'}),
+                    json:async()=>({changed,value:'2',expected:'new-revision',message:changed?'Salvo na origem.':'Sem alteração.'}),
                 };
             }
             return {
@@ -110,7 +110,7 @@ test('delegated click opens only regular same-origin links and supports the clos
     assert.equal(prevented,1);
     assert.equal(f.dialog.open,true);
     assert.equal(f.calls[0].url,focus.href);
-    f.dialog.fire('click',{target:{closest:()=>({})}});
+    f.dialog.fire('click',{target:{closest:selector=>selector==='[data-member-editor-close]'?{}:null}});
     assert.equal(f.dialog.open,false);
 });
 
@@ -130,15 +130,17 @@ test('AJAX save uses the same source endpoint and notifies the production workfl
     const originalFormData=globalThis.FormData;
     globalThis.FormData=class {constructor(form){this.form=form;}};
     try {
-        const button={disabled:false};
+        const button={disabled:false}, value={value:'2',defaultValue:'1',disabled:false}, expected={value:'old'};
         const form={
             action:'https://host.test/configuracao/cooperado/10/nextcloud',
             matches:selector=>selector==='.member-editor-field',
-            querySelector:()=>button,
+            querySelector:selector=>selector.includes('submit')?button:selector.includes('expected')?expected:value,
         };
         await f.dialog.fire('submit',{target:form,preventDefault(){}});
-        assert.equal(button.disabled,false);
-        assert.equal(f.calls.length,3,'GET, POST and fresh GET');
+        assert.equal(button.disabled,true,'Unmodified saved field cannot be resubmitted');
+        assert.equal(value.defaultValue,'2');
+        assert.equal(expected.value,'new-revision');
+        assert.equal(f.calls.length,2,'Save returns only JSON; no redundant full editor reload');
         assert.equal(f.calls[1].config.method,'POST');
         assert.equal(f.calls[1].config.headers.Accept,'application/json');
         assert.equal(f.calls[1].config.redirect,'error');
@@ -183,6 +185,32 @@ test('unauthorized write destination is blocked before POST and does not change 
     await f.dialog.fire('submit',{target:form,preventDefault(){}});
     assert.match(f.feedback.textContent,/inválido/);
     assert.equal(f.calls.length,1);
+});
+
+test('field save buttons activate only after an actual edit', () => {
+    const events=new Map();
+    const input={value:'1,5',defaultValue:'1,5',addEventListener:(name,cb)=>events.set(name,cb)};
+    const button={disabled:false};
+    const form={querySelector:sel=>sel.includes('submit')?button:input};
+    bindFieldControls({querySelectorAll:()=>[form]});
+    assert.equal(button.disabled,true);
+    input.value='1,75'; events.get('input')();
+    assert.equal(button.disabled,false);
+    input.value='1,5'; events.get('input')();
+    assert.equal(button.disabled,true);
+});
+
+test('copying the Nextcloud document only fills the selected destination, without posting', () => {
+    const source={value:'reference-value'};
+    const target={value:'other-value',defaultValue:'other-value'};
+    const submit={disabled:true};
+    const root={querySelector:()=>source};
+    const form={querySelector:selector=>selector.includes('submit')?submit:target};
+    assert.equal(copyTaxNumber(root,form),true);
+    assert.equal(target.value,'reference-value');
+    assert.equal(target.defaultValue,'other-value');
+    assert.equal(submit.disabled,false);
+    assert.equal(copyTaxNumber({querySelector:()=>null},form),false);
 });
 
 test('legacy config ?cooperado deep links open an editor without eager roster queries', async () => {

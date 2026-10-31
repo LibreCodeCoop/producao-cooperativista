@@ -17,6 +17,27 @@
         }
     }
 
+    function bindFieldControls(root) {
+        for (const form of root?.querySelectorAll?.('.member-editor-field') || []) {
+            const input = form.querySelector('[name="value"]');
+            const button = form.querySelector('[type="submit"]');
+            if (!input || !button) continue;
+            const refresh = () => { button.disabled = input.value === input.defaultValue; };
+            input.addEventListener('input', refresh);
+            refresh();
+        }
+    }
+
+    function copyTaxNumber(root, targetForm) {
+        const reference = root?.querySelector?.('form[data-source="nextcloud"][data-field="tax_number"] [name="value"]');
+        const target = targetForm?.querySelector?.('[name="value"]');
+        if (!reference?.value?.trim() || !target) return false;
+        target.value = reference.value;
+        const button = targetForm.querySelector('[type="submit"]');
+        if (button) button.disabled = target.value === target.defaultValue;
+        return true;
+    }
+
     function initialize(doc = scope.document, options = {}) {
         const dialog = doc?.getElementById('member-editor-dialog');
         if (!dialog) return false;
@@ -30,6 +51,7 @@
         let activeUrl = null;
         let opener = null;
         let revision = 0;
+        bindFieldControls(doc);
 
         const close = () => {
             revision++;
@@ -60,6 +82,7 @@
                 const html = await response.text();
                 if (current !== revision) return false;
                 content.innerHTML = html;
+                bindFieldControls(content);
                 content.querySelector('input:not([type="hidden"])')?.focus?.();
                 return true;
             } catch (error) {
@@ -81,6 +104,15 @@
             }
         });
         dialog.addEventListener('click', event => {
+            const copy = event.target?.closest?.('[data-copy-tax-number]');
+            if (copy) {
+                if (copyTaxNumber(content, copy.closest('form'))) {
+                    feedback.textContent = 'CPF/CNPJ copiado. Confira e salve separadamente nesta fonte.';
+                } else {
+                    feedback.textContent = 'CPF/CNPJ do Nextcloud não está disponível para copiar.';
+                }
+                return;
+            }
             if (event.target?.closest?.('[data-member-editor-close]') || event.target === dialog) close();
         });
         dialog.addEventListener('cancel', event => {
@@ -99,7 +131,10 @@
             }
             const button = form.querySelector('[type="submit"]');
             if (button?.disabled) return;
+            const input = form.querySelector('[name="value"]');
+            const expected = form.querySelector('[name="expected"]');
             if (button) button.disabled = true;
+            if (input) input.disabled = true;
             feedback.textContent = 'Salvando na origem…';
             try {
                 const response = await request(action.href, {
@@ -112,7 +147,8 @@
                     throw new Error(message || 'A origem não confirmou a alteração.');
                 }
                 const result = await response.json();
-                if (!result || typeof result.changed !== 'boolean') {
+                if (!result || typeof result.changed !== 'boolean' ||
+                    typeof result.value !== 'string' || typeof result.expected !== 'string') {
                     throw new Error('Resposta de gravação inesperada.');
                 }
                 if (result.changed) {
@@ -123,14 +159,17 @@
                     }
                     options.onSaved?.();
                 }
-                const message = result.message || 'Operação concluída.';
-                const url = activeUrl;
-                await load(url, null, true);
-                feedback.textContent = message;
+                if (input) {
+                    input.value = result.value;
+                    input.defaultValue = result.value;
+                }
+                if (expected) expected.value = result.expected;
+                feedback.textContent = result.message || 'Operação concluída.';
             } catch (error) {
                 feedback.textContent = error.message || 'Erro ao salvar. Confira a origem.';
             } finally {
-                if (button) button.disabled = false;
+                if (input) input.disabled = false;
+                if (button) button.disabled = input ? input.value === input.defaultValue : false;
             }
         });
 
@@ -145,7 +184,7 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = {editorUrl, initialize};
+        module.exports = {editorUrl, initialize, bindFieldControls, copyTaxNumber};
     } else {
         scope.addEventListener('DOMContentLoaded', () => initialize());
     }

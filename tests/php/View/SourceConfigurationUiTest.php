@@ -27,9 +27,9 @@ final class SourceConfigurationUiTest extends TestCase
             'notifications' => [],
         ]);
 
-        self::assertStringContainsString('Painel de configuração da produção', $html);
-        self::assertStringContainsString('Cooperados do Kimai', $html);
-        self::assertStringContainsString('APIs de origem disponíveis para configuração', $html);
+        self::assertStringContainsString('<h1>Configuração</h1>', $html);
+        self::assertStringContainsString('Cooperados e vínculos', $html);
+        self::assertStringContainsString('href="/configuracao/integracoes"', $html);
         self::assertStringNotContainsString('Desbloquear administração', $html);
         self::assertStringNotContainsString('PRODUCAO_ACTION_TOKEN', $html);
         self::assertStringNotContainsString('name="action_token"', $html);
@@ -125,6 +125,12 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('action="/configuracao/cooperado/12/nextcloud"', $html);
         self::assertStringContainsString('action="/configuracao/cooperado/12/kimai"', $html);
         self::assertSame(1, substr_count($html, 'name="field" value="dependents"'));
+        self::assertStringContainsString('Como funciona o peso de participação', $html);
+        self::assertStringContainsString('até quatro casas decimais', $html);
+        self::assertStringContainsString('0,75', $html);
+        self::assertStringContainsString('data-copy-tax-number', $html);
+        self::assertSame(1, substr_count($html, 'data-copy-tax-number'));
+        self::assertStringContainsString('data-source="nextcloud" data-field="weight"', $html);
         self::assertStringContainsString('HTTP 403', $html);
         self::assertStringNotContainsString('action="/configuracao/cooperado/12/akaunting"', $html);
         self::assertStringNotContainsString('name="action_token"', $html);

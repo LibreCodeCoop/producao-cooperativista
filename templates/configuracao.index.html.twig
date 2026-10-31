@@ -10,10 +10,10 @@
     <a href="/">Visão geral</a><span>/</span><span aria-current="page">Configuração</span>
 </nav>
 <header class="page-heading">
-    <p class="eyebrow">Administração · APIs conectadas</p>
-    <h1>Painel de configuração da produção</h1>
-    <p class="page-lead">Consulte os cooperados, compare os parâmetros e corrija cada dado diretamente no sistema que o mantém. Nenhuma alteração é armazenada como substituição local no ETL.</p>
+    <h1>Configuração</h1>
+    <p class="page-lead">Consulte cadastros e vínculos entre os sistemas.</p>
 </header>
+{{ include('configuracao/_menu.html.twig', {active: 'cooperados'}) }}
 
 {% for type, messages in notifications %}
     {% for message in messages %}
@@ -21,18 +21,13 @@
     {% endfor %}
 {% endfor %}
 
-<div class="settings-topbar">
-    <div class="settings-live"><span class="settings-dot" aria-hidden="true"></span> APIs de origem disponíveis para configuração</div>
-</div>
-    <section class="settings-note" role="note">
-        <strong>Competência x cadastro global.</strong> O mês selecionado filtra os apontamentos já importados. CPF, peso e dependentes do Profile Fields e CPF de vínculo no Kimai são <strong>globais</strong> nas respectivas APIs; estas origens não têm histórico de vigência mensal no contrato atual. Após corrigir, reimporte a competência e revise a prévia antes de qualquer gravação financeira.
-    </section>
+<p class="settings-note" role="note">Alterou algum dado cadastral? <a href="/acoes/make-producao">Reimporte a competência</a> antes de conferir e publicar.</p>
 
     <section class="surface settings-section">
         <div class="settings-section-heading">
             <div>
-                <h2>Cooperados do Kimai</h2>
-                <p>Usuários do Kimai. Horas e pesos refletem a última importação. Clique no nome do cooperado para conferir e editar os dados nas fontes de origem.</p>
+                <h2>Cooperados e vínculos</h2>
+                <p>Lista baseada nas contas do Kimai. Clique no nome para conferir o cadastro nas fontes.</p>
             </div>
             <form action="/configuracao" method="get" class="settings-month">
                 <label for="settings-month">Competência</label>
@@ -49,7 +44,7 @@
             <span><strong id="settings-visible-count">—</strong> cooperados exibidos após filtros</span>
         </div>
         <div class="settings-filter-actions">
-            <p>Por padrão, aparecem os usuários ativos com mais horas primeiro. O peso exibido é o da última importação; consulte o cadastro atualizado clicando no nome. Após salvar, reimporte e recalcule a competência.</p>
+            <p>Horas e pesos são da última importação, não dos cadastros atuais.</p>
             <div>
                 <button class="settings-secondary" type="button" id="settings-clear-filters">Limpar filtros e exibir todos</button>
                 <button class="settings-secondary" type="button" id="settings-default-filters">Restaurar padrão (ativos)</button>
@@ -110,15 +105,5 @@
         </div>
     </section>
 
-    <p class="settings-editor-hint">Clique no <strong>nome do cooperado</strong> para consultar Nextcloud, Kimai e Akaunting em uma janela, sem sair da lista.</p>
-
-    <section class="settings-actions surface">
-        <h2>Depois de salvar</h2>
-        <p>Os dados passam a valer na origem imediatamente, mas os valores previamente importados não são alterados automaticamente. Reimporte a competência, confira CPF, peso, deduções, horas e valores no relatório e execute a apuração somente em prévia.</p>
-        <div class="settings-shortcuts">
-            <a href="/acoes/make-producao">Reimportar e calcular prévia</a>
-            <a href="/relatorios/calculos">Revisar memória de cálculo</a>
-        </div>
-    </section>
-<script defer src="/js/settings-panel.js"></script>
+    <script defer src="/js/settings-panel.js"></script>
 {% endblock %}

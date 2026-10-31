@@ -3,7 +3,7 @@
         <p class="section-kicker">Conciliação das três fontes · {{ month }}</p>
         <h2 id="member-editor-title">{{ member.alias }}</h2>
         <p>Kimai: <strong>{{ member.username }}</strong> · Cadastro #{{ member.id }}</p>
-        <p>Altere apenas o campo na fonte responsável. A apuração da competência precisa ser reimportada após qualquer alteração.</p>
+        <p>Edite o campo necessário e salve individualmente na fonte indicada. Após qualquer alteração, reimporte a competência.</p>
     </header>
     <div class="member-editor-sources">
         {% for source, service in services %}
@@ -19,12 +19,20 @@
                     <p class="member-editor-source-error" role="note">{{ service.error }}</p>
                 {% endif %}
                 {% for item in service.fields %}
-                    <form method="post" class="member-editor-field" action="/configuracao/cooperado/{{ member.id }}/{{ source }}">
+                    <form method="post" class="member-editor-field" data-source="{{ source }}" data-field="{{ item.field }}" action="/configuracao/cooperado/{{ member.id }}/{{ source }}">
                         <input type="hidden" name="_token" value="{{ token }}">
                         <input type="hidden" name="expected" value="{{ item.expected }}">
                         <input type="hidden" name="field" value="{{ item.field }}">
                         <input type="hidden" name="competencia" value="{{ month }}">
-                        <label for="editor-{{ member.id }}-{{ source }}-{{ item.field }}">{{ item.label }}</label>
+                        <div class="member-editor-field-label">
+                            <label for="editor-{{ member.id }}-{{ source }}-{{ item.field }}">{{ item.label }}</label>
+                            {% if source == 'nextcloud' and item.field == 'weight' %}
+                                <details class="member-editor-help">
+                                    <summary aria-label="Como funciona o peso de participação" title="Como funciona o peso de participação">?</summary>
+                                    <p>Multiplicador aplicado às horas no rateio. Aceita números inteiros ou fracionados, com vírgula ou ponto: 1, 1,5 ou 0,75. Deve ser maior que zero e no máximo 999, com até quatro casas decimais. Não use porcentagem.</p>
+                                </details>
+                            {% endif %}
+                        </div>
                         <div class="member-editor-field-controls">
                             <input id="editor-{{ member.id }}-{{ source }}-{{ item.field }}"
                                    name="value" type="{{ item.kind }}" value="{{ item.value }}"
@@ -32,6 +40,9 @@
                                    autocomplete="off" required>
                             <button type="submit" class="button button-primary">Salvar</button>
                         </div>
+                        {% if source != 'nextcloud' and item.field == 'tax_number' and services.nextcloud.configured %}
+                            <button type="button" class="member-editor-copy" data-copy-tax-number>Usar CPF/CNPJ do Nextcloud</button>
+                        {% endif %}
                     </form>
                 {% endfor %}
             </section>

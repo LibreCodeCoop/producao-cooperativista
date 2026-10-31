@@ -43,7 +43,6 @@ class Index extends AbstractController
     {
         return $this->render('index.index.html.twig', [
             'actionUrl' => $this->urlGenerator->generate('app_acoes_makeproducao'),
-            'reportsUrl' => $this->urlGenerator->generate('app_index_reports'),
         ]);
     }
 
@@ -54,7 +53,7 @@ class Index extends AbstractController
             'relatorios' => [
                 'calculos' => [
                     'url' => $this->urlGenerator->generate('app_calculos_index'),
-                    'label' => 'Cálculos',
+                    'label' => 'Memória de cálculo',
                     'description' => 'Bases, fórmulas e critérios utilizados na apuração.',
                 ],
                 'categorias' => [

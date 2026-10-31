@@ -1,7 +1,7 @@
 /* Operational cooperative configuration panel, full available width. */
-.settings-section, .settings-actions {padding:24px; margin:18px 0;}
-.settings-section h2, .settings-actions h2 {margin:0 0 12px;}
-.settings-section-heading p, .settings-source p, .settings-actions p {color:#455f69;line-height:1.55;}
+.settings-section {padding:24px; margin:18px 0;}
+.settings-section h2 {margin:0 0 12px;}
+.settings-section-heading p, .settings-source p {color:#455f69;line-height:1.55;}
 .settings-edit-field label, .settings-filter-label, .settings-month label {display:block;font-weight:650;margin-bottom:6px;color:#1d3c47;}
 .settings-field-row {display:flex;gap:9px;align-items:stretch;flex-wrap:wrap;}
 .settings-edit-field input,.settings-month input,.settings-section input[type=search] {
@@ -13,9 +13,6 @@
 .settings-primary:hover{background:#10524e;}
 .settings-secondary{background:white;color:#194a49;border:1px solid #9db9b7;}
 .settings-secondary:hover{background:#f0f8f7;}
-.settings-topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:18px 0;}
-.settings-live{font-weight:650;display:flex;gap:8px;align-items:center;}
-.settings-dot{display:inline-block;width:9px;height:9px;background:#119073;border-radius:50%;}
 .settings-note,.settings-alert{padding:13px 15px;border-radius:9px;line-height:1.5;margin:14px 0;}
 .settings-note{background:#edf5f4;border:1px solid #bad6d2;color:#193e43;}
 .settings-alert.settings-error{background:#fff1e9;border:1px solid #debb9f;color:#603a29;}
@@ -64,9 +61,21 @@
 .settings-edit-field{border-top:1px solid #dfebea;padding:14px 0;}
 .settings-field-row input{flex:1;max-width:100%;min-width:0;}
 .settings-field-row button{white-space:normal;}
-.settings-shortcuts{display:flex;flex-wrap:wrap;gap:18px;}
-.settings-shortcuts a{color:#12675f;font-weight:700;text-decoration:underline;}
 @media(max-width:760px){
- .settings-section,.settings-actions{padding:17px;}
+ .settings-section{padding:17px;}
  .settings-field-row input,.settings-field-row button{width:100%;}
 }
+
+.settings-menu { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 22px; border-bottom:1px solid var(--line); padding-bottom:10px; }
+.settings-menu a { text-decoration:none; color:var(--text); padding:9px 13px; border-radius:8px; font-weight:650; }
+.settings-menu a:hover { background:var(--brand-soft); }
+.settings-menu a[aria-current="page"] { background:var(--brand-soft); color:var(--brand-deep); }
+.settings-requirements { display:grid; gap:10px; margin:19px 0; }
+.settings-requirement { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding:14px; border:1px solid var(--line); border-radius:9px; }
+.settings-requirement h3 { font-size:15px; margin:0 0 3px; }
+.settings-requirement p { margin:0; font-size:13px; color:var(--muted); }
+.settings-config-state { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:650; }
+.settings-config-state small { color:var(--muted); font-variant-numeric:tabular-nums; }
+.settings-config-state.is-configured { color:var(--brand); }
+.settings-config-state.is-incomplete { color:var(--danger); }
+.settings-footnote { font-size:13px; color:var(--muted); margin:0; }

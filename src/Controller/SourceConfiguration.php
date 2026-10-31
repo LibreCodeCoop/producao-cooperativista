@@ -99,54 +99,6 @@ final class SourceConfiguration extends AbstractController
         }
     }
 
-    /**
-     * Read a single field lazily when its table row is visible.
-     * The endpoint never returns CPF, Nextcloud credentials or bulk profiles.
-     */
-    #[Route('/configuracao/cooperado/{id}/peso', requirements: ['id' => '\\d+'], methods: ['GET'])]
-    public function weight(int $id): JsonResponse
-    {
-        try {
-            $member = $this->sources->user($id);
-            if ($member['system']) {
-                return $this->weightResponse(['error' => 'Cooperado não encontrado ou não editável.'], Response::HTTP_NOT_FOUND);
-            }
-            $profile = $this->sources->nextcloudForMember([
-                'username' => $member['username'],
-                'preferences' => $member['preferences'],
-            ]);
-            if (!$profile['exists']) {
-                return $this->weightResponse([
-                    'error' => 'Conta Nextcloud não vinculada. Confira o perfil completo antes de editar.',
-                ], Response::HTTP_NOT_FOUND);
-            }
-
-            $current = (string) ($profile['values'][self::profileKey('weight')] ?? '');
-            return $this->weightResponse([
-                'value' => $current,
-                'expected' => self::revision($id, 'nextcloud', 'weight', $current),
-            ]);
-        } catch (\Throwable $error) {
-            $this->logger->error('Não foi possível consultar o peso no Nextcloud.', [
-                'member_id' => $id,
-                'error_class' => $error::class,
-            ]);
-            return $this->weightResponse([
-                'error' => 'Consulta ao Nextcloud indisponível. Verifique o perfil completo ou tente novamente.',
-            ], Response::HTTP_BAD_GATEWAY);
-        }
-    }
-
-    /** @param array<string, string> $data */
-    private function weightResponse(array $data, int $status = Response::HTTP_OK): JsonResponse
-    {
-        $response = new JsonResponse($data, $status);
-        $response->headers->set('Cache-Control', 'private, no-store, max-age=0');
-        $response->headers->set('Referrer-Policy', 'no-referrer');
-
-        return $response;
-    }
-
     #[Route('/configuracao/cooperado/{id}/{source}', requirements: ['id' => '\\d+', 'source' => 'nextcloud|kimai|akaunting'], methods: ['POST'])]
     public function save(Request $request, int $id, string $source): Response
     {
@@ -159,7 +111,7 @@ final class SourceConfiguration extends AbstractController
             'akaunting' => ['tax_number'],
         ];
         if (!in_array($field, $allowed[$source] ?? [], true)) {
-            return $this->saveError($request, 'Campo não autorizado.', Response::HTTP_BAD_REQUEST);
+            return $this->saveError('Campo não autorizado.', Response::HTTP_BAD_REQUEST);
         }
 
         $month = $this->month($request->request->getString('competencia'));
@@ -175,15 +127,14 @@ final class SourceConfiguration extends AbstractController
             };
             $expected = $request->request->getString('expected');
             if ($expected === '' || !hash_equals(self::revision($id, $source, $field, $old), $expected)) {
-                $message = $this->inlineWeightRequest($request, $source, $field)
-                    ? 'O peso foi alterado na origem. Reabra a edição para consultar o valor atual.'
-                    : 'Dados alterados na origem desde a abertura do formulário. Atualize a página antes de salvar.';
-
-                return $this->saveError($request, $message, Response::HTTP_CONFLICT);
+                return $this->saveError('Dados alterados na origem desde a abertura do formulário. Reabra a edição antes de salvar.', Response::HTTP_CONFLICT);
             }
 
             $value = $this->validator->validate($field, $request->request->getString('value'));
-            if ((string) $value !== $old) {
+            $changed = $field === 'weight'
+                ? (float) $value !== (float) $old
+                : (string) $value !== $old;
+            if ($changed) {
                 match ($source) {
                     'nextcloud' => $this->sources->updateNextcloud(
                         $this->resolvedNextcloudUid($member),
@@ -197,29 +148,17 @@ final class SourceConfiguration extends AbstractController
                 $this->logger->notice('Parâmetro de cooperado alterado na origem.', [
                     'source' => $source, 'field' => $field, 'member_id' => $id,
                 ]);
-                if (!$this->inlineWeightRequest($request, $source, $field)
-                    && !$request->isXmlHttpRequest()) {
+                if (!$request->isXmlHttpRequest()) {
                     $this->addNotice($request, 'success', 'Alteração confirmada na API do ' . ucfirst($source) . '. Reimporte a competência antes de recalcular.');
                 }
             } else {
-                if (!$this->inlineWeightRequest($request, $source, $field)
-                    && !$request->isXmlHttpRequest()) {
+                if (!$request->isXmlHttpRequest()) {
                     $this->addNotice($request, 'info', 'O valor informado já está salvo na origem.');
                 }
             }
 
-            if ($this->inlineWeightRequest($request, $source, $field)) {
-                // Use the source's confirmed representation, not the submitted string.
-                $fresh = $this->nextcloudValue($member, 'weight');
-
-                return $this->weightResponse([
-                    'value' => $fresh,
-                    'expected' => self::revision($id, 'nextcloud', 'weight', $fresh),
-                    'message' => 'Salvo no Nextcloud. Reimporte a competência para atualizar o ETL.',
-                ]);
-            }
         } catch (\InvalidArgumentException | \DomainException $error) {
-            return $this->saveError($request, $error->getMessage(), Response::HTTP_BAD_REQUEST);
+            return $this->saveError($error->getMessage(), Response::HTTP_BAD_REQUEST);
         } catch (\Throwable $error) {
             $this->logger->error('Falha ao editar fonte por API.', [
                 'source' => $source, 'field' => $field, 'member_id' => $id,
@@ -229,12 +168,14 @@ final class SourceConfiguration extends AbstractController
                 ? 'A API de contatos do Akaunting recusou a edição (HTTP 403). Confira a permissão '
                     . 'de atualização de contatos financeiros da conta de integração e a empresa selecionada.'
                 : 'A origem não confirmou a gravação. Confira o cadastro e tente novamente.';
-            return $this->saveError($request, $message, Response::HTTP_BAD_GATEWAY);
+            return $this->saveError($message, Response::HTTP_BAD_GATEWAY);
         }
         if ($request->isXmlHttpRequest()) {
             $response = new JsonResponse([
-                'changed' => (string) $value !== $old,
-                'message' => (string) $value !== $old
+                'changed' => $changed,
+                'value' => $changed ? (string) $value : $old,
+                'expected' => self::revision($id, $source, $field, $changed ? (string) $value : $old),
+                'message' => $changed
                     ? 'Alteração confirmada na origem. Reimporte a competência antes de publicar.'
                     : 'O valor já estava salvo na origem.',
             ]);
@@ -247,24 +188,8 @@ final class SourceConfiguration extends AbstractController
         ], Response::HTTP_SEE_OTHER);
     }
 
-    private function inlineWeightRequest(Request $request, string $source, string $field): bool
+    private function saveError(string $message, int $status): Response
     {
-        return $source === 'nextcloud'
-            && $field === 'weight'
-            && !$request->isXmlHttpRequest()
-            && str_contains((string) $request->headers->get('Accept'), 'application/json');
-    }
-
-    private function saveError(Request $request, string $message, int $status): Response
-    {
-        if ($this->inlineWeightRequest(
-            $request,
-            $request->attributes->getString('source'),
-            $request->request->getString('field'),
-        )) {
-            return $this->weightResponse(['error' => $message], $status);
-        }
-
         return new Response($message, $status);
     }
 
@@ -289,6 +214,8 @@ final class SourceConfiguration extends AbstractController
                 }
                 $services['nextcloud']['configured'] = true;
             }
+        } catch (\DomainException) {
+            $services['nextcloud']['error'] = 'Vínculo Nextcloud/Kimai não confirmado. Confira o CPF/CNPJ nas duas origens antes de reimportar.';
         } catch (\Throwable) {
             $services['nextcloud']['error'] = 'Consulta Nextcloud indisponível ou sem permissão de administração.';
         }

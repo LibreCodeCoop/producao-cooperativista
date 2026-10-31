@@ -14,6 +14,8 @@ final class SourceConfigurationValidationTest extends TestCase
         $validator = new MemberParameterValidator();
         self::assertSame('529' . '982' . '247' . '25', $validator->validate('tax_number', '529' . '982' . '247' . '25'));
         self::assertSame(2.75, $validator->validate('weight', '2,75'));
+        self::assertSame(0.0001, $validator->validate('weight', '0,0001'));
+        self::assertSame(999.0, $validator->validate('weight', '999'));
         self::assertSame(0, $validator->validate('dependents', '0'));
     }
 
@@ -33,7 +35,7 @@ final class SourceConfigurationValidationTest extends TestCase
     public function testRejectsNegativeOrExcessiveWeights(): void
     {
         $validator = new MemberParameterValidator();
-        foreach (['0', '-1', '1.00000', '1e999', '999999'] as $bad) {
+        foreach (['0', '-1', '1.00000', '1e999', '999999', '999,0001', '1,12345', '0,0000'] as $bad) {
             try {
                 $validator->validate('weight', $bad);
                 self::fail('Invalid weight was accepted.');

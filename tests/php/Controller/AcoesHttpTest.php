@@ -22,7 +22,7 @@ final class AcoesHttpTest extends WebTestCase
         $client = static::createClient();
         $client->request('GET', '/');
         self::assertSame(Response::HTTP_OK, $client->getResponse()->getStatusCode());
-        self::assertStringContainsString('Fechar produção mensal', $client->getResponse()->getContent());
+        self::assertStringContainsString('Abrir fechamento', $client->getResponse()->getContent());
         self::assertStringNotContainsString('Limpar dados importados (ETL)', $client->getResponse()->getContent());
 
         $client->request('GET', '/acoes/make-producao?ano-mes=2026-08');
