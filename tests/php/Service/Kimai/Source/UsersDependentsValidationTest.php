@@ -33,7 +33,7 @@ final class UsersDependentsValidationTest extends TestCase
             'absent' => [null],
             'negative' => [-1],
             'fractional' => [2.5],
-            'legacy string' => ['3'],
+            'numeric string' => ['3'],
         ];
     }
 

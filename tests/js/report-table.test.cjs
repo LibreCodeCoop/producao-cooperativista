@@ -6,7 +6,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
-    escapeHtml, columnTitle, nestedTableHtml, safeLinkHtml, renderCell, buildColumns,
+    escapeHtml, columnTitle, nestedTableHtml, safeLink, renderCell, buildColumns,
     stateUrl, setupFilters, apiErrorDetails, initializeReportTable,
 } = require('../../public/js/report-table.js');
 
@@ -33,7 +33,7 @@ function fixture(payload = { data: [{ id: 1, name: 'Teste', metadata: '{}' }] },
         tFoot: { rows: [footer] },
     };
     const errors = element('div');
-    const location = new URL(opts.href || 'https://librecode.test/producao?ano-mes=2026-05');
+    const location = new URL(opts.href || 'https://librecode.test/relatorios/producao?ano-mes=2026-05');
     const history = { calls: [], replaceState(_state, _title, url) {
         this.calls.push(url);
         const updated = new URL(url, location.href);
@@ -143,31 +143,29 @@ test('nested arrays support disjoint keys and invalid data does not generate HTM
     }
 });
 
-test('only the known Akaunting URL format renders as a safe external link', () => {
-    const source = '<a href="https://accounting.example.test/1/sales/invoices/8?a=1&b=2" target="_blank">invoice</a>';
-    const link = safeLinkHtml(source);
+test('Akaunting URLs render as escaped links, never server-supplied HTML', () => {
+    const source = 'https://accounting.example.test/1/sales/invoices/8?a=1&b=2';
+    const link = safeLink(source, 'invoice');
     assert.match(link, /rel="noopener noreferrer"/);
     assert.match(link, /a=1&amp;b=2/);
-    assert.equal(safeLinkHtml('<a href="javascript:alert(1)" target="_blank">bad</a>'), null);
-    assert.equal(safeLinkHtml('<a href="https://example.com" onclick="alert(1)" target="_blank">bad</a>'), null);
-    assert.equal(safeLinkHtml('<img src=x onerror=alert(1)>'), null);
+    assert.equal(renderCell(source, 'display', 'URL', {type:'invoice'}), link);
+    assert.equal(safeLink('javascript:alert(1)', 'bad'), null);
+    assert.equal(safeLink('data:text/html,malicious', 'bad'), null);
+    assert.equal(safeLink('<a href="https://example.com">bad</a>', 'bad'), null);
     assert.equal(renderCell('<img src=x>', 'display', 'URL'), '&lt;img src=x&gt;');
 });
 
-test('capital-social member links remain clickable without accepting unsafe HTML', () => {
-    const internal = '<a href="/capital-social?name=Cooperado%20A">Cooperado A</a>';
-    assert.equal(
-        renderCell(internal, 'display', 'nome'),
-        internal
-    );
-    assert.equal(
-        renderCell('<a href="javascript:alert(1)">Inseguro</a>', 'display', 'nome'),
-        '&lt;a href=&quot;javascript:alert(1)&quot;&gt;Inseguro&lt;/a&gt;'
-    );
-    assert.equal(safeLinkHtml('<a href="//evil.example/" target="_blank">Malicioso</a>', true), null);
-    assert.equal(safeLinkHtml('<a href="https://evil.example/">Externo</a>', true), null);
-    assert.equal(renderCell('<img src=x onerror=alert(1)>', 'display', 'nome'),
-        '&lt;img src=x onerror=alert(1)&gt;');
+test('capital-social names and targets are separate, untrusted data fields', () => {
+    const row = {nome:'Cooperado A',nome_url:'/relatorios/capital-social?contact_id=4'};
+    assert.equal(renderCell(row.nome,'display','nome',row),
+        '<a href="/relatorios/capital-social?contact_id=4">Cooperado A</a>');
+    assert.equal(safeLink('//evil.example/', 'Malicioso', true), null);
+    assert.equal(safeLink('https://evil.example/', 'Externo', true), null);
+    assert.equal(renderCell('<img src=x onerror=alert(1)>','display','nome',{
+        nome_url:'/relatorios/capital-social?contact_id=4',
+    }), '<a href="/relatorios/capital-social?contact_id=4">&lt;img src=x onerror=alert(1)&gt;</a>');
+    assert.equal(renderCell('Cooperado A','display','nome',{nome_url:'javascript:alert(1)'}),'Cooperado A');
+    assert.deepEqual(buildColumns([row]).map(c=>c.data),['nome']);
 });
 
 test('column creation includes keys from later rows while excluding metadata', () => {
@@ -180,7 +178,7 @@ test('column creation includes keys from later rows while excluding metadata', (
 });
 
 test('URL state replaces filters without losing the selected competence or hash', () => {
-    const current = 'https://librecode.test/producao?ano-mes=2026-05&nome=old&dtpage=4#resumo';
+    const current = 'https://librecode.test/relatorios/producao?ano-mes=2026-05&nome=old&dtpage=4#resumo';
     const updated = stateUrl(current, { nome: 'Outro & <x>', custo: '' }, 'completo', 2);
     const url = new URL(updated, current);
     assert.equal(url.searchParams.get('ano-mes'), '2026-05');
@@ -220,7 +218,7 @@ test('initialized report loads actual API data and preserves column export actio
 
 test('report restores column filters, global search and page without rewriting navigation', async () => {
     const f = fixture({ data: [{ nome: 'A', metadata: '{}' }] }, {
-        href: 'https://librecode.test/producao?ano-mes=2026-05&nome=Abc&dtsearch=Total&dtpage=3',
+        href: 'https://librecode.test/relatorios/producao?ano-mes=2026-05&nome=Abc&dtsearch=Total&dtpage=3',
     });
     const dt = await initializeReportTable(f.doc, f.options);
     assert.equal(dt.cols[0].value, 'Abc');

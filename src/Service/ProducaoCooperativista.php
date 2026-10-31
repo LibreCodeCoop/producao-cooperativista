@@ -153,7 +153,7 @@ class ProducaoCooperativista
     }
 
     /**
-     * @return array<int, array{nome: string, integralizado: int|float, devolvido: int|float, total: int|float, pendencias: int, situacao: string}>
+     * @return array<int, array{nome: string, nome_url: string, integralizado: int|float, devolvido: int|float, total: int|float, pendencias: int, situacao: string}>
      */
     public function getCapitalSocialSummarized(?string $until = null): array
     {
@@ -161,10 +161,11 @@ class ProducaoCooperativista
         foreach ($this->getCapitalSocial(null, $until) as $row) {
             $id = (int) $row['contact_id'];
             $summary[$id] ??= [
-                    'nome' => '<a href="' . $this->urlGenerator->generate('app_capitalsocial_index', [
+                    'nome' => (string) $row['name'],
+                    'nome_url' => $this->urlGenerator->generate('app_capitalsocial_index', [
                         'contact_id' => $id,
                         'ate' => $until,
-                    ]) . '">' . htmlspecialchars((string) $row['name'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</a>',
+                    ]),
                     'integralizado' => 0,
                     'devolvido' => 0,
                     'total' => 0,
@@ -459,8 +460,8 @@ class ProducaoCooperativista
      */
     public function getProducaoCooperativista(): array
     {
-        // The legacy settlement objects encode LibreCode-specific FRRA,
-        // benefits and taxes. Never apply them to another cooperative.
+        // FRRA, benefits and taxation are specific to the LibreCode settlement policy.
+        // The profile guard is mandatory before these calculations.
         $this->profiles->requireLibreCodeSettlement();
         if ($this->producaoDistribuida) {
             return $this->cooperado;

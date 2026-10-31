@@ -41,38 +41,24 @@
             '</tr></thead><tbody>' + body + '</tbody></table>';
     }
 
-    function safeLinkHtml(value, allowRelative = false) {
-        if (typeof value !== 'string') {
-            return null;
-        }
-        // Legacy APIs return anchors as data. Only accept the known shape
-        // and never reuse upstream HTML attributes or untrusted protocols.
-        const match = /^<a href="([^"]+)"( target="_blank")?>([^<]*)<\/a>$/.exec(value);
-        if (!match) {
-            return null;
-        }
-        const href = match[1];
-        const relative = allowRelative && href.startsWith('/') && !href.startsWith('//') &&
-            !/[\\\x00-\x1f]/.test(href);
-        let destination = href;
-        if (!relative) {
+    function safeLink(url, label, internal = false) {
+        if (typeof url !== 'string' || !url || typeof label !== 'string') return null;
+        let href;
+        if (internal) {
+            if (!url.startsWith('/') || url.startsWith('//') || /[\\\x00-\x1f]/.test(url)) return null;
+            href = url;
+        } else {
             try {
-                const url = new URL(href);
-                if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-                    return null;
-                }
-                destination = url.href;
+                const parsed = new URL(url);
+                if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
+                href = parsed.href;
             } catch {
                 return null;
             }
         }
-        const external = match[2] === ' target="_blank"';
-        if (allowRelative && !relative) {
-            return null;
-        }
-        return '<a href="' + escapeHtml(destination) + '"' +
-            (external ? ' target="_blank" rel="noopener noreferrer"' : '') +
-            '>' + escapeHtml(match[3]) + '</a>';
+        return '<a href="' + escapeHtml(href) + '"' +
+            (internal ? '' : ' target="_blank" rel="noopener noreferrer"') +
+            '>' + escapeHtml(label) + '</a>';
     }
 
     const MONEY_COLUMNS = new Set([
@@ -226,16 +212,14 @@
             && value !== '' && Number.isFinite(Number(value))) {
             return '<span class="money-cell">' + escapeHtml(brl.format(Number(value))) + '</span>';
         }
-        if (column === 'URL' || column === 'nome') {
-            const link = safeLinkHtml(value, column === 'nome');
-            if (link !== null) {
-                return link;
-            }
-        }
+        const link = column === 'URL'
+            ? safeLink(value, String(row?.type || 'Abrir no Akaunting'))
+            : column === 'nome' ? safeLink(row?.nome_url, String(value ?? ''), true) : null;
+        if (link !== null) return link;
         return nestedTableHtml(value) ?? escapeHtml(value);
     }
 
-    function buildColumns(rows, excluded = ['metadata'], options = {}) {
+    function buildColumns(rows, excluded = ['metadata', 'nome_url'], options = {}) {
         const keys = [...new Set(rows.flatMap(row =>
             row && typeof row === 'object' && !Array.isArray(row) ? Object.keys(row) : []
         ))];
@@ -548,7 +532,7 @@
 
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = {
-            escapeHtml, columnTitle, nestedTableHtml, safeLinkHtml, renderCell, buildColumns,
+            escapeHtml, columnTitle, nestedTableHtml, safeLink, renderCell, buildColumns,
             stateUrl, setupFilters, apiErrorDetails, initializeReportTable,
             duration, productionDetails, buildProductionColumns,
         };

@@ -117,11 +117,9 @@ class Invoices extends AbstractController
             } else {
                 $path = '/sales/invoices/';
             }
-            $row['URL'] = '<a href="' . getenv('AKAUNTING_API_BASE_URL') .
+            $row['URL'] = rtrim((string) getenv('AKAUNTING_API_BASE_URL'), '/') .
                 '/' . getenv('AKAUNTING_COMPANY_ID') .
-                $path . $row['id'] .
-                '" target="_blank">' .
-                $row['type'] . '</a>';
+                $path . $row['id'];
             return $row;
         }, $movimentacao);
         return $movimentacao;

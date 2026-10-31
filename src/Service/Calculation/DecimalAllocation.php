@@ -22,8 +22,8 @@ final class DecimalAllocation
             if (!is_finite($value)) {
                 throw new InvalidArgumentException('Valor monetário não finito.');
             }
-            // Compatibility boundary: upstream still supplies floats. Convert
-            // once to a decimal string; future import should preserve strings.
+            // The calculation accepts floats and decimal strings. Normalize
+            // floats once before applying decimal monetary operations.
             $value = sprintf('%.12F', $value);
         }
         $value = trim((string) $value);

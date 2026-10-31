@@ -91,7 +91,7 @@ test('production details reject HTML in names and tolerate missing financial det
 
 test('query string state preserves competence and restores sorting/pagination without raw HTML', () => {
     const url = stateUrl(
-        'https://host.test/producao?ano-mes=2026-08&dtorder=99:asc&dtpage=5',
+        'https://host.test/relatorios/producao?ano-mes=2026-08&dtorder=99:asc&dtpage=5',
         {name:'Pessoa A',peso:''}, 'cooperado', 2, 50, [5,'desc']
     );
     const params = new URL('https://host.test'+url).searchParams;
@@ -100,7 +100,7 @@ test('query string state preserves competence and restores sorting/pagination wi
     assert.equal(params.get('dtpage'),'2');
     assert.equal(params.get('dtlength'),'50');
     assert.equal(params.get('dtorder'),'5:desc');
-    const cleared = stateUrl('https://host.test/producao?ano-mes=2026-08&dtlength=25&dtorder=5:desc',
+    const cleared = stateUrl('https://host.test/relatorios/producao?ano-mes=2026-08&dtlength=25&dtorder=5:desc',
         {name:''}, '', 0, 10, [0,'asc']);
     assert.ok(!cleared.includes('dtlength='));
     assert.ok(!cleared.includes('dtorder='));
@@ -237,7 +237,7 @@ test('shared DataTables adapter mounts reviewed rows, excludes interactive colum
 });
 
 test('DataTables restores safe sort, length and columns from the link', async () => {
-    const f=makeGrid({location:'https://host.test/producao?ano-mes=2026-08&dtorder=5:desc&dtlength=50&name=Pessoa'});
+    const f=makeGrid({location:'https://host.test/relatorios/producao?ano-mes=2026-08&dtorder=5:desc&dtlength=50&name=Pessoa'});
     const result=await initializeReportTable(f.doc,f.options);
     assert.ok(result);
     assert.deepEqual(result.apiInstance.order(),[[5,'desc']]);
@@ -246,7 +246,7 @@ test('DataTables restores safe sort, length and columns from the link', async ()
 });
 
 test('disallowed URL ordering or corrupted source does not corrupt financial display', async () => {
-    const unsafe=makeGrid({location:'https://host.test/producao?dtorder=999:desc&dtlength=999'});
+    const unsafe=makeGrid({location:'https://host.test/relatorios/producao?dtorder=999:desc&dtlength=999'});
     const instance=await initializeReportTable(unsafe.doc,unsafe.options);
     assert.ok(instance);
     assert.deepEqual(instance.apiInstance.order(),[[0,'asc']]);

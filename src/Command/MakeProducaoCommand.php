@@ -187,8 +187,8 @@ class MakeProducaoCommand extends AbstractBaseCommand
 
         $phase = 'validação do perfil cooperativo';
         try {
-            // Fail before any external import or accounting side effect. The
-            // legacy command is strictly LibreCode-specific.
+            // Fail before any external import or accounting side effect.
+            // This settlement command is exclusive to the LibreCode profile.
             $this->profiles?->requireLibreCodeSettlement();
             $phase = 'inicialização';
             $this->executionLock?->acquire();

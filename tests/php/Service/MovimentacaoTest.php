@@ -38,7 +38,7 @@ use Tests\Php\TestCase;
 
 final class MovimentacaoTest extends TestCase
 {
-    private const int LEGACY_COOPERADO_CATEGORY_ID = 9102;
+    private const int COOPERATIVE_EXPENSE_CATEGORY_ID = 9102;
     private const int CLIENT_EXPENSE_CATEGORY_ID = 9201;
 
     private EntityManagerInterface $entityManager;
@@ -66,16 +66,16 @@ final class MovimentacaoTest extends TestCase
     {
         $this->persistClientHierarchyRoots();
         $this->persistCategory(
-            id: self::LEGACY_COOPERADO_CATEGORY_ID,
+            id: self::COOPERATIVE_EXPENSE_CATEGORY_ID,
             name: 'Cooperado > Produção > Plano de saúde',
             parentId: 11,
         );
         $this->persistBill(
             id: 1005,
-            categoryId: self::LEGACY_COOPERADO_CATEGORY_ID,
+            categoryId: self::COOPERATIVE_EXPENSE_CATEGORY_ID,
             categoryName: 'Cooperado > Produção > Plano de saúde',
             customerReference: null,
-            contactName: 'Fornecedor Legado',
+            contactName: 'Fornecedor Externo',
         );
 
         $movimentacao = $this->movimentacao->getMovimentacaoFinanceira();

@@ -146,7 +146,7 @@ final class CooperativeSourcesTest extends TestCase
         ]);
     }
 
-    public function testKimaiLegacyDependentsCannotBeUpdated(): void
+    public function testKimaiDependentsCannotBeUpdated(): void
     {
         $http = new MockHttpClient(static function (): MockResponse {
             self::fail('Dependents must never reach the Kimai API.');

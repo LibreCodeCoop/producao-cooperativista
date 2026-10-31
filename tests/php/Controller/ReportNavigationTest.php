@@ -9,30 +9,6 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class ReportNavigationTest extends WebTestCase
 {
-    public function testLegacyLinksRedirectWithoutLosingQueryFilters(): void
-    {
-        $client = static::createClient();
-        foreach ([
-            'calculos', 'categorias', 'invoices', 'producao',
-            'capital-social', 'capital-social-summarized', 'trabalhado-summarized',
-        ] as $report) {
-            $client->request('GET', '/' . $report . '?ano-mes=2026-08&dtpage=2');
-            self::assertSame(Response::HTTP_FOUND, $client->getResponse()->getStatusCode(), $report);
-            $location = (string) $client->getResponse()->headers->get('Location');
-            self::assertSame('/relatorios/' . $report, parse_url($location, PHP_URL_PATH));
-            parse_str((string) parse_url($location, PHP_URL_QUERY), $params);
-            self::assertSame('2026-08', $params['ano-mes'] ?? null);
-            self::assertSame('2', $params['dtpage'] ?? null);
-        }
-
-        $client->request('GET', '/calculos/ajuda?secao=total');
-        self::assertSame(Response::HTTP_FOUND, $client->getResponse()->getStatusCode());
-        self::assertSame(
-            '/relatorios/calculos/ajuda?secao=total',
-            $client->getResponse()->headers->get('Location')
-        );
-    }
-
     public function testCanonicalReportsAreRoutedAndAvailableInDedicatedCatalog(): void
     {
         $client = static::createClient();

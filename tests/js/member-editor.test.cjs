@@ -18,7 +18,7 @@ function node() {
     };
 }
 
-function fixture({failGet=false, failPost=false, changed=true, location='https://host.test/producao?ano-mes=2026-08'} = {}) {
+function fixture({failGet=false, failPost=false, changed=true, location='https://host.test/relatorios/producao?ano-mes=2026-08'} = {}) {
     const dialog=node();
     dialog.open=false;
     dialog.showModal=()=>{dialog.open=true;};
@@ -61,7 +61,7 @@ function fixture({failGet=false, failPost=false, changed=true, location='https:/
 }
 
 test('editor URL only accepts the same-origin, positive Kimai ID and known path', () => {
-    const base='https://host.test/producao';
+    const base='https://host.test/relatorios/producao';
     assert.equal(editorUrl('/configuracao/cooperado/10/editar?competencia=2026-08',base).pathname,
         '/configuracao/cooperado/10/editar');
     for(const value of [
@@ -215,12 +215,4 @@ test('copying the Nextcloud document only fills the selected destination, withou
     assert.equal(copyTaxNumber(root,form),false,'Only the confirmed Nextcloud value may be copied');
     assert.equal(target.value,'reference-value');
     assert.equal(copyTaxNumber({querySelector:()=>null},form),false);
-});
-
-test('legacy config ?cooperado deep links open an editor without eager roster queries', async () => {
-    const f=fixture({location:'https://host.test/configuracao?cooperado=12&competencia=2026-08'});
-    await new Promise(resolve=>setImmediate(resolve));
-    assert.equal(f.dialog.open,true);
-    assert.equal(f.calls.length,1);
-    assert.match(f.calls[0].url,/cooperado\/12\/editar\?competencia=2026-08/);
 });

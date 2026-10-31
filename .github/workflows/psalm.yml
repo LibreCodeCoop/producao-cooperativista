@@ -47,5 +47,5 @@ jobs:
       - name: Install locked dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Check static analysis against the recorded legacy baseline
+      - name: Run static analysis against the documented baseline
         run: composer run psalm

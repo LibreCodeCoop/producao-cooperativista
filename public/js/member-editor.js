@@ -174,13 +174,6 @@
             }
         });
 
-        const query = new URLSearchParams(location.search);
-        const id = query.get('cooperado');
-        if (location.pathname === '/configuracao' && /^[1-9]\d*$/.test(id || '')) {
-            const competence = query.get('competencia') || '';
-            void load('/configuracao/cooperado/' + id + '/editar?competencia=' +
-                encodeURIComponent(competence));
-        }
         return {load, close};
     }
 

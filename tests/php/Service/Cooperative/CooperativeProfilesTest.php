@@ -52,7 +52,7 @@ final class CooperativeProfilesTest extends KernelTestCase
         self::assertContains('librecode', $container->get(PublicationRouter::class)->available());
     }
 
-    public function testOtherCooperativeCanSelectKimaiOnlyAndIsProhibitedFromLegacySettlement(): void
+    public function testOtherCooperativeCanSelectKimaiOnlyAndCannotUseLibreCodeSettlement(): void
     {
         putenv('COOPERATIVE_PROFILE=hours');
         self::bootKernel();

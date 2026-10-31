@@ -120,11 +120,7 @@
         const systemChanged = () => {
             if (mode === SYSTEM) apply();
         };
-        if (typeof media?.addEventListener === 'function') {
-            media.addEventListener('change', systemChanged);
-        } else if (typeof media?.addListener === 'function') {
-            media.addListener(systemChanged);
-        }
+        media?.addEventListener?.('change', systemChanged);
 
         win.addEventListener?.('storage', (event) => {
             if (event.key === STORAGE_KEY || event.key === null) {

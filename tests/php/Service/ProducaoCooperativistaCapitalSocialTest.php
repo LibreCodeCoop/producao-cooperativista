@@ -192,12 +192,14 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
         $source = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11));
         new ReflectionClass(ProducaoCooperativista::class)->getProperty('capitalSocialSource')->setValue($service, $source);
         $router = $this->createStub(UrlGeneratorInterface::class);
-        $router->method('generate')->willReturn('/capital-social?contact_id=1');
+        $router->method('generate')->willReturn('/relatorios/capital-social?contact_id=1');
         new ReflectionClass(ProducaoCooperativista::class)->getProperty('urlGenerator')->setValue($service, $router);
         $rows = array_values($service->getCapitalSocialSummarized());
         self::assertCount(1, $rows);
         self::assertEqualsWithDelta(-300.00, $rows[0]['total'], 0.001);
         self::assertSame(1, $rows[0]['pendencias']);
+        self::assertSame('Cooperado 1', $rows[0]['nome']);
+        self::assertSame('/relatorios/capital-social?contact_id=1', $rows[0]['nome_url']);
         self::assertStringContainsString('Histórico incompleto', $rows[0]['situacao']);
     }
 

@@ -6,17 +6,16 @@
   atual de dependentes. Zero dependentes deve ser explícito; ausência
   ou valor inválido bloqueiam a importação LibreCode.
 - Kimai: identificador local, apontamentos e projetos. A preferência
-  `tax_number` permanece apenas para correspondência com Nextcloud.
-  A preferência histórica `dependents` não é lida nem editada pelo ETL.
+  `tax_number` é usada para confirmar a identidade no Nextcloud.
+  Dependentes não são importados do Kimai.
 - Akaunting: contato e documentos financeiros. O CPF/CNPJ do contato
   é cópia de conciliação, não fonte para preencher dependentes ou
   substituir automaticamente o CPF informado no Nextcloud.
 - ETL: fotografias por competência, não um cadastro mestre independente.
 
-O painel de configuração só permite editar dependentes na fonte
-Nextcloud. A importação não assume zero nem utiliza valores legados do
-Kimai como fallback. Contas com referência fiscal divergente não podem
-ser editadas pelo painel até que a correspondência seja esclarecida.
+O painel de configuração permite editar dependentes exclusivamente na fonte
+Nextcloud. A importação exige que a quantidade esteja informada explicitamente
+e bloqueia registros com referência fiscal divergente entre sistemas.
 
 ## Identificadores e credenciais
 
@@ -31,11 +30,3 @@ Não mover senhas, tokens, credenciais de serviço ou segredos para o
 `profile_fields`. Autenticação e provisionamento devem permanecer
 sob IdP/SSO ou no sistema de identidade existente; perfil de cooperado
 é dado cadastral, não cofre de senhas.
-
-## Migração do Kimai
-
-A atualização do plugin `LibreCodeCoop/CustomFieldsBundle` remove
-o campo visível de dependentes. Os registros antigos do Kimai só poderão
-ser limpos por comando explícito após conferência de cobertura no
-Nextcloud e preservação do histórico necessário. Não executar a limpeza
-no Kimai de produção como teste.

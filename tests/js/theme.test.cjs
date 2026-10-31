@@ -7,7 +7,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {STORAGE_KEY, readMode, preferredTheme, createThemeManager} = require('../../public/js/theme.js');
 
-function makeFixture({systemDark = false, stored = null, storageBlocked = false, legacyMedia = false} = {}) {
+function makeFixture({systemDark = false, stored = null, storageBlocked = false} = {}) {
     const events = new Map();
     const documentEvents = new Map();
     const mediaEvents = new Map();
@@ -70,8 +70,7 @@ function makeFixture({systemDark = false, stored = null, storageBlocked = false,
     };
     const media = {
         matches: systemDark,
-        addEventListener: legacyMedia ? undefined : (name, callback) => mediaEvents.set(name, callback),
-        addListener: legacyMedia ? callback => mediaEvents.set('change', callback) : undefined,
+        addEventListener: (name, callback) => mediaEvents.set(name, callback),
         change(matches) {
             this.matches = matches;
             mediaEvents.get('change')?.({matches});
@@ -202,12 +201,7 @@ test('blocked localStorage does not break theme switching', () => {
     assert.equal(manager.getMode(), 'system');
 });
 
-test('system changes work with older MediaQueryList.addListener interface', () => {
-    const f = makeFixture({legacyMedia: true});
-    const manager = createThemeManager(f.win);
-    f.media.change(true);
-    assert.equal(manager.getTheme(), 'dark');
-});
+
 
 test('modes are allowlisted and absent DOM is harmless', () => {
     assert.equal(readMode({getItem: () => 'something unexpected'}), 'system');

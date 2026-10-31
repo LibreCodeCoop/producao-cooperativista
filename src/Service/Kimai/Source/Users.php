@@ -107,8 +107,7 @@ class Users
     {
         $array = $this->updateFromUserPreferences($array);
         $array = $this->profileFieldsClient->enrichUser($array);
-        // A missing Nextcloud value is not zero. Never import a legacy
-        // Kimai dependent count or silently replace it with a default.
+        // Dependents must come from Nextcloud Profile Fields; missing means invalid.
         $this->validate($array);
         $array = $this->updateWithAkauntingData($array);
         $array = $this->convertFields($array);
@@ -145,7 +144,7 @@ class Users
             $item['alias'] = $item['username'];
         }
         $item['email'] = $preferences['email'] ?? null;
-        // Legacy Kimai dependent counts must not reach the imported profile.
+        // The imported user contract accepts dependents only from Nextcloud.
         unset($item['dependents']);
         if ($preferences['tax_number'] ?? '' !== '') {
             $item['tax_number'] = $preferences['tax_number'];
