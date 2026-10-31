@@ -37,6 +37,15 @@ final class UsersDependentsValidationTest extends TestCase
         ];
     }
 
+    public function testKimaiAccountWithoutTaxNumberIsSkippedBeforeRequiringProfile(): void
+    {
+        $source = new ReflectionClass(Users::class)->newInstanceWithoutConstructor();
+        $validate = new ReflectionMethod(Users::class, 'validate');
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('sem CPF');
+        $validate->invoke($source, []);
+    }
+
     public function testExplicitZeroFromNextcloudIsValid(): void
     {
         $source = new ReflectionClass(Users::class)->newInstanceWithoutConstructor();

@@ -88,8 +88,7 @@ class Users
                 $this->list[] = $user;
             } catch (InvalidArgumentException) {
             } catch (\DomainException $error) {
-                $this->logger->warning('Importação bloqueada por perfil incompleto no Nextcloud.', [
-                    'source' => 'profile_fields',
+                $this->logger->warning('Importação bloqueada por inconsistência cadastral entre fontes.', [
                     'error_class' => $error::class,
                 ]);
                 throw $error;
@@ -123,18 +122,17 @@ class Users
 
     private function validate(array $array): void
     {
+        if (empty($array['tax_number'])) {
+            // Non-cooperative Kimai users are skipped before requiring a
+            // Nextcloud profile, as they were before dependent validation.
+            throw new InvalidArgumentException('Cooperado sem CPF encontrado');
+        }
         if (!isset($array['dependents']) || !is_int($array['dependents'])
             || $array['dependents'] < 0) {
             throw new \DomainException(
                 'Dependentes ausentes ou inválidos no Nextcloud Profile Fields. '
                 . 'Informe explicitamente zero quando não houver dependentes e reimporte.'
             );
-        }
-        if (empty($array['tax_number'])) {
-            $this->logger->alert('Cooperado sem CPF: {cooperado}', [
-                'cooperado' => $array['alias'],
-            ]);
-            throw new InvalidArgumentException('Cooperado sem CPF encontrado');
         }
     }
 
@@ -160,28 +158,26 @@ class Users
         if (empty($item['tax_number'])) {
             return $item;
         }
+        $company = (int) getenv('AKAUNTING_COMPANY_ID');
+        if ($company <= 0) {
+            throw new \DomainException('Empresa do Akaunting não configurada para conciliar cooperados.');
+        }
         $qb = $this->entityManagerAkaunting->getConnection()->createQueryBuilder();
-        $qb->select('c.*')
+        $qb->select('c.id')
             ->from('contacts', 'c')
-            ->where($qb->expr()->or(
-                $qb->expr()->eq('c.tax_number', $qb->createNamedParameter($item['tax_number'])),
-                $qb->expr()->eq('c.email', $qb->createNamedParameter($item['email'])),
-            ))
+            ->where($qb->expr()->eq('c.tax_number', $qb->createNamedParameter($item['tax_number'])))
+            ->andWhere($qb->expr()->eq('c.company_id', $qb->createNamedParameter($company)))
             ->andWhere('c.deleted_at IS NULL')
             ->andWhere($qb->expr()->in('c.type', $qb->createNamedParameter(['vendor', 'employee'], ArrayParameterType::STRING)))
-            ->orderBy('c.type');
-        $result = $qb->executeQuery();
-        $row = $result->fetchAssociative();
-        if (!$row) {
-            return $item;
+            ->setMaxResults(2);
+        $matches = $qb->executeQuery()->fetchAllAssociative();
+        if (count($matches) > 1) {
+            throw new \DomainException(
+                'CPF/CNPJ vinculado a mais de um contato financeiro na empresa do Akaunting. '
+                . 'Resolva a duplicidade antes de importar.'
+            );
         }
-
-        if ($item['email'] === $row['email']
-            || ($item['tax_number'] === $row['tax_number'])
-            || ($item['kimai_username'] === $row['email'])
-        ) {
-            $item['akaunting_contact_id'] = $row['id'];
-        }
+        $item['akaunting_contact_id'] = $matches !== [] ? (int) $matches[0]['id'] : null;
         return $item;
     }
 
