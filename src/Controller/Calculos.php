@@ -26,6 +26,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Domain\Competencia;
 use App\Service\Movimentacao;
 use App\Service\ProducaoCooperativista;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -48,36 +49,39 @@ class Calculos extends AbstractController
         $this->request = $requestStack->getCurrentRequest();
     }
 
-    #[Route('/calculos', methods: ['GET'])]
+    #[Route('/relatorios/calculos', methods: ['GET'])]
     public function index(): Response
     {
-        $inicio = \DateTime::createFromFormat('Y-m', $this->request->query->getString('ano-mes'));
-        if (!$inicio instanceof \DateTime) {
-            $inicio = new \DateTime();
-            $inicio->modify('-2 month');
-            return new RedirectResponse(
-                $this->urlGenerator->generate(
-                    'app_calculos_index',
-                    [
-                        'ano-mes' => $inicio->format('Y-m')
-                    ],
-                    $this->urlGenerator::ABSOLUTE_URL
-                )
-            );
+        $requested = $this->request->query->getString('ano-mes');
+        if ($requested === '') {
+            $inicio = new \DateTime('first day of -2 months');
+            return new RedirectResponse($this->urlGenerator->generate('app_calculos_index', [
+                'ano-mes' => $inicio->format('Y-m'),
+            ]));
         }
-        $this->producao->dates->setDiaUtilPagamento(
-            $this->request->query->getInt('dia-util-pagamento', (int) getenv('DIA_UTIL_PAGAMENTO'))
-        );
-
-        $this->producao->dates->setInicio($inicio);
-
-        $diasUteis = $this->request->query->getInt('dias-uteis');
-        $this->producao->dates->setDiasUteis($diasUteis);
-
-        $this->movimentacao->setPercentualMaximo(
-            $this->request->query->getInt('percentual-maximo', (int) getenv('PERCENTUAL_MAXIMO'))
-        );
         try {
+            $inicio = Competencia::fromString($requested)->start();
+        } catch (\InvalidArgumentException $error) {
+            return new Response($error->getMessage(), Response::HTTP_BAD_REQUEST);
+        }
+        $simulation = array_any(
+            ['percentual-maximo', 'dia-util-pagamento', 'dias-uteis'],
+            fn (string $key): bool => $this->request->query->has($key),
+        );
+
+        try {
+            $this->producao->dates->setDiaUtilPagamento(
+                $this->request->query->getInt('dia-util-pagamento', (int) getenv('DIA_UTIL_PAGAMENTO'))
+            );
+
+            $this->producao->dates->setInicio($inicio);
+
+            $diasUteis = $this->request->query->getInt('dias-uteis');
+            $this->producao->dates->setDiasUteis($diasUteis);
+
+            $this->movimentacao->setPercentualMaximo(
+                $this->request->query->getInt('percentual-maximo', (int) getenv('PERCENTUAL_MAXIMO'))
+            );
             $data = $this->producao->exportData();
         } catch (\Throwable $th) {
             $erros = [$th->getMessage()];
@@ -91,7 +95,15 @@ class Calculos extends AbstractController
                 ],
             ),
             'data' => $data ?? [],
+            'competencia' => $inicio->format('Y-m'),
+            'simulation' => $simulation,
             'erros' => $erros ?? [],
         ]);
     }
+    #[Route('/relatorios/calculos/ajuda', methods: ['GET'])]
+    public function ajuda(): Response
+    {
+        return $this->render('calculos.ajuda.html.twig');
+    }
+
 }

@@ -1,0 +1,30 @@
+{% extends "layout/index.html.twig" %}
+{% block title %}Integrações e regras{% endblock %}
+{% block head %}<link rel="stylesheet" href="/css/settings-panel.css">{% endblock %}
+{% block body %}
+<nav class="breadcrumbs" aria-label="Localização"><a href="/">Visão geral</a><span>/</span><a href="/configuracao">Configuração</a><span>/</span><span aria-current="page">Integrações e regras</span></nav>
+<header class="page-heading page-heading-compact">
+    <h1>Configuração</h1>
+    <p class="page-lead">Integrações e parâmetros utilizados na apuração.</p>
+</header>
+{{ include('configuracao/_menu.html.twig', {active: 'integracoes'}) }}
+<section class="surface settings-section">
+    <h2>Integrações e regras</h2>
+    <p>Verificação dos parâmetros exigidos pela aplicação. A presença de configuração não confirma que uma API esteja acessível.</p>
+    <div class="settings-requirements">
+        {% for requirement in requirements %}
+            <article class="settings-requirement">
+                <div>
+                    <h3>{{ requirement.title }}</h3>
+                    <p>{{ requirement.purpose }}</p>
+                </div>
+                <span class="settings-config-state{{ requirement.configured ? ' is-configured' : ' is-incomplete' }}">
+                    {{ requirement.configured ? 'Parâmetros informados' : 'Configuração incompleta' }}
+                    <small>{{ requirement.configuredCount }}/{{ requirement.totalCount }}</small>
+                </span>
+            </article>
+        {% endfor %}
+    </div>
+    <p class="settings-footnote">Credenciais, URLs e identificadores não são exibidos. As integrações e regras operacionais continuam sendo administradas no ambiente de implantação; não é seguro alterá-las durante um fechamento.</p>
+</section>
+{% endblock %}

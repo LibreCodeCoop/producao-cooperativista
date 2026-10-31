@@ -31,13 +31,19 @@ use App\Entity\Producao\Timesheet;
 use App\Provider\Kimai;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use App\Service\Import\BatchPersistence;
+use App\Service\Import\ExistingEntityIndex;
+use App\Service\Import\MonthSnapshotReconciler;
 
 class Timesheets
 {
     use Kimai;
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private ExistingEntityIndex $entityIndex,
+        private BatchPersistence $batchPersistence,
+        private MonthSnapshotReconciler $snapshotReconciler,
     ) {
     }
 
@@ -45,15 +51,16 @@ class Timesheets
     {
         $this->logger->info('Baixando dados de timesheets');
         $list = $this->getFromApi($data);
-        $this->saveList($list);
-        $this->logger->info('Dados de timesheet salvos com sucesso. Total: {total}', [
+        $removed = $this->syncMonth($data, $list);
+        $this->logger->info('Apontamentos da competência sincronizados: {total} atuais, {removed} removidos do ETL.', [
             'total' => count($list),
+            'removed' => $removed,
         ]);
     }
 
     public function getFromApi(DateTime $date, $user = 'all', $exported = 'all'): array
     {
-        $begin = $date
+        $begin = (clone $date)
             ->modify('first day of this month')
             ->setTime(00, 00, 00);
         $end = clone $begin;
@@ -75,12 +82,36 @@ class Timesheets
         return $list;
     }
 
+    /**
+     * Use this only after obtaining a complete, unfiltered snapshot of the month.
+     * Both upserts and deletion of disappeared Kimai entries use one transaction.
+     *
+     * @param list<array<string, mixed>> $list
+     */
+    public function syncMonth(DateTime $month, array $list): int
+    {
+        return $this->entityManager->getConnection()->transactional(function () use ($month, $list): int {
+            $this->saveList($list);
+            $removed = $this->snapshotReconciler->removeMissingTimesheets(
+                $this->entityManager,
+                $month,
+                array_column($list, 'id')
+            );
+            return $removed;
+        });
+    }
+
     public function saveList(array $list): void
     {
+        $existing = $this->entityIndex->byId(
+            $this->entityManager,
+            Timesheet::class,
+            array_column($list, 'id')
+        );
+        $entities = [];
         foreach ($list as $row) {
-            $timesheet = $this->entityManager->getRepository(Timesheet::class)->find($row['id']);
-            if (!$timesheet instanceof Timesheet) {
-                $timesheet = new Timesheet();
+            $timesheet = $existing[$row['id']] ?? new Timesheet();
+            if (!isset($existing[$row['id']])) {
                 $timesheet->setId($row['id']);
             }
             $timesheet
@@ -95,9 +126,9 @@ class Timesheets
                 ->setInternalRate($row['internalRate'])
                 ->setExported($row['exported'])
                 ->setBillable($row['billable']);
-            $this->entityManager->persist($timesheet);
-            $this->entityManager->flush();
+            $entities[] = $timesheet;
         }
+        $this->batchPersistence->save($this->entityManager, $entities);
     }
 
     private function convertDate($date): ?DateTime

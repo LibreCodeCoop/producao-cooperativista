@@ -34,6 +34,7 @@ use App\Service\Nextcloud\ProfileFieldsClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
+use App\Service\Import\BatchPersistence;
 
 class Users
 {
@@ -53,6 +54,7 @@ class Users
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
         private ProfileFieldsClient $profileFieldsClient,
+        private BatchPersistence $batchPersistence,
     ) {
         $this->entityManagerAkaunting = $managerRegistry->getManager('akaunting');
     }
@@ -85,11 +87,16 @@ class Users
                 $user = $this->fromArray($row);
                 $this->list[] = $user;
             } catch (InvalidArgumentException) {
-            } catch (\Throwable $th) {
-                $this->logger->alert('Falha ao salvar dados de usuário', [
-                    'message' => $th->getMessage(),
-                    'data' => $row,
+            } catch (\DomainException $error) {
+                $this->logger->warning('Importação bloqueada por inconsistência cadastral entre fontes.', [
+                    'error_class' => $error::class,
                 ]);
+                throw $error;
+            } catch (\Throwable $error) {
+                $this->logger->error('Falha ao importar perfil do cooperado.', [
+                    'error_class' => $error::class,
+                ]);
+                throw $error;
             }
         }
         $this->logger->debug('Dados baixados: {json}', ['json' => json_encode($list)]);
@@ -100,13 +107,14 @@ class Users
     {
         $array = $this->updateFromUserPreferences($array);
         $array = $this->profileFieldsClient->enrichUser($array);
+        // Dependents must come from Nextcloud Profile Fields; missing means invalid.
+        $this->validate($array);
         $array = $this->updateWithAkauntingData($array);
         $array = $this->convertFields($array);
         $entity = $this->entityManager->find(User::class, $array['id']);
         if (!$entity instanceof User) {
             $entity = new User();
         }
-        $this->validate($array);
         $entity->fromArray($array);
         return $entity;
     }
@@ -114,10 +122,16 @@ class Users
     private function validate(array $array): void
     {
         if (empty($array['tax_number'])) {
-            $this->logger->alert('Cooperado sem CPF: {cooperado}', [
-                'cooperado' => $array['alias'],
-            ]);
+            // Non-cooperative Kimai users are skipped before requiring a
+            // Nextcloud profile, as they were before dependent validation.
             throw new InvalidArgumentException('Cooperado sem CPF encontrado');
+        }
+        if (!isset($array['dependents']) || !is_int($array['dependents'])
+            || $array['dependents'] < 0) {
+            throw new \DomainException(
+                'Dependentes ausentes ou inválidos no Nextcloud Profile Fields. '
+                . 'Informe explicitamente zero quando não houver dependentes e reimporte.'
+            );
         }
     }
 
@@ -130,10 +144,11 @@ class Users
             $item['alias'] = $item['username'];
         }
         $item['email'] = $preferences['email'] ?? null;
+        // The imported user contract accepts dependents only from Nextcloud.
+        unset($item['dependents']);
         if ($preferences['tax_number'] ?? '' !== '') {
             $item['tax_number'] = $preferences['tax_number'];
         }
-        $item['dependents'] = 0;
         return $item;
     }
 
@@ -142,37 +157,33 @@ class Users
         if (empty($item['tax_number'])) {
             return $item;
         }
+        $company = (int) getenv('AKAUNTING_COMPANY_ID');
+        if ($company <= 0) {
+            throw new \DomainException('Empresa do Akaunting não configurada para conciliar cooperados.');
+        }
         $qb = $this->entityManagerAkaunting->getConnection()->createQueryBuilder();
-        $qb->select('c.*')
+        $qb->select('c.id')
             ->from('contacts', 'c')
-            ->where($qb->expr()->or(
-                $qb->expr()->eq('c.tax_number', $qb->createNamedParameter($item['tax_number'])),
-                $qb->expr()->eq('c.email', $qb->createNamedParameter($item['email'])),
-            ))
+            ->where($qb->expr()->eq('c.tax_number', $qb->createNamedParameter($item['tax_number'])))
+            ->andWhere($qb->expr()->eq('c.company_id', $qb->createNamedParameter($company)))
             ->andWhere('c.deleted_at IS NULL')
             ->andWhere($qb->expr()->in('c.type', $qb->createNamedParameter(['vendor', 'employee'], ArrayParameterType::STRING)))
-            ->orderBy('c.type');
-        $result = $qb->executeQuery();
-        $row = $result->fetchAssociative();
-        if (!$row) {
-            return $item;
+            ->setMaxResults(2);
+        $matches = $qb->executeQuery()->fetchAllAssociative();
+        if (count($matches) > 1) {
+            throw new \DomainException(
+                'CPF/CNPJ vinculado a mais de um contato financeiro na empresa do Akaunting. '
+                . 'Resolva a duplicidade antes de importar.'
+            );
         }
-
-        if ($item['email'] === $row['email']
-            || ($item['tax_number'] === $row['tax_number'])
-            || ($item['kimai_username'] === $row['email'])
-        ) {
-            $item['akaunting_contact_id'] = $row['id'];
-        }
+        $item['akaunting_contact_id'] = $matches !== [] ? (int) $matches[0]['id'] : null;
         return $item;
     }
 
     public function saveList(): self
     {
         $this->getList();
-        foreach ($this->list as $row) {
-            $this->saveRow($row);
-        }
+        $this->batchPersistence->save($this->entityManager, $this->list);
         return $this;
     }
 
@@ -186,7 +197,7 @@ class Users
 
     private function convertFields(array $row): array
     {
-        $row['akaunting_contact_id'] = $row['akaunting_contact_id'] ?? null;
+        $row['akaunting_contact_id'] ??= null;
         $row['metadata'] = $row;
         return $row;
     }

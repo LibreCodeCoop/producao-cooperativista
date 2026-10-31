@@ -26,8 +26,8 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
+use App\Domain\Competencia;
 use App\Service\Movimentacao;
-use DateTime;
 use App\Service\ProducaoCooperativista;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -35,6 +35,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Service\Calculation\ApiProblemResponder;
 
 class Calculos extends AbstractController
 {
@@ -43,6 +44,7 @@ class Calculos extends AbstractController
         RequestStack $requestStack,
         private ProducaoCooperativista $producao,
         private Movimentacao $movimentacao,
+        private ApiProblemResponder $apiErrors,
     ) {
         $this->request = $requestStack->getCurrentRequest();
     }
@@ -55,10 +57,7 @@ class Calculos extends AbstractController
                 $this->request->query->getInt('dia-util-pagamento', (int) getenv('DIA_UTIL_PAGAMENTO'))
             );
 
-            $inicio = DateTime::createFromFormat('Y-m', $this->request->query->getString('ano-mes'));
-            if (!$inicio instanceof DateTime) {
-                throw new \Exception('ano-mes precisa estar no formato YYYY-MM');
-            }
+            $inicio = Competencia::fromString($this->request->query->getString('ano-mes'))->start();
             $this->producao->dates->setInicio($inicio);
 
             $diasUteis = $this->request->query->getInt('dias-uteis');
@@ -73,10 +72,7 @@ class Calculos extends AbstractController
             $response = $this->producao->exportData();
             return new JsonResponse($response);
         } catch (\Throwable $e) {
-            return new Response(
-                $e->getMessage(),
-                Response::HTTP_FORBIDDEN
-            );
+            return $this->apiErrors->fromThrowable($e, 'Calculos');
         }
     }
 }

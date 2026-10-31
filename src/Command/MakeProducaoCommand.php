@@ -27,6 +27,11 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Service\Movimentacao;
+use App\Helper\ArrayValue;
+use App\Service\Calculation\CalculationExecutionLock;
+use App\Service\Calculation\ProductionPublicationSelection;
+use App\Service\Cooperative\ProfileRegistry;
+use App\Domain\Competencia;
 use DateTime;
 use App\Service\ProducaoCooperativista;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -34,6 +39,8 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Formatter\OutputFormatter;
+use Psr\Log\LoggerInterface;
 
 #[AsCommand(
     name: 'make:producao',
@@ -44,6 +51,10 @@ class MakeProducaoCommand extends AbstractBaseCommand
     public function __construct(
         private ProducaoCooperativista $producaoCooperativista,
         private Movimentacao $movimentacao,
+        private LoggerInterface $logger,
+        private ?CalculationExecutionLock $executionLock = null,
+        private ?ProfileRegistry $profiles = null,
+        private ?ProductionPublicationSelection $publicationSelection = null,
     ) {
         parent::__construct();
     }
@@ -92,10 +103,28 @@ class MakeProducaoCommand extends AbstractBaseCommand
                 'Atualiza a produção cooperativista no Akaunting'
             )
             ->addOption(
-                'ods',
+                'import-only',
                 null,
                 InputOption::VALUE_NONE,
-                'To output as ods'
+                'Apenas importar as fontes, sem calcular ou publicar'
+            )
+            ->addOption(
+                'expected-revision',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Identificador da prévia financeira conferida para publicação'
+            )
+            ->addOption(
+                'omit-member-ids',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'IDs do Kimai cujos documentos individuais não serão publicados agora'
+            )
+            ->addOption(
+                'as-of',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Data de referência para prévia histórica, no formato YYYY-MM-DD; não permite publicação'
             );
     }
 
@@ -105,38 +134,137 @@ class MakeProducaoCommand extends AbstractBaseCommand
             $output->writeln('<error>--ano-mes é obrigatório</error>');
             return Command::INVALID;
         }
+        $baixarDados = (string) $input->getOption('baixar-dados');
+        if (!in_array($baixarDados, ['0', '1'], true)) {
+            $output->writeln('<error>--baixar-dados aceita apenas 0 ou 1.</error>');
+            return Command::INVALID;
+        }
+        if ($input->getOption('import-only')
+            && ($baixarDados !== '1' || $input->getOption('atualiza-producao') || $input->getOption('csv'))) {
+            $output->writeln('<error>--import-only exige --baixar-dados=1, sem publicação ou exportação.</error>');
+            return Command::INVALID;
+        }
+        $excluded = trim((string) ($input->getOption('omit-member-ids') ?? ''));
+        if ($excluded !== '' && (strlen($excluded) > 2048
+            || preg_match('/^[1-9][0-9]*(?:,[1-9][0-9]*)*$/D', $excluded) !== 1)) {
+            $output->writeln('<error>IDs de cooperados inválidos.</error>');
+            return Command::INVALID;
+        }
+        if ($excluded !== '' && !$input->getOption('atualiza-producao')) {
+            $output->writeln('<error>A exclusão só pode ser usada na publicação.</error>');
+            return Command::INVALID;
+        }
+        if ($excluded !== '' && !$input->getOption('expected-revision')) {
+            $output->writeln('<error>Seleção sem a revisão da prévia financeira.</error>');
+            return Command::INVALID;
+        }
+        if ($input->getOption('database')) {
+            $output->writeln('<error>--database não é suportado por make:producao. Use --csv para uma prévia ou --atualiza-producao para publicar.</error>');
+            return Command::INVALID;
+        }
         $diasUteis = (int) $input->getOption('dias-uteis');
         $percentualMaximo = (int) $input->getOption('percentual-maximo');
         $diaUtilPagamento = (int) $input->getOption('dia-util-pagamento');
-        $inicio = DateTime::createFromFormat('Y-m', $input->getOption('ano-mes'));
-        if (!$inicio instanceof DateTime) {
+        try {
+            $inicio = Competencia::fromString((string) $input->getOption('ano-mes'))->start();
+        } catch (\InvalidArgumentException) {
             $output->writeln('<error>--ano-mes precisa estar no formato YYYY-MM</error>');
             return Command::INVALID;
         }
-        if ((bool) $input->getOption('baixar-dados')) {
-            $this->producaoCooperativista->loadFromExternalSources($inicio);
+        $asOf = $input->getOption('as-of');
+        if (is_string($asOf) && $asOf !== '') {
+            if ($input->getOption('atualiza-producao')) {
+                $output->writeln('<error>--as-of é exclusivo para prévias. Não é permitido emitir documentos com datas históricas simuladas.</error>');
+                return Command::INVALID;
+            }
+            $referenceDate = DateTime::createFromFormat('!Y-m-d', $asOf);
+            if (!$referenceDate instanceof DateTime || $referenceDate->format('Y-m-d') !== $asOf) {
+                $output->writeln('<error>--as-of deve estar no formato YYYY-MM-DD, com dia válido.</error>');
+                return Command::INVALID;
+            }
+            $this->producaoCooperativista->dates->setEvaluationTime($referenceDate);
         }
-        $this->producaoCooperativista->dates->setDiaUtilPagamento($diaUtilPagamento);
-        $this->producaoCooperativista->dates->setInicio($inicio);
-        $this->producaoCooperativista->dates->setDiasUteis($diasUteis);
-        $this->movimentacao->setPercentualMaximo($percentualMaximo);
 
+        $phase = 'validação do perfil cooperativo';
         try {
+            // Fail before any external import or accounting side effect.
+            // This settlement command is exclusive to the LibreCode profile.
+            $this->profiles?->requireLibreCodeSettlement();
+            $phase = 'inicialização';
+            $this->executionLock?->acquire();
+            $phase = 'importação dos dados';
+            if ($baixarDados === '1') {
+                $this->reportPhase('Importando dados das integrações.');
+                $this->producaoCooperativista->loadFromExternalSources($inicio);
+            }
+            if ($input->getOption('import-only')) {
+                $this->reportPhase('Importação concluída. Confira os relatórios antes de publicar.');
+                return Command::SUCCESS;
+            }
+            $phase = 'configuração do cálculo';
+            $this->reportPhase('Validando parâmetros econômicos.');
+            $this->producaoCooperativista->dates->setDiaUtilPagamento($diaUtilPagamento);
+            $this->producaoCooperativista->dates->setInicio($inicio);
+            $this->producaoCooperativista->dates->setDiasUteis($diasUteis);
+            $this->movimentacao->setPercentualMaximo($percentualMaximo);
+
+            $phase = 'cálculo da produção';
+            $this->reportPhase('Calculando produção elegível, horas e pesos.');
             $this->producaoCooperativista->getProducaoCooperativista();
-        } catch (\Throwable $th) {
-            $output->writeln('<error>' . $th->getMessage() . '</error>');
-            return Command::INVALID;
-        }
 
-        if ($input->getOption('atualiza-producao')) {
-            $this->producaoCooperativista->updateProducao();
-        }
+            if ($input->getOption('atualiza-producao')) {
+                $phase = 'validação da seleção de cooperados';
+                $revision = trim((string) ($input->getOption('expected-revision') ?? ''));
+                $included = null;
+                if ($revision !== '') {
+                    if ($this->publicationSelection === null) {
+                        throw new \RuntimeException('Serviço de conferência financeira indisponível.');
+                    }
+                    $members = $this->producaoCooperativista->getProducaoCooperativista();
+                    $excludedIds = $excluded !== '' ? array_map(intval(...), explode(',', $excluded)) : [];
+                    $included = $this->publicationSelection->included(
+                        $members,
+                        $inicio->format('Y-m'),
+                        $revision,
+                        $excludedIds,
+                    );
+                }
+                $phase = 'gravação dos documentos no Akaunting';
+                $this->reportPhase('Gravando documentos no Akaunting.');
+                $this->producaoCooperativista->updateProducao($included);
+            }
 
-        if ($input->getOption('csv')) {
-            $output->writeLn(
-                $this->producaoCooperativista->exportToCsv()
-            );
+            if ($input->getOption('csv')) {
+                $phase = 'exportação do relatório';
+                $this->reportPhase('Preparando relatório de produção.');
+                $output->writeln($this->producaoCooperativista->exportToCsv());
+            }
+            return Command::SUCCESS;
+        } catch (\Throwable $error) {
+            $this->logger->error('Falha na produção de {competencia}, etapa {etapa}: {motivo}', [
+                'competencia' => $inicio->format('Y-m'),
+                'etapa' => $phase,
+                'motivo' => $error->getMessage(),
+                'exception' => $error,
+            ]);
+            $output->writeln(sprintf(
+                '<error>Falha na etapa "%s": %s</error>',
+                OutputFormatter::escape($phase),
+                OutputFormatter::escape($error->getMessage())
+            ));
+            return Command::FAILURE;
+        } finally {
+            $this->executionLock?->release();
         }
-        return Command::SUCCESS;
+    }
+
+    private function reportPhase(string $message): void
+    {
+        // Only fixed, non-sensitive progress messages are forwarded to SSE.
+        // The logger retains all detailed records privately on the server.
+        $this->logger->info(new ArrayValue([
+            'event' => 'info',
+            'data' => $message,
+        ]));
     }
 }

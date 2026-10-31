@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Rector
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/rector.yml'
+      - '.docker/php/Dockerfile'
+      - '.github/actions/php-version/**'
+      - 'rector.php'
+      - 'composer.json'
+      - 'composer.lock'
+      - 'vendor-bin/rector/**'
+      - 'src/**'
+      - 'bin/**'
+      - 'migrations/**'
+      - 'tests/php/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rector-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  rector:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Resolve PHP version
+        id: runtime
+        uses: ./.github/actions/php-version
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@cf4cade2721270509d5b1c766ab3549210a39a2a # v2
+        with:
+          php-version: ${{ steps.runtime.outputs.php }}
+          coverage: none
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install locked dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Rector dry run
+        run: composer run rector:check

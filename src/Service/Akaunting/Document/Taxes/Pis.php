@@ -30,14 +30,16 @@ use UnexpectedValueException;
 
 class Pis extends Tax
 {
+    #[\Override]
     protected string $whoami = 'PIS';
+    #[\Override]
     protected string $readableName = 'PIS';
 
     protected function setUp(): self
     {
         try {
             $this->getDueAt();
-        } catch (UnexpectedValueException $e) {
+        } catch (UnexpectedValueException) {
             $this->changeDueAt($this->dates->getDataPagamento());
         }
         return parent::setUp();

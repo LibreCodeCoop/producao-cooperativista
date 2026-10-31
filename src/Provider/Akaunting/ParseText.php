@@ -48,7 +48,7 @@ class ParseText
             return $return;
         }
         $explodedText = explode("\n", $text);
-        $explodedText = array_map('trim', $explodedText);
+        $explodedText = array_map(trim(...), $explodedText);
         $pattern = '/^(?<paramName>' . implode('|', array_keys($this->dictionaryTextParams)) . '): (?<paramValue>.*)$/i';
         foreach ($explodedText as $row) {
             if (!preg_match($pattern, $row, $matches)) {

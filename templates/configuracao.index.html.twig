@@ -1,0 +1,109 @@
+{% extends "layout/index.html.twig" %}
+{% block title %}Configuração da produção{% endblock %}
+{% block head %}
+    {# Reuse the same DataTables and Buttons resources as financial reports. #}
+    {{ include('layout/components/datatable.html.twig', {datatablesAssetsOnly: true}) }}
+    <link rel="stylesheet" href="/css/settings-panel.css">
+{% endblock %}
+{% block body %}
+<nav class="breadcrumbs" aria-label="Localização">
+    <a href="/">Visão geral</a><span>/</span><span aria-current="page">Configuração</span>
+</nav>
+<header class="page-heading">
+    <h1>Configuração</h1>
+    <p class="page-lead">Consulte cadastros e vínculos entre os sistemas.</p>
+</header>
+{{ include('configuracao/_menu.html.twig', {active: 'cooperados'}) }}
+
+{% for type, messages in notifications %}
+    {% for message in messages %}
+        <div class="settings-alert {{ type == 'success' ? 'settings-success' : 'settings-notice' }}" role="status">{{ message }}</div>
+    {% endfor %}
+{% endfor %}
+
+<p class="settings-note" role="note">Alterou algum dado cadastral? <a href="/acoes/make-producao">Reimporte a competência</a> antes de conferir e publicar.</p>
+
+    <section class="surface settings-section">
+        <div class="settings-section-heading">
+            <div>
+                <h2>Cooperados e vínculos</h2>
+                <p>Lista baseada nas contas do Kimai. Clique no nome para conferir o cadastro nas fontes.</p>
+            </div>
+            <form action="/configuracao" method="get" class="settings-month">
+                <label for="settings-month">Competência</label>
+                <input type="month" name="competencia" id="settings-month" value="{{ month }}" min="2020-01" max="2099-12">
+                <button class="settings-secondary" type="submit">Aplicar</button>
+            </form>
+        </div>
+        {% if error %}
+            <div class="settings-alert settings-error" role="alert">{{ error }}</div>
+        {% endif %}
+        <div class="settings-summary">
+            <span><strong>{{ users|length }}</strong> usuários encontrados no Kimai</span>
+            <span><strong>{{ users|filter(u => u.participates)|length }}</strong> com horas importadas na competência</span>
+            <span><strong id="settings-visible-count">—</strong> cooperados exibidos após filtros</span>
+        </div>
+        <div class="settings-filter-actions">
+            <p>Horas e pesos são da última importação, não dos cadastros atuais.</p>
+            <div>
+                <button class="settings-secondary" type="button" id="settings-clear-filters">Limpar filtros e exibir todos</button>
+                <button class="settings-secondary" type="button" id="settings-default-filters">Restaurar padrão (ativos)</button>
+            </div>
+        </div>
+        <div id="settings-table-error" role="alert" aria-live="polite"></div>
+        <div class="settings-table-container">
+            <table id="settings-members" class="settings-members display" style="width:100%">
+                <thead>
+                    <tr>
+                        <th scope="col">Cooperado</th>
+                        <th scope="col">Usuário Kimai</th>
+                        <th scope="col">Horas importadas</th>
+                        <th scope="col">Peso</th>
+                        <th scope="col">Apontamentos</th>
+                        <th scope="col">Situação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                        {% set status = user.system ? 'Conta de serviço' : (user.enabled ? 'Ativo' : 'Desativado') %}
+                        <tr data-member-row{% if member and member.id == user.id %} class="settings-selected"{% endif %}>
+                            <td>{% if not user.system %}<a href="/configuracao/cooperado/{{ user.id }}/editar?competencia={{ month|url_encode }}" class="settings-link" data-member-editor-open data-settings-member-link>{{ user.alias }}</a>{% else %}{{ user.alias }}{% endif %}</td>
+                            <td>{{ user.username }}</td>
+                            <td data-order="{{ user.hours }}">{{ user.hours|number_format(2, ',', '.') }} h</td>
+                            <td data-order="{{ user.imported_weight is not null ? user.imported_weight : '' }}" title="Peso da última importação">{{ user.imported_weight is not null ? user.imported_weight|replace({'.': ','}) : 'Não importado' }}</td>
+                            <td>{{ user.participates ? 'Com horas' : 'Sem horas' }}</td>
+                            <td>{{ status }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th><label class="settings-column-label" for="settings-name-filter">Nome</label><input id="settings-name-filter" type="search" placeholder="Filtrar nome"></th>
+                        <th><label class="settings-column-label" for="settings-user-filter">Usuário</label><input id="settings-user-filter" type="search" placeholder="Filtrar usuário"></th>
+                        <th></th>
+                        <th></th>
+                        <th>
+                            <label class="settings-column-label" for="settings-hours-filter">Apontamentos</label>
+                            <select id="settings-hours-filter">
+                                <option value="all">Todos</option>
+                                <option value="Com horas">Com horas</option>
+                                <option value="Sem horas">Sem horas</option>
+                            </select>
+                        </th>
+                        <th>
+                            <label class="settings-column-label" for="settings-status-filter">Situação</label>
+                            <select id="settings-status-filter">
+                                <option value="Ativo" selected>Ativos (padrão)</option>
+                                <option value="Desativado">Desativados</option>
+                                <option value="Conta de serviço">Contas de serviço</option>
+                                <option value="all">Todos</option>
+                            </select>
+                        </th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </section>
+
+    <script defer src="/js/settings-panel.js"></script>
+{% endblock %}

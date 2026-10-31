@@ -55,7 +55,7 @@ class Category
     #[ORM\Column(type: Types::SMALLINT, options: ['default' => 1])]
     private int $enabled;
     #[ORM\Column(type: Types::BIGINT, nullable: true)]
-    private ?int $parentId;
+    private ?int $parentId = null;
     #[ORM\Column(type: Types::JSON)]
     private array $metadata;
 }

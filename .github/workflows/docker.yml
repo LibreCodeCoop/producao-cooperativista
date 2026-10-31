@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Docker validation
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/docker.yml'
+      - '.docker/php/Dockerfile'
+      - '.github/actions/php-version/**'
+      - '.docker/php/**'
+      - 'docker-compose.yml'
+      - 'composer.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-validation-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Resolve PHP version
+        id: runtime
+        uses: ./.github/actions/php-version
+
+      - name: Validate Compose
+        run: docker compose -f docker-compose.yml config --quiet
+
+      - name: Build the PHP-FPM runtime used by the application
+        run: |
+          php_version="${{ steps.runtime.outputs.php }}"
+          docker build --pull --build-arg PHP_IMAGE="${{ steps.runtime.outputs.image }}" --tag librecode-pdc-ci:php-fpm -f .docker/php/Dockerfile .docker/php
+          actual_version="$(docker run --rm --entrypoint php librecode-pdc-ci:php-fpm -r 'echo PHP_VERSION;')"
+          case "$actual_version" in
+            "$php_version"|"$php_version".*) ;;
+            *) echo "::error::Built PHP $actual_version instead of $php_version"; exit 1 ;;
+          esac
+          # The ETL calls BusinessDay to calculate holidays and payroll dates.
+          # Without ext-calendar, easter_days() aborts make:producao and etl:sync.
+          docker run --rm --entrypoint php librecode-pdc-ci:php-fpm -r '
+            if (!extension_loaded("calendar") || !function_exists("easter_days") || easter_days(2026) !== 15) {
+                fwrite(STDERR, "PHP calendar extension missing or unusable in the runtime image.\n");
+                exit(1);
+            }
+          '

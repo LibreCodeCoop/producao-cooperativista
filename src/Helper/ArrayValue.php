@@ -35,8 +35,8 @@ class ArrayValue implements Stringable
     ) {
     }
 
-    public function __toString()
+    public function __toString(): string
     {
-        return json_encode($this->array);
+        return json_encode($this->array, JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE);
     }
 }

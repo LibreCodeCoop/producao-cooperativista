@@ -51,9 +51,9 @@ class Timesheet
     #[ORM\Column]
     private \DateTime $end;
     #[ORM\Column(type: Types::BIGINT, nullable: true)]
-    private ?int $duration;
+    private ?int $duration = null;
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    private ?string $description;
+    private ?string $description = null;
     #[ORM\Column]
     private float $rate;
     #[ORM\Column]

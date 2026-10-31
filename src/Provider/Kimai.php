@@ -1,68 +1,100 @@
 <?php
 
 /**
- * @copyright Copyright (c) 2023, Vitor Mattos <vitor@php.rio>
- *
- * @author Vitor Mattos <vitor@php.rio>
- *
+ * @copyright Copyright (c) 2026, LibreCode contributors
  * @license GNU AGPL version 3 or any later version
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 declare(strict_types=1);
 
 namespace App\Provider;
 
+use RuntimeException;
 use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 trait Kimai
 {
+    protected function getKimaiHttpClient(): HttpClientInterface
+    {
+        return HttpClient::create();
+    }
+
     public function doRequestKimai(string $endpoint, array $query = [], ?callable $parseFunction = null): array
     {
-        $client = HttpClient::create();
+        $base = trim((string) getenv('KIMAI_API_BASE_URL'));
+        $token = trim((string) getenv('KIMAI_API_TOKEN'));
+        if ($base === '' || $token === '') {
+            throw new RuntimeException('Configuração Kimai incompleta: confira KIMAI_API_BASE_URL e KIMAI_API_TOKEN.');
+        }
+        $url = rtrim($base, '/') . $endpoint;
+        $client = $this->getKimaiHttpClient();
+        $isDetail = preg_match('~/[0-9]+$~D', $endpoint) === 1;
+        $pageSize = 50;
         $list = [];
         $page = 1;
-        while (true) {
-            $query['page'] = $page;
-            $this->logger->debug('Kimai query: {query}', ['query' => $query]);
-            $this->logger->debug('Kimai endpoint: {endpoint}', ['endpoint' => $endpoint]);
-            $result = $client->request(
-                'GET',
-                rtrim(getenv('KIMAI_API_BASE_URL'), '/') . $endpoint,
-                [
-                    'query' => $query,
-                    'headers' => [
-                        'Authorization' => 'Bearer ' . getenv('KIMAI_API_TOKEN'),
-                    ],
-                ]
-            );
-            if ($result->getStatusCode() === 404) {
+
+        do {
+            if ($page > 10000) {
+                throw new RuntimeException('A paginação do Kimai excedeu o limite seguro. Confira as respostas e os cabeçalhos X-Total-Pages.');
+            }
+            $params = $query;
+            if (!$isDetail) {
+                $params['page'] = $page;
+                $params['size'] = $pageSize;
+            }
+            $result = $client->request('GET', $url, [
+                'query' => $params,
+                'headers' => ['Authorization' => 'Bearer ' . $token],
+                'timeout' => 30,
+            ]);
+            $status = $result->getStatusCode();
+            if ($status === 404 && !$isDetail && $page > 1) {
                 break;
             }
-            $contentOfPage = $result->toArray();
+            if ($status < 200 || $status >= 300) {
+                throw new RuntimeException(sprintf(
+                    'Kimai recusou a consulta %s (HTTP %d). Confira endpoint, autenticação e permissões da conta de serviço.',
+                    parse_url($url, PHP_URL_PATH) ?: '/api',
+                    $status
+                ));
+            }
+
+            $records = $result->toArray(false);
+            if (!is_array($records)) {
+                throw new RuntimeException('Kimai retornou uma resposta que não é uma coleção JSON válida.');
+            }
             if (is_callable($parseFunction)) {
-                $contentOfPage = $parseFunction($contentOfPage);
+                $records = $parseFunction($records);
+                if (!is_array($records)) {
+                    throw new RuntimeException('O parser da resposta Kimai não retornou uma coleção.');
+                }
             }
-            $this->logger->debug('Kimai response: {response}', ['response' => json_encode($contentOfPage)]);
-            $list = array_merge($list, $contentOfPage);
-            if (count($contentOfPage) < 50) {
+            if ($isDetail || !array_is_list($records)) {
+                return $records;
+            }
+
+            $list = array_merge($list, $records);
+            $headers = $result->getHeaders(false);
+            $totalPages = (int) ($headers['x-total-pages'][0] ?? 0);
+            $this->logger->debug('Kimai: página {page}, registros {count}, total de páginas {total}.', [
+                'page' => $page,
+                'count' => count($records),
+                'total' => $totalPages,
+            ]);
+            if ($totalPages > 0) {
+                if ($page >= $totalPages) {
+                    break;
+                }
+                if ($records === []) {
+                    throw new RuntimeException('Kimai retornou uma página vazia antes do término esperado da paginação.');
+                }
+            } elseif (count($records) < $pageSize) {
                 break;
             }
-            $page++;
-        }
+            ++$page;
+        } while (true);
+
         return $list;
     }
 }

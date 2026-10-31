@@ -27,14 +27,17 @@ declare(strict_types=1);
 namespace App\Controller\Api;
 
 use App\Service\Movimentacao;
+use App\Service\Calculation\ProductionPublicationSelection;
+use App\Service\Calculation\ProductionValueExplanations;
+use App\Service\Calculation\DecimalAllocation;
 use DateTime;
 use App\Service\ProducaoCooperativista;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Service\Calculation\ApiProblemResponder;
 
 class Producao extends AbstractController
 {
@@ -43,6 +46,9 @@ class Producao extends AbstractController
         RequestStack $requestStack,
         private ProducaoCooperativista $producao,
         private Movimentacao $movimentacao,
+        private ApiProblemResponder $apiErrors,
+        private ProductionPublicationSelection $selection,
+        private ProductionValueExplanations $valueExplanations,
     ) {
         $this->request = $requestStack->getCurrentRequest();
     }
@@ -55,7 +61,7 @@ class Producao extends AbstractController
                 $this->request->query->getInt('dia-util-pagamento', (int) getenv('DIA_UTIL_PAGAMENTO'))
             );
 
-            $inicio = DateTime::createFromFormat('Y-m', $this->request->query->getString('ano-mes'));
+            $inicio = DateTime::createFromFormat('!Y-m', $this->request->query->getString('ano-mes'));
             if (!$inicio instanceof DateTime) {
                 throw new \Exception('ano-mes precisa estar no formato YYYY-MM');
             }
@@ -70,6 +76,7 @@ class Producao extends AbstractController
 
             $list = $this->producao->getProducaoCooperativista();
             $trabalhadoPorCliente = $this->producao->getTrabalhadoPorCliente();
+            $snapshot = $this->selection->snapshot($list, $inicio->format('Y-m'));
             $output = [];
             foreach ($list as $cooperado) {
                 $array = $cooperado->getProducaoCooperativista()->getValues()->toArray();
@@ -79,7 +86,20 @@ class Producao extends AbstractController
                     $adiantamento = json_encode($array['adiantamento']);
                 }
                 $array['adiantamento'] = $adiantamento;
+                $taxNumber = $cooperado->getTaxNumber();
+                $array['kimai_user_id'] = $snapshot['ids'][$taxNumber];
+                $array['explanations'] = $this->valueExplanations->describe(
+                    $array,
+                    (int) $inicio->format('Y'),
+                    (int) $inicio->format('m'),
+                );
+                // The settlement calculation retains intermediate precision.
+                // The report and payable document present values in BRL cents.
+                $array['base_producao'] = DecimalAllocation::amount(
+                    DecimalAllocation::cents($array['base_producao'])
+                );
                 $trabalhado = array_filter($trabalhadoPorCliente, fn ($c) => $c['tax_number'] === $array['tax_number']);
+                $array['hours_seconds'] = array_sum(array_column($trabalhado, 'trabalhado'));
                 $array['trabalhado'] = json_encode(array_values(array_map(function ($row) {
                     $minutosTrabalhados = $row['trabalhado'] / 60 / 60;
                     $minutosTrabalhados = floor($minutosTrabalhados);
@@ -98,17 +118,14 @@ class Producao extends AbstractController
                 'data' => array_values($output),
                 'metadata' => [
                     'total' => count($output),
+                    'revision' => $snapshot['revision'],
+                    'competence' => $inicio->format('Y-m'),
                     'date' => $this->producao->dates->getInicioProximoMes()->format('Y-m')
                 ],
             ];
             return new JsonResponse($response);
         } catch (\Throwable $e) {
-            return new JsonResponse(
-                [
-                    'erro' => $e->getMessage()
-                ],
-                Response::HTTP_FORBIDDEN
-            );
+            return $this->apiErrors->fromThrowable($e, 'Producao');
         }
     }
 }

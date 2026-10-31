@@ -81,7 +81,7 @@ class GetNfseCommand extends AbstractBaseCommand
 
     public function execute(InputInterface $input, OutputInterface $output): int
     {
-        $data = DateTime::createFromFormat('Y-m', $input->getOption('ano-mes'));
+        $data = DateTime::createFromFormat('!Y-m', $input->getOption('ano-mes'));
         $list = $this->nfse->getFromApi(
             $data,
             $input->getOption('login'),

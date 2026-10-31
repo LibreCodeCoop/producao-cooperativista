@@ -1,0 +1,12 @@
+{
+  "name": "librecode-production-styles",
+  "private": true,
+  "scripts": {
+    "css:build": "sass resources/scss:public/css --no-source-map --style=compressed",
+    "css:watch": "sass --watch resources/scss:public/css --no-source-map --style=compressed",
+    "css:check": "npm run css:build && git diff --quiet -- public/css"
+  },
+  "devDependencies": {
+    "sass": "1.107.1"
+  }
+}

@@ -30,14 +30,16 @@ use UnexpectedValueException;
 
 class Iss extends Tax
 {
+    #[\Override]
     protected string $whoami = 'ISS';
+    #[\Override]
     protected string $readableName = 'ISS';
 
     protected function setUp(): self
     {
         try {
             $this->getDueAt();
-        } catch (UnexpectedValueException $e) {
+        } catch (UnexpectedValueException) {
             $this->changeDueAt($this->dates->getDataPagamento());
         }
         return parent::setUp();

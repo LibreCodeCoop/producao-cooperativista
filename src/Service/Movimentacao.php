@@ -28,6 +28,8 @@ namespace App\Service;
 
 use App\Helper\Dates;
 use App\Service\Akaunting\Source\Categories;
+use App\Service\Calculation\AdministrativeRate;
+use App\Service\Calculation\CustomerCostAllocator;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Psr\Log\LoggerInterface;
@@ -35,8 +37,10 @@ use Psr\Log\LoggerInterface;
 class Movimentacao
 {
     private array $movimentacao = [];
+    /** @var array<string, int|string> */
+    private array $movementKeysBySource = [];
     private ?array $customerReferenceRequiredCategories = null;
-    private array $custosPorCliente = [];
+    private ?array $custosPorCliente = null;
     private float $percentualAdministrativo = 0;
     private float $taxaAdministrativa = 0;
     private float $taxaMaxima = 0;
@@ -51,6 +55,7 @@ class Movimentacao
         private LoggerInterface $logger,
         public Dates $dates,
         private Categories $categories,
+        private CustomerCostAllocator $customerCostAllocator,
     ) {
     }
 
@@ -65,7 +70,7 @@ class Movimentacao
                 t.type,
                 t.transaction_of_month,
                 t.discount_percentage,
-                CASE WHEN i.discount_percentage > 0 THEN 1 ELSE 0 END as percentual_desconto_fixo,
+                CASE WHEN t.discount_percentage > 0 THEN 1 ELSE 0 END as percentual_desconto_fixo,
                 t.amount,
                 COALESCE(
                     (
@@ -73,7 +78,7 @@ class Movimentacao
                         FROM JSON_TABLE(
                             i.metadata,
                             '$.items.data[*]' COLUMNS (
-                                price DOUBLE PATH '$.price'
+                                price DECIMAL(30, 12) PATH '$.price'
                             )
                         ) price
                     ), t.amount
@@ -93,24 +98,27 @@ class Movimentacao
                 AND t.archive = 0
                 AND i.id IS NULL
             UNION
-            SELECT 'invoice_transaction' AS `table`,
+            SELECT 'invoice_transaction',
                 i.id,
                 i.type,
-                i.transaction_of_month,
+                payments.transaction_of_month,
                 i.discount_percentage,
                 CASE WHEN i.discount_percentage > 0 THEN 1 ELSE 0 END as percentual_desconto_fixo,
-                i.amount,
-                COALESCE(
-                    (
-                        SELECT SUM(price) as total
-                        FROM JSON_TABLE(
-                            i.metadata,
-                            '$.items.data[*]' COLUMNS (
-                                price DOUBLE PATH '$.price'
-                            )
-                        ) price
-                    ), i.amount
-                ) bruto,
+                payments.paid_amount AS amount,
+                CASE WHEN i.amount > 0 THEN
+                    COALESCE(
+                        (
+                            SELECT SUM(price)
+                            FROM JSON_TABLE(
+                                i.metadata,
+                                '$.items.data[*]' COLUMNS (
+                                    price DECIMAL(30, 12) PATH '$.price'
+                                )
+                            ) price
+                        ),
+                        i.amount
+                    ) * payments.paid_amount / i.amount
+                ELSE payments.paid_amount END AS bruto,
                 i.customer_reference,
                 i.contact_name,
                 i.contact_type,
@@ -120,10 +128,18 @@ class Movimentacao
                 i.archive,
                 i.metadata,
                 0 as base_producao
-            FROM transactions t
-            JOIN invoices i ON t.metadata->>'$.document_id' = i.id
-            WHERE t.transaction_of_month = :ano_mes
-                AND t.archive = 0
+            FROM (
+                SELECT t.metadata->>'$.document_id' AS document_id,
+                    t.transaction_of_month,
+                    SUM(t.amount) AS paid_amount
+                FROM transactions t
+                WHERE t.transaction_of_month = :ano_mes
+                    AND t.archive = 0
+                    AND t.metadata->>'$.document_id' IS NOT NULL
+                GROUP BY t.metadata->>'$.document_id', t.transaction_of_month
+            ) payments
+            JOIN invoices i ON payments.document_id = i.id
+            WHERE i.archive = 0
             UNION
             SELECT 'invoice' AS `table`,
                 i.id,
@@ -138,7 +154,7 @@ class Movimentacao
                         FROM JSON_TABLE(
                             i.metadata,
                             '$.items.data[*]' COLUMNS (
-                                price DOUBLE PATH '$.price'
+                                price DECIMAL(30, 12) PATH '$.price'
                             )
                         ) price
                     ), i.amount
@@ -163,19 +179,68 @@ class Movimentacao
         ]);
         $movimentacao = [];
         $errors = [];
+        $ignoredUnpaidInvoices = [];
         while ($row = $stmt->fetchAssociative()) {
+            // An issued document without a linked financial transaction is
+            // eligible as customer income only when Akaunting confirms payment.
+            // A sent/cancelled/draft document is not capital for distribution.
+            if ($row['table'] === 'invoice'
+                && $row['category_type'] === 'income'
+                && $this->isCustomerReferenceRequired($row)) {
+                $metadata = json_decode((string) ($row['metadata'] ?? '{}'), true);
+                if (($metadata['status'] ?? null) !== 'paid') {
+                    $ignoredUnpaidInvoices[] = (int) $row['id'];
+                    continue;
+                }
+            }
             if (
                 $this->isCustomerReferenceRequired($row)
                 && (empty($row['customer_reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['customer_reference']))
             ) {
-                $errors[] = $row;
+                // Return actionable identification rather than dumping full financial metadata.
+                $errors[] = [
+                    'origem' => $row['table'],
+                    'id' => $row['id'],
+                    'categoria' => $row['category_name'],
+                    'codigo_cliente' => $row['customer_reference'],
+                ];
             }
             $row['percentual_desconto_fixo'] = (bool) $row['percentual_desconto_fixo'];
 
-            $movimentacao[$row['id']] = $row;
+            // Transaction and invoice IDs come from independent sequences.
+            // Index both instead of silently replacing a movement with the same ID.
+            $sourceKey = (string) $row['table'] . ':' . (string) $row['id'];
+            if (array_key_exists($sourceKey, $this->movementKeysBySource)) {
+                throw new Exception(sprintf(
+                    'Movimentação repetida na competência %s: origem %s, ID %s. Verifique parcelas e lançamentos duplicados no Akaunting.',
+                    $this->dates->getInicioProximoMes()->format('Y-m'),
+                    $row['table'],
+                    $row['id']
+                ));
+            }
+            $key = (int) $row['id'];
+            if (array_key_exists($key, $movimentacao)) {
+                $key = $sourceKey;
+            }
+
+            $movimentacao[$key] = $row;
+            $this->movementKeysBySource[$sourceKey] = $key;
+        }
+        if ($ignoredUnpaidInvoices !== []) {
+            $this->logger->warning(
+                'Não foram incluídas {total} faturas de clientes sem confirmação de pagamento na competência {competencia}. Consulte o Akaunting, filtre os documentos não pagos e confira o vínculo das transações.',
+                [
+                    'total' => count($ignoredUnpaidInvoices),
+                    'competencia' => $this->dates->getInicioProximoMes()->format('Y-m'),
+                    'document_ids' => array_slice($ignoredUnpaidInvoices, 0, 30),
+                ]
+            );
         }
         if (empty($movimentacao)) {
-            throw new Exception('Sem transações');
+            throw new Exception(sprintf(
+                'Sem movimentações financeiras elegíveis na competência %s. Confira faturas pagas, importação, transações vinculadas e categorias do Akaunting.',
+                $this->dates->getInicioProximoMes()->format('Y-m')
+            ));
         }
 
         if (count($errors)) {
@@ -213,7 +278,7 @@ class Movimentacao
             return $this->customerReferenceRequiredCategories;
         }
 
-        $this->customerReferenceRequiredCategories = array_map('intval', array_values(array_unique(array_merge(
+        $this->customerReferenceRequiredCategories = array_map(intval(...), array_values(array_unique(array_merge(
             $this->categories->getChildrensCategories((int) getenv('AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID')),
             $this->categories->getChildrensCategories((int) getenv('AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID')),
         ))));
@@ -223,7 +288,23 @@ class Movimentacao
 
     public function setMovimentacao($movimentacao): void
     {
-        $this->movimentacao[$movimentacao['id']] = $movimentacao;
+        $sourceKey = (string) ($movimentacao['table'] ?? '') . ':' . (string) $movimentacao['id'];
+        $key = $this->movementKeysBySource[$sourceKey] ?? (int) $movimentacao['id'];
+        $this->movimentacao[$key] = $movimentacao;
+        $this->invalidateDerivedTotals();
+    }
+
+    private function invalidateDerivedTotals(): void
+    {
+        $this->custosPorCliente = null;
+        $this->percentualAdministrativo = 0.0;
+        $this->taxaAdministrativa = 0.0;
+        $this->taxaMaxima = 0.0;
+        $this->taxaMinima = 0.0;
+        $this->totalCustoCliente = 0.0;
+        $this->totalBrutoNotasClientes = 0.0;
+        $this->totalDispendios = 0.0;
+        $this->totalNotasClientes = 0.0;
     }
 
     public function getSaidas(): array
@@ -293,9 +374,30 @@ class Movimentacao
         $entradasComPercentualFixo = array_filter($entradasClientes, fn ($i) => $i['percentual_desconto_fixo'] === true);
         $total = 0;
         foreach ($entradasComPercentualFixo as $row) {
-            $metadata = json_decode($row['metadata'], true);
-            $taxTotal = array_sum(array_column($metadata['item_taxes']['data'], 'amount'));
-            $taxToPay = $row['bruto'] - $taxTotal - $row['amount'];
+            $metadata = json_decode((string) ($row['metadata'] ?? '{}'), true);
+            $taxes = is_array($metadata) ? ($metadata['item_taxes']['data'] ?? []) : [];
+            $taxTotal = is_array($taxes) ? array_sum(array_column($taxes, 'amount')) : 0.0;
+            if (($row['table'] ?? null) === 'invoice_transaction' && $taxTotal !== 0.0) {
+                // Income and gross value were prorated to the received tranche.
+                // Prorate the document's total retained taxes by the same ratio.
+                $items = $metadata['items']['data'] ?? [];
+                $invoiceGross = is_array($items) ? array_sum(array_column($items, 'price')) : 0.0;
+                if ($invoiceGross <= 0 || !is_finite($invoiceGross)) {
+                    throw new \DomainException(sprintf(
+                        'Documento %s: bruto original ausente para ratear tributos de recebimento parcial. Confira itens e impostos no Akaunting.',
+                        (string) $row['id']
+                    ));
+                }
+                $fraction = (float) $row['bruto'] / $invoiceGross;
+                if ($fraction < -0.000001 || $fraction > 1.000001) {
+                    throw new \DomainException(sprintf(
+                        'Documento %s: parcelas recebidas não correspondem ao bruto original. Confira pagamentos e retenções.',
+                        (string) $row['id']
+                    ));
+                }
+                $taxTotal *= $fraction;
+            }
+            $taxToPay = (float) $row['bruto'] - $taxTotal - (float) $row['amount'];
             $total += $row['amount'] * $row['discount_percentage'] / 100 - $taxToPay;
         }
         return $total;
@@ -322,7 +424,7 @@ class Movimentacao
             }
             return false;
         });
-        $this->totalDispendios = array_reduce($dispendios, fn ($total, $i) => $total += $i['amount'], 0);
+        $this->totalDispendios = array_reduce($dispendios, fn ($total, $i) => $total + $i['amount'], 0);
         $this->logger->info('Total dispêndios: {total}', ['total' => $this->totalDispendios]);
         return $this->totalDispendios;
     }
@@ -346,29 +448,32 @@ class Movimentacao
      */
     public function getCustosPorCliente(?bool $percentualDescontoFixo = null): array
     {
-        if (!$this->custosPorCliente) {
-            $categoriasCustosClientes = $this->categories->getChildrensCategories((int) getenv('AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID'));
-            $custosPorCliente = array_filter($this->getSaidas(), fn ($i) => in_array($i['category_id'], $categoriasCustosClientes));
-            if (is_bool($percentualDescontoFixo)) {
-                $custosPorCliente = array_filter(
-                    $custosPorCliente,
-                    fn ($i) =>
-                    $i['percentual_desconto_fixo'] === $percentualDescontoFixo
-                );
-            }
-            foreach ($custosPorCliente as $row) {
-                $this->custosPorCliente[$row['customer_reference']][] = $row;
-            }
-
-            $this->logger->debug('Custos por clientes: {json}', ['json' => json_encode($this->custosPorCliente)]);
-        }
-        $custosPorCliente = [];
-        foreach ($this->custosPorCliente as $customerReference => $data) {
-            $custosPorCliente[$customerReference] = array_sum(
-                array_column($data, 'amount')
+        if ($this->custosPorCliente === null) {
+            $categorias = $this->categories->getChildrensCategories(
+                (int) getenv('AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID')
             );
+            $this->custosPorCliente = [];
+            foreach ($this->getSaidas() as $row) {
+                if (in_array((int) $row['category_id'], $categorias, true)) {
+                    $this->custosPorCliente[(string) $row['customer_reference']][] = $row;
+                }
+            }
         }
-        return $custosPorCliente;
+
+        // Cache source records once; filter per call so mixed fixed/movable
+        // scenarios do not reuse the result from a previous filter.
+        $result = [];
+        foreach ($this->custosPorCliente as $customerReference => $rows) {
+            foreach ($rows as $row) {
+                if ($percentualDescontoFixo !== null
+                    && (bool) $row['percentual_desconto_fixo'] !== $percentualDescontoFixo) {
+                    continue;
+                }
+                $result[$customerReference] = ($result[$customerReference] ?? 0.0) + (float) $row['amount'];
+            }
+        }
+
+        return $result;
     }
 
     public function totalNotasParaPercentualMovelSemCustoCliente(): float
@@ -390,21 +495,74 @@ class Movimentacao
 
         $totalNotasParaPercentualMovelSemCustoCliente = $this->totalNotasParaPercentualMovelSemCustoCliente();
 
-        $valorSeguranca = $totalNotasParaPercentualMovelSemCustoCliente * $this->percentualMaximo / 100;
-
         $this->taxaMinima = $this->getTotalDispendiosInternos();
-
-        $this->taxaMaxima = $this->taxaMinima * 2;
-        if ($this->taxaMinima >= $valorSeguranca) {
-            $this->taxaAdministrativa = $this->taxaMinima;
-        } elseif ($this->taxaMaxima >= $valorSeguranca) {
-            $this->taxaAdministrativa = $valorSeguranca;
-        } else {
-            $this->taxaAdministrativa = $this->taxaMaxima;
+        if ($this->taxaMinima > 0) {
+            if ($totalNotasParaPercentualMovelSemCustoCliente <= 0) {
+                $costs = $this->getCustosPorCliente();
+                $unmatched = $this->customerCostAllocator->unmatchedCosts(
+                    $this->getEntradasClientes(),
+                    $costs
+                );
+                throw new \DomainException(sprintf(
+                    'Base administrativa indisponível na competência %s: receitas móveis elegíveis R$ %s, '
+                    . 'custos por cliente R$ %s, base após custos R$ %s e dispêndios internos R$ %s. '
+                    . 'Há %d %s com custos sem receita elegível, somando R$ %s. '
+                    . 'Confira recebimentos pagos, despesas, categorias e competência no Akaunting; '
+                    . 'não redistribua custos sem aprovação.',
+                    $this->dates->getInicioProximoMes()->format('Y-m'),
+                    number_format($this->totalNotasPercentualMovel(), 2, ',', '.'),
+                    number_format(array_sum($costs), 2, ',', '.'),
+                    number_format($totalNotasParaPercentualMovelSemCustoCliente, 2, ',', '.'),
+                    number_format($this->taxaMinima, 2, ',', '.'),
+                    count($unmatched),
+                    count($unmatched) === 1 ? 'cliente' : 'clientes',
+                    number_format(array_sum($unmatched), 2, ',', '.')
+                ));
+            }
         }
 
-        if ($this->taxaMinima) {
-            $this->percentualAdministrativo = ($this->taxaAdministrativa) * 100 / $totalNotasParaPercentualMovelSemCustoCliente;
+        $result = new AdministrativeRate()->evaluate(
+            $totalNotasParaPercentualMovelSemCustoCliente,
+            $this->taxaMinima,
+            $this->percentualMaximo,
+        );
+        $this->taxaMinima = $result['minimum'];
+        $this->taxaMaxima = $result['maximum'];
+        $this->taxaAdministrativa = $result['rate'];
+
+        if ($this->taxaMinima > 0) {
+
+
+            $this->percentualAdministrativo = $result['effective_percent'];
+            if ($this->percentualAdministrativo > 100.0 + 0.000001) {
+                $orphanCosts = $this->customerCostAllocator->unmatchedCosts(
+                    $this->getEntradasClientes(),
+                    $this->getCustosPorCliente()
+                );
+                throw new \DomainException(sprintf(
+                    'Capital elegível insuficiente na competência %s: a base administrativa após custos por cliente é R$ %s, '
+                    . 'mas os dispêndios internos somam R$ %s (déficit R$ %s). '
+                    . 'A taxa necessária seria %s%%, acima de 100%% e da referência configurada de %d%%. '
+                    . 'Há %d %s com custos sem receita elegível, totalizando R$ %s. '
+                    . 'Confira no Akaunting os recebimentos efetivamente pagos, as despesas, os custos por cliente e as categorias; '
+                    . 'não redistribua custos nem altere a taxa sem aprovação da política econômica.',
+                    $this->dates->getInicioProximoMes()->format('Y-m'),
+                    number_format($totalNotasParaPercentualMovelSemCustoCliente, 2, ',', '.'),
+                    number_format($this->taxaMinima, 2, ',', '.'),
+                    number_format($this->taxaAdministrativa - $totalNotasParaPercentualMovelSemCustoCliente, 2, ',', '.'),
+                    number_format($this->percentualAdministrativo, 2, ',', '.'),
+                    $this->percentualMaximo,
+                    count($orphanCosts),
+                    count($orphanCosts) === 1 ? 'cliente' : 'clientes',
+                    number_format(array_sum($orphanCosts), 2, ',', '.')
+                ));
+            }
+            if ($this->percentualAdministrativo > $this->percentualMaximo) {
+                $this->logger->warning(
+                    'Taxa efetiva {apurado}% superior à referência {limite}% para cobrir dispêndios, conforme contingência operacional.',
+                    ['apurado' => $this->percentualAdministrativo, 'limite' => $this->percentualMaximo]
+                );
+            }
             return $this->percentualAdministrativo;
         }
         return 0;
@@ -417,6 +575,12 @@ class Movimentacao
 
     public function setPercentualMaximo(int $percentualMaximo): void
     {
+        if ($percentualMaximo < 0 || $percentualMaximo > 100) {
+            throw new \InvalidArgumentException('Percentual administrativo máximo deve estar entre 0 e 100.');
+        }
+        if ($this->percentualMaximo !== $percentualMaximo) {
+            $this->invalidateDerivedTotals();
+        }
         $this->percentualMaximo = $percentualMaximo;
     }
 
@@ -460,7 +624,7 @@ class Movimentacao
         if ($this->totalCustoCliente) {
             return $this->totalCustoCliente;
         }
-        $custosPorCliente = $this->getCustosPorCliente(percentualDescontoFixo: false);
+        $custosPorCliente = $this->getCustosPorCliente();
         $this->totalCustoCliente = array_sum($custosPorCliente);
         $this->logger->info('Total custos clientes: {total}', ['total' => $this->totalCustoCliente]);
         return $this->totalCustoCliente;
@@ -479,19 +643,32 @@ class Movimentacao
 
         $percentualAdministrativo = $this->percentualAdministrativo();
         $custosPorCliente = $this->getCustosPorCliente();
+        $custosAlocados = $this->customerCostAllocator->allocate($entradasClientes, $custosPorCliente);
 
-        foreach ($entradasClientes as $row) {
-            if (isset($custosPorCliente[$row['customer_reference']])) {
-                $base = $row['amount'] - $custosPorCliente[$row['customer_reference']];
-                unset($custosPorCliente[$row['customer_reference']]);
-            } else {
-                $base = $row['amount'];
-            }
+        foreach ($entradasClientes as $key => $row) {
+            $base = (float) $row['amount'] - ($custosAlocados[$key] ?? 0.0);
             if (!$row['percentual_desconto_fixo']) {
                 $row['discount_percentage'] = $percentualAdministrativo;
             }
             $row['base_producao'] = $base - ($base * $row['discount_percentage'] / 100);
-            $this->setMovimentacao($row);
+            if ($row['base_producao'] < -0.000001) {
+                throw new \DomainException(sprintf(
+                    'Produção negativa no lançamento %s:%s da competência %s: receita R$ %s, custo alocado R$ %s, '
+                    . 'taxa administrativa/desconto de %s%% e base calculada R$ %s. '
+                    . 'Confira o documento, os custos do cliente e as condições aprovadas antes de distribuir.',
+                    (string) ($row['table'] ?? 'movimentacao'),
+                    (string) ($row['id'] ?? $key),
+                    $this->dates->getInicioProximoMes()->format('Y-m'),
+                    number_format((float) $row['amount'], 2, ',', '.'),
+                    number_format((float) ($custosAlocados[$key] ?? 0), 2, ',', '.'),
+                    number_format((float) $row['discount_percentage'], 2, ',', '.'),
+                    number_format((float) $row['base_producao'], 2, ',', '.')
+                ));
+            }
+            // Calculated output does not alter revenue or expenses. Preserve
+            // cached aggregate totals; mutating input via setMovimentacao()
+            // independently invalidates every derived total.
+            $this->movimentacao[$key] = $row;
         }
 
         $this->logger->debug('Entradas no mês com base de produção', [json_encode($entradasClientes)]);

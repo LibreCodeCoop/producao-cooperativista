@@ -1,0 +1,22 @@
+{% extends "layout/index.html.twig" %}
+{% block title %}Relatórios{% endblock %}
+{% block body %}
+    <nav class="breadcrumbs" aria-label="Localização"><a href="/">Visão geral</a><span>/</span><span aria-current="page">Relatórios</span></nav>
+    <header class="page-heading">
+        <p class="eyebrow">Consultas</p>
+        <h1>Relatórios</h1>
+        <p class="page-lead">Consulte os dados da última importação e a memória da apuração. Para atualizar os dados, utilize o fechamento mensal.</p>
+    </header>
+    <section class="surface dashboard-reports" aria-labelledby="reports-heading">
+        <h2 id="reports-heading">Escolha o relatório</h2>
+        <div class="reports-grid">
+            {% for relatorio in relatorios %}
+                <a class="report-link" href="{{ relatorio.url }}">
+                    <span class="report-number" aria-hidden="true">{{ '%02d'|format(loop.index) }}</span>
+                    <span class="item-copy"><strong>{{ relatorio.label }}</strong><small>{{ relatorio.description }}</small></span>
+                    <span class="item-arrow" aria-hidden="true">↗</span>
+                </a>
+            {% endfor %}
+        </div>
+    </section>
+{% endblock %}

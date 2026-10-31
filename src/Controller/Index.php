@@ -26,57 +26,60 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 class Index extends AbstractController
 {
     public function __construct(
-        private UrlGeneratorInterface $urlGenerator,
-        private KernelInterface $kernel
+        private UrlGeneratorInterface $urlGenerator
     ) {
     }
 
     #[Route('/', methods: ['GET'])]
     public function index(): Response
     {
-        $application = new Application($this->kernel);
-
         return $this->render('index.index.html.twig', [
+            'actionUrl' => $this->urlGenerator->generate('app_acoes_makeproducao'),
+        ]);
+    }
+
+    #[Route('/relatorios', methods: ['GET'])]
+    public function reports(): Response
+    {
+        return $this->render('index.relatorios.html.twig', [
             'relatorios' => [
                 'calculos' => [
                     'url' => $this->urlGenerator->generate('app_calculos_index'),
-                    'label' => 'Cálculos',
+                    'label' => 'Memória de cálculo',
+                    'description' => 'Bases, fórmulas e critérios utilizados na apuração.',
                 ],
                 'categorias' => [
                     'url' => $this->urlGenerator->generate('app_categorias_index'),
                     'label' => 'Categorias',
+                    'description' => 'Classificações utilizadas para receitas e despesas.',
                 ],
                 'invoices' => [
                     'url' => $this->urlGenerator->generate('app_invoices_index'),
                     'label' => 'Entradas e saídas',
+                    'description' => 'Recebimentos e pagamentos considerados no período.',
                 ],
                 'capital-social-summarized' => [
                     'url' => $this->urlGenerator->generate('app_capitalsocialsummarized_index'),
                     'label' => 'Capital social',
+                    'description' => 'Posição das movimentações de capital por cooperado.',
                 ],
                 'producao' => [
                     'url' => $this->urlGenerator->generate('app_producao_index'),
                     'label' => 'Produção',
+                    'description' => 'Distribuição da produção por cooperado e competência.',
                 ],
-            ],
-            'acoes' => [
-                'zerar_banco_local' => [
-                    'url' => $this->urlGenerator->generate('app_acoes_zerarbancolocal'),
-                    'label' => 'Zerar banco local',
-                ],
-                'executa_producao' => [
-                    'url' => $this->urlGenerator->generate('app_acoes_makeproducao'),
-                    'label' => $application->find('make:producao')->getName(),
+                'trabalhado' => [
+                    'url' => $this->urlGenerator->generate('app_trabalhadosummarized_index'),
+                    'label' => 'Horas por cliente',
+                    'description' => 'Apontamentos importados por cliente e competência.',
                 ],
             ],
         ]);

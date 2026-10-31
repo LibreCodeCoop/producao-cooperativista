@@ -1,108 +1,125 @@
 {% extends "layout/index.html.twig" %}
-
-{% block title %}Processar produção{% endblock title %}
-
+{% block title %}Fechamento da produção cooperativista{% endblock %}
 {% block head %}
-    <script type="text/javascript" language="javascript" src="//code.jquery.com/jquery-3.7.0.js"></script>
-    <style>
-        .alert {
-            padding: 20px;
-            background-color: #f44336;
-            color: white;
-            opacity: 1;
-            transition: opacity 0.6s;
-            margin-bottom: 15px;
-        }
-
-        .alert.success {background-color: #04AA6D;}
-        .alert.info {background-color: #2196F3;}
-        .alert.warning {background-color: #ff9800;}
-
-        .closebtn {
-            margin-left: 15px;
-            color: white;
-            font-weight: bold;
-            float: right;
-            font-size: 22px;
-            line-height: 20px;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-
-        .closebtn:hover {
-            color: black;
-        }
-    </style>
-{% endblock head %}
-
+    <link rel="stylesheet" href="/css/production-workflow.css">
+    <script src="/js/production-progress.js" defer></script>
+    <script src="/js/production-workflow.js" defer></script>
+{% endblock %}
 {% block body %}
-    <form id="form-gera-producao">
-        <fieldset>
-            <legend>Produção realizada em</legend>
-            <label for="month">Ano/mês</label>
-            <select id="year" name="year">
-            {%~ for j in range('now'|date('Y')-1, 'now'|date('Y')+1) %}
-                <option{% if inicio_ano == j %} selected{% endif %}>{{ j }}</option>
-            {%~ endfor %}
-            </select>
-            <select id="month" name="month">
-            {%~ for j in 1..12 %}
-                <option{% if inicio_mes == j %} selected{% endif %}>{{ "%02d"|format(j) }}</option>
-            {%~ endfor %}
-            </select>
-        </fieldset>
-        <fieldset>
-            <legend>Baixar dados</legend>
-            <input type="radio" id="baixar_dados_nao" name="baixar_dados" value="0"{% if baixar_dados == 0 %} checked{% endif %} /><label for="baixar_dados_nao">Não</label>
-            <input type="radio" id="baixar_dados_sim" name="baixar_dados" value="1"{% if baixar_dados == 0 %} checked{% endif %} /><label for="baixar_dados_sim">Sim</label>
-        </fieldset>
-        <fieldset>
-            <legend>Atualiza produção</legend>
-            <input type="radio" id="atualiza_producao_nao" name="atualiza_producao" value="0"{% if atualiza_producao == 0 %} checked{% endif %} /><label for="atualiza_producao_nao">Não</label>
-            <input type="radio" id="atualiza_producao_sim" name="atualiza_producao" value="1"{% if atualiza_producao == 1 %} checked{% endif %} /><label for="atualiza_producao_sim">Sim</label>
-        </fieldset>
-        <br />
-        <input type="submit" value="Executa" id="submit" />
-    </form>
-    <div id="messages"></div>
-    <script>
-        $('#form-gera-producao').submit( function(e) {
-            e.preventDefault()
+    <nav class="breadcrumbs" aria-label="Localização">
+        <a href="/">Visão geral</a><span aria-hidden="true">/</span><span aria-current="page">Fechamento mensal</span>
+    </nav>
+    <header class="page-heading">
+        <p class="eyebrow">Produção cooperativista · Fechamento mensal</p>
+        <h1>Fechar a produção</h1>
+        <p class="page-lead">Importe a competência, confira a apuração e decida quem terá documentos publicados. A conferência e a seleção acontecem na mesma tabela.</p>
+    </header>
 
-            const ItemMessage = (type, data) => '<div class="alert ' + type + '">' + '<span class="closebtn">&times;</span>' + data + '</div>';
+    <nav class="production-steps" aria-label="Etapas do fechamento">
+        <button type="button" data-step-indicator="1" aria-current="step"><b>1</b> Importar dados</button>
+        <button type="button" data-step-indicator="2" disabled title="Disponível após consultar os dados importados"><b>2</b> Conferir e publicar</button>
+    </nav>
 
-            $('#messages').html('')
+    <div class="production-wizard surface" id="production-wizard" data-preview-url="/api/v1/producao">
+        {# Separate the publication form from the read-only review table. #}
+        <form id="form-gera-producao" data-workflow="yes" method="post" action="{{ url }}">
+            <input type="hidden" name="_token" value="{{ token }}">
+            <input type="hidden" name="year" value="{{ inicio_ano }}">
+            <input type="hidden" name="month" value="{{ inicio_mes }}">
+            <input type="hidden" name="baixar_dados" value="1">
+            <input type="hidden" name="atualiza_producao" value="0">
+            <input type="hidden" name="operation" value="import">
+            <input type="hidden" name="expected_revision" value="">
+            <input type="hidden" name="omit_user_ids" value="">
+        </form>
 
-            const eventSource = new EventSource(
-                '{{ url|raw }}?' + $('#form-gera-producao').serialize()
-            )
-            eventSource.addEventListener('info', e => {
-                $('#messages').append(ItemMessage(e.type, JSON.parse(e.data)))
-            })
-            eventSource.addEventListener('alert', e => {
-                $('#messages').append(ItemMessage(e.type, JSON.parse(e.data)))
-            })
-            eventSource.addEventListener('error', e => {
-                $('#messages').append(ItemMessage(e.type, JSON.parse(e.data)))
-            })
-            eventSource.addEventListener('warning', e => {
-                $('#messages').append(ItemMessage(e.type, JSON.parse(e.data)))
-            })
-            eventSource.addEventListener('done', e => {
-                $('#messages').append(ItemMessage('success', JSON.parse(e.data)))
-                eventSource.close()
-                $('#messages').append('Volte para a página anterior e veja os relatórios')
-            })
-            eventSource.onerror = function(event) {
-                $('#messages').append(ItemMessage('alert', 'Erro no servidor. Confira os logs, aplicação abortada.'))
-                eventSource.close()
-            }
+        <section data-workflow-step="1" aria-labelledby="import-title">
+            <p class="section-kicker">Etapa 1 de 2</p>
+            <h2 id="import-title">Importar dados</h2>
+            <p>Defina a competência das horas trabalhadas. A importação atualiza os dados intermediários do ETL sem criar documentos financeiros.</p>
+            <div class="production-period-fields">
+                <div class="form-field">
+                    <label for="month">Mês</label>
+                    <select id="month">
+                        {% for label in ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'] %}
+                            {% set number = '%02d'|format(loop.index) %}
+                            <option value="{{ number }}"{% if inicio_mes == number %} selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label for="year">Ano</label>
+                    <select id="year">
+                        {% for j in range('now'|date('Y') - 2, 'now'|date('Y') + 1) %}
+                            <option value="{{ j }}"{% if inicio_ano == j %} selected{% endif %}>{{ j }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="production-wizard-actions">
+                <button type="button" id="import-button" class="button button-primary">Importar competência</button>
+                <button type="button" id="use-existing" class="button">Conferir dados já importados</button>
+                <a class="button button-secondary production-reset-link" href="/acoes/zerar-banco-local?retorno={{ (inicio_ano ~ '-' ~ inicio_mes)|url_encode }}">
+                    Limpar base importada
+                </a>
+            </div>
+            <p class="production-help">A limpeza remove todos os dados intermediários importados, não apenas esta competência, e exige confirmação na próxima página. Ela não modifica os sistemas de origem nem os documentos já emitidos.</p>
+        </section>
 
-            $('#messages').on('click', '.closebtn', function() {
-                $(this).parent().fadeTo(600, 0, function() {
-                    $(this).hide('slow')
-                });
-            });
-        })
-    </script>
+        <section data-workflow-step="2" hidden aria-labelledby="audit-title">
+            <p class="section-kicker">Etapa 2 de 2 · <span id="review-competence"></span></p>
+            <h2 id="audit-title">Conferir a apuração e selecionar exceções</h2>
+            <p>Ordene e filtre a produção por cooperado. Abra os detalhes para conferir cada cliente. Clique no nome para editar o cadastro nas fontes; qualquer alteração exige nova importação. O peso exibido é o da importação. Todos serão publicados, exceto quem tiver a opção <strong>Não publicar agora</strong> marcada.</p>
+            <div class="production-metrics" role="status" aria-live="polite">
+                <div><span>Cooperados</span><strong id="metric-members">—</strong></div>
+                <div><span>Horas</span><strong id="metric-hours">—</strong></div>
+                <div><span>Base da produção</span><strong id="metric-base">—</strong></div>
+                <div><span>Líquido previsto</span><strong id="metric-net">—</strong></div>
+            </div>
+            <div class="production-table-intro">
+                <div>
+                    <strong>Produção por cooperado</strong>
+                    <small>As escolhas são mantidas mesmo ao filtrar, ordenar ou mudar de página. Use Detalhes para consultar clientes e deduções.</small>
+                </div>
+            </div>
+            {{ include('layout/components/datatable.html.twig', {
+                url: '/api/v1/producao?ano-mes=' ~ inicio_ano ~ '-' ~ inicio_mes,
+                filterColumns: ['metadata', 'kimai_user_id', 'hours_seconds'],
+                productionMode: true,
+                financialReview: true,
+                manualInit: true,
+                competencia: inicio_ano ~ '-' ~ inicio_mes
+            }) }}
+            <div class="production-selection-summary" id="selection-summary" aria-live="polite"></div>
+            <p class="production-help">Não publicar agora não redistribui valores, não transfere horas para outro mês e não cancela documentos já existentes no Akaunting.</p>
+
+            <nav class="production-review-links" aria-label="Conferência complementar">
+                <a data-report-path="/relatorios/calculos" href="/relatorios/calculos?ano-mes={{ inicio_ano }}-{{ inicio_mes }}" target="_blank" rel="noopener">
+                    <strong>Memória de cálculo</strong><small>Fórmulas, rateio e bases financeiras</small>
+                </a>
+                <a data-report-path="/relatorios/invoices" href="/relatorios/invoices?ano-mes={{ inicio_ano }}-{{ inicio_mes }}" target="_blank" rel="noopener">
+                    <strong>Entradas e saídas</strong><small>Documentos e classificações de origem</small>
+                </a>
+                <a href="/relatorios/categorias" target="_blank" rel="noopener">
+                    <strong>Categorias financeiras</strong><small>Conferir lançamentos classificados</small>
+                </a>
+                <a data-report-path="/relatorios/producao" href="/relatorios/producao?ano-mes={{ inicio_ano }}-{{ inicio_mes }}" target="_blank" rel="noopener">
+                    <strong>Abrir relatório separado</strong><small>Mesmos dados e filtros para consulta isolada</small>
+                </a>
+            </nav>
+
+            <div class="production-final">
+                <strong>Publicação no Akaunting</strong>
+                <p id="publication-summary">Nenhuma publicação executada. Confira os valores e a seleção.</p>
+                <label class="production-confirm-label">
+                    <input type="checkbox" id="publication-confirmation">
+                    Conferi a apuração e as exceções; autorizo a publicação dos documentos da competência.
+                </label>
+                <div class="production-wizard-actions">
+                    <button type="button" id="submit" class="button button-primary" disabled>Publicar documentos no Akaunting</button>
+                </div>
+            </div>
+        </section>
+        <div id="messages" class="production-messages" role="status" aria-live="polite" aria-atomic="false"></div>
+    </div>
 {% endblock %}

@@ -40,19 +40,19 @@ class Contacts
     #[ORM\Column(type: 'integer')]
     private int $id;
     #[ORM\Column(name: 'company_id')]
-    private ?int $companyId;
+    private ?int $companyId = null;
     #[ORM\Column]
     private string $type;
     #[ORM\Column]
     private string $name;
     #[ORM\Column(name: 'tax_number', nullable: true, length: 20)]
-    private ?string $taxNumber;
+    private ?string $taxNumber = null;
     #[ORM\Column]
     private string $country;
     #[ORM\Column(name: 'currency_code')]
     private string $currencyCode;
     #[ORM\Column(type: Types::SMALLINT)]
-    private ?int $enabled;
+    private ?int $enabled = null;
     #[ORM\Column(name: 'created_at')]
     private \DateTime $createdAt;
     #[ORM\Column(name: 'updated_at')]

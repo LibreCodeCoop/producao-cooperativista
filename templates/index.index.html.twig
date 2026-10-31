@@ -1,28 +1,16 @@
 {% extends "layout/index.html.twig" %}
-
-{% block title %}Home{% endblock title %}
-
+{% block title %}Visão geral{% endblock %}
 {% block body %}
-    <ul>
-        <li>
-            Relatórios
-            <ul>
-            {% for relatorio in relatorios %}
-                <li>
-                    <a href="{{ relatorio.url }}">{{relatorio.label}}</a>
-                </li>
-            {% endfor %}
-            </ul>
-        </li>
-        <li>
-            Ações
-            <ul>
-            {% for acao in acoes %}
-                <li>
-                    <a href="{{ acao.url }}">{{acao.label}}</a>
-                </li>
-            {% endfor %}
-            </ul>
-        </li>
-    </ul>
+<div class="home-main">
+    <header class="page-heading page-heading-compact">
+        <p class="eyebrow">Visão geral</p>
+        <h1>Produção cooperativista</h1>
+    </header>
+    <section class="surface home-closing" aria-labelledby="home-closing-title">
+        <p class="section-kicker">Rotina mensal</p>
+        <h2 id="home-closing-title">Fechamento mensal</h2>
+        <p>Importe, confira e publique os documentos da competência.</p>
+        <a class="button dashboard-primary-action" href="{{ actionUrl }}">Abrir fechamento</a>
+    </section>
+</div>
 {% endblock %}

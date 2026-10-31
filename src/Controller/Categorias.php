@@ -38,7 +38,7 @@ class Categorias extends AbstractController
     ) {
     }
 
-    #[Route('/categorias', methods: ['GET'])]
+    #[Route('/relatorios/categorias', methods: ['GET'])]
     public function index(): Response
     {
         return $this->render('categorias.index.html.twig', [

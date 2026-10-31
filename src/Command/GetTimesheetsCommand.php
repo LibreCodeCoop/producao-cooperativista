@@ -26,7 +26,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use DateTime;
+use App\Domain\Competencia;
 use App\Service\Kimai\Source\Timesheets;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -78,7 +78,12 @@ class GetTimesheetsCommand extends AbstractBaseCommand
             $output->writeln('<error>--year-month is mandatory</error>');
             return Command::INVALID;
         }
-        $date = DateTime::createFromFormat('Y-m', $input->getOption('year-month'));
+        try {
+            $date = Competencia::fromString((string) $input->getOption('year-month'))->start();
+        } catch (\InvalidArgumentException) {
+            $output->writeln('<error>--year-month precisa estar no formato YYYY-MM</error>');
+            return Command::INVALID;
+        }
         $list = $this->timesheets->getFromApi(
             $date,
             $input->getOption('user'),
@@ -93,7 +98,12 @@ class GetTimesheetsCommand extends AbstractBaseCommand
             );
         }
         if ($input->getOption('database')) {
-            $this->timesheets->saveList($list);
+            if ($input->getOption('user') === 'all' && $input->getOption('exported') === 'all') {
+                $this->timesheets->syncMonth($date, $list);
+            } else {
+                // A filtered response is not an authoritative monthly snapshot.
+                $this->timesheets->saveList($list);
+            }
         }
         return Command::SUCCESS;
     }

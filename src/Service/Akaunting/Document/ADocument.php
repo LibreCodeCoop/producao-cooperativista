@@ -196,9 +196,7 @@ abstract class ADocument
         $item['total'] = round($item['total'], 2);
         $item['discount'] = $discount;
         $item['order'] = $order;
-        $found = array_filter($this->items, function (array $i) use ($item): bool {
-            return $i['name'] === $item['name'] && $i['description'] === $item['description'];
-        });
+        $found = array_filter($this->items, fn (array $i): bool => $i['name'] === $item['name'] && $i['description'] === $item['description']);
         if ($found) {
             $mergedItem = array_merge($this->items[key($found)], $item);
             if (array_diff($this->items[key($found)], $mergedItem)) {
@@ -309,13 +307,34 @@ abstract class ADocument
                         method: 'GET'
                     );
                     $this->request->handleError($response);
-                    // Set the ID of existing document and request again this method to handle the update
-                    $this->setId($response['data'][0]['id']);
+                    $matches = array_filter(
+                        $response['data'] ?? [],
+                        fn ($row): bool => is_array($row)
+                            && ($row['document_number'] ?? '') === $this->getDocumentNumber()
+                    );
+                    // Search result ordering must not decide which financial record to update.
+                    $existing = count($matches) === 1 ? reset($matches) : null;
+                    if (!is_array($existing) || empty($existing['id'])) {
+                        throw new \RuntimeException(
+                            'Documento já existe no Akaunting, mas a consulta não retornou um registro exato e único. Verifique o cadastro antes de tentar novamente.'
+                        );
+                    }
+                    if (in_array($existing['status'] ?? '', ['paid', 'cancelled'], true)) {
+                        throw new \RuntimeException(
+                            'Documento já finalizado no Akaunting. A atualização foi bloqueada.'
+                        );
+                    }
+                    // Document-number equality alone is not sufficient:
+                    // never update another company, supplier or document type.
+                    $this->assertSameDocumentIdentity($existing);
+                    $this->setId((int) $existing['id']);
                     $this->save();
                     return $this;
                 }
             } else {
-                // Update if exists
+                // Staged IDs are only hints: the document may have been paid,
+                // cancelled or reassigned since it was imported.
+                $this->assertRemoteDocumentCanBeUpdated();
                 $response = $this->request->send(
                     endpoint: '/api/documents/' . $this->getId(),
                     body: $this->toArray(),
@@ -328,10 +347,69 @@ abstract class ADocument
             throw new Exception(json_encode($content));
         }
         $this->request->handleError($response);
+        if (!isset($response['data']) || !is_array($response['data'])) {
+            throw new \RuntimeException(
+                'Akaunting processou a operação, mas não retornou os dados do documento. Verifique o documento existente antes de reexecutar.'
+            );
+        }
         // Update local database
         $document = $this->documents->fromArray($response['data']);
         $this->documents->saveRow($document);
         return $this;
+    }
+
+    /**
+     * Fetch the current remote state before a PATCH. Never trust an earlier
+     * local snapshot, a prior successful GET, or a duplicate-number conflict.
+     */
+    private function assertRemoteDocumentCanBeUpdated(): void
+    {
+        $response = $this->request->send(
+            endpoint: '/api/documents/' . $this->getId(),
+            query: ['search' => 'type:' . $this->getType()],
+            method: 'GET',
+        );
+        $this->request->handleError($response);
+        $existing = $response['data'] ?? null;
+        if (!is_array($existing)
+            || (int) ($existing['id'] ?? 0) !== $this->getId()
+            || ($existing['document_number'] ?? null) !== $this->getDocumentNumber()) {
+            throw new \RuntimeException(
+                'Identificação remota do documento divergente da referência local. A atualização foi bloqueada.'
+            );
+        }
+
+        if (in_array($existing['status'] ?? null, ['paid', 'cancelled'], true)) {
+            throw new \RuntimeException(
+                'Documento já finalizado no Akaunting. A atualização foi bloqueada.'
+            );
+        }
+        $this->assertSameDocumentIdentity($existing);
+    }
+
+    /**
+     * A duplicate-number response is not authorization to update the record.
+     * Require a complete, matching tenant/type/contact identity.
+     *
+     * @param array<string, mixed> $existing
+     */
+    private function assertSameDocumentIdentity(array $existing): void
+    {
+        $companyId = (int) getenv('AKAUNTING_COMPANY_ID');
+        if ($companyId <= 0
+            || (int) ($existing['company_id'] ?? 0) !== $companyId
+            || (string) ($existing['type'] ?? '') !== $this->getType()
+            || $this->getContactId() <= 0
+            || (int) ($existing['contact_id'] ?? 0) !== $this->getContactId()) {
+            throw new \RuntimeException(
+                'Documento existente no Akaunting tem empresa, tipo ou contato divergente. Atualização bloqueada.'
+            );
+        }
+        if (!in_array((string) ($existing['status'] ?? ''), ['draft', 'sent'], true)) {
+            throw new \RuntimeException(
+                'Documento tem situação não habilitada para atualização. Confira o estado no Akaunting.'
+            );
+        }
     }
 
     protected function coletaInvoiceNaoPago(): self
@@ -360,8 +438,7 @@ abstract class ADocument
         }
 
         $this->setId($row['id'])
-            ->setDueAt($row['due_at'])
-            ->loadFromAkaunting($row['id']);
+            ->setDueAt($row['due_at'])->loadFromAkaunting();
         return $this;
     }
 
@@ -379,7 +456,33 @@ abstract class ADocument
             ],
             method: 'GET'
         );
-        foreach ($response['data'] as $property => $value) {
+        $this->request->handleError($response);
+        $remote = $response['data'] ?? null;
+        // Never populate a document from a remote ID that no longer points
+        // to the expected source; this would poison subsequent comparisons.
+        $companyId = (int) getenv('AKAUNTING_COMPANY_ID');
+        if (!is_array($remote)
+            || $companyId <= 0
+            || (int) ($remote['id'] ?? 0) !== $this->getId()
+            || ($remote['document_number'] ?? null) !== $this->getDocumentNumber()
+            || (int) ($remote['company_id'] ?? 0) !== $companyId
+            || ($this->getType() !== '' && ($remote['type'] ?? null) !== $this->getType())
+            || ($this->getContactId() > 0 && (int) ($remote['contact_id'] ?? 0) !== $this->getContactId())) {
+            throw new \RuntimeException(
+                'Identificação remota do documento divergente da referência local. A leitura foi bloqueada.'
+            );
+        }
+        if (in_array($remote['status'] ?? null, ['paid', 'cancelled'], true)) {
+            throw new \RuntimeException(
+                'Documento já finalizado no Akaunting. Atualize os dados locais antes de recalcular.'
+            );
+        }
+        if (!in_array($remote['status'] ?? null, ['draft', 'sent'], true)) {
+            throw new \RuntimeException(
+                'Documento tem situação não reconhecida durante a reconciliação.'
+            );
+        }
+        foreach ($remote as $property => $value) {
             $property = $this->camelize($property);
             $methodName = 'set' . ucfirst($property);
             if (method_exists($this, $methodName)) {
@@ -390,7 +493,7 @@ abstract class ADocument
                 $this->$methodName($value);
             }
         }
-        $document = $this->documents->fromArray($response['data']);
+        $document = $this->documents->fromArray($remote);
         $this->documents->saveRow($document);
         $this->loadedFromAkaunting = true;
     }
@@ -477,7 +580,7 @@ abstract class ADocument
             if (!str_contains($note, ': ')) {
                 continue;
             }
-            list($label, $value) = explode(': ', $note);
+            [$label, $value] = explode(': ', $note);
             $this->notes[$label] = $value;
         }
         return $this;

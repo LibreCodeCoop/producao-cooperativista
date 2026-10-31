@@ -37,18 +37,19 @@ use App\Service\Cooperado;
 use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use NumberFormatter;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Php\TestCase;
 
 final class ProducaoCooperativistaTest extends TestCase
 {
-    private const COOPERADO_NOME = 'Cooperado Exemplo';
-    private const COOPERADO_CPF = '00011122233';
-    private const PLANO_DE_SAUDE_CATEGORY_ID = 9101;
-    private const PLANO_DE_SAUDE_LEGADO_CATEGORY_ID = 9102;
-    private const VALOR_BENEFICIO_SECUNDARIO = 12.34;
-    private const VALOR_BENEFICIO_PRINCIPAL = 56.78;
-    private const VALOR_TELEFONIA = 7.89;
-    private const TELEFONIA_CATEGORY_ID = 9100;
+    private const string COOPERADO_NOME = 'Cooperado Exemplo';
+    private const string COOPERADO_CPF = '00011122233';
+    private const int PLANO_DE_SAUDE_CATEGORY_ID = 9101;
+    private const int PLANO_DE_SAUDE_LEGADO_CATEGORY_ID = 9102;
+    private const float VALOR_BENEFICIO_SECUNDARIO = 12.34;
+    private const float VALOR_BENEFICIO_PRINCIPAL = 56.78;
+    private const float VALOR_TELEFONIA = 7.89;
+    private const int TELEFONIA_CATEGORY_ID = 9100;
 
     private EntityManagerInterface $entityManager;
     private Dates $dates;
@@ -114,6 +115,57 @@ final class ProducaoCooperativistaTest extends TestCase
         $this->assertSame(77.01, round($document->getValues()->getLiquidDiscount(), 2));
     }
 
+    public function testInvalidDecimalSeparatorInLiquidDiscountAbortsCalculation(): void
+    {
+        $this->persistLiquidDiscountCategoryHierarchy();
+        $this->persistBill(
+            id: 1110,
+            amount: 1592.65,
+            notes: 'Cooperado: ' . self::COOPERADO_NOME . ', CPF: ' . self::COOPERADO_CPF . ', Valor: 1592.65',
+            categoryId: self::PLANO_DE_SAUDE_CATEGORY_ID,
+            categoryName: 'Cooperado > Produção > Desconto líquido > Plano de saúde',
+            itemDescription: 'Valor decimal incorreto',
+            contactName: 'Fornecedor Exemplo'
+        );
+
+        $document = $this->createDocumentForCooperado(self::COOPERADO_NOME, self::COOPERADO_CPF);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Valor monetário de desconto líquido inválido');
+        $document->updateLiquidDiscounts();
+    }
+
+    /**
+     * @return array<string, array{string, float}>
+     */
+    public static function validDiscountValues(): array
+    {
+        return [
+            'centavos com vírgula' => ['781,95', 781.95],
+            'milhar e centavos' => ['1.592,65', 1592.65],
+            'milhar com símbolo' => ['R$ 12.345,67', 12345.67],
+            'inteiro' => ['781', 781.0],
+        ];
+    }
+
+    #[DataProvider('validDiscountValues')]
+    public function testFormattedLiquidDiscountValueIsPreserved(string $value, float $expected): void
+    {
+        $this->persistLiquidDiscountCategoryHierarchy();
+        $this->persistBill(
+            id: 1111,
+            amount: $expected,
+            notes: 'Cooperado: ' . self::COOPERADO_NOME . ', CPF: ' . self::COOPERADO_CPF . ', Valor: ' . $value,
+            categoryId: self::PLANO_DE_SAUDE_CATEGORY_ID,
+            categoryName: 'Cooperado > Produção > Desconto líquido > Plano de saúde',
+            itemDescription: 'Desconto com formatação brasileira',
+            contactName: 'Fornecedor Exemplo'
+        );
+        $document = $this->createDocumentForCooperado(self::COOPERADO_NOME, self::COOPERADO_CPF);
+        $document->updateLiquidDiscounts();
+
+        self::assertEqualsWithDelta($expected, $document->getValues()->getLiquidDiscount(), 0.001);
+    }
+
     public function testUpdateLiquidDiscountsFallsBackToOlderBillInSameCategoryWhenLatestCpfDoesNotMatch(): void
     {
         $this->persistLiquidDiscountCategoryHierarchy();
@@ -165,6 +217,68 @@ final class ProducaoCooperativistaTest extends TestCase
         $document->updateLiquidDiscounts();
 
         $this->assertSame(0.0, round($document->getValues()->getLiquidDiscount(), 2));
+    }
+
+    public function testOneDiscountQueryCanBeSharedAcrossMultipleCooperados(): void
+    {
+        $this->persistLiquidDiscountCategoryHierarchy();
+        $this->persistBill(
+            id: 1101,
+            amount: 69.12,
+            notes: "Cooperado: A, CPF: 00011122233, Valor: R$ 12,34\nCooperado: B, CPF: 11122233344, Valor: R$ 56,78",
+            categoryId: self::PLANO_DE_SAUDE_CATEGORY_ID,
+            categoryName: 'Cooperado > Produção > Desconto líquido > Plano de saúde',
+            itemDescription: 'Dois cooperados',
+            contactName: 'Fornecedor de benefício'
+        );
+
+        $a = $this->createDocumentForCooperado('A', '00011122233');
+        $b = $this->createDocumentForCooperado('B', '11122233344');
+        $rows = $a->getLiquidDiscountRows();
+
+        $this->assertCount(1, $rows);
+        $a->updateLiquidDiscounts($rows);
+        $b->updateLiquidDiscounts($rows);
+
+        $this->assertEqualsWithDelta(12.34, $a->getValues()->getLiquidDiscount(), 0.001);
+        $this->assertEqualsWithDelta(56.78, $b->getValues()->getLiquidDiscount(), 0.001);
+    }
+
+    public function testPaidAdvancesCanBeFetchedOnceAndAssignedToEachCooperado(): void
+    {
+        $categoryId = (int) getenv('AKAUNTING_ADIANTAMENTO_CATEGORY_ID');
+        foreach ([
+            ['id' => 1102, 'cpf' => '00011122233', 'amount' => 70.0],
+            ['id' => 1103, 'cpf' => '11122233344', 'amount' => 20.0],
+        ] as $advance) {
+            $this->persistBill(
+                id: $advance['id'],
+                amount: $advance['amount'],
+                notes: 'Adiantamento',
+                categoryId: $categoryId,
+                categoryName: 'Cooperado > Produção > Adiantamento',
+                itemDescription: 'Adiantamento de teste',
+                contactName: 'Cooperado de teste'
+            );
+            $this->entityManager->getConnection()->executeStatement(
+                'UPDATE invoices SET tax_number = :cpf WHERE id = :id',
+                ['cpf' => $advance['cpf'], 'id' => $advance['id']]
+            );
+        }
+
+        $a = $this->createDocumentForCooperado('A', '00011122233');
+        $b = $this->createDocumentForCooperado('B', '11122233344');
+        $grouped = $a->getAdiantamentosParaCooperados(['00011122233', '11122233344']);
+
+        $this->assertCount(1, $grouped['00011122233']);
+        $this->assertCount(1, $grouped['11122233344']);
+        $a->atualizaAdiantamentos($grouped['00011122233']);
+        $b->atualizaAdiantamentos($grouped['11122233344']);
+        $a->atualizaAdiantamentos($grouped['00011122233']);
+
+        $this->assertEqualsWithDelta(70.0, $a->getValues()->getAdiantamento()[0]['amount'], 0.001);
+        $this->assertCount(1, $a->getValues()->getAdiantamento());
+        $this->assertEqualsWithDelta(20.0, $b->getValues()->getAdiantamento()[0]['amount'], 0.001);
     }
 
     private function createDocumentForCooperado(string $name, string $taxNumber): ProducaoCooperativista

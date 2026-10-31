@@ -26,29 +26,22 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Entity\Akaunting\Contacts;
 use App\Helper\Colors;
 use App\Helper\Dates;
 use App\Provider\Akaunting\Request;
+use App\Service\Calculation\CustomerCostAllocator;
+use App\Service\Calculation\WeightedAllocator;
+use App\Service\Calculation\ProductionDistributionPlanner;
+use App\Service\Import\SourcePipeline;
+use App\Service\Cooperative\ProfileRegistry;
+use App\Service\Cooperative\PublicationRouter;
 use App\Service\Akaunting\DocumentConfiguration;
-use App\Service\Akaunting\Document\Taxes\Cofins;
-use App\Service\Akaunting\Document\Taxes\IrpfRetidoNaNota;
-use App\Service\Akaunting\Document\Taxes\Iss;
-use App\Service\Akaunting\Document\Taxes\Pis;
-use App\Service\Akaunting\Source\Categories;
 use App\Service\Akaunting\Source\Documents;
-use App\Service\Akaunting\Source\Taxes;
-use App\Service\Akaunting\Source\Transactions;
-use App\Service\Kimai\Source\Customers;
-use App\Service\Kimai\Source\Projects;
-use App\Service\Kimai\Source\Timesheets;
-use App\Service\Kimai\Source\Users;
-use App\Service\Source\Nfse;
+use App\Service\Akaunting\Source\CapitalSocial;
 use DateTime;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\Persistence\ManagerRegistry;
 use Exception;
 use NumberFormatter;
 use Psr\Log\LoggerInterface;
@@ -61,29 +54,25 @@ class ProducaoCooperativista
     private array $cooperado = [];
     private int $totalCooperados = 0;
     private bool $producaoDistribuida = false;
-    private EntityManagerInterface $entityManagerAkaunting;
 
     public function __construct(
-        ManagerRegistry $managerRegistry,
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
-        private Customers $customers,
-        private Nfse $nfse,
-        private Projects $projects,
         private Documents $documents,
-        private Timesheets $timesheets,
-        private Transactions $transactions,
-        private Users $users,
         private Request $request,
         private DocumentConfiguration $documentConfiguration,
         private NumberFormatter $numberFormatter,
-        private Categories $categories,
-        private Taxes $taxes,
         public Dates $dates,
         private UrlGeneratorInterface $urlGenerator,
         private Movimentacao $movimentacao,
+        private CustomerCostAllocator $customerCostAllocator,
+        private WeightedAllocator $weightedAllocator,
+        private ProductionDistributionPlanner $distributionPlanner,
+        private SourcePipeline $sourcePipeline,
+        private ProfileRegistry $profiles,
+        private PublicationRouter $publisher,
+        private CapitalSocial $capitalSocialSource,
     ) {
-        $this->entityManagerAkaunting = $managerRegistry->getManager('akaunting');
     }
 
     private function getTotalTrabalhado(): float
@@ -100,24 +89,7 @@ class ProducaoCooperativista
 
     public function loadFromExternalSources(DateTime $inicio): void
     {
-        $this->dates->setInicio($inicio);
-        $this->logger->info('Baixando dados externos');
-        $this->customers->updateDatabase();
-        $this->nfse->updateDatabase($this->dates->getInicioProximoMes());
-        $this->projects->updateDatabase();
-        $this->documents
-            ->setDate($this->dates->getInicioProximoMes())
-            ->setType('invoice')
-            ->saveList()
-            ->setType('bill')
-            ->saveList();
-        $this->timesheets->updateDatabase($this->dates->getInicio());
-        $this->transactions
-            ->setDate($this->dates->getInicioProximoMes())
-            ->saveList();
-        $this->categories->saveList();
-        $this->taxes->saveList();
-        $this->users->saveList();
+        $this->sourcePipeline->run($inicio);
     }
 
     /**
@@ -147,49 +119,9 @@ class ProducaoCooperativista
     /**
      * @return array[]
      */
-    public function getCapitalSocial(): array
+    public function getCapitalSocial(?int $contactId = null, ?string $until = null): array
     {
-        $sql =
-            <<<SQL
-            SELECT * FROM (
-            -- Transactions
-            SELECT contact_id, c.name, amount,
-                paid_at AS due_at,
-                t.id,
-                'transaction' as`'table`
-            FROM transactions t
-            join contacts c on c.id = t.contact_id
-            WHERE category_id = 25
-            and document_id is null
-            AND t.deleted_at IS NULL
-            UNION
-            -- Documents
-            SELECT contact_id, contact_Name, amount, due_at,
-                d.id,
-                'documents' as`'table`
-            FROM documents d
-            WHERE d.category_id = 25
-            AND d.deleted_at IS NULL
-            UNION
-            -- Documents with items
-            SELECT d.contact_id, d.contact_Name, di.price, d.due_at,
-                d.id,
-                'documents_item' as`'table`
-            FROM document_items as di
-            JOIN documents as d on di.document_id = d.id
-            where di.item_id = 11
-            AND d.deleted_at IS NULL
-            AND di.deleted_at IS NULL
-            ) x
-            ORDER BY x.name, x.due_at
-            SQL;
-        $qb = $this->entityManagerAkaunting->getConnection()->createQueryBuilder();
-        $stmt = $qb->executeQuery($sql);
-        $return = $stmt->fetchAllAssociative();
-        if (empty($return)) {
-            throw new Exception('Sem capital social');
-        }
-        return $return;
+        return $this->capitalSocialSource->rows($contactId, $until);
     }
 
     /**
@@ -221,26 +153,55 @@ class ProducaoCooperativista
     }
 
     /**
-     * @return (string)[][]
+     * @return array<int, array{nome: string, nome_url: string, integralizado: int|float, devolvido: int|float, total: int|float, pendencias: int, situacao: string}>
      */
-    public function getCapitalSocialSummarized(): array
+    public function getCapitalSocialSummarized(?string $until = null): array
     {
-        $capitalSocial = $this->getCapitalSocial();
-        $return = [];
-        foreach ($capitalSocial as $row) {
-            $return[$row['name']] = [
-                'nome' => '<a href="' .
-                    $this->urlGenerator->generate('app_capitalsocial_index', [
-                        'name' => $row['name'],
-                    ]) .
-                    '">' . $row['name'] . '</a>',
-                'total' => $row['amount'] + ($return[$row['name']]['total'] ?? 0),
+        $summary = [];
+        foreach ($this->getCapitalSocial(null, $until) as $row) {
+            $id = (int) $row['contact_id'];
+            $summary[$id] ??= [
+                    'nome' => (string) $row['name'],
+                    'nome_url' => $this->urlGenerator->generate('app_capitalsocial_index', [
+                        'contact_id' => $id,
+                        'ate' => $until,
+                    ]),
+                    'integralizado' => 0,
+                    'devolvido' => 0,
+                    'total' => 0,
+                    'pendencias' => 0,
+                    'situacao' => 'Aguardando conciliação documental',
             ];
+            if ($row['status'] !== 'confirmado') {
+                ++$summary[$id]['pendencias'];
+                continue;
+            }
+            $cents = (int) round(((float) $row['amount']) * 100);
+            if ($cents >= 0) {
+                $summary[$id]['integralizado'] += $cents;
+            } else {
+                $summary[$id]['devolvido'] -= $cents;
+            }
+            $summary[$id]['total'] += $cents;
         }
-        if (empty($return)) {
-            throw new Exception('Sem capital social');
+        foreach ($summary as $id => $entry) {
+            foreach (['integralizado', 'devolvido', 'total'] as $field) {
+                $entry[$field] /= 100;
+            }
+
+            // Zero unclassified records does not mean the member's historical
+            // position has been reconciled to society records and accounting.
+            if ($entry['total'] < 0) {
+                ++$entry['pendencias'];
+                $entry['situacao'] = 'Histórico incompleto: devolução superior aos aportes registrados';
+            } elseif ($entry['pendencias'] > 0) {
+                $entry['situacao'] = 'Movimentações a conferir';
+            } else {
+                $entry['situacao'] = 'Aguardando conciliação documental';
+            }
+            $summary[$id] = $entry;
         }
-        return $return;
+        return $summary;
     }
 
     /**
@@ -304,7 +265,7 @@ class ProducaoCooperativista
             ->orderBy('u.alias');
         $result = $qb->executeQuery();
         while ($row = $result->fetchAssociative()) {
-            $row['peso'] = $row['peso'] ?? 1;
+            $row['peso'] ??= 1;
             $cooperado = $this->getCooperado($row['tax_number']);
             $cooperado
                 ->setName($row['alias'])
@@ -431,7 +392,7 @@ class ProducaoCooperativista
             if (!$row['customer_reference']) {
                 continue;
             }
-            $row['peso'] = $row['peso'] ?? 1;
+            $row['peso'] ??= 1;
             $cooperado = $this->getCooperado($row['tax_number']);
             $cooperado
                 ->setName($row['alias'])
@@ -476,112 +437,22 @@ class ProducaoCooperativista
         }
     }
 
-    private function cadastraCooperadoQueProduziuNoAkaunting(): void
+    /**
+     * @param array<string, Cooperado>|null $included Validated review selection; null means full CLI publication.
+     */
+    public function updateProducao(?array $included = null): void
     {
-        $trabalhadoPorCliente =  $this->getTrabalhadoPorCliente();
-        $exists = [];
-        foreach ($trabalhadoPorCliente as $row) {
-            if (empty($row['akaunting_contact_id'])) {
-                if (in_array($row['tax_number'], $exists)) {
-                    continue;
-                }
-                $akauntingContactId = $this->cadastraCooperadoNoAkaunting(
-                    name: $row['alias'],
-                    taxNumber: $row['tax_number']
-                );
-                $this->getCooperado($row['tax_number'])
-                    ->setAkauntingContactId($akauntingContactId);
-                $exists[] = $row['tax_number'];
-            }
+        $this->profiles->requireLibreCodeSettlement();
+        $members = $this->getProducaoCooperativista();
+        $work = $this->getTrabalhadoPorCliente();
+        if ($included !== null) {
+            $members = $included;
+            $work = array_values(array_filter(
+                $work,
+                static fn (array $row): bool => isset($members[(string) ($row['tax_number'] ?? '')]),
+            ));
         }
-    }
-
-    private function cadastraCooperadoNoAkaunting(string $name, string $taxNumber): int
-    {
-        $contacts = new Contacts();
-        $contacts
-            ->setCompanyId((int) getenv('AKAUNTING_COMPANY_ID'), ParameterType::INTEGER)
-            ->setType('vendor')
-            ->setName($name)
-            ->setTaxNumber($taxNumber)
-            ->setCountry('BR')
-            ->setCurrencyCode('BRL')
-            ->setEnabled(1)
-            ->setCreatedAt($this->dates->getDataProcessamento())
-            ->setUpdatedAt($this->dates->getDataProcessamento());
-        $this->entityManagerAkaunting->persist($contacts);
-        $this->entityManagerAkaunting->flush();
-        return $contacts->getId();
-    }
-
-    public function updateProducao(): void
-    {
-        $producao = $this->getProducaoCooperativista();
-        foreach ($producao as $cooperado) {
-            $producaoCooperativista = $cooperado->getProducaoCooperativista();
-            $producaoCooperativista->save();
-            $this->logger->info('Produção do cooperado {nome} criada. Número: {numero}. Líquido: {liquido}', [
-                'nome' => $cooperado->getName(),
-                'numero' => $producaoCooperativista->getDocumentNumber(),
-                'liquido' => $producaoCooperativista->getValues()->getLiquido(),
-            ]);
-
-            if (strlen($cooperado->getTaxNumber()) > 11) {
-                continue;
-            }
-            if ($this->dates->getDataPagamento()->format('m') === '12') {
-                continue;
-            }
-            $frra = $cooperado->getFrra();
-            $frra->getValues()->setFrra(
-                $producaoCooperativista->getValues()->getFrra()
-            )->setUpdated();
-            $frra->save();
-            $this->logger->info('FRRA do cooperado {nome} criada. Número: {numero}. Líquido: {liquido}', [
-                'nome' => $cooperado->getName(),
-                'numero' => $frra->getDocumentNumber(),
-                'liquido' => $frra->getValues()->getLiquido(),
-            ]);
-        }
-
-        $inssIrpf = new IrpfRetidoNaNota(
-            entityManager: $this->entityManager,
-            dates: $this->dates,
-            documents: $this->documents,
-            request: $this->request,
-            documentConfiguration: $this->documentConfiguration,
-        );
-        $inssIrpf->saveMonthTaxes();
-
-        $cofins = new Cofins(
-            entityManager: $this->entityManager,
-            dates: $this->dates,
-            documents: $this->documents,
-            request: $this->request,
-            documentConfiguration: $this->documentConfiguration,
-        );
-        $cofins->setTotalBrutoNotasClientes($this->movimentacao->getTotalBrutoNotasClientes());
-        $cofins->saveMonthTaxes();
-
-        $pis = new Pis(
-            entityManager: $this->entityManager,
-            dates: $this->dates,
-            documents: $this->documents,
-            request: $this->request,
-            documentConfiguration: $this->documentConfiguration,
-        );
-        $pis->setTotalBrutoNotasClientes($this->movimentacao->getTotalBrutoNotasClientes());
-        $pis->saveMonthTaxes();
-
-        $iss = new Iss(
-            entityManager: $this->entityManager,
-            dates: $this->dates,
-            documents: $this->documents,
-            request: $this->request,
-            documentConfiguration: $this->documentConfiguration,
-        );
-        $iss->setTotalBrutoNotasClientes($this->movimentacao->getTotalBrutoNotasClientes());
-        $iss->saveMonthTaxes();
+        $this->publisher->publish($members, $work);
     }
 
     /**
@@ -589,32 +460,50 @@ class ProducaoCooperativista
      */
     public function getProducaoCooperativista(): array
     {
-        if ($this->cooperado) {
+        // FRRA, benefits and taxation are specific to the LibreCode settlement policy.
+        // The profile guard is mandatory before these calculations.
+        $this->profiles->requireLibreCodeSettlement();
+        if ($this->producaoDistribuida) {
             return $this->cooperado;
         }
 
         $this->movimentacao->getMovimentacaoFinanceira();
-        $this->cadastraCooperadoQueProduziuNoAkaunting();
         $this->distribuiProducao();
         $this->atualizaDescontosLiquido();
         $this->atualizaAdiantamentos();
-        $this->logger->debug('Produção por cooperado ooperado: {json}', ['json' => json_encode($this->cooperado)]);
+        $this->logger->debug('Produção calculada para {total} cooperados.', ['total' => count($this->cooperado)]);
         return $this->cooperado;
     }
 
     private function atualizaDescontosLiquido(): self
     {
+        $firstCooperado = reset($this->cooperado);
+        if ($firstCooperado === false) {
+            return $this;
+        }
+
+        $rows = $firstCooperado->getProducaoCooperativista()->getLiquidDiscountRows();
         foreach ($this->cooperado as $cooperado) {
-            $cooperado->getProducaoCooperativista()->updateLiquidDiscounts();
+            $cooperado->getProducaoCooperativista()->updateLiquidDiscounts($rows);
         }
         return $this;
     }
 
     private function atualizaAdiantamentos(): self
     {
-        foreach ($this->cooperado as $cooperado) {
-            $cooperado->getProducaoCooperativista()->atualizaAdiantamentos();
+        $firstCooperado = reset($this->cooperado);
+        if ($firstCooperado === false) {
+            return $this;
         }
+
+        $byCooperado = $firstCooperado->getProducaoCooperativista()->getAdiantamentosParaCooperados(
+            array_map(strval(...), array_keys($this->cooperado))
+        );
+        foreach ($this->cooperado as $cooperado) {
+            $taxNumber = $cooperado->getTaxNumber();
+            $cooperado->getProducaoCooperativista()->atualizaAdiantamentos($byCooperado[$taxNumber] ?? []);
+        }
+
         return $this;
     }
 
@@ -625,34 +514,32 @@ class ProducaoCooperativista
             return;
         }
 
-        $trabalhadoPorClienteInterno = $this->getTrabalhadoPorClienteInterno();
-        $pesoTotal = 0;
-        foreach ($trabalhadoPorClienteInterno as $data) {
-            $pesoTotal += $this->getCooperado($data['tax_number'])->getPesoFinal();
+        // A cooperado may have several internal projects; do not distribute twice.
+        $weights = [];
+        foreach ($this->getTrabalhadoPorClienteInterno() as $row) {
+            $taxNumber = (string) $row['tax_number'];
+            $weights[$taxNumber] = $this->getCooperado($taxNumber)->getPesoFinal();
         }
-        $pesoTotal = $pesoTotal ?: 1;
-        foreach ($trabalhadoPorClienteInterno as $data) {
-            $cooperado = $this->getCooperado($data['tax_number']);
-            $aReceber = ($cooperado->getPesoFinal() / $pesoTotal) * $aDistribuir;
-            $values = $cooperado->getProducaoCooperativista()->getValues();
-            $values->setBaseProducao($values->getBaseProducao() + $aReceber);
+
+        $allocation = $this->weightedAllocator->allocate($aDistribuir, $weights, 'Distribuição de sobras');
+        foreach ($allocation as $taxNumber => $amount) {
+            $values = $this->getCooperado((string) $taxNumber)->getProducaoCooperativista()->getValues();
+            $values->setBaseProducao($values->getBaseProducao() + $amount);
         }
     }
 
     private function getCooperado(string $taxNumber): Cooperado
     {
-        if (!isset($this->cooperado[$taxNumber])) {
-            $this->cooperado[$taxNumber] = new Cooperado(
-                entityManager: $this->entityManager,
-                dates: $this->dates,
-                numberFormatter: $this->numberFormatter,
-                documents: $this->documents,
-                request: $this->request,
-                documentConfiguration: $this->documentConfiguration,
-                anoFiscal: (int) $this->dates->getInicio()->format('Y'),
-                mes: (int) $this->dates->getInicio()->format('m'),
-            );
-        }
+        $this->cooperado[$taxNumber] ??= new Cooperado(
+            entityManager: $this->entityManager,
+            dates: $this->dates,
+            numberFormatter: $this->numberFormatter,
+            documents: $this->documents,
+            request: $this->request,
+            documentConfiguration: $this->documentConfiguration,
+            anoFiscal: (int) $this->dates->getInicio()->format('Y'),
+            mes: (int) $this->dates->getInicio()->format('m'),
+        );
         return $this->cooperado[$taxNumber];
     }
 
@@ -661,83 +548,22 @@ class ProducaoCooperativista
         if ($this->producaoDistribuida) {
             return;
         }
-        $this->distribuiProducaoDescontoFixo();
 
-        $clientesDescontoFixo = array_column($this->movimentacao->getEntradasClientes(percentualDescontoFixo: true), 'customer_reference');
-
-        $trabalhadoPorCliente = $this->getTrabalhadoPorCliente();
-        $listaPesoTotal = [];
-        $cooperados = [];
-        $listaTempoContratado = [];
-        $listaTempoTrabalhado = [];
-        foreach ($trabalhadoPorCliente as $row) {
-            if (in_array($row['customer_reference'], $clientesDescontoFixo)) {
-                continue;
-            }
-            if (!isset($listaTempoContratado[$row['customer_reference']])) {
-                $listaTempoContratado[$row['customer_reference']] = $row['total_cliente'];
-            }
-            if (!isset($listaTempoTrabalhado[$row['customer_reference']])) {
-                $listaTempoTrabalhado[$row['customer_reference']] = 0;
-            }
-            $listaTempoTrabalhado[$row['customer_reference']] += $row['trabalhado'];
-            $cooperado = $this->getCooperado($row['tax_number']);
-            $pesoFinal = $cooperado->getPesoFinal() + $row['trabalhado'] * $row['peso'];
-            if (!is_numeric($row['peso']) || $row['peso'] <= 0) {
-                $row['peso'] = 1;
-            }
-            $cooperado->setPesoFinal($pesoFinal);
-            $cooperados[$row['tax_number']] = $cooperado;
-            $listaPesoTotal[$cooperado->getTaxNumber()] = $pesoFinal;
+        $plan = $this->distributionPlanner->plan(
+            $this->movimentacao->getEntradasClientes(),
+            $this->getTrabalhadoPorCliente(),
+        );
+        foreach ($plan->variableWeights as $taxNumber => $weight) {
+            $member = $this->getCooperado((string) $taxNumber);
+            $member->setPesoFinal($member->getPesoFinal() + $weight);
+        }
+        foreach ($plan->amounts as $taxNumber => $amount) {
+            $values = $this->getCooperado((string) $taxNumber)->getProducaoCooperativista()->getValues();
+            $values->setBaseProducao($values->getBaseProducao() + $amount);
         }
 
-        $totalTempoContratado = array_sum($listaTempoContratado);
-        $totalTempoTrabalhado = array_sum($listaTempoTrabalhado);
-        $pesoTotal = array_sum($listaPesoTotal) ?: 1;
-
-        $totalBasePorCliente = array_column($this->movimentacao->getEntradasClientes(percentualDescontoFixo: false), 'base_producao', 'id');
-        $aDistribuir = array_sum($totalBasePorCliente);
-
-        if ($totalTempoTrabalhado < $totalTempoContratado) {
-            $aDistribuir = $totalTempoTrabalhado * $aDistribuir / $totalTempoContratado;
-        }
-
-        foreach ($cooperados as $cooperado) {
-            $aReceber = ($cooperado->getPesoFinal() / $pesoTotal) * $aDistribuir;
-            $values = $cooperado->getProducaoCooperativista()->getValues();
-            $values->setBaseProducao($values->getBaseProducao() + $aReceber);
-        }
         $this->distribuiSobras();
         $this->producaoDistribuida = true;
-    }
-
-    private function distribuiProducaoDescontoFixo(): void
-    {
-        $entradas = $this->movimentacao->getEntradasClientes(percentualDescontoFixo: true);
-        $trabalhadoPorCliente = $this->getTrabalhadoPorCliente();
-        foreach ($entradas as $entrada) {
-            $customerReference = $entrada['customer_reference'];
-            $aDistribuir = $entrada['base_producao'];
-            $pesoTotal = 0;
-            $pesosCooperados = [];
-            foreach ($trabalhadoPorCliente as $row) {
-                if ($row['customer_reference'] !== $customerReference) {
-                    continue;
-                }
-                if (!isset($pesosCooperados[$row['tax_number']])) {
-                    $pesosCooperados[$row['tax_number']] = 0;
-                }
-                $pesosCooperados[$row['tax_number']] += $row['trabalhado'] * $row['peso'];
-                $pesoTotal += $pesosCooperados[$row['tax_number']];
-            }
-            $pesoTotal = $pesoTotal ?: 1;
-            foreach ($pesosCooperados as $taxNumber => $pesoCooperado) {
-                $cooperado = $this->getCooperado((string) $taxNumber);
-                $aReceber = ($pesoCooperado / $pesoTotal) * $aDistribuir;
-                $values = $cooperado->getProducaoCooperativista()->getValues();
-                $values->setBaseProducao($values->getBaseProducao() + $aReceber);
-            }
-        }
     }
 
     private function getTotalSobrasDoMes(): float
@@ -765,8 +591,8 @@ class ProducaoCooperativista
             ->from('invoices', 'i')
             ->where($qb->expr()->eq('transaction_of_month', $qb->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))))
             ->andWhere($qb->expr()->eq('i.type', $qb->createNamedParameter('invoice')))
-            ->andWhere($qb->expr()->eq('i.archive', $qb->createNamedParameter(0), ParameterType::INTEGER))
-            ->andWhere($qb->expr()->eq('i.category_id', $qb->createNamedParameter(getenv('AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID')), ParameterType::INTEGER));
+            ->andWhere($qb->expr()->eq('i.archive', $qb->createNamedParameter(0, ParameterType::INTEGER)))
+            ->andWhere($qb->expr()->eq('i.category_id', $qb->createNamedParameter((int) getenv('AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID'), ParameterType::INTEGER)));
         $total = $qb->executeQuery()->fetchOne();
         return (float) $total;
     }
@@ -811,7 +637,7 @@ class ProducaoCooperativista
             ],
             'total_dispendios_clientes_percentual_movel' => [
                 'valor' => $this->movimentacao->getTotalDispendiosClientesPercentualMovel(),
-                'formula' => '{total_dispendios_clientes_percentual_movel} = ' . implode(' + ', array_column($this->movimentacao->getCustosPorCliente(), 'amount')) .
+                'formula' => '{total_dispendios_clientes_percentual_movel} = ' . implode(' + ', array_values($this->movimentacao->getCustosPorCliente())) .
                 ' <a href="' .
                 $this->urlGenerator->generate('app_invoices_index', [
                     'ano-mes' => $this->dates->getInicio()->format('Y-m'),
@@ -887,11 +713,11 @@ class ProducaoCooperativista
                 'formula' => '{reserva} = {taxa_administrativa} - {taxa_minima}',
             ],
             'total_sobras_do_mes' => [
-                'valor' => abs(round($this->getTotalSobrasDoMes(), 2)),
+                'valor' => round($this->getTotalSobrasDoMes(), 2),
                 'formula' => '{total_sobras_do_mes} = {total_notas_clientes} - {total_dispendios_clientes_percentual_movel} - {total_dispendios_internos} - {base_producao} - {reserva} - {total_percentual_desconto_fixo} + {total_sobras_clientes_percentual_fixo}'
             ],
             'total_sobras_distribuidas' => [
-                'valor' => $this->getTotalSobrasDistribuidasNoMes() + abs(round($this->getTotalSobrasDoMes(), 2)),
+                'valor' => $this->getTotalSobrasDistribuidasNoMes() + round($this->getTotalSobrasDoMes(), 2),
                 'formula' => '{total_sobras_distribuidas} = ' .
                     ' <a href="' .
                     $this->urlGenerator->generate('app_invoices_index', [
@@ -943,33 +769,29 @@ class ProducaoCooperativista
     private function getFormulaBaseProducao(): string
     {
         $entradasClientes = $this->movimentacao->getEntradasClientes();
-
-        $custosPorCliente = $this->movimentacao->getCustosPorCliente();
+        $custosAlocados = $this->customerCostAllocator->allocate(
+            $entradasClientes,
+            $this->movimentacao->getCustosPorCliente(),
+        );
 
         $formula = [];
-        foreach ($entradasClientes as $row) {
-            if (isset($custosPorCliente[$row['customer_reference']])) {
-                $base = '(<a href="'.
-                    $this->urlGenerator->generate('app_invoices_index', [
-                        'ano-mes' => $this->dates->getInicio()->format('Y-m'),
-                        'id' => $row['id'],
-                    ]).
-                    '" title="'.$row['contact_name'].'">' . $row['amount'] . "</a> - {$custosPorCliente[$row['customer_reference']]})";
-                unset($custosPorCliente[$row['customer_reference']]);
-            } else {
-                $base = '<a href="'.
-                    $this->urlGenerator->generate('app_invoices_index', [
-                        'ano-mes' => $this->dates->getInicio()->format('Y-m'),
-                        'id' => $row['id'],
-                    ]).
-                    '" title="'.$row['contact_name'].'">' . $row['amount'] . '</a>';
-            }
-            if (!$row['percentual_desconto_fixo']) {
-                $row['discount_percentage'] = '{percentual_administrativo}';
-            }
-            $formula[] = "($base - ($base * {$row['discount_percentage']} / 100))";
+        foreach ($entradasClientes as $key => $row) {
+            $title = htmlspecialchars((string) ($row['contact_name'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $link = '<a href="' . $this->urlGenerator->generate('app_invoices_index', [
+                'ano-mes' => $this->dates->getInicio()->format('Y-m'),
+                'id' => $row['id'],
+            ]) . '" title="' . $title . '">' . (float) $row['amount'] . '</a>';
+            // Same cost allocation as the financial motor: a client with
+            // multiple invoices must have the expense distributed among them.
+            $cost = (float) ($custosAlocados[$key] ?? 0);
+            $percentual = $row['percentual_desconto_fixo']
+                ? (string) (float) $row['discount_percentage']
+                : '{percentual_administrativo}';
+            $base = '(' . $link . ' - ' . $cost . ')';
+            $formula[] = $base . ' - (' . $base . ' * ' . $percentual . ' / 100)';
         }
-        return implode("<br /> + ", $formula);
+
+        return implode('<br> + ', $formula);
     }
 
     private function getFormulaTotalNotasClientes(): string
@@ -982,7 +804,7 @@ class ProducaoCooperativista
                     'ano-mes' => $this->dates->getInicio()->format('Y-m'),
                     'id' => $row['id'],
                 ]).
-                '" title="'.$row['contact_name'].'">' . $row['amount'] . '</a>';
+                '" title="' . htmlspecialchars((string) ($row['contact_name'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '">' . (float) $row['amount'] . '</a>';
         }
         return implode(' + ', $formula);
     }
@@ -1005,29 +827,53 @@ class ProducaoCooperativista
 
     private function formatData(array $data): array
     {
+        if ($data === []) {
+            return [];
+        }
         $positions = $this->listToNumber(array_keys($data), count(Colors::list));
         $colorList = array_keys(Colors::list);
         $sequence = 0;
-        foreach ($data as $key => $value) {
-            if (!empty($data[$key]['formula'])) {
-                preg_match_all('/\{(?<name>\w+)\}/', $value['formula'], $matches, PREG_SET_ORDER, 0);
-                foreach ($matches as $match) {
-                    $value['formula'] = preg_replace(
-                        '/\{' . $match['name'] . '\}/',
-                        '<span class="' . $match['name'] . '">' . $data[$match['name']]['valor'] . '</span>',
-                        $value['formula']
-                    );
-                }
-                $data[$key]['formula'] = preg_replace(['/{/', '/}/'], ['<span class="', '"></span>'], $value['formula']);
+        foreach ($data as $key => $item) {
+            $formula = (string) ($item['formula'] ?? '');
+            if ($formula === '') {
+                $data[$key]['formula'] = '<span class="' . $key . '">'
+                    . htmlspecialchars((string) $item['valor'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+                    . '</span>';
             } else {
-                $data[$key]['formula'] = "<span class=\"$key\">{$data[$key]['valor']}</span>";
+                $rendered = preg_replace_callback(
+                    '/\{(?<name>[A-Za-z0-9_]+)\}/',
+                    static function (array $match) use ($data): string {
+                        $name = $match['name'];
+                        if (!array_key_exists($name, $data)) {
+                            throw new \LogicException('Unknown calculation reference: ' . $name);
+                        }
+                        $value = htmlspecialchars(
+                            (string) $data[$name]['valor'],
+                            ENT_QUOTES | ENT_SUBSTITUTE,
+                            'UTF-8',
+                        );
+                        $title = htmlspecialchars(
+                            ucfirst(str_replace('_', ' ', $name)) . ': ' . (string) $data[$name]['valor'],
+                            ENT_QUOTES | ENT_SUBSTITUTE,
+                            'UTF-8',
+                        );
+                        return '<span class="' . $name . '" title="' . $title . '">' . $value . '</span>';
+                    },
+                    $formula,
+                );
+                $data[$key]['formula'] = str_replace(
+                    'target="_blank"',
+                    'target="_blank" rel="noopener noreferrer"',
+                    $rendered ?? '',
+                );
             }
-            if (empty($value['color'])) {
+
+            if (empty($item['color'])) {
                 $data[$key]['color'] = Colors::list[$colorList[$positions[$sequence]]];
                 $sequence++;
             }
             $data[$key]['font_color'] = Colors::colorContrast(...$data[$key]['color']);
-            $data[$key]['label'] = $value['label'] ?? ucfirst(str_replace('_', ' ', $key));
+            $data[$key]['label'] = $item['label'] ?? ucfirst(str_replace('_', ' ', $key));
         }
         return $data;
     }
@@ -1043,8 +889,10 @@ class ProducaoCooperativista
         $output[] = $this->csvstr(array_keys($cooperado->getProducaoCooperativista()->getValues()->toArray()));
         // body
         foreach ($list as $cooperado) {
-            $toCsv = $cooperado->getProducaoCooperativista()->getValues()->toArray();
-            $toCsv['adiantamento'] = array_reduce($toCsv['adiantamento'], fn ($c, $i) => $c += $i['amount'], 0);
+            $document = $cooperado->getProducaoCooperativista();
+            $toCsv = $document->getValues()->toArray();
+            $toCsv['document_number'] = $document->getPreviewDocumentNumber();
+            $toCsv['adiantamento'] = array_reduce($toCsv['adiantamento'], fn ($c, $i) => $c + $i['amount'], 0);
             $output[] = $this->csvstr($toCsv);
         }
         $output = implode("\n", $output);
