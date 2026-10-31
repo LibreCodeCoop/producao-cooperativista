@@ -29,7 +29,7 @@
                             {% if source == 'nextcloud' and item.field == 'weight' %}
                                 <details class="member-editor-help">
                                     <summary aria-label="Como funciona o peso de participação" title="Como funciona o peso de participação">?</summary>
-                                    <p>Multiplicador aplicado às horas no rateio. Aceita números inteiros ou fracionados, com vírgula ou ponto: 1, 1,5 ou 0,75. Deve ser maior que zero e no máximo 999, com até quatro casas decimais. Não use porcentagem.</p>
+                                    <p>Multiplicador aplicado às horas no rateio. Aceita valores maiores que zero e até 5, inteiros ou fracionados, com vírgula ou ponto: 1, 1,5 ou 0,75. Máximo de quatro casas decimais. Zero não participa do rateio e não é aceito; não use porcentagem.</p>
                                 </details>
                             {% endif %}
                         </div>

@@ -29,9 +29,9 @@ final class MemberParameterValidator
         }
         if ($field === 'weight') {
             $value = str_replace(',', '.', $value);
-            if (!preg_match('/^(?:0|[1-9][0-9]{0,2})(?:\\.[0-9]{1,4})?$/D', $value)
-                || (float) $value <= 0 || (float) $value > 999) {
-                throw new \InvalidArgumentException('Peso deve ser positivo, até 999, com até quatro casas decimais.');
+            if (!preg_match('/^(?:0|[1-5])(?:\\.[0-9]{1,4})?$/D', $value)
+                || (float) $value <= 0 || (float) $value > 5) {
+                throw new \InvalidArgumentException('Peso deve ser maior que zero e no máximo 5, com até quatro casas decimais.');
             }
             return (float) $value;
         }
