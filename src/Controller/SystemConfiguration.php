@@ -107,11 +107,6 @@ final class SystemConfiguration extends AbstractController
                     'AKAUNTING_CAPITAL_SOCIAL_CATEGORY_ID', 'AKAUNTING_CAPITAL_SOCIAL_ITEM_ID',
                 ],
             ],
-            [
-                'title' => 'Integração municipal',
-                'purpose' => 'Serviço municipal e credenciais de importação.',
-                'keys' => ['PREFEITURA', 'PREFEITURA_LOGIN', 'PREFEITURA_SENHA'],
-            ],
         ];
     }
 
@@ -235,7 +230,7 @@ final class SystemConfiguration extends AbstractController
     {
         return in_array($key, [
             'DATABASE_URL', 'DATABASE_AKAUNTING_URL', 'PROFILE_FIELDS_AUTH_TOKEN',
-            'KIMAI_API_TOKEN', 'AKAUNTING_AUTH_TOKEN', 'PREFEITURA_SENHA',
+            'KIMAI_API_TOKEN', 'AKAUNTING_AUTH_TOKEN',
         ], true);
     }
 

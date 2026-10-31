@@ -1,6 +1,6 @@
 # Cálculo de produção cooperativista
 
-ETL de produção cooperativista com conectores de dados, apuração econômica e publicação contábil separados por contratos de integração. O perfil padrão preserva o modelo operacional da LibreCode com Kimai, Akaunting e documentos de NFS-e municipais. Perfis adicionais podem definir outras métricas e políticas sem reutilizar implicitamente as regras financeiras da LibreCode.
+ETL de produção cooperativista com conectores de dados, apuração econômica e publicação contábil separados por contratos de integração. O perfil padrão preserva o modelo operacional da LibreCode com Kimai, Nextcloud Profile Fields e Akaunting. Perfis adicionais podem definir outras métricas e políticas sem reutilizar implicitamente as regras financeiras da LibreCode.
 
 ## Requisitos do perfil LibreCode
 
@@ -9,7 +9,6 @@ ETL de produção cooperativista com conectores de dados, apuração econômica 
 | [Kimai](https://www.kimai.org)     | Registro de horas trabalhadas por projeto, emissão de relatório de horas trabalhadas para clientes        |
 | [Akaunting](https://akaunting.com) | Gestão financeira                                                                                         |
 | [Nextcloud + Profile Fields](https://github.com/LibreCodeCoop/profile_fields/) | Diretório interno dos cooperados com os campos customizados `weight`, `tax_number` e `dependents` usados na produção |
-| Site da prefeitura                 | Emissão de NFSe. Hoje o sistema dá suporte oficial apenas as prefeituras dos municípios do Rio e Niterói. |
 
 ## Ambiente de desenvolvimento e homologação
 
@@ -24,9 +23,7 @@ Execute a apuração em uma instalação e bancos **isolados** dos produtivos. O
 O projeto usa duas bases distintas: a do **ETL** (transformações, importações e auditoria) e a do **Akaunting** (documentos contábeis). Restaurar apenas uma delas não reproduz a execução histórica. O Kimai e as demais integrações exigem fontes autorizadas, ou um snapshot previamente importado.
 
 ## Ações para que tudo funcione
-* Emissão de notas fiscais
-  * Definir a descrição da nota fiscal com campos separados por `:` (dois pontos)
-  * Quando for NFSe para mais de um setor de um mesmo CNPJ, acrescentar o campo `setor: <setor>`
+* Emissão e consulta de NFS-e são responsabilidade do módulo fiscal do Akaunting e do Emissor Nacional. A importação da produção utiliza documentos financeiros do Akaunting, sem consultar portais municipais.
 * Nextcloud + Profile Fields
   * Criar no app `profile_fields` os campos `weight`, `tax_number` e `dependents`.
   * Preencher estes campos para cada cooperado; eles passam a ser a fonte oficial do peso, do CPF/CNPJ e da quantidade de dependentes usados no cálculo.
@@ -73,7 +70,6 @@ O projeto usa duas bases distintas: a do **ETL** (transformações, importaçõe
     * Customização da fatura (compra ou venda) ou transação deve ser inserida na descrição. Valores possíveis:
       | Nome                     | Descrição                                                                                                                                                                         |
       | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-      | NFSe                     | Número da NFSe, necessário para fazer ligação com a Nota Fiscal coletada da Prefeitura. Não estamos utilizando este recurso.                                                      |
       | Transação do mês         | Mês onde esta transação será contabilizada. Formato: `2023-09`                                                                                                                    |
       | CNPJ cliente             | CNPJ do cliente de quem será cobrado o valor                                                                                                                                      |
       | Setor                    | Setor do cliente, quando é um CNPJ com mais de um contrato                                                                                                                        |
@@ -82,7 +78,6 @@ O projeto usa duas bases distintas: a do **ETL** (transformações, importaçõe
 
       Valores customizados precisam ter o nome da propriedade separado do valor com dois pointos, exemplo:
       ```
-      NFSe: 123456789
       Transação do mês: 2023-05
       ```
 
@@ -137,7 +132,6 @@ Available commands:
   get:categories                     Get categories
   get:customers                      Get customers
   get:invoices                       Get invoices
-  get:nfse                           Get NFSe
   get:projects                       Get projects
   get:taxes                          Get taxes
   get:timesheets                     Get timesheets
@@ -178,7 +172,7 @@ Logs, relatórios CSV e snapshots podem conter dados pessoais ou financeiros. Nu
 
 ### Arquitetura do ETL e apuração por competência
 
-O pipeline mantém quatro limites: conectores de origem (Kimai, NFS-e e Akaunting), banco de transformação, apuração econômica e publicação opcional no Akaunting. As etapas de origem implementam `SourceStep` e são orquestradas por `SourcePipeline`, preservando a ordem das dependências. `ProductionDistributionPlanner` calcula a distribuição sem acessar APIs ou saldo bancário. O capital social é consultado separadamente e não integra receitas de clientes.
+O pipeline mantém quatro limites: conectores de origem (Kimai e Akaunting), banco de transformação, apuração econômica e publicação opcional no Akaunting. As etapas de origem implementam `SourceStep` e são orquestradas por `SourcePipeline`, preservando a ordem das dependências. `ProductionDistributionPlanner` calcula a distribuição sem acessar APIs ou saldo bancário. O capital social é consultado separadamente e não integra receitas de clientes.
 
 A competência mensal é validada como `YYYY-MM`. A importação completa do Kimai reconcilia alterações e exclusões. Em casos não cobertos pela reconciliação de lançamentos financeiros, utilize a reconstrução do banco intermediário e importe novamente. A nova classificação contraditória de percentuais fixos e móveis do mesmo cliente interrompe o cálculo para análise, em vez de permitir uma distribuição incompleta.
 
@@ -230,7 +224,7 @@ php bin/console allocation:preview --ano-mes=2026-07 --receipts-file=/caminho/re
 
 A prévia inclui valores por cliente/cooperado, total elegível, total distribuído e fingerprint do arquivo de bases, sem emissão de documentos. `work-entries` demonstra uma métrica alternativa. Para usar outra política econômica, implemente a interface de rateio, o perfil e, quando aprovado, um publicador financeiro próprio; não altere diretamente os conectores Kimai ou as regras da LibreCode.
 
-O comando `make:producao` e a interface de produção contábil existente permanecem exclusivos do perfil `librecode`. O Akaunting armazena documentos; a efetiva emissão fiscal municipal/validação de NFS-e, quando aplicável, é responsabilidade da integração específica e precisa ser testada separadamente.
+O comando `make:producao` e a interface de produção contábil existente permanecem exclusivos do perfil `librecode`. O Akaunting armazena os documentos financeiros; a emissão e a validação fiscal das NFS-e pertencem ao módulo fiscal do Akaunting e ao Emissor Nacional, fora deste ETL.
 
 ## Implantação em produção
 

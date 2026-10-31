@@ -119,12 +119,6 @@ final readonly class FailureGuide
                 'O servidor iniciou a resposta HTTP antes de preparar o streaming.',
                 'Verifique a versão da aplicação, a implementação de StreamedResponse e eventual saída PHP antes dos cabeçalhos.'
             ),
-            str_contains($message, 'nfse'),
-            str_contains($message, 'prefeitura') => new self(
-                'NFSE_IMPORTACAO',
-                'Falha ou ausência de dados na integração de notas fiscais municipais.',
-                'Confira a prefeitura configurada, credenciais e disponibilidade do portal. Verifique se a competência exige novas NFS-e antes da apuração.'
-            ),
             str_contains($message, 'não aceitou a operação'),
             str_contains($message, 'http 422') => new self(
                 'DOCUMENTO_INVALIDO',

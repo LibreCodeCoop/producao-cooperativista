@@ -14,7 +14,7 @@ use RuntimeException;
 final class StagingDatabaseResetterTest extends TestCase
 {
     private const array TABLES = [
-        'timesheet', 'transactions', 'invoices', 'nfse', 'taxes',
+        'timesheet', 'transactions', 'invoices', 'taxes',
         'categories', 'users', 'projects', 'customers',
     ];
 
@@ -23,7 +23,7 @@ final class StagingDatabaseResetterTest extends TestCase
         putenv('PRODUCAO_STAGING_DATABASE');
     }
 
-    public function testOnlyTheNineStagingTablesAreClearedTransactionally(): void
+    public function testOnlyTheEightStagingTablesAreClearedTransactionally(): void
     {
         putenv('PRODUCAO_STAGING_DATABASE=etl_test');
 
@@ -52,8 +52,8 @@ final class StagingDatabaseResetterTest extends TestCase
         $manager->expects($this->once())->method('clear');
         $result = new StagingDatabaseResetter($main, $financial, $manager)->reset();
 
-        self::assertCount(9, $result);
-        self::assertSame(18, array_sum($result));
+        self::assertCount(8, $result);
+        self::assertSame(16, array_sum($result));
         self::assertSame(
             array_map(static fn (string $table): string => 'DELETE FROM `' . $table . '`', self::TABLES),
             $queried

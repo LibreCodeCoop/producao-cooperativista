@@ -21,7 +21,6 @@ final class SourcePipelineConfigurationTest extends KernelTestCase
         $pipeline = static::getContainer()->get(SourcePipeline::class);
         self::assertSame([
             'kimai.customers',
-            'nfse.documents',
             'kimai.projects',
             'akaunting.documents',
             'kimai.timesheets',
@@ -31,5 +30,6 @@ final class SourcePipelineConfigurationTest extends KernelTestCase
             'kimai.users',
         ], $pipeline->selectedStageNames());
         self::assertContains('kimai.users.basic', $pipeline->stageNames());
+        self::assertNotContains('nfse.documents', $pipeline->stageNames());
     }
 }

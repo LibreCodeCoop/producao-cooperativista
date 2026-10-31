@@ -31,15 +31,6 @@
       <code><![CDATA[GetInvoicesCommand]]></code>
     </UnusedClass>
   </file>
-  <file src="src/Command/GetNfseCommand.php">
-    <MissingOverrideAttribute>
-      <code><![CDATA[protected function configure(): void]]></code>
-      <code><![CDATA[public function execute(InputInterface $input, OutputInterface $output): int]]></code>
-    </MissingOverrideAttribute>
-    <UnusedClass>
-      <code><![CDATA[GetNfseCommand]]></code>
-    </UnusedClass>
-  </file>
   <file src="src/Command/GetProjectsCommand.php">
     <MissingOverrideAttribute>
       <code><![CDATA[public function execute(InputInterface $input, OutputInterface $output): int]]></code>
@@ -239,25 +230,6 @@
       <code><![CDATA[$type]]></code>
     </UnusedProperty>
   </file>
-  <file src="src/Entity/Producao/Nfse.php">
-    <UnusedProperty>
-      <code><![CDATA[$cnpj]]></code>
-      <code><![CDATA[$codigoCliente]]></code>
-      <code><![CDATA[$dataEmissao]]></code>
-      <code><![CDATA[$discriminacaoNormalizada]]></code>
-      <code><![CDATA[$id]]></code>
-      <code><![CDATA[$metadata]]></code>
-      <code><![CDATA[$numero]]></code>
-      <code><![CDATA[$numeroSubstituta]]></code>
-      <code><![CDATA[$razaoSocial]]></code>
-      <code><![CDATA[$setor]]></code>
-      <code><![CDATA[$valorCofins]]></code>
-      <code><![CDATA[$valorIr]]></code>
-      <code><![CDATA[$valorIss]]></code>
-      <code><![CDATA[$valorPis]]></code>
-      <code><![CDATA[$valorServico]]></code>
-    </UnusedProperty>
-  </file>
   <file src="src/Entity/Producao/Project.php">
     <UnusedProperty>
       <code><![CDATA[$billable]]></code>
@@ -353,7 +325,6 @@
   </file>
   <file src="src/Helper/EntityArrayMapperTrait.php">
     <PossiblyUnusedMethod>
-      <code><![CDATA[toArray]]></code>
       <code><![CDATA[toArray]]></code>
       <code><![CDATA[toArray]]></code>
       <code><![CDATA[toArray]]></code>
@@ -610,11 +581,6 @@
     </UnusedProperty>
   </file>
   <file src="src/Service/ProducaoCooperativista.php">
-    <PossiblyUnusedMethod>
-      <code><![CDATA[__construct]]></code>
-    </PossiblyUnusedMethod>
-  </file>
-  <file src="src/Service/Source/Nfse.php">
     <PossiblyUnusedMethod>
       <code><![CDATA[__construct]]></code>
     </PossiblyUnusedMethod>

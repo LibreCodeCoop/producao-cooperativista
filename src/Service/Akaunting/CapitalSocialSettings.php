@@ -26,20 +26,18 @@ final readonly class CapitalSocialSettings
     public static function fromEnvironment(): self
     {
         return new self(
-            self::readId('AKAUNTING_CAPITAL_SOCIAL_CATEGORY_ID', 25),
-            self::readId('AKAUNTING_CAPITAL_SOCIAL_ITEM_ID', 11)
+            self::readId('AKAUNTING_CAPITAL_SOCIAL_CATEGORY_ID'),
+            self::readId('AKAUNTING_CAPITAL_SOCIAL_ITEM_ID')
         );
     }
 
-    private static function readId(string $name, int $previousDefault): int
+    private static function readId(string $name): int
     {
         $value = getenv($name);
-        if ($value === false || $value === '') {
-            return $previousDefault;
+        if (!is_string($value) || !ctype_digit($value) || (int) $value <= 0) {
+            throw new InvalidArgumentException(sprintf('Configure %s com um ID positivo do Akaunting.', $name));
         }
-        if (!ctype_digit($value) || (int) $value <= 0) {
-            throw new InvalidArgumentException(sprintf('Valor inválido para a configuração %s.', $name));
-        }
+
         return (int) $value;
     }
 }

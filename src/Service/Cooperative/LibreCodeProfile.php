@@ -24,7 +24,6 @@ final readonly class LibreCodeProfile implements CooperativeProfile
     {
         return [
             'kimai.customers',
-            'nfse.documents',
             'kimai.projects',
             'akaunting.documents',
             'kimai.timesheets',

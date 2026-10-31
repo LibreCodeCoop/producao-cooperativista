@@ -16,7 +16,6 @@ final class StagingSchema
         'timesheet',
         'transactions',
         'invoices',
-        'nfse',
         'taxes',
         'categories',
         'users',
