@@ -29,6 +29,7 @@ namespace App\Command;
 use App\Service\Movimentacao;
 use App\Helper\ArrayValue;
 use App\Service\Calculation\CalculationExecutionLock;
+use App\Service\Calculation\ProductionPublicationSelection;
 use App\Service\Cooperative\ProfileRegistry;
 use App\Domain\Competencia;
 use DateTime;
@@ -53,6 +54,7 @@ class MakeProducaoCommand extends AbstractBaseCommand
         private LoggerInterface $logger,
         private ?CalculationExecutionLock $executionLock = null,
         private ?ProfileRegistry $profiles = null,
+        private ?ProductionPublicationSelection $publicationSelection = null,
     ) {
         parent::__construct();
     }
@@ -101,6 +103,24 @@ class MakeProducaoCommand extends AbstractBaseCommand
                 'Atualiza a produção cooperativista no Akaunting'
             )
             ->addOption(
+                'import-only',
+                null,
+                InputOption::VALUE_NONE,
+                'Apenas importar as fontes, sem calcular ou publicar'
+            )
+            ->addOption(
+                'expected-revision',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Identificador da prévia financeira conferida para publicação'
+            )
+            ->addOption(
+                'omit-member-ids',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'IDs do Kimai cujos documentos individuais não serão publicados agora'
+            )
+            ->addOption(
                 'as-of',
                 null,
                 InputOption::VALUE_REQUIRED,
@@ -117,6 +137,25 @@ class MakeProducaoCommand extends AbstractBaseCommand
         $baixarDados = (string) $input->getOption('baixar-dados');
         if (!in_array($baixarDados, ['0', '1'], true)) {
             $output->writeln('<error>--baixar-dados aceita apenas 0 ou 1.</error>');
+            return Command::INVALID;
+        }
+        if ($input->getOption('import-only')
+            && ($baixarDados !== '1' || $input->getOption('atualiza-producao') || $input->getOption('csv'))) {
+            $output->writeln('<error>--import-only exige --baixar-dados=1, sem publicação ou exportação.</error>');
+            return Command::INVALID;
+        }
+        $excluded = trim((string) ($input->getOption('omit-member-ids') ?? ''));
+        if ($excluded !== '' && (strlen($excluded) > 2048
+            || preg_match('/^[1-9][0-9]*(?:,[1-9][0-9]*)*$/D', $excluded) !== 1)) {
+            $output->writeln('<error>IDs de cooperados inválidos.</error>');
+            return Command::INVALID;
+        }
+        if ($excluded !== '' && !$input->getOption('atualiza-producao')) {
+            $output->writeln('<error>A exclusão só pode ser usada na publicação.</error>');
+            return Command::INVALID;
+        }
+        if ($excluded !== '' && !$input->getOption('expected-revision')) {
+            $output->writeln('<error>Seleção sem a revisão da prévia financeira.</error>');
             return Command::INVALID;
         }
         if ($input->getOption('database')) {
@@ -158,6 +197,10 @@ class MakeProducaoCommand extends AbstractBaseCommand
                 $this->reportPhase('Importando dados das integrações.');
                 $this->producaoCooperativista->loadFromExternalSources($inicio);
             }
+            if ($input->getOption('import-only')) {
+                $this->reportPhase('Importação concluída. Confira os relatórios antes de publicar.');
+                return Command::SUCCESS;
+            }
             $phase = 'configuração do cálculo';
             $this->reportPhase('Validando parâmetros econômicos.');
             $this->producaoCooperativista->dates->setDiaUtilPagamento($diaUtilPagamento);
@@ -170,9 +213,25 @@ class MakeProducaoCommand extends AbstractBaseCommand
             $this->producaoCooperativista->getProducaoCooperativista();
 
             if ($input->getOption('atualiza-producao')) {
+                $phase = 'validação da seleção de cooperados';
+                $revision = trim((string) ($input->getOption('expected-revision') ?? ''));
+                $included = null;
+                if ($revision !== '') {
+                    if ($this->publicationSelection === null) {
+                        throw new \RuntimeException('Serviço de conferência financeira indisponível.');
+                    }
+                    $members = $this->producaoCooperativista->getProducaoCooperativista();
+                    $excludedIds = $excluded !== '' ? array_map(intval(...), explode(',', $excluded)) : [];
+                    $included = $this->publicationSelection->included(
+                        $members,
+                        $inicio->format('Y-m'),
+                        $revision,
+                        $excludedIds,
+                    );
+                }
                 $phase = 'gravação dos documentos no Akaunting';
                 $this->reportPhase('Gravando documentos no Akaunting.');
-                $this->producaoCooperativista->updateProducao();
+                $this->producaoCooperativista->updateProducao($included);
             }
 
             if ($input->getOption('csv')) {

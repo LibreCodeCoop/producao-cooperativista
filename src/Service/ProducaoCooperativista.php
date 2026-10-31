@@ -436,11 +436,22 @@ class ProducaoCooperativista
         }
     }
 
-    public function updateProducao(): void
+    /**
+     * @param array<string, Cooperado>|null $included Validated review selection; null means full CLI publication.
+     */
+    public function updateProducao(?array $included = null): void
     {
         $this->profiles->requireLibreCodeSettlement();
         $members = $this->getProducaoCooperativista();
-        $this->publisher->publish($members, $this->getTrabalhadoPorCliente());
+        $work = $this->getTrabalhadoPorCliente();
+        if ($included !== null) {
+            $members = $included;
+            $work = array_values(array_filter(
+                $work,
+                static fn (array $row): bool => isset($members[(string) ($row['tax_number'] ?? '')]),
+            ));
+        }
+        $this->publisher->publish($members, $work);
     }
 
     /**

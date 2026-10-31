@@ -116,6 +116,33 @@ final class MakeProducaoCommandFailureTest extends TestCase
         self::assertStringContainsString('--database não é suportado', $tester->getDisplay());
     }
 
+    public function testImportOnlyReadsSourcesButDoesNotCalculateOrPublish(): void
+    {
+        [$production, $movements, $logger] = $this->dependencies();
+        $logger->expects(self::never())->method('error');
+        $production->expects(self::once())->method('loadFromExternalSources');
+        $production->expects(self::never())->method('getProducaoCooperativista');
+        $production->expects(self::never())->method('updateProducao');
+
+        $tester = new CommandTester(new MakeProducaoCommand($production, $movements, $logger));
+        $code = $tester->execute(CalculationCommandOptions::forWeb('2026-08', '1', false, true));
+
+        self::assertSame(Command::SUCCESS, $code);
+    }
+
+    public function testImportOnlyDoesNotAcceptFinancialPublication(): void
+    {
+        [$production, $movements, $logger] = $this->dependencies();
+        $logger->expects(self::never())->method('error');
+        $production->expects(self::never())->method('loadFromExternalSources');
+        $production->expects(self::never())->method('getProducaoCooperativista');
+        $production->expects(self::never())->method('updateProducao');
+
+        $tester = new CommandTester(new MakeProducaoCommand($production, $movements, $logger));
+        $code = $tester->execute(CalculationCommandOptions::forWeb('2026-08', '1', true, true));
+        self::assertSame(Command::INVALID, $code);
+    }
+
     public function testWebPreviewOptionsExecuteWithoutUnsupportedDatabaseFlag(): void
     {
         [$production, $movements, $logger] = $this->dependencies();

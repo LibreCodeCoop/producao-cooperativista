@@ -16,12 +16,21 @@ namespace App\Service\Calculation;
 final class CalculationCommandOptions
 {
     /** @return array<string, string|bool> */
-    public static function forWeb(string $competence, string $download, bool $publish): array
-    {
+    public static function forWeb(
+        string $competence,
+        string $download,
+        bool $publish,
+        bool $importOnly = false,
+        string $revision = '',
+        string $excluded = '',
+    ): array {
         return [
             '--ano-mes' => $competence,
             '--baixar-dados' => $download,
             '--atualiza-producao' => $publish,
+            '--import-only' => $importOnly,
+            '--expected-revision' => $revision,
+            '--omit-member-ids' => $excluded,
         ];
     }
 }
