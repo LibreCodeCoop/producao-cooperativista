@@ -1,0 +1,74 @@
+/* Shared dashboard tokens keep the production workflow usable in both themes. */
+.production-workflow { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(280px,.9fr); gap:24px; align-items:start; }
+.production-run-panel { padding:30px; }
+.production-step + .production-step { padding-top:24px; margin-top:24px; border-top:1px solid var(--line); }
+.production-step-heading { display:flex; align-items:start; gap:12px; margin-bottom:16px; }
+.production-step-heading h2, .production-review-panel h2 { margin:0 0 5px; font-size:20px; }
+.production-step-heading p, .production-review-panel > p { margin:0; color:var(--muted); font-size:13px; }
+.production-step-number { display:grid; place-items:center; flex:0 0 32px; width:32px; height:32px; border-radius:9px; background:var(--brand-soft); color:var(--brand); font-size:13px; font-weight:800; }
+.production-period-fields { display:flex; flex-wrap:wrap; gap:15px; padding-left:44px; }
+.production-period-fields .form-field { flex:1 1 120px; max-width:240px; }
+.production-period-fields select { display:block; width:100%; min-height:44px; font:inherit; }
+.production-inline-options { display:flex; flex-wrap:wrap; gap:9px; padding-left:44px; }
+.production-option, .production-mode-choice { display:flex; align-items:center; gap:9px; border:1px solid var(--line); border-radius:10px; background:var(--surface); cursor:pointer; }
+.production-option { padding:11px 13px; font-size:13px; }
+.production-option:has(input:checked), .production-mode-choice:has(input:checked) { border-color:var(--brand); background:var(--brand-soft); }
+.production-option input, .production-mode-choice input { accent-color:var(--brand); }
+.production-help { margin:12px 0 0 44px; color:var(--muted); font-size:12px; }
+.production-mode-options { display:grid; gap:10px; padding-left:44px; }
+.production-mode-choice { align-items:start; padding:14px; }
+.production-mode-choice input { margin-top:5px; flex:0 0 auto; }
+.production-mode-copy { display:grid; gap:4px; }
+.production-mode-copy strong { font-size:14px; }
+.production-mode-copy small { font-size:12px; line-height:1.5; color:var(--muted); }
+.production-publication-warning { margin:16px 0 0 44px; padding:14px; border-radius:9px; border:1px solid var(--warning-border); background:var(--warning-bg); font-size:12px; }
+.production-publication-warning[hidden] { display:none; }
+.production-publication-warning strong { display:block; margin-bottom:4px; }
+.production-publication-warning p { margin:0; }
+.production-run-actions { border-top:1px solid var(--line); margin-top:24px; padding:24px 0 0 44px; }
+.production-run-actions .button { width:100%; max-width:350px; }
+.production-run-actions .production-help { margin-left:0; }
+.button-primary { background:var(--brand); color:var(--surface); }
+.button-primary:hover:not(:disabled) { background:color-mix(in srgb, var(--brand) 75%, #000); color:var(--surface); }
+.button-primary:disabled { opacity:.65; cursor:wait; }
+.production-messages { margin-top:16px; }
+.production-messages:empty { display:none; }
+.production-messages h3 { font-size:14px; margin:0 0 7px; }
+.production-messages .alert { padding:12px 14px; margin:9px 0; border:1px solid var(--line); border-radius:9px; background:var(--danger-soft); overflow-wrap:anywhere; font-size:13px; }
+.production-messages .alert.info, .production-messages .alert.success { background:var(--brand-soft); }
+.production-messages .alert.warning { background:var(--warning-bg); border-color:var(--warning-border); }
+.production-review { display:grid; gap:14px; }
+.production-review-panel { padding:26px; }
+.production-review-links { display:grid; gap:10px; margin:18px 0; }
+.production-review-links a { display:grid; gap:3px; border:1px solid var(--line); border-radius:9px; padding:13px 15px; background:var(--surface); color:var(--text); text-decoration:none; }
+.production-review-links a:hover { border-color:var(--brand); background:var(--brand-soft); color:var(--text); }
+.production-review-links strong { font-size:13px; }
+.production-review-links small { font-size:12px; line-height:1.45; color:var(--muted); }
+.production-review-panel .production-review-note { margin:0; font-size:12px; }
+.production-policy-note { padding:17px 20px; background:var(--brand-soft); border:1px solid var(--line); border-radius:12px; font-size:12px; }
+.production-policy-note strong { display:block; margin-bottom:5px; font-size:13px; }
+.production-policy-note p { margin:0; color:var(--muted); }
+@media (max-width:950px) { .production-workflow { grid-template-columns:1fr; } }
+@media (max-width:620px) {
+    .production-run-panel, .production-review-panel { padding:19px; }
+    .production-period-fields, .production-inline-options, .production-mode-options, .production-run-actions { padding-left:0; }
+    .production-help, .production-publication-warning { margin-left:0; }
+    .production-step-heading h2 { font-size:18px; }
+    .production-run-actions .button { max-width:none; }
+}
+
+/* Review pages keep the period and the return path visible. */
+.production-report-tools {
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
+    gap:18px; margin:0 0 25px; padding:18px;
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+}
+.production-month-picker { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
+.production-month-picker label { font-size:13px; font-weight:700; }
+.production-month-picker input {
+    min-height:42px; padding:7px 11px; border:1px solid var(--line);
+    border-radius:8px; background:var(--surface); color:var(--text); font:inherit;
+}
+.production-report-nav { display:flex; flex-wrap:wrap; gap:12px; font-size:13px; }
+.production-report-nav a { text-decoration:none; font-weight:650; }
+.production-report-nav a:hover { text-decoration:underline; }

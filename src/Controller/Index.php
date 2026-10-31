@@ -70,6 +70,11 @@ class Index extends AbstractController
                 ],
             ],
             'acoes' => [
+                'executa_producao' => [
+                    'url' => $this->urlGenerator->generate('app_acoes_makeproducao'),
+                    'label' => 'Processar produção',
+                    'description' => 'Calcule, confira os relatórios e publique após a revisão.',
+                ],
                 'configuracao' => [
                     'url' => '/configuracao',
                     'label' => 'Conferir dados nas fontes',
@@ -80,11 +85,6 @@ class Index extends AbstractController
                     'label' => 'Limpar dados importados (ETL)',
                     'description' => 'Reinicia apenas a base intermediária de importação.',
                     'danger' => true,
-                ],
-                'executa_producao' => [
-                    'url' => $this->urlGenerator->generate('app_acoes_makeproducao'),
-                    'label' => 'Processar produção',
-                    'description' => 'Importe dados, calcule uma prévia ou publique após aprovação.',
                 ],
             ],
         ]);

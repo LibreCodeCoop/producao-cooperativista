@@ -1,10 +1,28 @@
 {% extends "layout/index.html.twig" %}
-
-{% block title %}Produção{% endblock title %}
-
+{% block title %}Produção por cooperado{% endblock %}
+{% block head %}
+    <link rel="stylesheet" href="/css/production-workflow.css">
+{% endblock %}
 {% block body %}
-    <div>
-    Esta tabela retorna as <strong>produções de um mês</strong> específico. Para trocar o mês, altere o <strong>ano-mes</strong> na URL desta página.
+    <nav class="breadcrumbs" aria-label="Localização">
+        <a href="/">Visão geral</a><span aria-hidden="true">/</span><span aria-current="page">Produção</span>
+    </nav>
+    <header class="page-heading page-heading-compact">
+        <p class="eyebrow">Conferência mensal · Cooperados</p>
+        <h1>Produção por cooperado</h1>
+        <p class="page-lead">Confira as horas e os valores calculados para a competência antes de publicar documentos.</p>
+    </header>
+    <div class="production-report-tools">
+        <form method="get" action="/producao" class="production-month-picker">
+            <label for="report-competence">Competência do trabalho</label>
+            <input type="month" id="report-competence" name="ano-mes" value="{{ competencia }}" required>
+            <button type="submit" class="button button-primary">Consultar</button>
+        </form>
+        <nav aria-label="Próximas etapas" class="production-report-nav">
+            <a href="/calculos?ano-mes={{ competencia }}">Memória de cálculo</a>
+            <a href="/invoices?ano-mes={{ competencia }}">Entradas e saídas</a>
+            <a href="/acoes/make-producao?ano-mes={{ competencia }}">Voltar ao processamento</a>
+        </nav>
     </div>
     {{ include('layout/components/datatable.html.twig') }}
 {% endblock %}

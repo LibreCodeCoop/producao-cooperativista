@@ -73,45 +73,89 @@ final class OperationalUiTest extends TestCase
 
     public function testResetPageExplainsItsScopeAndDisablesUnavailableOperation(): void
     {
-        $html = $this->renderReset(false, false);
+        $html = $this->renderReset(false);
 
         self::assertStringContainsString('Operação indisponível nesta instalação', $html);
-        self::assertStringContainsString('Não é a senha de acesso a este site', $html);
         self::assertStringContainsString('Não remove tabelas, migrações, logs', $html);
-        self::assertStringContainsString('PRODUCAO_ACTION_TOKEN', $html);
+        self::assertStringNotContainsString('PRODUCAO_ACTION_TOKEN', $html);
         self::assertStringContainsString('PRODUCAO_STAGING_DATABASE', $html);
-        self::assertSame(3, substr_count($html, 'disabled'));
+        self::assertSame(2, substr_count($html, 'disabled'));
     }
 
     public function testConfiguredResetPreservesCsrfAndServerSideRequirements(): void
     {
-        $html = $this->renderReset(true, true);
+        $html = $this->renderReset(true);
 
         self::assertStringContainsString('method="post"', $html);
         self::assertStringContainsString('name="_token" value="csrf-token"', $html);
         self::assertStringContainsString('pattern="ZERAR"', $html);
-        self::assertStringContainsString('name="action_token" required', $html);
+        self::assertStringNotContainsString('name="action_token"', $html);
         self::assertStringNotContainsString('type="submit" class="button button-danger" disabled', $html);
         self::assertStringNotContainsString('Operação indisponível nesta instalação', $html);
     }
 
     public function testResetResponseEscapesUntrustedContent(): void
     {
-        $html = $this->renderReset(true, true, '<script>alert(1)</script>', true);
+        $html = $this->renderReset(true, '<script>alert(1)</script>', true);
 
         self::assertStringContainsString('role="alert"', $html);
         self::assertStringNotContainsString('<script>alert(1)</script>', $html);
         self::assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt;', $html);
     }
 
+    public function testProductionJourneyShowsReviewLinksAndNoSecondPassword(): void
+    {
+        $html = $this->twig()->render('acoes/make_producao.html.twig', [
+            'inicio_ano' => '2026', 'inicio_mes' => '08',
+            'url' => '/acoes/do-make-producao',
+            'baixar_dados' => 0, 'atualiza_producao' => 0, 'token' => 'csrf-token',
+        ]);
+        self::assertStringContainsString('href="/css/production-workflow.css"', $html);
+        self::assertStringContainsString('name="_token" value="csrf-token"', $html);
+        self::assertStringContainsString('name="baixar_dados" value="0" checked', $html);
+        self::assertStringContainsString('name="atualiza_producao" value="0" checked', $html);
+        self::assertStringContainsString('href="/producao?ano-mes=2026-08"', $html);
+        self::assertStringContainsString('href="/calculos?ano-mes=2026-08"', $html);
+        self::assertStringContainsString('href="/invoices?ano-mes=2026-08"', $html);
+        self::assertStringContainsString('Apuração não é pagamento', $html);
+        self::assertStringNotContainsString('name="action_token"', $html);
+        self::assertStringNotContainsString('PRODUCAO_ACTION_TOKEN', $html);
+    }
+
+    public function testPublicationModeIsExplicitAndHasReviewWarning(): void
+    {
+        $html = $this->twig()->render('acoes/make_producao.html.twig', [
+            'inicio_ano' => '2026', 'inicio_mes' => '08',
+            'url' => '/acoes/do-make-producao',
+            'baixar_dados' => 0, 'atualiza_producao' => 1, 'token' => 'csrf-token',
+        ]);
+        self::assertStringContainsString('name="atualiza_producao" value="1" checked', $html);
+        self::assertStringContainsString('id="publication-warning" role="note"', $html);
+        self::assertStringContainsString('Publicar documentos no Akaunting', $html);
+    }
+
+    public function testAuditPagesKeepTheSelectedPeriodAndReturnPath(): void
+    {
+        foreach (['producao.index.html.twig', 'invoices.index.html.twig'] as $view) {
+            $html = $this->twig()->render($view, [
+                'competencia' => '2026-08',
+                'url' => '/api/v1/producao?ano-mes=2026-08',
+            ]);
+            self::assertStringContainsString('name="ano-mes" value="2026-08"', $html);
+            self::assertStringContainsString('href="/calculos?ano-mes=2026-08"', $html);
+            self::assertStringContainsString(
+                'href="/acoes/make-producao?ano-mes=2026-08"',
+                $html
+            );
+        }
+    }
+
     private function renderReset(
-        bool $operationConfigured,
         bool $stagingConfigured,
         string $response = '',
         bool $error = false
     ): string {
         return $this->twig()->render('acoes/zerar_banco_local.html.twig', [
-            'operation_configured' => $operationConfigured,
             'staging_configured' => $stagingConfigured,
             'url' => '/acoes/zerar-banco-local',
             'token' => 'csrf-token',

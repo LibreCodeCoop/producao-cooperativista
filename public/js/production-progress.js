@@ -68,8 +68,16 @@
         const doc = options.document || form.ownerDocument || win.document;
         const createFormData = options.createFormData || (element => new win.FormData(element));
         const data = createFormData(form);
-        if (data.get('atualiza_producao') === '1' && !win.confirm(
-            'Esta operação grava documentos financeiros no Akaunting. Conferiu a prévia e a competência?'
+        const publishing = data.get('atualiza_producao') === '1';
+        if (publishing && data.get('baixar_dados') === '1') {
+            addMessage(messages, 'warning',
+                'Importação e publicação devem ser operações separadas. Calcule e confira a prévia antes de publicar.', doc);
+            return false;
+        }
+        const competence = [data.get('year'), data.get('month')].join('-');
+        if (publishing && !win.confirm(
+            'Publicar documentos financeiros no Akaunting para a competência ' + competence +
+            '? Confirme que conferiu a produção por cooperado, a memória de cálculo e os lançamentos de origem.'
         )) {
             return false;
         }
@@ -92,8 +100,10 @@
             });
             if (!response.ok) {
                 throw new Error(response.status === 403
-                    ? 'Acesso negado. Recarregue a página; para operações de gravação, informe a senha configurada no servidor.'
-                    : 'O servidor recusou a execução (HTTP ' + response.status + '). Verifique o formulário e os logs.');
+                    ? 'Acesso negado ou formulário expirado. Recarregue a página e tente novamente.'
+                    : response.status === 401
+                        ? 'Acesso não autorizado pelo Nginx (HTTP 401). Verifique a autenticação HTTP do site.'
+                        : 'O servidor recusou a execução (HTTP ' + response.status + '). Verifique o formulário e os logs.');
             }
             if (!response.body || typeof response.body.getReader !== 'function') {
                 throw new Error('O navegador ou proxy não disponibilizou o fluxo de progresso.');
@@ -139,6 +149,51 @@
         }
     }
 
+    function updateView(form, doc, changed = '') {
+        const selected = name => form.querySelector?.('input[name="' + name + '"]:checked');
+        const choose = (name, value) => {
+            const option = form.querySelector?.('input[name="' + name + '"][value="' + value + '"]');
+            if (option) {
+                option.checked = true;
+            }
+        };
+
+        if (changed === 'atualiza_producao' && selected('atualiza_producao')?.value === '1') {
+            choose('baixar_dados', '0');
+        } else if (changed === 'baixar_dados' && selected('baixar_dados')?.value === '1') {
+            choose('atualiza_producao', '0');
+        }
+
+        const publishing = selected('atualiza_producao')?.value === '1';
+        const warning = doc.getElementById?.('publication-warning');
+        const hint = doc.getElementById?.('production-action-hint');
+        const button = doc.getElementById?.('submit');
+        if (warning) {
+            warning.hidden = !publishing;
+        }
+        if (hint) {
+            hint.textContent = publishing
+                ? 'A publicação usa os dados já importados. Confira os relatórios antes de prosseguir.'
+                : selected('baixar_dados')?.value === '1'
+                    ? 'Os dados serão atualizados antes de calcular a prévia, sem publicar documentos.'
+                    : 'A prévia não grava documentos no Akaunting.';
+        }
+        if (button && !button.disabled) {
+            button.textContent = publishing ? 'Publicar documentos no Akaunting' : 'Calcular prévia';
+        }
+
+        const year = doc.getElementById?.('year')?.value;
+        const month = doc.getElementById?.('month')?.value;
+        if (/^[0-9]{4}$/.test(year || '') && /^(0[1-9]|1[0-2])$/.test(month || '')) {
+            for (const link of doc.querySelectorAll?.('[data-report-path]') || []) {
+                const path = link.getAttribute?.('data-report-path');
+                if (['/producao', '/calculos', '/invoices'].includes(path)) {
+                    link.href = path + '?ano-mes=' + year + '-' + month;
+                }
+            }
+        }
+    }
+
     function bind(doc = scope.document, options = {}) {
         const form = doc?.getElementById('form-gera-producao');
         const messages = doc?.getElementById('messages');
@@ -147,6 +202,8 @@
             return false;
         }
 
+        updateView(form, doc);
+        form.addEventListener('change', event => updateView(form, doc, event.target?.name));
         form.addEventListener('submit', event => {
             event.preventDefault();
             void submit(form, messages, submitButton, options);
@@ -155,7 +212,7 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = { SseParser, addMessage, submit, bind };
+        module.exports = { SseParser, addMessage, submit, updateView, bind };
     } else {
         scope.addEventListener('DOMContentLoaded', () => bind());
     }

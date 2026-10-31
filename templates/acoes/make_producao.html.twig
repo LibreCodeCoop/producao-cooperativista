@@ -1,56 +1,114 @@
 {% extends "layout/index.html.twig" %}
-
 {% block title %}Processar produção cooperativista{% endblock %}
-
 {% block head %}
+    <link rel="stylesheet" href="/css/production-workflow.css">
     <script src="/js/production-progress.js" defer></script>
-    <style>
-        .alert { padding: 12px; margin: 12px 0; background: #fee4e2; border-radius: 4px; }
-        .alert.info { background: #e2efff; }
-        .alert.warning { background: #fff0cc; }
-        .alert.success { background: #d7f5e5; }
-        .notice { max-width: 52rem; }
-    </style>
 {% endblock %}
-
 {% block body %}
-    <p class="notice">A produção usa receitas e custos elegíveis da competência, não o saldo bancário da cooperativa. Confira a prévia antes de emitir documentos.</p>
-
-    <form id="form-gera-producao" method="post" action="{{ url }}">
-        <input type="hidden" name="_token" value="{{ token }}">
-        <fieldset>
-            <legend>Produção realizada em</legend>
-            <label for="year">Ano</label>
-            <select id="year" name="year">
-                {% for j in range('now'|date('Y') - 1, 'now'|date('Y') + 1) %}
-                    <option value="{{ j }}"{% if inicio_ano == j %} selected{% endif %}>{{ j }}</option>
-                {% endfor %}
-            </select>
-            <label for="month">Mês</label>
-            <select id="month" name="month">
-                {% for j in 1..12 %}
-                    <option value="{{ '%02d'|format(j) }}"{% if inicio_mes == '%02d'|format(j) %} selected{% endif %}>{{ '%02d'|format(j) }}</option>
-                {% endfor %}
-            </select>
-        </fieldset>
-
-        <fieldset>
-            <legend>Baixar dados de fontes externas</legend>
-            <label><input type="radio" name="baixar_dados" value="0"{% if baixar_dados == 0 %} checked{% endif %}> Não</label>
-            <label><input type="radio" name="baixar_dados" value="1"{% if baixar_dados == 1 %} checked{% endif %}> Sim</label>
-        </fieldset>
-
-        <fieldset>
-            <legend>Gravar produção no Akaunting</legend>
-            <label><input type="radio" name="atualiza_producao" value="0"{% if atualiza_producao == 0 %} checked{% endif %}> Não (prévia)</label>
-            <label><input type="radio" name="atualiza_producao" value="1"{% if atualiza_producao == 1 %} checked{% endif %}> Sim (gera/atualiza documentos)</label>
-        </fieldset>
-
-        <p class="notice">Em produção, a importação ou a gravação exige uma senha administrativa definida em <code>PRODUCAO_ACTION_TOKEN</code> no servidor.</p>
-        <label for="action_token">Senha para operações de escrita</label>
-        <input type="password" id="action_token" name="action_token" autocomplete="off" placeholder="Obrigatória para escrita em produção">
-        <p><button type="submit" id="submit">Executar</button></p>
-    </form>
-    <p class="notice">Se surgir um erro de peso, CPF, horas, cliente, competência ou lançamentos, <a href="/configuracao">veja onde corrigir cada dado na fonte</a> antes de repetir a operação.</p>
-    <div id="messages" role="status" aria-live="polite"></div>
+    <nav class="breadcrumbs" aria-label="Localização">
+        <a href="/">Visão geral</a><span aria-hidden="true">/</span><span aria-current="page">Processar produção</span>
+    </nav>
+    <header class="page-heading">
+        <p class="eyebrow">Fechamento mensal · Produção cooperativista</p>
+        <h1>Processar produção</h1>
+        <p class="page-lead">Importe dados quando necessário, calcule uma prévia e confira os relatórios antes de publicar no Akaunting.</p>
+    </header>
+    <div class="production-workflow">
+        <form id="form-gera-producao" class="surface production-run-panel" method="post" action="{{ url }}">
+            <input type="hidden" name="_token" value="{{ token }}">
+            <section class="production-step" aria-labelledby="production-period-heading">
+                <div class="production-step-heading">
+                    <span class="production-step-number" aria-hidden="true">1</span>
+                    <div><h2 id="production-period-heading">Competência do trabalho</h2><p>Mês das horas registradas no Kimai.</p></div>
+                </div>
+                <div class="production-period-fields">
+                    <div class="form-field">
+                        <label for="month">Mês</label>
+                        <select id="month" name="month">
+                            {% for label in ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'] %}
+                                {% set number = '%02d'|format(loop.index) %}
+                                <option value="{{ number }}"{% if inicio_mes == number %} selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="year">Ano</label>
+                        <select id="year" name="year">
+                            {% for j in range('now'|date('Y') - 2, 'now'|date('Y') + 1) %}
+                                <option value="{{ j }}"{% if inicio_ano == j %} selected{% endif %}>{{ j }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </section>
+            <section class="production-step" aria-labelledby="production-import-heading">
+                <div class="production-step-heading">
+                    <span class="production-step-number" aria-hidden="true">2</span>
+                    <div><h2 id="production-import-heading">Dados de origem</h2><p>Atualize na primeira apuração ou após corrigir horas, receitas, custos ou cadastros.</p></div>
+                </div>
+                <div class="production-inline-options" role="group" aria-label="Importar dados externos">
+                    <label class="production-option">
+                        <input type="radio" name="baixar_dados" value="0"{% if baixar_dados == 0 %} checked{% endif %}>
+                        <span>Usar dados já importados</span>
+                    </label>
+                    <label class="production-option">
+                        <input type="radio" name="baixar_dados" value="1"{% if baixar_dados == 1 %} checked{% endif %}>
+                        <span>Atualizar dados das fontes</span>
+                    </label>
+                </div>
+                <p class="production-help">Importar atualiza o banco intermediário, sem emitir documentos financeiros.</p>
+            </section>
+            <section class="production-step" aria-labelledby="production-mode-heading">
+                <div class="production-step-heading">
+                    <span class="production-step-number" aria-hidden="true">3</span>
+                    <div><h2 id="production-mode-heading">Qual operação executar?</h2><p>Primeiro calcule, depois confira e só então publique.</p></div>
+                </div>
+                <div class="production-mode-options">
+                    <label class="production-mode-choice">
+                        <input type="radio" name="atualiza_producao" value="0"{% if atualiza_producao == 0 %} checked{% endif %}>
+                        <span class="production-mode-copy"><strong>Calcular prévia</strong><small>Apura valores sem gravar documentos no Akaunting.</small></span>
+                    </label>
+                    <label class="production-mode-choice">
+                        <input type="radio" name="atualiza_producao" value="1"{% if atualiza_producao == 1 %} checked{% endif %}>
+                        <span class="production-mode-copy"><strong>Publicar no Akaunting</strong><small>Gera ou atualiza documentos financeiros a partir dos dados importados.</small></span>
+                    </label>
+                </div>
+                <div class="production-publication-warning" id="publication-warning" role="note"{% if atualiza_producao != 1 %} hidden{% endif %}>
+                    <strong>Antes de publicar</strong>
+                    <p>Confira a produção por cooperado, a memória de cálculo e os lançamentos de origem. A publicação não reimporta dados.</p>
+                </div>
+            </section>
+            <div class="production-run-actions">
+                <button type="submit" id="submit" class="button button-primary">
+                    {% if atualiza_producao == 1 %}Publicar documentos no Akaunting{% else %}Calcular prévia{% endif %}
+                </button>
+                <p class="production-help" id="production-action-hint" aria-live="polite">A prévia não grava documentos no Akaunting.</p>
+            </div>
+            <div id="messages" class="production-messages" role="status" aria-live="polite" aria-atomic="false"></div>
+        </form>
+        <aside class="production-review" aria-labelledby="production-review-heading">
+            <section class="surface production-review-panel">
+                <p class="section-kicker">Conferência financeira</p>
+                <h2 id="production-review-heading">Confira antes de publicar</h2>
+                <p>Depois de calcular a prévia, revise os relatórios desta mesma competência.</p>
+                <nav class="production-review-links" aria-label="Relatórios da competência">
+                    <a data-report-path="/producao" href="/producao?ano-mes={{ inicio_ano }}-{{ inicio_mes }}">
+                        <strong>Produção por cooperado</strong><small>Horas e valores atribuídos a cada pessoa.</small>
+                    </a>
+                    <a data-report-path="/calculos" href="/calculos?ano-mes={{ inicio_ano }}-{{ inicio_mes }}">
+                        <strong>Memória de cálculo</strong><small>Receitas, custos, rateios e fórmulas.</small>
+                    </a>
+                    <a data-report-path="/invoices" href="/invoices?ano-mes={{ inicio_ano }}-{{ inicio_mes }}">
+                        <strong>Entradas e saídas</strong><small>Documentos e lançamentos financeiros do período.</small>
+                    </a>
+                    <a href="/categorias"><strong>Categorias financeiras</strong><small>Verificar classificação dos lançamentos.</small></a>
+                </nav>
+                <p class="production-review-note">Encontrou inconsistências? <a href="/configuracao">Corrija os dados na origem</a>, reimporte e recalcule a prévia.</p>
+            </section>
+            <section class="production-policy-note" aria-label="Decisões de pagamento">
+                <strong>Apuração não é pagamento</strong>
+                <p>A decisão de pagar, destinar valores ao capital social ou adiar a liquidação continua manual. Esta tela não transfere horas entre meses.</p>
+            </section>
+        </aside>
+    </div>
 {% endblock %}

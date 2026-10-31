@@ -5,7 +5,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { SseParser, addMessage, submit, bind } = require('../../public/js/production-progress.js');
+const { SseParser, addMessage, submit, updateView, bind } = require('../../public/js/production-progress.js');
 
 function node(tagName = 'div') {
     const listeners = new Map();
@@ -22,12 +22,19 @@ function node(tagName = 'div') {
     };
 }
 
-function setup({ publish = false, confirmed = true, fetch, action = '/acoes/do-make-producao' } = {}) {
+function setup({ publish = false, download = false, confirmed = true, fetch, action = '/acoes/do-make-producao' } = {}) {
     const doc = { createElement: node };
     const form = { ...node('form'), action, ownerDocument: doc };
     const messages = { ...node(), ownerDocument: doc };
     const button = node('button');
-    const formData = { get(name) { return name === 'atualiza_producao' && publish ? '1' : '0'; } };
+    const formData = {
+        get(name) {
+            if (name === 'year') return '2026';
+            if (name === 'month') return '08';
+            if (name === 'baixar_dados') return download ? '1' : '0';
+            return name === 'atualiza_producao' && publish ? '1' : '0';
+        },
+    };
     const calls = { confirmation: 0, fetch: 0 };
     const request = fetch || (async () => response('event: done\ndata: "Concluído"\n\n'));
     const window = {
@@ -223,4 +230,63 @@ test('bind is safe without a form and attaches a submit listener when available'
     let prevented = false;
     s.form.emit('submit', { preventDefault() { prevented = true; } });
     assert.equal(prevented, true);
+});
+
+test('import and publication cannot be sent together even if the UI is bypassed', async () => {
+    const s = setup({ publish: true, download: true });
+    assert.equal(await submit(s.form, s.messages, s.button, s.options), false);
+    assert.equal(s.calls.fetch, 0);
+    assert.equal(s.calls.confirmation, 0);
+    assert.match(alerts(s.messages)[0].text, /operações separadas/);
+});
+
+test('workflow selection keeps the chosen month in review links and separates import from publishing', () => {
+    const radios = {
+        baixar_dados: [
+            { name: 'baixar_dados', value: '0', checked: false },
+            { name: 'baixar_dados', value: '1', checked: true },
+        ],
+        atualiza_producao: [
+            { name: 'atualiza_producao', value: '0', checked: false },
+            { name: 'atualiza_producao', value: '1', checked: true },
+        ],
+    };
+    const form = {
+        querySelector(selector) {
+            const name = selector.match(/name="([^"]+)"/)?.[1];
+            const value = selector.match(/value="([^"]+)"/)?.[1];
+            return radios[name]?.find(input => value ? input.value === value : input.checked);
+        },
+    };
+    const links = ['/producao', '/calculos', '/invoices'].map(path => ({
+        getAttribute() { return path; },
+        href: '',
+    }));
+    const warning = { hidden: true };
+    const hint = { textContent: '' };
+    const button = { textContent: '', disabled: false };
+    const controls = {
+        year: { value: '2026' }, month: { value: '09' },
+        'publication-warning': warning, 'production-action-hint': hint, submit: button,
+    };
+    const doc = {
+        getElementById(id) { return controls[id]; },
+        querySelectorAll() { return links; },
+    };
+
+    updateView(form, doc, 'atualiza_producao');
+    assert.equal(radios.baixar_dados[0].checked, true);
+    assert.equal(warning.hidden, false);
+    assert.equal(button.textContent, 'Publicar documentos no Akaunting');
+    assert.deepEqual(links.map(link => link.href), [
+        '/producao?ano-mes=2026-09', '/calculos?ano-mes=2026-09',
+        '/invoices?ano-mes=2026-09',
+    ]);
+
+    radios.baixar_dados[0].checked = false;
+    radios.baixar_dados[1].checked = true;
+    updateView(form, doc, 'baixar_dados');
+    assert.equal(radios.atualiza_producao[0].checked, true);
+    assert.equal(warning.hidden, true);
+    assert.equal(button.textContent, 'Calcular prévia');
 });

@@ -159,17 +159,11 @@
     </UnusedClass>
   </file>
   <file src="src/Controller/Invoices.php">
-    <UnevaluatedCode>
-      <code><![CDATA[return $response;]]></code>
-    </UnevaluatedCode>
     <UnusedClass>
       <code><![CDATA[Invoices]]></code>
     </UnusedClass>
   </file>
   <file src="src/Controller/Producao.php">
-    <UnevaluatedCode>
-      <code><![CDATA[return $response;]]></code>
-    </UnevaluatedCode>
     <UnusedClass>
       <code><![CDATA[Producao]]></code>
     </UnusedClass>
@@ -547,11 +541,6 @@
     </UnusedProperty>
   </file>
   <file src="src/Service/Calculation/ApiProblemResponder.php">
-    <PossiblyUnusedMethod>
-      <code><![CDATA[__construct]]></code>
-    </PossiblyUnusedMethod>
-  </file>
-  <file src="src/Service/Calculation/CalculationActionGuard.php">
     <PossiblyUnusedMethod>
       <code><![CDATA[__construct]]></code>
     </PossiblyUnusedMethod>

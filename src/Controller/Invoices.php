@@ -26,6 +26,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Domain\Competencia;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -47,10 +48,9 @@ class Invoices extends AbstractController
     #[Route('/invoices', methods: ['GET'])]
     public function index(): Response
     {
-        $inicio = \DateTime::createFromFormat('!Y-m', $this->request->query->getString('ano-mes'));
-        if (!$inicio instanceof \DateTime) {
-            $inicio = new \DateTime();
-            $inicio->modify('-2 month');
+        $requested = $this->request->query->getString('ano-mes');
+        if ($requested === '') {
+            $inicio = new \DateTime('first day of -2 months');
             return new RedirectResponse(
                 $this->urlGenerator->generate(
                     'app_invoices_index',
@@ -62,6 +62,12 @@ class Invoices extends AbstractController
             );
         }
 
+        try {
+            $inicio = Competencia::fromString($requested)->start();
+        } catch (\InvalidArgumentException $error) {
+            return new Response($error->getMessage(), Response::HTTP_BAD_REQUEST);
+        }
+
         return $this->render('invoices.index.html.twig', [
             'url' => $this->urlGenerator->generate(
                 'app_api_invoices_index',
@@ -69,7 +75,7 @@ class Invoices extends AbstractController
                     'ano-mes' => $inicio->format('Y-m')
                 ],
             ),
+            'competencia' => $inicio->format('Y-m'),
         ]);
-        return $response;
     }
 }
