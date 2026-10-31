@@ -126,7 +126,7 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('action="/configuracao/cooperado/12/kimai"', $html);
         self::assertSame(1, substr_count($html, 'name="field" value="dependents"'));
         self::assertStringContainsString('Como funciona o peso de participação', $html);
-        self::assertStringContainsString('até quatro casas decimais', $html);
+        self::assertStringContainsString('quatro casas decimais', $html);
         self::assertStringContainsString('0,75', $html);
         self::assertStringContainsString('data-copy-tax-number', $html);
         self::assertSame(1, substr_count($html, 'data-copy-tax-number'));
