@@ -235,3 +235,7 @@ O comando `make:producao` e a interface de produção contábil existente perman
 ## Implantação em produção
 
 A instalação produtiva usa o [Compose versionado e o procedimento operacional](docs/production-deployment.md). As configurações da aplicação, Nginx e PHP ficam no Git; credenciais, bancos de dados e hashes do HTTP Basic Auth ficam exclusivamente no servidor.
+
+### Estilos
+
+Edite os arquivos em `resources/scss/`, não os CSS gerados. Para compilar, rode `npm ci --include=dev` e `npm run css:build`. Os arquivos em `public/css/` são versionados e servidos diretamente; Node.js/Sass não são exigidos no servidor de produção. O CI verifica que os estilos compilados estão atualizados.

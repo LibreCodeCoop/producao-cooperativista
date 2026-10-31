@@ -9,6 +9,10 @@ on:
       - '.github/workflows/javascript.yml'
       - '.nvmrc'
       - 'public/js/**'
+      - 'public/css/**'
+      - 'resources/scss/**'
+      - 'package.json'
+      - 'package-lock.json'
       - 'tests/js/**'
       - 'templates/**'
       - 'src/Controller/Api/**'
@@ -34,6 +38,12 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
+
+      - name: Install Sass compiler
+        run: npm ci --include=dev --ignore-scripts --no-audit --no-fund
+
+      - name: Check generated CSS
+        run: npm run css:check
 
       - name: Validate JavaScript syntax
         run: find public/js -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
