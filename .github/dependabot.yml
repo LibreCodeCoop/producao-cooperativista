@@ -8,10 +8,7 @@ updates:
   - package-ecosystem: composer
     directories:
       - /
-      - /vendor-bin/cs
-      - /vendor-bin/unit
-      - /vendor-bin/psalm
-      - /vendor-bin/rector
+      - /vendor-bin/*
     schedule:
       interval: weekly
     open-pull-requests-limit: 10

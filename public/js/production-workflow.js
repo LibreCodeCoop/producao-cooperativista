@@ -138,8 +138,10 @@
         doc.addEventListener?.('member-source-changed', weightChanged);
 
         const loadPreview = async () => {
+            const refresh = el('reload-preview');
             if (loading || finished || needsImport) return false;
             loading = true;
+            if (refresh) { refresh.disabled = true; refresh.textContent = 'Consultando…'; }
             resetReview();
             messages.replaceChildren();
             updateLinks();
@@ -197,6 +199,7 @@
                 return false;
             } finally {
                 loading = false;
+                if (refresh) { refresh.disabled = false; refresh.textContent = 'Atualizar conferência'; }
             }
         };
 

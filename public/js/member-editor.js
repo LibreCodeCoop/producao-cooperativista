@@ -49,7 +49,7 @@
             const current = ++revision;
             if (!dialog.open) dialog.showModal?.();
             if (!keepFeedback) feedback.textContent = '';
-            content.textContent = 'Consultando Nextcloud, Kimai e Akaunting…';
+            content.textContent = 'Consultando Nextcloud, Kimai e Akaunting… Aguarde a resposta das fontes de cadastro.';
 
             try {
                 const response = await request(url.href, {

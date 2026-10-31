@@ -180,7 +180,20 @@
     display:inline-flex; gap:5px; font-weight:600; white-space:nowrap;
     align-items:center; font-size:11px;
 }
-#example .production-exclude-label input { width:15px; height:15px; flex:0 0 15px; }
+#example .production-exclude-label input {
+    appearance:none; width:34px; height:20px; flex:0 0 34px; margin:0; cursor:pointer;
+    background:var(--line); border:1px solid var(--muted); border-radius:20px; position:relative;
+}
+#example .production-exclude-label input::before {
+    content:""; display:block; width:14px; height:14px; margin:2px;
+    border-radius:50%; background:var(--surface); transition:transform .15s ease;
+}
+#example .production-exclude-label input:checked { background:var(--brand); border-color:var(--brand); }
+#example .production-exclude-label input:checked::before { transform:translateX(14px); }
+#example .production-exclude-label input:focus-visible { outline:2px solid var(--brand); outline-offset:2px; }
+#example .production-exclude-label .visually-hidden {
+    position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap;
+}
 #example th:last-child, #example td:last-child { width:80px; }
 .finance-help {
     position:relative; display:inline-block; vertical-align:middle; margin-left:6px;

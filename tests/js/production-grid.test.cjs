@@ -50,7 +50,7 @@ test('a single compact production grid keeps currency numeric for sorting and sa
     const cols = buildProductionColumns(opts);
     assert.deepEqual(cols.map(col => col.title), [
         'Cooperado','Horas','Peso','Base de produção','Bruto','Líquido',
-        'Conferir','Exceção',
+        'Detalhes','Não publicar',
     ]);
     assert.match(cols[0].render('<script>', 'display', row(5)), /&lt;script&gt;/);
     assert.match(cols[0].render('Pessoa A', 'display', row(5)), /data-member-editor-open/);
@@ -66,6 +66,7 @@ test('a single compact production grid keeps currency numeric for sorting and sa
     assert.equal(cols[3].render(1.005, 'export', row(5)), '1.01');
     assert.equal(cols[3].render(null, 'export', row(5)), '');
     assert.match(cols[6].render(null, 'display', row(5)), /data-production-details/);
+    assert.match(cols[7].render(null, 'display', row(5)), /role="switch"/);
     assert.equal(cols[6].render(null, 'sort', row(5)), '');
     assert.match(cols[7].render(null, 'display', row(8)), /checked/);
     assert.ok(!cols[7].render(null, 'display', row(5)).includes('checked'));
@@ -224,12 +225,14 @@ test('shared DataTables adapter mounts reviewed rows, excludes interactive colum
     const checkbox={dataset:{omitUserId:'8'},checked:true};
     f.handlers.get('change')({target:{closest:()=>checkbox}});
     assert.deepEqual(f.evidence.decisions,[{id:8,checked:true}]);
-    const expand={setAttribute() {},closest:sel=>sel==='tr'?{}:null};
+    const expand={textContent:'',setAttribute() {},closest:sel=>sel==='tr'?{}:null};
     f.handlers.get('click')({target:{closest:()=>expand}});
     assert.equal(f.evidence.childShown,true);
+    assert.equal(expand.textContent,'Fechar');
     assert.match(f.evidence.childHtml,/Tempo total do cliente/);
     f.handlers.get('click')({target:{closest:()=>expand}});
     assert.equal(f.evidence.childShown,false);
+    assert.equal(expand.textContent,'Abrir');
     assert.equal(f.messages.textContent,'');
 });
 

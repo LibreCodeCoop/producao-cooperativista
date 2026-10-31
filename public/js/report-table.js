@@ -205,26 +205,26 @@
             cell('bruto', 'Bruto'),
             cell('liquido', 'Líquido'),
             {
-                data: null, title: 'Conferir', name: 'detalhes',
+                data: null, title: 'Detalhes', name: 'detalhes',
                 orderable: false, searchable: false, defaultContent: '',
                 render: (_value, type) => type === 'display'
-                    ? '<button type="button" data-production-details class="production-detail-button" aria-expanded="false">Detalhes</button>'
+                    ? '<button type="button" data-production-details class="production-detail-button" aria-expanded="false">Abrir</button>'
                     : '',
             },
         ];
         if (options.financialReview) {
             columns.push({
-                data: null, title: 'Exceção', name: 'decisao',
+                data: null, title: 'Não publicar', name: 'decisao',
                 orderable: false, searchable: false, defaultContent: '',
                 render: (_value, type, row) => {
                     if (type !== 'display') return '';
                     const id = Number(row.kimai_user_id);
                     if (!Number.isSafeInteger(id) || id <= 0) return '';
-                    return '<label class="production-exclude-label" title="Não publicar agora">' +
-                        '<input type="checkbox" data-omit-user-id="' + id +
+                    return '<label class="production-exclude-label" title="Ativar para não publicar agora">' +
+                        '<input type="checkbox" role="switch" data-omit-user-id="' + id +
                         '" aria-label="Não publicar agora: ' + escapeHtml(row.name || '') + '"' +
                         (options.omitted?.has(id) ? ' checked' : '') +
-                        '><span>Omitir</span></label>';
+                        '><span class="visually-hidden">Não publicar agora</span></label>';
                 },
             });
         }
@@ -537,9 +537,11 @@
                     if (row.child.isShown()) {
                         row.child.hide();
                         button.setAttribute('aria-expanded', 'false');
+                        button.textContent = 'Abrir';
                     } else {
                         row.child(productionDetails(row.data())).show();
                         button.setAttribute('aria-expanded', 'true');
+                        button.textContent = 'Fechar';
                     }
                 };
                 table.addEventListener('click', onDetailsClick);
