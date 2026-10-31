@@ -71,7 +71,7 @@ final class CooperativeSources
         $preferences = [];
         foreach ($raw['preferences'] ?? [] as $preference) {
             if (is_array($preference)
-                && in_array($preference['name'] ?? null, ['tax_number', 'dependents'], true)
+                && in_array($preference['name'] ?? null, ['tax_number'], true)
                 && is_scalar($preference['value'] ?? null)) {
                 $preferences[$preference['name']] = (string) $preference['value'];
             }
@@ -145,10 +145,22 @@ final class CooperativeSources
                 (string) ($member['preferences']['tax_number'] ?? ''),
             ) ?? '';
         }
+        $fields = $uid !== '' ? $this->profileFields->getFieldsForUser($uid) : [];
+        if ($uid !== '') {
+            $reference = trim((string) ($member['preferences']['tax_number'] ?? ''));
+            $key = trim((string) getenv('PROFILE_FIELDS_TAX_NUMBER_FIELD_KEY')) ?: 'tax_number';
+            $profileTax = trim((string) ($fields[$key] ?? ''));
+            if ($reference === '' || $profileTax === '' || !hash_equals($reference, $profileTax)) {
+                throw new \DomainException(
+                    'Vínculo Kimai/Nextcloud não confirmado: CPF/CNPJ ausente ou divergente. '
+                    . 'Corrija a identificação entre as contas antes de editar.'
+                );
+            }
+        }
         return [
             'exists' => $uid !== '',
             'uid' => $uid,
-            'values' => $uid !== '' ? $this->profileFields->getFieldsForUser($uid) : [],
+            'values' => $fields,
         ];
     }
 
@@ -163,7 +175,7 @@ final class CooperativeSources
 
     public function updateKimai(int $id, string $field, string|int $value): void
     {
-        if (!in_array($field, ['tax_number', 'dependents'], true)) {
+        if (!in_array($field, ['tax_number'], true)) {
             throw new \InvalidArgumentException('Campo Kimai não permitido.');
         }
         $this->user($id); // Recheck existence before attempting a write.

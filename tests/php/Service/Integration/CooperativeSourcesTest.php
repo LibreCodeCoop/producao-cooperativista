@@ -91,7 +91,7 @@ final class CooperativeSourcesTest extends TestCase
         $http = new MockHttpClient(static function (string $method, string $url, array $options) use (&$updated): MockResponse {
             if ($method === 'PATCH') {
                 self::assertStringEndsWith('/users/2/preferences', $url);
-                self::assertSame([['name' => 'dependents', 'value' => '3']], json_decode($options['body'], true));
+                self::assertSame([['name' => 'tax_number', 'value' => '52998224725']], json_decode($options['body'], true));
                 $updated = true;
                 return new MockResponse('{}');
             }
@@ -99,12 +99,51 @@ final class CooperativeSourcesTest extends TestCase
             return new MockResponse((string) json_encode([
                 'id' => 2, 'username' => 'member-b', 'alias' => 'Bruna',
                 'apiToken' => 'not-for-twig',
-                'preferences' => [['name' => 'dependents', 'value' => $updated ? '3' : '0']],
+                'preferences' => [
+                    ['name' => 'tax_number', 'value' => $updated ? '52998224725' : ''],
+                    ['name' => 'dependents', 'value' => '7'],
+                ],
             ]));
         });
         $sources = $this->sources($http);
-        $sources->updateKimai(2, 'dependents', 3);
-        self::assertSame('3', $sources->user(2)['preferences']['dependents']);
+        $sources->updateKimai(2, 'tax_number', '52998224725');
+        self::assertSame('52998224725', $sources->user(2)['preferences']['tax_number']);
+        self::assertArrayNotHasKey('dependents', $sources->user(2)['preferences']);
+    }
+
+    public function testNextcloudProfileMustMatchKimaiTaxReference(): void
+    {
+        $logger = new NullLogger();
+        $client = $this->createMock(ProfileFieldsClient::class);
+        $client->method('isConfigured')->willReturn(true);
+        $client->expects(self::once())->method('userExists')->with('member-b')->willReturn(true);
+        $client->expects(self::once())->method('getFieldsForUser')->with('member-b')->willReturn([
+            'tax_number' => 'reference-other', 'dependents' => 1,
+        ]);
+        $sources = new CooperativeSources(
+            new MockHttpClient([]),
+            $logger,
+            $client,
+            new AkauntingContactGateway(
+                new AkauntingRequest($logger, new MockHttpClient([])),
+                $this->createStub(Connection::class),
+            ),
+            $this->createStub(Connection::class),
+        );
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Vínculo Kimai/Nextcloud não confirmado');
+        $sources->nextcloudForMember([
+            'username' => 'member-b', 'preferences' => ['tax_number' => 'reference-original'],
+        ]);
+    }
+
+    public function testKimaiLegacyDependentsCannotBeUpdated(): void
+    {
+        $http = new MockHttpClient(static function (): MockResponse {
+            self::fail('Dependents must never reach the Kimai API.');
+        });
+        $this->expectException(\InvalidArgumentException::class);
+        $this->sources($http)->updateKimai(2, 'dependents', 3);
     }
 
     public function testUnsupportedKimaiFieldIsRejectedBeforeCallingApi(): void

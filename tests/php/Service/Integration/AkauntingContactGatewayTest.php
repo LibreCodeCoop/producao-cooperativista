@@ -127,47 +127,60 @@ final class AkauntingContactGatewayTest extends TestCase
         self::assertSame(1, $put);
     }
 
-    public function testEmployeeReadAndWriteUsesEmployeeIdNotContactId(): void
+    public function testEmployeeTaxNumberUsesContactApiWithoutChangingPayrollFields(): void
     {
         $value = '00000000000';
         $puts = 0;
         $http = new MockHttpClient(function (string $method, string $url, array $options) use (&$value, &$puts): MockResponse {
-            self::assertStringContainsString('/api/employees/77', $url);
-            self::assertStringNotContainsString('/api/contacts/', $url);
             if ($method === 'PUT') {
-                $puts++;
+                self::assertStringContainsString('/api/contacts/20', $url);
+                self::assertSame('type:employee', $this->query($url)['search']);
+                ++$puts;
                 parse_str((string) $options['body'], $body);
                 self::assertSame('employee', $body['type']);
                 self::assertSame('52998224725', $body['tax_number']);
-                self::assertSame('monthly', $body['salary_type']);
-                self::assertSame('2100.5', $body['amount']);
-                self::assertSame('4', $body['department_id']);
-                self::assertSame('1980-07-01', $body['birth_day']);
-                self::assertSame('2025-01-01', $body['hired_at']);
-                self::assertSame('example@example.test', $body['email']);
+                self::assertSame('BRL', $body['currency_code']);
+                self::assertArrayNotHasKey('amount', $body);
+                self::assertArrayNotHasKey('salary_type', $body);
+                self::assertArrayNotHasKey('hired_at', $body);
+                self::assertArrayNotHasKey('department_id', $body);
                 $value = $body['tax_number'];
+                return new MockResponse((string) json_encode(['data' => [
+                    'id' => 20, 'type' => 'employee', 'company_id' => 1,
+                    'tax_number' => $value, 'name' => 'Example Member',
+                ]]));
             }
+            self::assertStringContainsString('/api/employees/77', $url);
+            self::assertSame('GET', $method);
             return new MockResponse((string) json_encode(['data' => $this->employee($value)]));
         });
         $gateway = $this->gateway($http, 'employee');
-        self::assertSame('employee', $gateway->contact(20)['type']);
+        self::assertTrue($gateway->contact(20)['editable']);
         $gateway->updateTaxNumber(20, '52998224725');
         self::assertSame(1, $puts);
     }
 
-    public function testEmployeeMissingSalaryTypeIsVisibleButNotWritable(): void
+    public function testMissingSalaryTypeDoesNotBlockContactTaxNumberUpdate(): void
     {
-        $http = new MockHttpClient(function (string $method): MockResponse {
-            self::assertSame('GET', $method, 'No employee mutation when required payroll metadata is missing.');
-            return new MockResponse((string) json_encode(['data' => $this->employee(salaryType: null)]));
+        $value = '00000000000';
+        $puts = 0;
+        $http = new MockHttpClient(function (string $method, string $url, array $options) use (&$value, &$puts): MockResponse {
+            if ($method === 'PUT') {
+                self::assertStringContainsString('/api/contacts/20', $url);
+                parse_str((string) $options['body'], $body);
+                self::assertArrayNotHasKey('salary_type', $body);
+                self::assertArrayNotHasKey('amount', $body);
+                ++$puts;
+                $value = $body['tax_number'];
+                return new MockResponse('{}');
+            }
+            self::assertSame('GET', $method);
+            return new MockResponse((string) json_encode(['data' => $this->employee($value, salaryType: null)]));
         });
         $gateway = $this->gateway($http, 'employee');
-        $contact = $gateway->contact(20);
-        self::assertFalse($contact['editable']);
-        self::assertStringContainsString('tipo de remuneração', $contact['reason']);
-
-        $this->expectException(DomainException::class);
+        self::assertTrue($gateway->contact(20)['editable']);
         $gateway->updateTaxNumber(20, '52998224725');
+        self::assertSame(1, $puts);
     }
 
     public function testWrongCompanyIsRejectedBeforeAnyHttpCall(): void

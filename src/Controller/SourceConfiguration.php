@@ -129,7 +129,7 @@ final class SourceConfiguration extends AbstractController
         $field = $request->request->getString('field');
         $allowed = [
             'nextcloud' => ['tax_number', 'weight', 'dependents'],
-            'kimai' => ['tax_number', 'dependents'],
+            'kimai' => ['tax_number'],
             'akaunting' => ['tax_number'],
         ];
         if (!in_array($field, $allowed[$source] ?? [], true)) {
@@ -201,7 +201,11 @@ final class SourceConfiguration extends AbstractController
                 'source' => $source, 'field' => $field, 'member_id' => $id,
                 'error_class' => $error::class,
             ]);
-            return $this->saveError($request, 'A origem não confirmou a gravação. Confira o cadastro e tente novamente.', Response::HTTP_BAD_GATEWAY);
+            $message = $source === 'akaunting' && str_contains($error->getMessage(), 'HTTP 403')
+                ? 'A API de contatos do Akaunting recusou a edição (HTTP 403). Confira a permissão '
+                    . 'de atualização de contatos financeiros da conta de integração e a empresa selecionada.'
+                : 'A origem não confirmou a gravação. Confira o cadastro e tente novamente.';
+            return $this->saveError($request, $message, Response::HTTP_BAD_GATEWAY);
         }
         return $this->redirectToRoute('app_sourceconfiguration_index', [
             'cooperado' => $id, 'competencia' => $month,
@@ -252,7 +256,7 @@ final class SourceConfiguration extends AbstractController
         } catch (\Throwable) {
             $services['nextcloud']['error'] = 'Consulta Nextcloud indisponível ou sem permissão de administração.';
         }
-        foreach (['tax_number', 'dependents'] as $field) {
+        foreach (['tax_number'] as $field) {
             $services['kimai']['fields'][] = $this->field($id, 'kimai', $field, (string) ($member['preferences'][$field] ?? ''));
         }
 
@@ -274,7 +278,7 @@ final class SourceConfiguration extends AbstractController
         }
 
         $services['nextcloud']['description'] = 'CPF, peso e dependentes são mantidos no Nextcloud. Alterações são globais ao perfil, não retroativas por competência.';
-        $services['kimai']['description'] = 'Preferências do usuário no Kimai. A importação pode ser sobrescrita pelos campos do Nextcloud; revise divergências.';
+        $services['kimai']['description'] = 'CPF/CNPJ usado apenas para identificar a pessoa e conciliar com o Nextcloud. Dependentes e peso são mantidos exclusivamente no Profile Fields.';
         $services['akaunting']['description'] = 'CPF/CNPJ do contato financeiro. Apenas o contato já vinculado será atualizado via API, após conferir empresa e identificador.';
 
         return $services;

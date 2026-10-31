@@ -87,11 +87,17 @@ class Users
                 $user = $this->fromArray($row);
                 $this->list[] = $user;
             } catch (InvalidArgumentException) {
-            } catch (\Throwable $th) {
-                $this->logger->alert('Falha ao salvar dados de usuário', [
-                    'message' => $th->getMessage(),
-                    'data' => $row,
+            } catch (\DomainException $error) {
+                $this->logger->warning('Importação bloqueada por perfil incompleto no Nextcloud.', [
+                    'source' => 'profile_fields',
+                    'error_class' => $error::class,
                 ]);
+                throw $error;
+            } catch (\Throwable $error) {
+                $this->logger->error('Falha ao importar perfil do cooperado.', [
+                    'error_class' => $error::class,
+                ]);
+                throw $error;
             }
         }
         $this->logger->debug('Dados baixados: {json}', ['json' => json_encode($list)]);
@@ -102,19 +108,28 @@ class Users
     {
         $array = $this->updateFromUserPreferences($array);
         $array = $this->profileFieldsClient->enrichUser($array);
+        // A missing Nextcloud value is not zero. Never import a legacy
+        // Kimai dependent count or silently replace it with a default.
+        $this->validate($array);
         $array = $this->updateWithAkauntingData($array);
         $array = $this->convertFields($array);
         $entity = $this->entityManager->find(User::class, $array['id']);
         if (!$entity instanceof User) {
             $entity = new User();
         }
-        $this->validate($array);
         $entity->fromArray($array);
         return $entity;
     }
 
     private function validate(array $array): void
     {
+        if (!isset($array['dependents']) || !is_int($array['dependents'])
+            || $array['dependents'] < 0) {
+            throw new \DomainException(
+                'Dependentes ausentes ou inválidos no Nextcloud Profile Fields. '
+                . 'Informe explicitamente zero quando não houver dependentes e reimporte.'
+            );
+        }
         if (empty($array['tax_number'])) {
             $this->logger->alert('Cooperado sem CPF: {cooperado}', [
                 'cooperado' => $array['alias'],
@@ -132,10 +147,11 @@ class Users
             $item['alias'] = $item['username'];
         }
         $item['email'] = $preferences['email'] ?? null;
+        // Legacy Kimai dependent counts must not reach the imported profile.
+        unset($item['dependents']);
         if ($preferences['tax_number'] ?? '' !== '') {
             $item['tax_number'] = $preferences['tax_number'];
         }
-        $item['dependents'] = 0;
         return $item;
     }
 

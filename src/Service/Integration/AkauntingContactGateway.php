@@ -42,7 +42,9 @@ final class AkauntingContactGateway
             $contactId,
             $identity['company_id'],
         );
-        $reason = $this->employeeUpdateBlocker($employee);
+        $reason = (string) ($identity['currency_code'] ?? '') === ''
+            ? 'Contato financeiro do funcionário sem moeda cadastrada no Akaunting. Preencha a moeda do contato antes de alterar o CPF/CNPJ.'
+            : '';
 
         return $this->present($employee['contact'], $reason === '', $reason);
     }
@@ -58,32 +60,22 @@ final class AkauntingContactGateway
 
         $body = $this->preservedContactFields($identity, $contact, $taxNumber);
 
-        if ($identity['type'] === 'vendor') {
-            $this->api->send(
-                '/api/contacts/' . $contactId,
-                $body,
-                ['search' => 'type:vendor'],
-                'PUT',
+        if ($identity['type'] === 'employee') {
+            // Confirm the employee->contact binding, but do not update payroll:
+            // salary_type is required by the Employees full-update endpoint
+            // even though it is unrelated to this contact identifier change.
+            $this->employee(
+                $this->employeeId($contactId, $identity['company_id']),
+                $contactId,
+                $identity['company_id'],
             );
-        } else {
-            $employeeId = $this->employeeId($contactId, $identity['company_id']);
-            $employee = $this->employee($employeeId, $contactId, $identity['company_id']);
-            $blocker = $this->employeeUpdateBlocker($employee);
-            if ($blocker !== '') {
-                throw new DomainException($blocker);
-            }
-
-            $body['birth_day'] = $employee['birth_day'];
-            $body['gender'] = $employee['gender'];
-            $body['department_id'] = (int) $employee['department']['id'];
-            $body['amount'] = $employee['salary'];
-            $body['salary_type'] = $employee['salary_type'];
-            $body['hired_at'] = $employee['hired_at'];
-
-            // /api/employees/{id} uses the Employees module's own ACL and
-            // maps employee IDs to their linked financial contacts.
-            $this->api->send('/api/employees/' . $employeeId, $body, method: 'PUT');
         }
+        $this->api->send(
+            '/api/contacts/' . $contactId,
+            $body,
+            ['search' => 'type:' . $identity['type']],
+            'PUT',
+        );
 
         if ($this->contact($contactId)['tax_number'] !== $taxNumber) {
             throw new RuntimeException('Akaunting não confirmou a atualização do CPF/CNPJ. Confira a origem antes de tentar novamente.');
@@ -194,23 +186,6 @@ final class AkauntingContactGateway
         ];
     }
 
-    /** @param array<string, mixed> $employee */
-    private function employeeUpdateBlocker(array $employee): string
-    {
-        if (!is_string($employee['salary_type'] ?? null) || trim($employee['salary_type']) === '') {
-            return 'O cadastro de funcionário no Akaunting não possui tipo de remuneração. Configure o campo no módulo Employees antes de editar o CPF/CNPJ.';
-        }
-        if (!is_numeric($employee['salary'] ?? null)
-            || !is_string($employee['gender'] ?? null) || $employee['gender'] === ''
-            || (int) ($employee['department']['id'] ?? 0) <= 0
-            || !is_string($employee['birth_day'] ?? null) || preg_match('/^\d{4}-\d{2}-\d{2}$/D', $employee['birth_day']) !== 1
-            || !is_string($employee['hired_at'] ?? null) || preg_match('/^\d{4}-\d{2}-\d{2}$/D', $employee['hired_at']) !== 1) {
-            return 'Cadastro de funcionário incompleto no Akaunting (datas, departamento, gênero ou remuneração). Corrija os dados na origem antes de editar o CPF/CNPJ.';
-        }
-
-        return '';
-    }
-
     /**
      * Keep existing contact details unchanged. The upstream job copies these
      * fields into recurring documents when they exist.
@@ -232,13 +207,13 @@ final class AkauntingContactGateway
                 ? $contact['email']
                 : ($identity[$field] ?? '');
         }
-        if ($contact['type'] === 'vendor') {
-            $currency = (string) ($identity['currency_code'] ?? '');
-            if ($currency === '') {
-                throw new DomainException('Fornecedor sem moeda cadastrada no Akaunting. Corrija o cadastro antes de editar o CPF/CNPJ.');
-            }
-            $body['currency_code'] = $currency;
+        $currency = (string) ($identity['currency_code'] ?? '');
+        if ($currency === '') {
+            throw new DomainException(
+                'Contato financeiro sem moeda cadastrada no Akaunting. Corrija a moeda antes de editar o CPF/CNPJ.'
+            );
         }
+        $body['currency_code'] = $currency;
 
         return $body;
     }

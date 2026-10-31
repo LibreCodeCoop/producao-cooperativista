@@ -101,14 +101,18 @@ final class SourceConfigurationUiTest extends TestCase
                 'nextcloud' => [
                     'title' => 'Nextcloud · Profile Fields', 'configured' => true,
                     'error' => '', 'description' => 'Fonte Nextcloud',
-                    'fields' => [['field' => 'weight', 'label' => 'Peso', 'value' => '2',
-                        'kind' => 'text', 'expected' => 'revision-placeholder']],
+                    'fields' => [
+                        ['field' => 'weight', 'label' => 'Peso', 'value' => '2',
+                            'kind' => 'text', 'expected' => 'revision-placeholder'],
+                        ['field' => 'dependents', 'label' => 'Dependentes', 'value' => '0',
+                            'kind' => 'number', 'expected' => 'revision-placeholder'],
+                    ],
                 ],
                 'kimai' => [
                     'title' => 'Kimai · Preferências', 'configured' => true,
                     'error' => '', 'description' => 'Fonte Kimai',
-                    'fields' => [['field' => 'dependents', 'label' => 'Dependentes', 'value' => '0',
-                        'kind' => 'number', 'expected' => 'revision-placeholder']],
+                    'fields' => [['field' => 'tax_number', 'label' => 'CPF/CNPJ', 'value' => '',
+                        'kind' => 'text', 'expected' => 'revision-placeholder']],
                 ],
                 'akaunting' => [
                     'title' => 'Akaunting · Contato', 'configured' => false, 'description' => '',
@@ -123,6 +127,8 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('name="_token" value="csrf-value"', $html);
         self::assertStringContainsString('action="/configuracao/cooperado/12/nextcloud"', $html);
         self::assertStringContainsString('action="/configuracao/cooperado/12/kimai"', $html);
+        self::assertSame(1, substr_count($html, 'name="field" value="dependents"'));
+
         self::assertStringContainsString('HTTP 403', $html);
         self::assertStringContainsString('global', $html);
         self::assertStringNotContainsString('action="/configuracao/cooperado/12/akaunting"', $html);

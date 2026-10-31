@@ -276,7 +276,17 @@ class ProfileFieldsClient
     {
         $this->applyTrimmedScalarField($user, $fields, $this->getTaxNumberFieldKey(), 'tax_number');
         $this->applyNumericField($user, $fields, $this->getWeightFieldKey(), 'peso', static fn ($value): float => (float) $value);
-        $this->applyNumericField($user, $fields, $this->getDependentsFieldKey(), 'dependents', static fn ($value): int => (int) $value);
+        $dependents = $fields[$this->getDependentsFieldKey()] ?? null;
+        if ($dependents !== null) {
+            $value = is_scalar($dependents) ? trim((string) $dependents) : '';
+            if (preg_match('/^(?:0|[1-9][0-9]*)$/D', $value) !== 1
+                || filter_var($value, FILTER_VALIDATE_INT) === false) {
+                throw new \DomainException(
+                    'Número de dependentes inválido no Nextcloud Profile Fields. Confira o cadastro.'
+                );
+            }
+            $user['dependents'] = (int) $value;
+        }
 
         return $user;
     }

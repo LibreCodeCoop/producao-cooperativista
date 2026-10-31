@@ -172,6 +172,23 @@ final class ProfileFieldsClientTest extends TestCase
         ]));
     }
 
+    public function testFractionalDependentsAreRejectedInsteadOfTruncated(): void
+    {
+        $client = new ProfileFieldsClient(new MockHttpClient([]), new NullLogger());
+        $apply = new \ReflectionMethod(ProfileFieldsClient::class, 'applyFieldsToUser');
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('dependentes inválido');
+        $apply->invoke($client, ['username' => 'synthetic'], ['dependents' => '2.5']);
+    }
+
+    public function testExplicitZeroFromNextcloudRemainsZero(): void
+    {
+        $client = new ProfileFieldsClient(new MockHttpClient([]), new NullLogger());
+        $apply = new \ReflectionMethod(ProfileFieldsClient::class, 'applyFieldsToUser');
+        $user = $apply->invoke($client, ['username' => 'synthetic'], ['dependents' => '0']);
+        self::assertSame(0, $user['dependents']);
+    }
+
     public function testEnrichUserMapsDependentsFromProfileFields(): void
     {
         putenv('PROFILE_FIELDS_API_BASE_URL=https://nextcloud.example.com');
