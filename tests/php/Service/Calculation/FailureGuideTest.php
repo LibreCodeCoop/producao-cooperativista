@@ -31,6 +31,8 @@ final class FailureGuideTest extends TestCase
         yield ['Warning: Cannot modify header information - headers already sent', 'SSE_CABECALHOS'];
         yield ['Sem transações', 'SEM_MOVIMENTOS'];
         yield ['Nenhuma hora: não há horas ponderadas', 'PESOS_HORAS'];
+        yield ['Publicação bloqueada: já existe uma gravação pendente ou de resultado incerto.', 'PUBLICACAO_INCERTA'];
+        yield ['Table report_test.publication_write_attempts does not exist', 'REGISTRO_PUBLICACAO_AUSENTE'];
     }
 
     public function testSseNeverLeaksRawDataFromExceptions(): void

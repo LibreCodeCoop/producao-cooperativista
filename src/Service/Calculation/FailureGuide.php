@@ -26,6 +26,18 @@ final readonly class FailureGuide
     {
         $message = mb_strtolower($rawMessage);
         return match (true) {
+            str_contains($message, 'publication_write_attempts') => new self(
+                'REGISTRO_PUBLICACAO_AUSENTE',
+                'A estrutura de auditoria de publicações não foi instalada no banco do ETL.',
+                'Antes de publicar, execute a migration pendente no banco intermediário aprovado; não altere o banco do Akaunting. Consulte o procedimento de implantação.'
+            ),
+            str_contains($message, 'gravação pendente'),
+            str_contains($message, 'resultado incerto'),
+            str_contains($message, 'tentativa ficou bloqueada') => new self(
+                'PUBLICACAO_INCERTA',
+                'Existe uma operação financeira cujo resultado ainda não foi conciliado.',
+                'Consulte publication:pending em modo somente leitura, verifique os documentos no Akaunting e não repita a gravação antes de conciliar o histórico.'
+            ),
             str_contains($message, 'contacts::$'),
             str_contains($message, 'contacts::$id'),
             str_contains($message, 'cannot assign string to property') => new self(

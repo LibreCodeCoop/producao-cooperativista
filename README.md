@@ -153,7 +153,7 @@ Available commands:
 4. **Conciliar em leitura com o Akaunting**: compare `document_number`, situação (`draft`, `paid` ou `cancelled`), competência, itens e notas. Não sobrescreva faturas finalizadas. Toda divergência exige explicação sobre dados de origem, data de corte, política e eventuais ajustes posteriores.
 5. **Aprovar ou bloquear**: obtenha a revisão financeira/contábil aplicável antes de usar `--atualiza-producao` no ambiente aprovado. Ausência de horas, custos sem receita, capital elegível insuficiente ou inconsistência cadastral bloqueiam a publicação. Após uma falha de publicação, confira os registros existentes antes de repetir a operação.
 
-Para o procedimento seguro de reconciliação e retomada após publicação parcial, consulte `docs/publication-recovery.md`.
+Para o procedimento seguro de reconciliação e retomada após publicação parcial, consulte `docs/publication-recovery.md`. O histórico de tentativas de emissão é consultável por `php bin/console publication:pending --limit=100`; exige a nova migration do banco intermediário, preservada pelo reset do ETL.
 
 Publicações de cooperados pessoa física cuja previsão de pagamento atravesse o ano civil ficam bloqueadas até revisão do período de incidência do IRRF. Consulte `docs/tax-period-boundary.md`. A prévia continua disponível; isso não homologa pagamentos dentro do mesmo exercício.
 

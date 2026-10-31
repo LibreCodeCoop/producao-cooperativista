@@ -19,6 +19,50 @@ desfaz uma conta, retenção ou pagamento já registrado no Akaunting.
 - Mensagens de erro desses bloqueios evitam expor o número do documento, que
   pode conter CPF ou CNPJ.
 
+## Registro durável de tentativas
+
+A migração `Version20261031020000` cria `publication_write_attempts`
+**exclusivamente no banco intermediário do ETL**. Ela precisa ser aplicada
+antes de publicar com esta versão, por procedimento autorizado.
+Cada operação de `POST /api/documents` ou `PATCH /api/documents/{id}`
+reserva uma tentativa no MySQL **antes** de transmitir a requisição.
+
+- `pending`: requisição reservada, ainda sem resultado persistido. Após
+  interrupção do processo, requer conferência.
+- `confirmed`: resposta HTTP 200/201 contém ID, número, tipo e contato
+  compatíveis com o documento solicitado.
+- `rejected`: a API recusou com erro HTTP 4xx identificável (exceto 429);
+  uma nova tentativa pode ser realizada após correção.
+- `uncertain`: resposta perdida, 429, 5xx, corpo inesperado ou identidade
+  divergente. **Proíbe novos envios automáticos da mesma operação**.
+
+O histórico é preservado por tentativa, incluindo hash da identidade e do
+corpo, método, recurso, empresa, resultado e horário. Não armazena o corpo
+da requisição, nome, CPF/CNPJ ou número do documento em claro. Os hashes
+são dados pseudonimizados: proteja o banco, pois hash não significa
+anonimização. A tabela não integra a lista de limpeza do staging, nem deve
+ser descartada ao reimportar uma competência. A migration não possui
+rollback destrutivo.
+
+Consulta operacional, somente leitura:
+
+```bash
+php bin/console publication:pending --limit=100
+```
+
+O comando imprime identificadores opacos das tentativas, empresa, verbo,
+recurso e situação, sem conteúdo do documento. Combine com a prévia
+autorizada e os documentos disponíveis no Akaunting para conciliar cada
+caso antes de qualquer reexecução.
+
+**Limite do mecanismo:** a proteção acompanha apenas as gravações de
+documentos efetuadas pela instância da aplicação que utiliza o serviço
+`Request` configurado por injeção de dependência. Não cobre operações
+de contatos, chamadas avulsas sem registro, outras instalações sem o
+mesmo banco, nem garante transações distribuídas ou atualização
+condicional no Akaunting. Sem conciliação, tentativas incertas permanecem
+bloqueadas; não existe liberação automática de evidência incerta.
+
 ## Quando a publicação falhar
 
 1. Não repita a publicação automaticamente. Preserve o ID da execução, a
@@ -42,10 +86,10 @@ ainda pode ocorrer entre essas operações. O bloqueio local reduz o risco,
 
 A sequência de documentos por cooperado, FRRA e tributos também não é atômica:
 uma falha intermediária pode deixar documentos parcialmente publicados. A
-retomada com garantias completas ainda requer registro durável individual
-das operações, reconciliação de gravações com resposta perdida e suporte
-servidor para idempotência/concorrência. Nenhum ledger de publicação
-financeira foi implementado nesta etapa.
+retomada com garantias completas ainda requer reconciliação confiável de
+gravações com resposta perdida, cobertura de todas as operações financeiras
+e suporte servidor para idempotência/concorrência. O registro local de
+tentativas implementado acima não fornece atomicidade distribuída.
 
 Testes de escrita devem utilizar exclusivamente o Akaunting **local** ou
 clientes HTTP simulados e bancos de teste isolados. Nunca exercite publicação
