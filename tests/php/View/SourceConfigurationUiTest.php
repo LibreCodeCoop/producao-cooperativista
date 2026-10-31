@@ -128,8 +128,9 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('Como funciona o peso de participação', $html);
         self::assertStringContainsString('quatro casas decimais', $html);
         self::assertStringContainsString('0,75', $html);
-        self::assertStringContainsString('data-copy-tax-number', $html);
-        self::assertSame(1, substr_count($html, 'data-copy-tax-number'));
+        self::assertStringContainsString('class="member-link-form"', $html);
+        self::assertStringContainsString('data-links-prepare', $html);
+        self::assertStringContainsString('data-link-source="akaunting"', $html);
         self::assertStringContainsString('data-source="nextcloud" data-field="weight"', $html);
         self::assertStringContainsString('HTTP 403', $html);
         self::assertStringNotContainsString('action="/configuracao/cooperado/12/akaunting"', $html);

@@ -21,9 +21,8 @@ final class AcoesHttpTest extends WebTestCase
     {
         $client = static::createClient();
         $client->request('GET', '/');
-        self::assertSame(Response::HTTP_OK, $client->getResponse()->getStatusCode());
-        self::assertStringContainsString('Abrir fechamento', $client->getResponse()->getContent());
-        self::assertStringNotContainsString('Limpar dados importados (ETL)', $client->getResponse()->getContent());
+        self::assertSame(Response::HTTP_FOUND, $client->getResponse()->getStatusCode());
+        self::assertSame('/acoes/make-producao', $client->getResponse()->headers->get('Location'));
 
         $client->request('GET', '/acoes/make-producao?ano-mes=2026-08');
         self::assertSame(Response::HTTP_OK, $client->getResponse()->getStatusCode());

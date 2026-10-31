@@ -28,16 +28,6 @@
         }
     }
 
-    function copyTaxNumber(root, targetForm) {
-        const reference = root?.querySelector?.('form[data-source="nextcloud"][data-field="tax_number"] [name="value"]');
-        const target = targetForm?.querySelector?.('[name="value"]');
-        if (!reference?.value?.trim() || reference.value !== reference.defaultValue || !target) return false;
-        target.value = reference.defaultValue;
-        const button = targetForm.querySelector('[type="submit"]');
-        if (button) button.disabled = target.value === target.defaultValue;
-        return true;
-    }
-
     function initialize(doc = scope.document, options = {}) {
         const dialog = doc?.getElementById('member-editor-dialog');
         if (!dialog) return false;
@@ -103,14 +93,76 @@
                 void load(openerLink.href, openerLink);
             }
         });
-        dialog.addEventListener('click', event => {
-            const copy = event.target?.closest?.('[data-copy-tax-number]');
-            if (copy) {
-                if (copyTaxNumber(content, copy.closest('form'))) {
-                    feedback.textContent = 'CPF/CNPJ copiado. Confira e salve separadamente nesta fonte.';
-                } else {
-                    feedback.textContent = 'Salve primeiro o CPF/CNPJ no Nextcloud antes de copiá-lo para outra fonte.';
+        let searchTicket = 0;
+        let searchTimer = null;
+        dialog.addEventListener('input', event => {
+            const input = event.target;
+            if (!input?.matches?.('[data-link-source]')) return;
+            const ticket = ++searchTicket;
+            if (searchTimer !== null) clearTimeout(searchTimer);
+            const query = input.value.trim();
+            const choices = content.querySelector('#' + input.getAttribute('list'));
+            if (!choices) return;
+            choices.replaceChildren();
+            if (query.length < 2) return;
+            const send = async () => {
+                try {
+                    const path = '/configuracao/vinculos/opcoes?source='
+                        + encodeURIComponent(input.dataset.linkSource) + '&q=' + encodeURIComponent(query);
+                    const response = await request(new URL(path, location.href).href, {
+                        credentials: 'same-origin', cache: 'no-store',
+                        headers: {Accept: 'application/json'},
+                    });
+                    if (!response.ok) throw new Error('A busca de vínculos falhou.');
+                    const data = await response.json();
+                    if (ticket !== searchTicket || !Array.isArray(data.items)) return;
+                    choices.replaceChildren();
+                    for (const option of data.items) {
+                        const element = doc.createElement('option');
+                        element.value = String(option.id);
+                        element.label = String(option.label);
+                        choices.appendChild(element);
+                    }
+                } catch (error) {
+                    if (ticket === searchTicket) feedback.textContent = error.message;
                 }
+            };
+            searchTimer = setTimeout(() => { void send(); }, 220);
+        });
+        const submitLinks = async (form, url) => {
+            const endpoint = new URL(url, location.href);
+            const prepare = endpoint.pathname === '/configuracao/vinculos/preparar';
+            const linking = /^\/configuracao\/cooperado\/[1-9]\d*\/vincular$/.test(endpoint.pathname);
+            if (endpoint.origin !== new URL(location.href).origin || (!prepare && !linking)) {
+                feedback.textContent = 'Destino de vínculo inválido.';
+                return;
+            }
+            const button = form.querySelector('[type="submit"]');
+            if (button) button.disabled = true;
+            feedback.textContent = 'Conferindo vínculos...';
+            try {
+                const response = await request(endpoint.href, {
+                    method: 'POST', body: new FormData(form), credentials: 'same-origin',
+                    cache: 'no-store', redirect: 'error',
+                    headers: {Accept:'application/json', 'X-Requested-With':'XMLHttpRequest'},
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'A origem não confirmou os vínculos.');
+                feedback.textContent = data.message || 'Vínculos confirmados.';
+                if (linking) {
+                    options.onSaved?.();
+                    if (activeUrl) await load(activeUrl, null, true);
+                }
+            } catch (error) {
+                feedback.textContent = error.message || 'Não foi possível salvar vínculos.';
+            } finally {
+                if (button) button.disabled = false;
+            }
+        };
+        dialog.addEventListener('click', event => {
+            if (event.target?.closest?.('[data-links-prepare]')) {
+                const form = content.querySelector('.member-link-form');
+                if (form) void submitLinks(form, '/configuracao/vinculos/preparar');
                 return;
             }
             if (event.target?.closest?.('[data-member-editor-close]') || event.target === dialog) close();
@@ -121,6 +173,11 @@
         });
         dialog.addEventListener('submit', async event => {
             const form = event.target;
+            if (form?.classList?.contains?.('member-link-form')) {
+                event.preventDefault();
+                if (activeUrl) void submitLinks(form, form.action);
+                return;
+            }
             if (!form?.matches?.('.member-editor-field') || !activeUrl) return;
             event.preventDefault();
             const action = new URL(form.action, location.href);
@@ -178,7 +235,7 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = {editorUrl, initialize, bindFieldControls, copyTaxNumber};
+        module.exports = {editorUrl, initialize, bindFieldControls};
     } else {
         scope.addEventListener('DOMContentLoaded', () => initialize());
     }

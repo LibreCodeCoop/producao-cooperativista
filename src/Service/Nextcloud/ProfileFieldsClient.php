@@ -20,6 +20,10 @@ class ProfileFieldsClient
     private array $fieldsByTaxNumber = [];
 
     private bool $preferUserUidLookup = false;
+    /** @var array<string, array{id:int,type:string}>|null */
+    private ?array $cachedDefinitions = null;
+    /** @var array<string,bool> */
+    private array $existingUsers = [];
 
     public function __construct(
         private HttpClientInterface $httpClient,
@@ -43,11 +47,14 @@ class ProfileFieldsClient
         if (!$this->isConfigured() || trim($userUid) === '') {
             return false;
         }
+        if (array_key_exists($userUid, $this->existingUsers)) {
+            return $this->existingUsers[$userUid];
+        }
         $record = $this->requestOcs(
             '/ocs/v2.php/cloud/users/' . rawurlencode($userUid),
             allowNotFound: true,
         );
-        return ($record['id'] ?? null) === $userUid;
+        return $this->existingUsers[$userUid] = (($record['id'] ?? null) === $userUid);
     }
 
     /**
@@ -55,6 +62,9 @@ class ProfileFieldsClient
      */
     public function activeDefinitions(): array
     {
+        if ($this->cachedDefinitions !== null) {
+            return $this->cachedDefinitions;
+        }
         $definitions = [];
         foreach ($this->requestOcs('/ocs/v2.php/apps/profile_fields/api/v1/definitions') as $item) {
             if (!is_array($item) || !($item['active'] ?? false)) {
@@ -66,29 +76,99 @@ class ProfileFieldsClient
                 $definitions[$key] = ['id' => $id, 'type' => (string) ($item['type'] ?? '')];
             }
         }
-        return $definitions;
+        return $this->cachedDefinitions = $definitions;
     }
 
-    /**
-     * Match a different Nextcloud UID only through an exact, unique CPF/CNPJ
-     * lookup. An ambiguous lookup fails closed at the OCS boundary.
-     */
-    public function findUserUidByTaxNumber(string $taxNumber): ?string
+    /** @return array{uid: string, values: array<string, mixed>}|null */
+    public function findByKimaiId(int $kimaiId): ?array
     {
-        if (!$this->isConfigured() || trim($taxNumber) === '') {
+        if ($kimaiId <= 0) {
+            throw new \InvalidArgumentException('ID do usuário Kimai inválido.');
+        }
+        $result = $this->lookup('kimai_user_id', (string) $kimaiId);
+        if ($result === []) {
             return null;
         }
-        $row = $this->requestOcs(
+        $uid = trim((string) ($result['user_uid'] ?? ''));
+        if ($uid === '') {
+            return null;
+        }
+
+        $fields = [];
+        foreach ($result['fields'] ?? [] as $key => $field) {
+            if (is_string($key) && is_array($field)) {
+                $fields[$key] = $this->normalizeValue($field['value'] ?? null);
+            }
+        }
+        // Reuse the values embedded in the exact unique lookup response.
+        $this->fieldsByUserUid[$uid] = $fields;
+        return ['uid' => $uid, 'values' => $fields];
+    }
+
+    public function findUserUidByLink(string $key, int $value): ?string
+    {
+        if (!in_array($key, ['kimai_user_id', 'akaunting_contact_id'], true) || $value <= 0) {
+            throw new \InvalidArgumentException('Identificador de vínculo não permitido.');
+        }
+        $match = $this->lookup($key, (string) $value);
+        $uid = trim((string) ($match['user_uid'] ?? ''));
+        return $uid !== '' ? $uid : null;
+    }
+
+    /** @return list<string> */
+    public function searchUserUids(string $query): array
+    {
+        $query = trim($query);
+        if (mb_strlen($query) < 2 || mb_strlen($query) > 60) {
+            return [];
+        }
+        $response = $this->requestOcs(
+            '/ocs/v2.php/cloud/users?search=' . rawurlencode($query) . '&limit=12',
+        );
+        $users = $response['users'] ?? [];
+        if (!is_array($users)) {
+            return [];
+        }
+        return array_values(array_filter($users, static fn (mixed $uid): bool => is_string($uid) && $uid !== ''));
+    }
+
+    /** Create only two admin-only, hidden reference fields. */
+    public function ensureLinkDefinitions(): void
+    {
+        $definitions = $this->activeDefinitions();
+        foreach (['kimai_user_id' => 'Usuário Kimai', 'akaunting_contact_id' => 'Contato Akaunting'] as $key => $label) {
+            if (isset($definitions[$key])) {
+                if ($definitions[$key]['type'] !== 'text') {
+                    throw new \DomainException('Campo de vínculo com tipo incompatível no Profile Fields.');
+                }
+                continue;
+            }
+            $this->requestOcs('/ocs/v2.php/apps/profile_fields/api/v1/definitions', 'POST', [
+                'json' => [
+                    'fieldKey' => $key,
+                    'label' => $label,
+                    'type' => 'text',
+                    'editPolicy' => 'admins',
+                    'exposurePolicy' => 'hidden',
+                    'active' => true,
+                ],
+            ]);
+        }
+        $this->cachedDefinitions = null;
+    }
+
+    /** @return array<int|string, mixed> */
+    private function lookup(string $key, string $value): array
+    {
+        if (!$this->isConfigured()) {
+            return [];
+        }
+        return $this->requestOcs(
             '/ocs/v2.php/apps/profile_fields/api/v1/users/lookup',
             method: 'POST',
-            options: ['json' => [
-                'fieldKey' => $this->getTaxNumberFieldKey(),
-                'fieldValue' => trim($taxNumber),
-            ]],
+            options: ['json' => ['fieldKey' => $key, 'fieldValue' => $value]],
             allowNotFound: true,
         );
-        $uid = trim((string) ($row['user_uid'] ?? ''));
-        return $uid !== '' && $this->userExists($uid) ? $uid : null;
     }
 
     public function updateUserField(string $userUid, string $fieldKey, string|int|float $value): void
@@ -97,6 +177,8 @@ class ProfileFieldsClient
             $this->getTaxNumberFieldKey() => 'text',
             $this->getWeightFieldKey() => 'number',
             $this->getDependentsFieldKey() => 'number',
+            'kimai_user_id' => 'text',
+            'akaunting_contact_id' => 'text',
         ];
         if (!isset($allowed[$fieldKey])) {
             throw new \InvalidArgumentException('Este campo não é permitido no painel.');
@@ -208,6 +290,23 @@ class ProfileFieldsClient
      */
     public function enrichUser(array $user): array
     {
+        $id = (int) ($user['id'] ?? 0);
+        if ($id > 0 && isset($this->activeDefinitions()['kimai_user_id'])) {
+            $linked = $this->findByKimaiId($id);
+            if ($linked !== null) {
+                $financialId = filter_var(
+                    $linked['values']['akaunting_contact_id'] ?? null,
+                    FILTER_VALIDATE_INT,
+                    ['options' => ['min_range' => 1]],
+                );
+                if (!$financialId) {
+                    throw new \DomainException('Cooperado vinculado ao Kimai sem contato financeiro definido no Profile Fields.');
+                }
+                $user = $this->applyFieldsToUser($user, $linked['values']);
+                $user['akaunting_contact_id'] = $financialId;
+                return $user;
+            }
+        }
         $taxNumber = trim((string) ($user['tax_number'] ?? ''));
         if ($taxNumber === '') {
             return $user;

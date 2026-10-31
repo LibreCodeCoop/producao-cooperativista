@@ -12,6 +12,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
 /** @psalm-suppress UnusedClass Routed by Symfony attributes. */
@@ -74,11 +75,13 @@ final class SourceConfiguration extends AbstractController
             if ($member['system']) {
                 return new Response('Cooperado não encontrado ou não editável.', Response::HTTP_NOT_FOUND);
             }
+            $editor = $this->serviceFields($member);
             $data = [
                 'token' => $this->guard->token($request),
                 'month' => $month,
                 'member' => $member,
-                'services' => $this->serviceFields($member),
+                'services' => $editor['services'],
+                'links' => $editor['links'],
             ];
             $template = $request->isXmlHttpRequest()
                 ? 'configuracao/_member_editor.html.twig'
@@ -96,6 +99,83 @@ final class SourceConfiguration extends AbstractController
                 'Não foi possível consultar as fontes deste cooperado. Confira as conexões e tente novamente.',
                 Response::HTTP_BAD_GATEWAY,
             );
+        }
+    }
+
+    #[Route('/configuracao/vinculos/opcoes', methods: ['GET'])]
+    public function linkOptions(Request $request): Response
+    {
+        $this->assertAdmin($request);
+        $source = $request->query->getString('source');
+        $query = trim($request->query->getString('q'));
+        if (!in_array($source, ['nextcloud', 'akaunting'], true) || mb_strlen($query) > 60) {
+            return $this->linkResponse(['error' => 'Busca inválida.'], 400);
+        }
+        if (mb_strlen($query) < 2) {
+            return $this->linkResponse(['items' => []]);
+        }
+        try {
+            $items = $source === 'nextcloud'
+                ? array_map(static fn (string $uid): array => ['id' => $uid, 'label' => $uid], $this->sources->searchNextcloudUsers($query))
+                : $this->sources->searchAkauntingContacts($query);
+            return $this->linkResponse(['items' => $items]);
+        } catch (\Throwable $error) {
+            $this->logger->error('Pesquisa de vínculos indisponível.', ['source' => $source, 'class' => $error::class]);
+            return $this->linkResponse(['error' => 'Não foi possível consultar a origem.'], 502);
+        }
+    }
+
+    #[Route('/configuracao/vinculos/preparar', methods: ['POST'])]
+    public function prepareLinks(Request $request): Response
+    {
+        $this->assertAdmin($request);
+        $this->guard->assertAuthorized($request);
+        try {
+            $this->sources->prepareLinkFields();
+            return $this->linkResponse(['message' => 'Campos de vínculo disponíveis no Nextcloud.']);
+        } catch (\Throwable $error) {
+            $this->logger->error('Falha ao preparar campos de vínculo.', ['class' => $error::class]);
+            return $this->linkResponse(['error' => 'Não foi possível configurar os campos no Profile Fields.'], 502);
+        }
+    }
+
+    #[Route('/configuracao/cooperado/{id}/vincular', requirements: ['id' => '\\d+'], methods: ['POST'])]
+    public function saveLinks(Request $request, int $id): Response
+    {
+        $this->assertAdmin($request);
+        $this->guard->assertAuthorized($request);
+        $uid = trim($request->request->getString('nextcloud_uid'));
+        $contact = trim($request->request->getString('akaunting_contact_id'));
+        if ($id <= 0 || $uid === '' || mb_strlen($uid) > 128
+            || !ctype_digit($contact) || (int) $contact <= 0) {
+            return $this->linkResponse(['error' => 'Selecione a conta Nextcloud e o contato financeiro.'], 400);
+        }
+        try {
+            $this->sources->linkMember($id, $uid, (int) $contact);
+            $this->logger->notice('Vínculo entre contas confirmado.', ['member_id' => $id]);
+            return $this->linkResponse(['message' => 'Vínculos salvos no Nextcloud. Reimporte antes do próximo fechamento.']);
+        } catch (\DomainException | \InvalidArgumentException $error) {
+            return $this->linkResponse(['error' => $error->getMessage()], 409);
+        } catch (\Throwable $error) {
+            $this->logger->error('Falha na atualização de vínculo entre contas.', ['member_id' => $id, 'class' => $error::class]);
+            return $this->linkResponse(['error' => 'Não foi possível confirmar os vínculos nas fontes. Reabra o cadastro para verificar o estado.'], 502);
+        }
+    }
+
+    /** @param array<string,mixed> $result */
+    private function linkResponse(array $result, int $status = 200): Response
+    {
+        $response = new JsonResponse($result, $status);
+        $response->headers->set('Cache-Control', 'private, no-store, max-age=0');
+        return $response;
+    }
+
+    private function assertAdmin(Request $request): void
+    {
+        $user = $request->server->getString('REMOTE_USER');
+        $allowed = array_filter(array_map(trim(...), explode(',', (string) getenv('CONFIG_ADMIN_USERS'))));
+        if ($user === '' || !in_array($user, $allowed, true)) {
+            throw new AccessDeniedHttpException('Administração de vínculos não autorizada.');
         }
     }
 
@@ -123,7 +203,7 @@ final class SourceConfiguration extends AbstractController
             $old = match ($source) {
                 'nextcloud' => $this->nextcloudValue($member, $field),
                 'kimai' => (string) ($member['preferences'][$field] ?? ''),
-                'akaunting' => $this->akauntingValue($id),
+                'akaunting' => (string) $this->sources->contactOverview($this->linkedContactId($member))['tax_number'],
             };
             $expected = $request->request->getString('expected');
             if ($expected === '' || !hash_equals(self::revision($id, $source, $field, $old), $expected)) {
@@ -142,7 +222,7 @@ final class SourceConfiguration extends AbstractController
                         $value,
                     ),
                     'kimai' => $this->sources->updateKimai($id, $field, $value),
-                    'akaunting' => $this->updateAkaunting($id, (string) $value),
+                    'akaunting' => $this->sources->updateAkauntingTaxNumber($this->linkedContactId($member), (string) $value),
                 };
                 // Never log PII or the previous/new field values.
                 $this->logger->notice('Parâmetro de cooperado alterado na origem.', [
@@ -193,58 +273,70 @@ final class SourceConfiguration extends AbstractController
         return new Response($message, $status);
     }
 
-    /** @return array<string, array<string, mixed>> */
+    /**
+     * @param array<string, mixed> $member
+     * @return array{services: array<string, array<string, mixed>>, links: array<string, mixed>}
+     */
     private function serviceFields(array $member): array
     {
-        $id = $member['id'];
-        $snapshot = $this->sources->importedSnapshot($id);
+        $id = (int) $member['id'];
         $services = [
-            'nextcloud' => ['title' => 'Nextcloud · Profile Fields', 'fields' => [], 'error' => '', 'configured' => false],
-            'kimai' => ['title' => 'Kimai · Preferências', 'fields' => [], 'error' => '', 'configured' => true],
-            'akaunting' => ['title' => 'Akaunting · Contato financeiro', 'fields' => [], 'error' => '', 'configured' => false],
+            'nextcloud' => ['title' => 'Nextcloud', 'fields' => [], 'error' => '', 'configured' => false],
+            'kimai' => ['title' => 'Kimai', 'fields' => [], 'error' => '', 'configured' => true],
+            'akaunting' => ['title' => 'Akaunting', 'fields' => [], 'error' => '', 'configured' => false],
+        ];
+        $links = [
+            'uid' => '',
+            'contact_id' => '',
+            'linked' => false,
         ];
         try {
             $profile = $this->sources->nextcloudForMember($member);
-            if (!$profile['exists']) {
-                $services['nextcloud']['error'] = 'Conta não encontrada no Nextcloud. Não é seguro criar valores para um UID inexistente.';
-            } else {
-                foreach (['tax_number', 'weight', 'dependents'] as $field) {
-                    $value = (string) ($profile['values'][self::profileKey($field)] ?? '');
-                    $services['nextcloud']['fields'][] = $this->field($id, 'nextcloud', $field, $value);
+            if ($profile['exists']) {
+                $links['uid'] = $profile['uid'];
+                $values = $profile['values'];
+                $links['contact_id'] = trim((string) ($values['akaunting_contact_id'] ?? ''));
+                $links['linked'] = trim((string) ($values['kimai_user_id'] ?? '')) === (string) $id
+                    && $links['contact_id'] !== '';
+                if ($links['linked']) {
+                    foreach (['tax_number', 'weight', 'dependents'] as $field) {
+                        $value = (string) ($values[self::profileKey($field)] ?? '');
+                        $services['nextcloud']['fields'][] = $this->field($id, 'nextcloud', $field, $value);
+                    }
+                    $services['nextcloud']['configured'] = true;
+                } else {
+                    $services['nextcloud']['error'] = 'Confirme ambos os vínculos antes de alterar o cadastro.';
                 }
-                $services['nextcloud']['configured'] = true;
+            } else {
+                $services['nextcloud']['error'] = 'Escolha a conta Nextcloud para continuar.';
             }
-        } catch (\DomainException) {
-            $services['nextcloud']['error'] = 'Vínculo Nextcloud/Kimai não confirmado. Confira o CPF/CNPJ nas duas origens antes de reimportar.';
-        } catch (\Throwable) {
-            $services['nextcloud']['error'] = 'Consulta Nextcloud indisponível ou sem permissão de administração.';
+        } catch (\Throwable $error) {
+            $this->logger->warning('Falha ao consultar perfil para edição.', ['member_id' => $id, 'class' => $error::class]);
+            $services['nextcloud']['error'] = 'Conta Nextcloud indisponível. Confira o vínculo e as permissões.';
         }
+
         foreach (['tax_number'] as $field) {
             $services['kimai']['fields'][] = $this->field($id, 'kimai', $field, (string) ($member['preferences'][$field] ?? ''));
         }
 
-        $contactId = (int) ($snapshot['akaunting_contact_id'] ?? 0);
-        if ($contactId <= 0) {
-            $services['akaunting']['error'] = 'Contato Akaunting ainda não vinculado na importação. Confira o CPF e reimporte os cooperados.';
-        } else {
+        $contactId = $links['linked'] ? (int) $links['contact_id'] : 0;
+        if ($contactId > 0) {
             try {
-                $contact = $this->sources->akauntingContact($contactId);
-                if ($contact['editable']) {
-                    $services['akaunting']['fields'][] = $this->field($id, 'akaunting', 'tax_number', (string) $contact['tax_number']);
-                    $services['akaunting']['configured'] = true;
-                } else {
-                    $services['akaunting']['error'] = $contact['reason'];
-                }
+                $contact = $this->sources->contactOverview($contactId);
+                $services['akaunting']['fields'][] = $this->field($id, 'akaunting', 'tax_number', $contact['tax_number']);
+                $services['akaunting']['configured'] = $contact['editable'];
+                $services['akaunting']['error'] = $contact['reason'];
             } catch (\Throwable) {
-                $services['akaunting']['error'] = 'Não foi possível consultar o contato vinculado no Akaunting. Confira identidade, empresa, tipo de contato e logs do ETL.';
+                $services['akaunting']['error'] = 'Contato financeiro não encontrado na empresa configurada.';
             }
+        } else {
+            $services['akaunting']['error'] = 'Selecione um contato financeiro para vincular.';
         }
 
-        $services['nextcloud']['description'] = 'CPF, peso e dependentes são mantidos no Nextcloud. Alterações são globais ao perfil, não retroativas por competência.';
-        $services['kimai']['description'] = 'CPF/CNPJ usado apenas para identificar a pessoa e conciliar com o Nextcloud. Dependentes e peso são mantidos exclusivamente no Profile Fields.';
-        $services['akaunting']['description'] = 'CPF/CNPJ do contato financeiro. Apenas o contato já vinculado será atualizado via API, após conferir empresa e identificador.';
-
-        return $services;
+        $services['nextcloud']['description'] = 'Peso e dependentes.';
+        $services['kimai']['description'] = 'Registro de horas.';
+        $services['akaunting']['description'] = 'Dados financeiros.';
+        return ['services' => $services, 'links' => $links];
     }
 
     /** @return array{field: string, label: string, value: string, expected: string, kind: string} */
@@ -266,33 +358,34 @@ final class SourceConfiguration extends AbstractController
     /** @param array<string, mixed> $member */
     private function nextcloudValue(array $member, string $field): string
     {
-        $profile = $this->sources->nextcloudForMember($member);
-        if (!$profile['exists']) {
-            throw new \DomainException('Usuário não localizado no Nextcloud.');
-        }
+        $profile = $this->confirmedProfile($member);
         return (string) ($profile['values'][self::profileKey($field)] ?? '');
     }
 
     /** @param array<string, mixed> $member */
     private function resolvedNextcloudUid(array $member): string
     {
-        $result = $this->sources->nextcloudForMember($member);
-        if (!$result['exists']) {
-            throw new \DomainException('Conta Nextcloud correspondente não localizada.');
+        return $this->confirmedProfile($member)['uid'];
+    }
+
+    /** @param array<string, mixed> $member */
+    private function linkedContactId(array $member): int
+    {
+        return (int) $this->confirmedProfile($member)['values']['akaunting_contact_id'];
+    }
+
+    /**
+     * @param array<string, mixed> $member
+     * @return array{exists: bool, uid: string, values: array<string, mixed>}
+     */
+    private function confirmedProfile(array $member): array
+    {
+        $profile = $this->sources->nextcloudForMember($member);
+        if (!$profile['exists'] || (string) ($profile['values']['kimai_user_id'] ?? '') !== (string) $member['id']
+            || (int) ($profile['values']['akaunting_contact_id'] ?? 0) <= 0) {
+            throw new \DomainException('Vínculos entre Nextcloud, Kimai e Akaunting precisam ser confirmados antes da edição.');
         }
-        return $result['uid'];
-    }
-
-    private function akauntingValue(int $id): string
-    {
-        $contactId = (int) ($this->sources->importedSnapshot($id)['akaunting_contact_id'] ?? 0);
-        return (string) $this->sources->akauntingContact($contactId)['tax_number'];
-    }
-
-    private function updateAkaunting(int $id, string $number): void
-    {
-        $contactId = (int) ($this->sources->importedSnapshot($id)['akaunting_contact_id'] ?? 0);
-        $this->sources->updateAkauntingTaxNumber($contactId, $number);
+        return $profile;
     }
 
     private static function profileKey(string $field): string

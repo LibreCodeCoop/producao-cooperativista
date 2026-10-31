@@ -4,7 +4,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {editorUrl, initialize, bindFieldControls, copyTaxNumber} = require('../../public/js/member-editor.js');
+const {editorUrl, initialize, bindFieldControls} = require('../../public/js/member-editor.js');
 
 function node() {
     const handlers = new Map();
@@ -201,18 +201,31 @@ test('field save buttons activate only after an actual edit', () => {
     assert.equal(button.disabled,true);
 });
 
-test('copying the Nextcloud document only fills the selected destination, without posting', () => {
-    const source={value:'reference-value',defaultValue:'reference-value'};
-    const target={value:'other-value',defaultValue:'other-value'};
-    const submit={disabled:true};
-    const root={querySelector:()=>source};
-    const form={querySelector:selector=>selector.includes('submit')?submit:target};
-    assert.equal(copyTaxNumber(root,form),true);
-    assert.equal(target.value,'reference-value');
-    assert.equal(target.defaultValue,'other-value');
-    assert.equal(submit.disabled,false);
-    source.value='unsaved-change';
-    assert.equal(copyTaxNumber(root,form),false,'Only the confirmed Nextcloud value may be copied');
-    assert.equal(target.value,'reference-value');
-    assert.equal(copyTaxNumber({querySelector:()=>null},form),false);
+test('link form saves through a same-origin endpoint and reloads the editor only after confirmation', async () => {
+    const f=fixture();
+    await f.controller.load('/configuracao/cooperado/10/editar');
+    const originalFormData=globalThis.FormData;
+    globalThis.FormData=class {constructor(form){this.form=form;}};
+    try {
+        const button={disabled:false};
+        const form={
+            action:'https://host.test/configuracao/cooperado/10/vincular',
+            classList:{contains:name=>name==='member-link-form'},
+            querySelector:()=>button,
+        };
+        f.dialog.fire('submit',{target:form,preventDefault(){}});
+        await new Promise(resolve=>setImmediate(resolve));
+        assert.equal(f.calls.length,3,'GET editor, POST link, GET updated editor');
+        assert.equal(f.calls[1].config.method,'POST');
+        assert.equal(f.calls[1].config.redirect,'error');
+        assert.equal(f.calls[1].config.credentials,'same-origin');
+        assert.equal(button.disabled,false);
+        form.action='https://another.example.test/configuracao/cooperado/10/vincular';
+        f.dialog.fire('submit',{target:form,preventDefault(){}});
+        await new Promise(resolve=>setImmediate(resolve));
+        assert.equal(f.calls.length,3,'Cross-origin link update must be refused');
+        assert.match(f.feedback.textContent,/inválido/);
+    } finally {
+        globalThis.FormData=originalFormData;
+    }
 });

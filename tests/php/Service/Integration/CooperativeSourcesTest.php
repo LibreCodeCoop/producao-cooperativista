@@ -120,7 +120,7 @@ final class CooperativeSourcesTest extends TestCase
         self::assertArrayNotHasKey('dependents', $sources->user(2)['preferences']);
     }
 
-    public function testNextcloudProfileMustMatchKimaiTaxReference(): void
+    public function testUnlinkedNextcloudAccountIsOnlySuggestedWithoutMatchingTaxNumber(): void
     {
         $logger = new NullLogger();
         $client = $this->createMock(ProfileFieldsClient::class);
@@ -139,11 +139,15 @@ final class CooperativeSourcesTest extends TestCase
             ),
             $this->createStub(Connection::class),
         );
-        $this->expectException(\DomainException::class);
-        $this->expectExceptionMessage('Vínculo Kimai/Nextcloud não confirmado');
-        $sources->nextcloudForMember([
-            'username' => 'member-b', 'preferences' => ['tax_number' => 'reference-original'],
-        ]);
+        self::assertSame([
+            'exists' => true,
+            'uid' => 'member-b',
+            'values' => ['tax_number' => 'reference-other', 'dependents' => 1],
+        ], $sources->nextcloudForMember([
+            'id' => 2,
+            'username' => 'member-b',
+            'preferences' => ['tax_number' => 'reference-original'],
+        ]));
     }
 
     public function testKimaiDependentsCannotBeUpdated(): void

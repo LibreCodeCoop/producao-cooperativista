@@ -49,6 +49,48 @@ final class AkauntingContactGateway
         return $this->present($employee['contact'], $reason === '', $reason);
     }
 
+    /**
+     * Editing panels need only the contact identity, not two remote API calls.
+     * Financial writes still go through Akaunting's HTTP API.
+     *
+     * @return array{id:int, company_id:int, type:string, name:string, tax_number:string, editable:bool, reason:string}
+     */
+    public function overview(int $contactId): array
+    {
+        $identity = $this->identity($contactId);
+        $ready = (string) ($identity['currency_code'] ?? '') !== '';
+        return [
+            'id' => (int) $identity['id'],
+            'company_id' => (int) $identity['company_id'],
+            'type' => (string) $identity['type'],
+            'name' => (string) $identity['name'],
+            'tax_number' => (string) ($identity['tax_number'] ?? ''),
+            'editable' => $ready,
+            'reason' => $ready ? '' : 'Contato sem moeda cadastrada no Akaunting.',
+        ];
+    }
+
+    /** @return list<array{id:int, label:string}> */
+    public function search(string $query): array
+    {
+        $query = trim($query);
+        if (mb_strlen($query) < 2 || mb_strlen($query) > 60) {
+            return [];
+        }
+        $rows = $this->akauntingDb->fetchAllAssociative(
+            "SELECT id, name, type FROM contacts
+             WHERE company_id = :company AND deleted_at IS NULL
+               AND type IN ('vendor', 'employee')
+               AND (LOWER(name) LIKE :term OR CAST(id AS CHAR) = :identifier)
+             ORDER BY name, id LIMIT 12",
+            ['company' => $this->companyId(), 'term' => '%' . mb_strtolower($query) . '%', 'identifier' => $query],
+        );
+        return array_map(static fn (array $row): array => [
+            'id' => (int) $row['id'],
+            'label' => (string) $row['name'] . ' · ' . ($row['type'] === 'employee' ? 'Funcionário' : 'Fornecedor'),
+        ], $rows);
+    }
+
     public function updateTaxNumber(int $contactId, string $taxNumber): void
     {
         $identity = $this->identity($contactId);
@@ -90,7 +132,7 @@ final class AkauntingContactGateway
         }
         $company = $this->companyId();
         $row = $this->akauntingDb->fetchAssociative(
-            'SELECT id, company_id, type, name, email, phone, address, city, state, zip_code, country, currency_code
+            'SELECT id, company_id, type, name, tax_number, email, phone, address, city, state, zip_code, country, currency_code
              FROM contacts WHERE id = :id AND company_id = :company AND deleted_at IS NULL',
             ['id' => $contactId, 'company' => $company],
         );

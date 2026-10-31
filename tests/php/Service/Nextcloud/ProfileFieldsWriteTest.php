@@ -76,28 +76,5 @@ final class ProfileFieldsWriteTest extends TestCase
         $client->updateUserField('member-01', 'hourly_rate', 900.0);
     }
 
-    public function testResolvesAnExistingAlternateUidThroughUniqueCpfLookup(): void
-    {
-        $http = new MockHttpClient(static function (string $method, string $url, array $options): MockResponse {
-            if (str_ends_with($url, '/users/lookup')) {
-                self::assertSame('POST', $method);
-                self::assertSame([
-                    'fieldKey' => 'tax_number',
-                    'fieldValue' => '00000000000',
-                ], json_decode($options['body'], true));
-                return new MockResponse((string) json_encode(['ocs' => [
-                    'meta' => ['statuscode' => 200],
-                    'data' => ['user_uid' => 'nc-other'],
-                ]]));
-            }
-            self::assertSame('GET', $method);
-            self::assertStringEndsWith('/cloud/users/nc-other', $url);
-            return new MockResponse((string) json_encode(['ocs' => [
-                'meta' => ['statuscode' => 200],
-                'data' => ['id' => 'nc-other'],
-            ]]));
-        });
-        $client = new ProfileFieldsClient($http, new NullLogger());
-        self::assertSame('nc-other', $client->findUserUidByTaxNumber('00000000000'));
-    }
+
 }

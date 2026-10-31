@@ -1,52 +1,72 @@
 <section class="member-editor-panel" data-member-editor-panel>
+    {% set link = links|default({}) %}
     <header class="member-editor-heading">
-        <p class="section-kicker">Conciliação das três fontes · {{ month }}</p>
+        <p class="section-kicker">Cadastro e vínculos · {{ month }}</p>
         <h2 id="member-editor-title">{{ member.alias }}</h2>
-        <p>Kimai: <strong>{{ member.username }}</strong> · Cadastro #{{ member.id }}</p>
-        <p>Edite o campo necessário e salve individualmente na fonte indicada. Após qualquer alteração, reimporte a competência.</p>
+        <p>Usuário de horas: {{ member.username }} · ID {{ member.id }}</p>
     </header>
-    <div class="member-editor-sources">
-        {% for source, service in services %}
-            <section class="member-editor-source">
-                <div class="member-editor-source-heading">
-                    <h3>{{ service.title }}</h3>
-                    <span class="member-editor-status{{ service.configured ? ' is-ready' : ' is-warning' }}">
-                        {{ service.configured ? 'Disponível' : 'Atenção' }}
-                    </span>
+    <section class="member-link-panel" aria-label="Vincular sistemas">
+        <div class="member-link-title">
+            <h3>Vínculos entre sistemas</h3>
+            <span class="member-editor-status{{ link.linked|default(false) ? ' is-ready' : ' is-warning' }}">
+                {{ link.linked|default(false) ? 'Vinculado' : 'A confirmar' }}
+            </span>
+        </div>
+        <form method="post" class="member-link-form" action="/configuracao/cooperado/{{ member.id }}/vincular" autocomplete="off">
+            <input type="hidden" name="_token" value="{{ token }}">
+            <p class="member-link-origin">Kimai #{{ member.id }} · {{ member.username }}</p>
+            <div class="member-link-fields">
+                <div>
+                    <label for="member-uid-{{ member.id }}">Conta Nextcloud</label>
+                    <input id="member-uid-{{ member.id }}" type="search" name="nextcloud_uid"
+                        value="{{ link.uid|default('') }}" data-link-source="nextcloud"
+                        list="nc-users-{{ member.id }}" placeholder="Buscar usuário Nextcloud" required>
+                    <datalist id="nc-users-{{ member.id }}"></datalist>
                 </div>
-                <p class="member-editor-description">{{ service.description }}</p>
-                {% if service.error %}
-                    <p class="member-editor-source-error" role="note">{{ service.error }}</p>
+                <div>
+                    <label for="member-contact-{{ member.id }}">Contato Akaunting</label>
+                    <input id="member-contact-{{ member.id }}" type="search" name="akaunting_contact_id"
+                        value="{{ link.contact_id|default('') }}" data-link-source="akaunting"
+                        list="akaunting-contacts-{{ member.id }}" inputmode="numeric"
+                        pattern="[1-9][0-9]*" placeholder="Buscar nome ou ID" required>
+                    <datalist id="akaunting-contacts-{{ member.id }}"></datalist>
+                </div>
+            </div>
+            <div class="member-link-actions">
+                <button type="submit" class="button button-primary">Salvar vínculos</button>
+                {% if not link.linked|default(false) %}
+                    <button type="button" class="member-link-prepare button button-secondary" data-links-prepare>Preparar campos no Nextcloud</button>
                 {% endif %}
-                {% for item in service.fields %}
-                    <form method="post" class="member-editor-field" data-source="{{ source }}" data-field="{{ item.field }}" action="/configuracao/cooperado/{{ member.id }}/{{ source }}">
-                        <input type="hidden" name="_token" value="{{ token }}">
-                        <input type="hidden" name="expected" value="{{ item.expected }}">
-                        <input type="hidden" name="field" value="{{ item.field }}">
-                        <input type="hidden" name="competencia" value="{{ month }}">
-                        <div class="member-editor-field-label">
-                            <label for="editor-{{ member.id }}-{{ source }}-{{ item.field }}">{{ item.label }}</label>
-                            {% if source == 'nextcloud' and item.field == 'weight' %}
-                                <details class="member-editor-help">
-                                    <summary aria-label="Como funciona o peso de participação" title="Como funciona o peso de participação">?</summary>
-                                    <p>Multiplicador aplicado às horas no rateio. Aceita valores maiores que zero e até 5, inteiros ou fracionados, com vírgula ou ponto: 1, 1,5 ou 0,75. Use até quatro casas decimais. Zero não participa do rateio e não é aceito; não use porcentagem.</p>
-                                </details>
-                            {% endif %}
-                        </div>
-                        <div class="member-editor-field-controls">
-                            <input id="editor-{{ member.id }}-{{ source }}-{{ item.field }}"
-                                   name="value" type="{{ item.kind }}" value="{{ item.value }}"
-                                   {% if item.field == 'weight' %}inputmode="decimal"{% elseif item.field == 'tax_number' %}inputmode="numeric"{% endif %}
-                                   autocomplete="off" required>
-                            <button type="submit" class="button button-primary">Salvar</button>
-                        </div>
-                        {% if source != 'nextcloud' and item.field == 'tax_number' and services.nextcloud.configured %}
-                            <button type="button" class="member-editor-copy" data-copy-tax-number>Usar CPF/CNPJ do Nextcloud</button>
-                        {% endif %}
-                    </form>
-                {% endfor %}
-            </section>
+            </div>
+        </form>
+        <p class="member-editor-description">Pesquise e selecione as contas; os vínculos são gravados no Profile Fields. O CPF/CNPJ permanece apenas como dado fiscal.</p>
+    </section>
+    <section class="member-fields-main">
+        <h3>Peso e dependentes</h3>
+        {% if services.nextcloud.error %}
+            <p class="member-editor-source-error" role="note">{{ services.nextcloud.error }}</p>
+        {% endif %}
+        {% for item in services.nextcloud.fields %}
+            {% if item.field != 'tax_number' %}
+                {{ include('configuracao/_member_field.html.twig', {source:'nextcloud', item:item}) }}
+            {% endif %}
         {% endfor %}
-    </div>
-    <p class="member-editor-footer">O peso e os dependentes são mantidos no Nextcloud; o Kimai e o Akaunting possuem seus próprios vínculos. Confira a identidade antes de alterar CPF/CNPJ.</p>
+    </section>
+    <details class="member-editor-advanced">
+        <summary>Dados fiscais nas três fontes</summary>
+        <p class="member-editor-description">Edite apenas valores incorretos. Salve em cada origem e reimporte antes de publicar.</p>
+        <div class="member-editor-sources">
+            {% for source, service in services %}
+                <section class="member-editor-source">
+                    <h3>{{ service.title }}</h3>
+                    {% if service.error %}<p class="member-editor-source-error" role="note">{{ service.error }}</p>{% endif %}
+                    {% for item in service.fields %}
+                        {% if item.field == 'tax_number' %}
+                            {{ include('configuracao/_member_field.html.twig', {source:source, item:item}) }}
+                        {% endif %}
+                    {% endfor %}
+                </section>
+            {% endfor %}
+        </div>
+    </details>
 </section>

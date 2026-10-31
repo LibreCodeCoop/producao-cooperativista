@@ -108,6 +108,14 @@ final class ProfileFieldsClientTest extends TestCase
         putenv('PROFILE_FIELDS_AUTH_TOKEN=api-token');
 
         $httpClient = new MockHttpClient(function (string $method, string $url, array $options): MockResponse {
+            if (str_ends_with($url, '/definitions')) {
+                return new MockResponse((string) json_encode([
+                    'ocs' => ['meta' => ['statuscode' => 200], 'data' => [
+                        ['id' => 10, 'field_key' => 'tax_number', 'type' => 'text', 'active' => true],
+                        ['id' => 11, 'field_key' => 'weight', 'type' => 'number', 'active' => true],
+                    ]],
+                ]));
+            }
             if (str_ends_with($url, '/users/lookup')) {
                 self::assertSame('POST', $method);
                 self::assertLookupPayload($options, [
@@ -196,6 +204,14 @@ final class ProfileFieldsClientTest extends TestCase
         putenv('PROFILE_FIELDS_AUTH_TOKEN=api-token');
 
         $httpClient = new MockHttpClient(function (string $method, string $url, array $options): MockResponse {
+            if (str_ends_with($url, '/definitions')) {
+                return new MockResponse((string) json_encode([
+                    'ocs' => ['meta' => ['statuscode' => 200], 'data' => [
+                        ['id' => 10, 'field_key' => 'tax_number', 'type' => 'text', 'active' => true],
+                        ['id' => 11, 'field_key' => 'weight', 'type' => 'number', 'active' => true],
+                    ]],
+                ]));
+            }
             if (str_ends_with($url, '/users/lookup')) {
                 self::assertSame('POST', $method);
                 self::assertLookupPayload($options, [
@@ -374,8 +390,12 @@ final class ProfileFieldsClientTest extends TestCase
         putenv('PROFILE_FIELDS_AUTH_USER=api-user');
         putenv('PROFILE_FIELDS_AUTH_TOKEN=api-token');
 
-        $httpClient = new MockHttpClient(function (): MockResponse {
-            self::fail('Profile Fields lookup must use tax_number and should not fallback to kimai_username when it is missing.');
+        $httpClient = new MockHttpClient(static function (string $method, string $url): MockResponse {
+            self::assertSame('GET', $method);
+            self::assertStringEndsWith('/definitions', $url);
+            return new MockResponse((string) json_encode([
+                'ocs' => ['meta' => ['statuscode' => 200], 'data' => []],
+            ]));
         });
 
         $client = new ProfileFieldsClient($httpClient, new NullLogger());

@@ -161,6 +161,22 @@ class Users
         if ($company <= 0) {
             throw new \DomainException('Empresa do Akaunting não configurada para conciliar cooperados.');
         }
+        $linkedId = (int) ($item['akaunting_contact_id'] ?? 0);
+        if ($linkedId > 0) {
+            $contact = $this->entityManagerAkaunting->getConnection()->fetchAssociative(
+                "SELECT id, tax_number FROM contacts
+                 WHERE id = :id AND company_id = :company
+                   AND type IN ('vendor', 'employee') AND deleted_at IS NULL",
+                ['id' => $linkedId, 'company' => $company],
+            );
+            if (!is_array($contact) || (int) $contact['id'] !== $linkedId) {
+                throw new \DomainException('Contato financeiro vinculado inexistente ou de outra empresa no Akaunting.');
+            }
+            if (trim((string) $contact['tax_number']) !== (string) $item['tax_number']) {
+                throw new \DomainException('CPF/CNPJ diverge entre o Profile Fields e o contato financeiro selecionado.');
+            }
+            return $item;
+        }
         $qb = $this->entityManagerAkaunting->getConnection()->createQueryBuilder();
         $qb->select('c.id')
             ->from('contacts', 'c')

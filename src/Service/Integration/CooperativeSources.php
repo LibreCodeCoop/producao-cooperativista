@@ -87,15 +87,6 @@ final class CooperativeSources
         ];
     }
 
-    /** @return array<string, mixed> */
-    public function importedSnapshot(int $id): array
-    {
-        return $this->staging->fetchAssociative(
-            'SELECT id, akaunting_contact_id, tax_number, peso, dependents FROM users WHERE id = :id',
-            ['id' => $id]
-        ) ?: [];
-    }
-
     /** @return array<int, int> Seconds recorded in the ETL snapshot, not live timesheets. */
     public function monthlyHours(string $month): array
     {
@@ -132,37 +123,95 @@ final class CooperativeSources
     }
 
     /**
-     * @param array{username: string, preferences: array<string, string>} $member
+     * @param array{id: int, username: string, preferences: array<string, string>} $member
      * @return array{exists: bool, uid: string, values: array<string, mixed>}
      */
     public function nextcloudForMember(array $member): array
     {
-        $uid = $member['username'];
         if (!$this->profileFields->isConfigured()) {
             return ['exists' => false, 'uid' => '', 'values' => []];
         }
-        if (!$this->profileFields->userExists($uid)) {
-            $uid = $this->profileFields->findUserUidByTaxNumber(
-                (string) ($member['preferences']['tax_number'] ?? ''),
-            ) ?? '';
+        $linked = $this->profileFields->findByKimaiId((int) $member['id']);
+        if ($linked !== null) {
+            return ['exists' => true, 'uid' => $linked['uid'], 'values' => $linked['values']];
         }
-        $fields = $uid !== '' ? $this->profileFields->getFieldsForUser($uid) : [];
-        if ($uid !== '') {
-            $reference = trim((string) ($member['preferences']['tax_number'] ?? ''));
-            $key = trim((string) getenv('PROFILE_FIELDS_TAX_NUMBER_FIELD_KEY')) ?: 'tax_number';
-            $profileTax = trim((string) ($fields[$key] ?? ''));
-            if ($reference === '' || $profileTax === '' || !hash_equals($reference, $profileTax)) {
-                throw new \DomainException(
-                    'Vínculo Kimai/Nextcloud não confirmado: CPF/CNPJ ausente ou divergente. '
-                    . 'Corrija a identificação entre as contas antes de editar.'
-                );
+        // Before an explicit link is saved, the exact matching account UID is a
+        // candidate for administration, not an automatic identity binding.
+        $uid = trim((string) $member['username']);
+        if ($uid === '' || !$this->profileFields->userExists($uid)) {
+            return ['exists' => false, 'uid' => '', 'values' => []];
+        }
+        $fields = $this->profileFields->getFieldsForUser($uid);
+        $linkedId = trim((string) ($fields['kimai_user_id'] ?? ''));
+        if ($linkedId !== '' && $linkedId !== (string) $member['id']) {
+            throw new \DomainException('A conta Nextcloud já está vinculada a outro usuário Kimai.');
+        }
+
+        return ['exists' => true, 'uid' => $uid, 'values' => $fields];
+    }
+
+    /** @return list<string> */
+    public function searchNextcloudUsers(string $query): array
+    {
+        return $this->profileFields->searchUserUids($query);
+    }
+
+    /** @return list<array{id:int,label:string}> */
+    public function searchAkauntingContacts(string $query): array
+    {
+        return $this->akauntingContacts->search($query);
+    }
+
+    public function prepareLinkFields(): void
+    {
+        $this->profileFields->ensureLinkDefinitions();
+    }
+
+    /** @return array{id:int,company_id:int,type:string,name:string,tax_number:string,editable:bool,reason:string} */
+    public function contactOverview(int $id): array
+    {
+        return $this->akauntingContacts->overview($id);
+    }
+
+    /** Validates both identities and uniqueness before any remote modification. */
+    public function linkMember(int $kimaiId, string $uid, int $contactId): void
+    {
+        $member = $this->user($kimaiId);
+        if ($member['system'] || $uid === '' || $contactId <= 0
+            || !$this->profileFields->userExists($uid)) {
+            throw new \DomainException('Selecione uma conta Nextcloud e um contato financeiro válidos.');
+        }
+        $definitions = $this->profileFields->activeDefinitions();
+        foreach (['kimai_user_id', 'akaunting_contact_id'] as $key) {
+            if (($definitions[$key]['type'] ?? null) !== 'text') {
+                throw new \DomainException('Configure os dois campos de vínculo no Profile Fields antes de salvar.');
             }
         }
-        return [
-            'exists' => $uid !== '',
-            'uid' => $uid,
-            'values' => $fields,
-        ];
+        $existing = $this->profileFields->getFieldsForUser($uid);
+        $currentKimai = trim((string) ($existing['kimai_user_id'] ?? ''));
+        if ($currentKimai !== '' && $currentKimai !== (string) $kimaiId) {
+            throw new \DomainException('Conta Nextcloud já vinculada a outro usuário Kimai.');
+        }
+        $currentFinancial = trim((string) ($existing['akaunting_contact_id'] ?? ''));
+        $financial = $this->akauntingContacts->overview($contactId);
+        if ($financial['id'] !== $contactId || !$financial['editable']) {
+            throw new \DomainException('Contato Akaunting inválido ou com cadastro incompleto.');
+        }
+        $otherKimai = $this->profileFields->findUserUidByLink('kimai_user_id', $kimaiId);
+        if ($otherKimai !== null && $otherKimai !== $uid) {
+            throw new \DomainException('Usuário Kimai já vinculado a outra conta Nextcloud.');
+        }
+        $other = $this->profileFields->findUserUidByLink('akaunting_contact_id', $contactId);
+        if ($other !== null && $other !== $uid) {
+            throw new \DomainException('Contato Akaunting já vinculado a outra conta Nextcloud.');
+        }
+
+        if ($currentFinancial !== (string) $contactId) {
+            $this->updateNextcloud($uid, 'akaunting_contact_id', (string) $contactId);
+        }
+        if ($currentKimai !== (string) $kimaiId) {
+            $this->updateNextcloud($uid, 'kimai_user_id', (string) $kimaiId);
+        }
     }
 
     public function updateNextcloud(string $uid, string $field, string|float|int $value): void
@@ -196,12 +245,6 @@ final class CooperativeSources
         if ((string) ($this->user($id)['preferences'][$field] ?? '') !== (string) $value) {
             throw new RuntimeException('Kimai não confirmou o novo valor. Confira a origem antes de repetir.');
         }
-    }
-
-    /** @return array<string, mixed> */
-    public function akauntingContact(int $id): array
-    {
-        return $this->akauntingContacts->contact($id);
     }
 
     public function updateAkauntingTaxNumber(int $contactId, string $newNumber): void
