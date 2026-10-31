@@ -2,6 +2,7 @@
 {% block title %}Fechamento da produção cooperativista{% endblock %}
 {% block head %}
     <link rel="stylesheet" href="/css/production-workflow.css">
+    <script src="/js/settings-inline-weight.js" defer></script>
     <script src="/js/production-progress.js" defer></script>
     <script src="/js/production-workflow.js" defer></script>
 {% endblock %}
@@ -12,124 +13,114 @@
     <header class="page-heading">
         <p class="eyebrow">Produção cooperativista · Fechamento mensal</p>
         <h1>Fechar a produção</h1>
-        <p class="page-lead">Importe, confira os valores, decida quais documentos individuais serão emitidos e publique no Akaunting. Nenhuma etapa altera as horas registradas no Kimai.</p>
+        <p class="page-lead">Importe a competência, confira a apuração e decida quem terá documentos publicados. A conferência e a seleção acontecem na mesma tabela.</p>
     </header>
 
     <nav class="production-steps" aria-label="Etapas do fechamento">
-        <span data-step-indicator="1" aria-current="step"><b>1</b> Importar</span>
-        <span data-step-indicator="2"><b>2</b> Conferir</span>
-        <span data-step-indicator="3"><b>3</b> Selecionar</span>
-        <span data-step-indicator="4"><b>4</b> Publicar</span>
+        <span data-step-indicator="1" aria-current="step"><b>1</b> Importar dados</span>
+        <span data-step-indicator="2"><b>2</b> Conferir e publicar</span>
     </nav>
 
     <div class="production-wizard surface" id="production-wizard" data-preview-url="/api/v1/producao">
+        {# The financial form must NOT wrap the table: its weight editor has an independent Nextcloud form. #}
         <form id="form-gera-producao" data-workflow="yes" method="post" action="{{ url }}">
             <input type="hidden" name="_token" value="{{ token }}">
+            <input type="hidden" name="year" value="{{ inicio_ano }}">
+            <input type="hidden" name="month" value="{{ inicio_mes }}">
             <input type="hidden" name="baixar_dados" value="1">
             <input type="hidden" name="atualiza_producao" value="0">
             <input type="hidden" name="operation" value="import">
             <input type="hidden" name="expected_revision" value="">
             <input type="hidden" name="omit_user_ids" value="">
+        </form>
 
-            <section data-workflow-step="1" aria-labelledby="import-title">
-                <p class="section-kicker">Etapa 1 de 4</p>
-                <h2 id="import-title">Importar dados</h2>
-                <p>Selecione a competência das horas trabalhadas. A importação busca dados no Kimai e nas fontes financeiras e atualiza somente o banco intermediário do ETL.</p>
-                <div class="production-period-fields">
-                    <div class="form-field">
-                        <label for="month">Mês</label>
-                        <select id="month" name="month">
-                            {% for label in ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'] %}
-                                {% set number = '%02d'|format(loop.index) %}
-                                <option value="{{ number }}"{% if inicio_mes == number %} selected{% endif %}>{{ label }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label for="year">Ano</label>
-                        <select id="year" name="year">
-                            {% for j in range('now'|date('Y') - 2, 'now'|date('Y') + 1) %}
-                                <option value="{{ j }}"{% if inicio_ano == j %} selected{% endif %}>{{ j }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+        <section data-workflow-step="1" aria-labelledby="import-title">
+            <p class="section-kicker">Etapa 1 de 2</p>
+            <h2 id="import-title">Importar dados</h2>
+            <p>Defina a competência das horas trabalhadas. A importação atualiza os dados intermediários do ETL sem criar documentos financeiros.</p>
+            <div class="production-period-fields">
+                <div class="form-field">
+                    <label for="month">Mês</label>
+                    <select id="month">
+                        {% for label in ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'] %}
+                            {% set number = '%02d'|format(loop.index) %}
+                            <option value="{{ number }}"{% if inicio_mes == number %} selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-                <div class="production-wizard-actions">
-                    <button type="button" id="import-button" class="button button-primary">Importar dados desta competência</button>
-                    <button type="button" id="use-existing" class="button">Usar dados já importados</button>
+                <div class="form-field">
+                    <label for="year">Ano</label>
+                    <select id="year">
+                        {% for j in range('now'|date('Y') - 2, 'now'|date('Y') + 1) %}
+                            <option value="{{ j }}"{% if inicio_ano == j %} selected{% endif %}>{{ j }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-                <p class="production-help">A importação é necessária na primeira execução do mês ou após corrigir dados nas fontes. Ela não grava documentos no Akaunting.</p>
-            </section>
+            </div>
+            <div class="production-wizard-actions">
+                <button type="button" id="import-button" class="button button-primary">Importar competência</button>
+                <button type="button" id="use-existing" class="button">Conferir dados já importados</button>
+            </div>
+            <p class="production-help">Depois de corrigir dados na origem, importe novamente antes de conferir e publicar. Não é necessário importar novamente se os dados já estiverem atualizados.</p>
+        </section>
 
-            <section data-workflow-step="2" hidden aria-labelledby="audit-title">
-                <p class="section-kicker">Etapa 2 de 4</p>
-                <h2 id="audit-title">Conferir a apuração</h2>
-                <p>Verifique horas, valores atribuídos e a memória de cálculo. Confira também receitas, custos e categorias. Se houver divergência, corrija a origem, volte à importação e recalcule.</p>
-                <div class="production-summary" id="production-summary" aria-live="polite"></div>
-                <div class="production-preview-table">
-                    <table aria-label="Resumo da produção apurada">
-                        <thead><tr><th>Cooperado</th><th>Horas</th><th>Base de produção</th><th>Líquido previsto</th></tr></thead>
-                        <tbody id="preview-rows"></tbody>
-                    </table>
+        <section data-workflow-step="2" hidden aria-labelledby="audit-title">
+            <p class="section-kicker">Etapa 2 de 2 · <span id="review-competence"></span></p>
+            <h2 id="audit-title">Conferir a apuração e selecionar exceções</h2>
+            <p>Ordene e filtre a produção por cooperado. Abra os detalhes para conferir cada cliente; o peso pode ser editado no Nextcloud. Todos serão publicados, exceto quem tiver a opção <strong>Não publicar agora</strong> marcada.</p>
+            <div class="production-metrics" role="status" aria-live="polite">
+                <div><span>Cooperados</span><strong id="metric-members">—</strong></div>
+                <div><span>Horas</span><strong id="metric-hours">—</strong></div>
+                <div><span>Base da produção</span><strong id="metric-base">—</strong></div>
+                <div><span>Líquido previsto</span><strong id="metric-net">—</strong></div>
+            </div>
+            <div class="production-table-intro">
+                <div>
+                    <strong>Produção por cooperado</strong>
+                    <small>As escolhas são mantidas mesmo ao filtrar, ordenar ou mudar de página. Use Detalhes para consultar clientes e deduções.</small>
                 </div>
-                <nav class="production-review-links" aria-label="Relatórios da conferência">
-                    <a data-report-path="/producao" href="/producao?ano-mes={{ inicio_ano }}-{{ inicio_mes }}" target="_blank" rel="noopener">
-                        <strong>Produção por cooperado</strong><small>Valores e edição do peso no Nextcloud.</small>
-                    </a>
-                    <a data-report-path="/calculos" href="/calculos?ano-mes={{ inicio_ano }}-{{ inicio_mes }}" target="_blank" rel="noopener">
-                        <strong>Memória de cálculo</strong><small>Fórmulas, rateios, receitas e dispêndios.</small>
-                    </a>
-                    <a data-report-path="/invoices" href="/invoices?ano-mes={{ inicio_ano }}-{{ inicio_mes }}" target="_blank" rel="noopener">
-                        <strong>Entradas e saídas</strong><small>Documentos e classificações financeiras.</small>
-                    </a>
-                    <a href="/categorias" target="_blank" rel="noopener"><strong>Categorias financeiras</strong><small>Revisar classificação dos lançamentos.</small></a>
-                </nav>
-                <label class="production-confirm-label">
-                    <input type="checkbox" id="review-confirmation">
-                    Conferi a produção e a memória de cálculo desta competência.
-                </label>
-                <div class="production-wizard-actions">
-                    <button type="button" id="audit-next" class="button button-primary" disabled>Continuar para seleção</button>
-                    <button type="button" data-back="1" class="button">Voltar à importação</button>
-                </div>
-            </section>
+                <button type="button" id="reload-preview" class="button">Atualizar conferência</button>
+            </div>
+            {{ include('layout/components/datatable.html.twig', {
+                url: '/api/v1/producao?ano-mes=' ~ inicio_ano ~ '-' ~ inicio_mes,
+                filterColumns: ['metadata', 'kimai_user_id', 'hours_seconds'],
+                inlineWeight: true,
+                financialReview: true,
+                manualInit: true,
+                token: token,
+                competencia: inicio_ano ~ '-' ~ inicio_mes
+            }) }}
+            <div class="production-selection-summary" id="selection-summary" aria-live="polite"></div>
+            <p class="production-help">Não publicar agora não redistribui valores, não transfere horas para outro mês e não cancela documentos já existentes no Akaunting.</p>
 
-            <section data-workflow-step="3" hidden aria-labelledby="selection-title">
-                <p class="section-kicker">Etapa 3 de 4</p>
-                <h2 id="selection-title">Quem terá documento publicado agora?</h2>
-                <p>Todos estão incluídos por padrão. Marque <strong>Não publicar agora</strong> somente nas exceções. Essas pessoas continuam na memória de cálculo: nada será redistribuído e nenhuma hora será transferida automaticamente para outro mês.</p>
-                <div class="production-selection-summary" id="selection-summary" aria-live="polite"></div>
-                <div class="production-preview-table">
-                    <table aria-label="Decisão de publicação por cooperado">
-                        <thead><tr><th>Cooperado</th><th>Horas</th><th>Líquido previsto</th><th>Exceção</th></tr></thead>
-                        <tbody id="selection-rows"></tbody>
-                    </table>
-                </div>
-                <p class="production-help">Não publicar agora não cancela documentos já existentes no Akaunting. A decisão sobre pagamento, capital social ou valor pendente continua sendo financeira e manual.</p>
-                <div class="production-wizard-actions">
-                    <button type="button" id="selection-next" class="button button-primary">Revisar publicação</button>
-                    <button type="button" data-back="2" class="button">Voltar à conferência</button>
-                </div>
-            </section>
+            <nav class="production-review-links" aria-label="Conferência complementar">
+                <a data-report-path="/calculos" href="/calculos?ano-mes={{ inicio_ano }}-{{ inicio_mes }}" target="_blank" rel="noopener">
+                    <strong>Memória de cálculo</strong><small>Fórmulas, rateio e bases financeiras</small>
+                </a>
+                <a data-report-path="/invoices" href="/invoices?ano-mes={{ inicio_ano }}-{{ inicio_mes }}" target="_blank" rel="noopener">
+                    <strong>Entradas e saídas</strong><small>Documentos e classificações de origem</small>
+                </a>
+                <a href="/categorias" target="_blank" rel="noopener">
+                    <strong>Categorias financeiras</strong><small>Conferir lançamentos classificados</small>
+                </a>
+                <a data-report-path="/producao" href="/producao?ano-mes={{ inicio_ano }}-{{ inicio_mes }}" target="_blank" rel="noopener">
+                    <strong>Abrir relatório separado</strong><small>Mesmos dados e filtros para consulta isolada</small>
+                </a>
+            </nav>
 
-            <section data-workflow-step="4" hidden aria-labelledby="publication-title">
-                <p class="section-kicker">Etapa 4 de 4</p>
-                <h2 id="publication-title">Publicar no Akaunting</h2>
-                <p>Confirme a competência e a seleção. A publicação grava documentos e pode ter efeitos financeiros. Ela não importa novamente os dados nem aprova pagamentos bancários.</p>
-                <div class="production-publication-warning" id="publication-warning" role="note">
-                    <strong>Conferência final</strong>
-                    <p id="publication-summary"></p>
-                </div>
+            <div class="production-final">
+                <strong>Publicação no Akaunting</strong>
+                <p id="publication-summary">Nenhuma publicação executada. Confira os valores e a seleção.</p>
                 <label class="production-confirm-label">
                     <input type="checkbox" id="publication-confirmation">
-                    Conferi os dados e a seleção de cooperados; autorizo a publicação dos documentos.
+                    Conferi a apuração e as exceções; autorizo a publicação dos documentos da competência.
                 </label>
                 <div class="production-wizard-actions">
                     <button type="button" id="submit" class="button button-primary" disabled>Publicar documentos no Akaunting</button>
-                    <button type="button" data-back="3" class="button">Rever seleção</button>
+                    <button type="button" id="back-import" class="button">Voltar à importação</button>
                 </div>
-            </section>
-            <div id="messages" class="production-messages" role="status" aria-live="polite" aria-atomic="false"></div>
-        </form>
+            </div>
+        </section>
+        <div id="messages" class="production-messages" role="status" aria-live="polite" aria-atomic="false"></div>
     </div>
 {% endblock %}

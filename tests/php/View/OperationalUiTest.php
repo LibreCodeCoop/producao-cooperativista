@@ -103,7 +103,7 @@ final class OperationalUiTest extends TestCase
         self::assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt;', $html);
     }
 
-    public function testProductionWizardSeparatesImportAuditSelectionAndPublish(): void
+    public function testProductionWizardCombinesFinancialReviewAndPublicationInOneStep(): void
     {
         $html = $this->twig()->render('acoes/make_producao.html.twig', [
             'inicio_ano' => '2026', 'inicio_mes' => '08',
@@ -111,18 +111,29 @@ final class OperationalUiTest extends TestCase
         ]);
         self::assertStringContainsString('href="/css/production-workflow.css"', $html);
         self::assertStringContainsString('src="/js/production-workflow.js"', $html);
+        self::assertStringContainsString('src="/js/report-table.js"', $html);
+        self::assertStringContainsString('href="/css/data-grid.css"', $html);
         self::assertStringContainsString('name="_token" value="csrf-token"', $html);
         self::assertStringContainsString('name="operation" value="import"', $html);
         self::assertStringContainsString('data-workflow-step="1"', $html);
         self::assertStringContainsString('data-workflow-step="2" hidden', $html);
-        self::assertStringContainsString('data-workflow-step="3" hidden', $html);
-        self::assertStringContainsString('data-workflow-step="4" hidden', $html);
-        self::assertStringContainsString('href="/producao?ano-mes=2026-08"', $html);
+        self::assertStringNotContainsString('data-workflow-step="3"', $html);
+        self::assertStringNotContainsString('data-workflow-step="4"', $html);
+        self::assertStringContainsString('data-financial-review="yes"', $html);
+        self::assertStringContainsString('data-production-mode="yes"', $html);
+        self::assertStringContainsString('data-manual-init="yes"', $html);
+        self::assertStringContainsString('id="example"', $html);
         self::assertStringContainsString('href="/calculos?ano-mes=2026-08"', $html);
         self::assertStringContainsString('href="/invoices?ano-mes=2026-08"', $html);
         self::assertStringContainsString('Não publicar agora', $html);
         self::assertStringContainsString('id="publication-confirmation"', $html);
+        self::assertStringContainsString('id="submit"', $html);
         self::assertStringNotContainsString('name="action_token"', $html);
+        self::assertLessThan(
+            strpos($html, 'id="example"'),
+            strpos($html, '</form>'),
+            'The financial publication form must end before the independent Nextcloud inline editor.'
+        );
     }
 
     public function testAuditPagesKeepTheSelectedPeriodAndReturnPath(): void
