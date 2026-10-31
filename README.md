@@ -153,6 +153,8 @@ Available commands:
 4. **Conciliar em leitura com o Akaunting**: compare `document_number`, situação (`draft`, `paid` ou `cancelled`), competência, itens e notas. Não sobrescreva faturas finalizadas. Toda divergência exige explicação sobre dados de origem, data de corte, política e eventuais ajustes posteriores.
 5. **Aprovar ou bloquear**: obtenha a revisão financeira/contábil aplicável antes de usar `--atualiza-producao` no ambiente aprovado. Ausência de horas, custos sem receita, capital elegível insuficiente ou inconsistência cadastral bloqueiam a publicação. Após uma falha de publicação, confira os registros existentes antes de repetir a operação.
 
+Para o procedimento seguro de reconciliação e retomada após publicação parcial, consulte `docs/publication-recovery.md`.
+
 ## Logs e sigilo
 
 O Monolog registra a execução em `var/log/<APP_ENV>.log` (por exemplo, `var/log/dev.log`) e os erros em `var/log/calculation-errors.log`, ambos com rotação. Acompanhe localmente com:
