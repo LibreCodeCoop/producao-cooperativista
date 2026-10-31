@@ -55,23 +55,52 @@ final class SourceConfiguration extends AbstractController
                     ?: strcasecmp($a['alias'], $b['alias']);
             });
             $data['users'] = $users;
-
-            $selected = $request->query->getInt('cooperado', 0);
-            if ($selected > 0) {
-                $listed = array_filter($users, static fn (array $row): bool => $row['id'] === $selected && !$row['system']);
-                if ($listed === []) {
-                    throw new \DomainException('Selecione um cooperado válido na lista do Kimai.');
-                }
-                $member = $this->sources->user($selected);
-                $data['member'] = $member;
-                $data['services'] = $this->serviceFields($member);
-            }
+            // The editor is loaded on demand rather than querying three
+            // source systems during every roster request.
         } catch (\Throwable $error) {
             $this->logger->error('Painel de configuração: falha de consulta.', ['error_class' => $error::class]);
             $data['error'] = 'Não foi possível consultar todas as fontes. Confira conexão, permissões e logs do servidor.';
         }
 
         return $this->privatePage($data);
+    }
+
+    #[Route('/configuracao/cooperado/{id}/editar', requirements: ['id' => '\\d+'], methods: ['GET'])]
+    public function edit(Request $request, int $id): Response
+    {
+        $month = $this->month($request->query->getString('competencia'));
+        try {
+            $listed = array_filter(
+                $this->sources->users(),
+                static fn (array $row): bool => $row['id'] === $id && !$row['system'],
+            );
+            if ($listed === []) {
+                return new Response('Cooperado não encontrado ou não editável.', Response::HTTP_NOT_FOUND);
+            }
+            $member = $this->sources->user($id);
+            $data = [
+                'token' => $this->guard->token($request),
+                'month' => $month,
+                'member' => $member,
+                'services' => $this->serviceFields($member),
+            ];
+            $template = $request->isXmlHttpRequest()
+                ? 'configuracao/_member_editor.html.twig'
+                : 'configuracao.cooperado.html.twig';
+            $response = $this->render($template, $data);
+            $response->headers->set('Cache-Control', 'private, no-store, max-age=0');
+            $response->headers->set('Referrer-Policy', 'no-referrer');
+
+            return $response;
+        } catch (\Throwable $error) {
+            $this->logger->error('Não foi possível abrir editor de cooperado.', [
+                'member_id' => $id, 'error_class' => $error::class,
+            ]);
+            return new Response(
+                'Não foi possível consultar as fontes deste cooperado. Confira as conexões e tente novamente.',
+                Response::HTTP_BAD_GATEWAY,
+            );
+        }
     }
 
     /**
@@ -181,11 +210,13 @@ final class SourceConfiguration extends AbstractController
                 $this->logger->notice('Parâmetro de cooperado alterado na origem.', [
                     'source' => $source, 'field' => $field, 'member_id' => $id,
                 ]);
-                if (!$this->inlineWeightRequest($request, $source, $field)) {
+                if (!$this->inlineWeightRequest($request, $source, $field)
+                    && !$request->isXmlHttpRequest()) {
                     $this->addNotice($request, 'success', 'Alteração confirmada na API do ' . ucfirst($source) . '. Reimporte a competência antes de recalcular.');
                 }
             } else {
-                if (!$this->inlineWeightRequest($request, $source, $field)) {
+                if (!$this->inlineWeightRequest($request, $source, $field)
+                    && !$request->isXmlHttpRequest()) {
                     $this->addNotice($request, 'info', 'O valor informado já está salvo na origem.');
                 }
             }
@@ -213,6 +244,17 @@ final class SourceConfiguration extends AbstractController
                 : 'A origem não confirmou a gravação. Confira o cadastro e tente novamente.';
             return $this->saveError($request, $message, Response::HTTP_BAD_GATEWAY);
         }
+        if ($request->isXmlHttpRequest()) {
+            $response = new JsonResponse([
+                'changed' => (string) $value !== $old,
+                'message' => (string) $value !== $old
+                    ? 'Alteração confirmada na origem. Reimporte a competência antes de publicar.'
+                    : 'O valor já estava salvo na origem.',
+            ]);
+            $response->headers->set('Cache-Control', 'private, no-store, max-age=0');
+
+            return $response;
+        }
         return $this->redirectToRoute('app_sourceconfiguration_index', [
             'cooperado' => $id, 'competencia' => $month,
         ], Response::HTTP_SEE_OTHER);
@@ -222,6 +264,7 @@ final class SourceConfiguration extends AbstractController
     {
         return $source === 'nextcloud'
             && $field === 'weight'
+            && !$request->isXmlHttpRequest()
             && str_contains((string) $request->headers->get('Accept'), 'application/json');
     }
 

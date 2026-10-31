@@ -63,7 +63,7 @@
                         <th scope="col">Cooperado</th>
                         <th scope="col">Usuário Kimai</th>
                         <th scope="col">Horas importadas</th>
-                        <th scope="col">Peso de participação <small class="settings-column-note">(Nextcloud atual / ETL)</small></th>
+                        <th scope="col">Peso</th>
                         <th scope="col">Apontamentos</th>
                         <th scope="col">Situação</th>
                         <th scope="col">Ação</th>
@@ -82,7 +82,6 @@
                                         <span class="settings-weight-current" data-weight-current aria-label="Peso da última importação" role="status">{{ user.imported_weight is defined and user.imported_weight is not null ? user.imported_weight|replace({'.': ','}) : 'Não importado' }}</span>
                                         <button type="button" class="settings-weight-edit" data-weight-edit aria-label="Consultar e editar peso de {{ user.alias }}">Editar</button>
                                     </div>
-                                    <small class="settings-weight-snapshot">Importado no ETL; confira o peso atual ao editar.</small>
                                     <form class="settings-inline-weight-form" data-weight-form action="/configuracao/cooperado/{{ user.id }}/nextcloud" method="post" hidden>
                                         <input type="hidden" name="_token" value="{{ token }}">
                                         <input type="hidden" name="field" value="weight">
@@ -104,7 +103,7 @@
                             <td>{{ status }}</td>
                             <td>
                                 {% if not user.system %}
-                                    <a href="/configuracao?competencia={{ month|url_encode }}&cooperado={{ user.id }}" class="settings-link" data-settings-member-link>Conferir e editar</a>
+                                    <a href="/configuracao/cooperado/{{ user.id }}/editar?competencia={{ month|url_encode }}" class="settings-link" data-member-editor-open data-settings-member-link>Conferir e editar</a>
                                 {% else %}<span class="settings-muted">Não editável</span>{% endif %}
                             </td>
                         </tr>
@@ -140,48 +139,7 @@
         </div>
     </section>
 
-    {% if member %}
-        <section class="settings-section settings-edit-section" id="edicao">
-            <div class="settings-section-heading">
-                <div>
-                    <p class="eyebrow">Edição em tempo real</p>
-                    <h2>{{ member.alias }}</h2>
-                    <p>Kimai: <code>{{ member.username }}</code> · ID {{ member.id }} · cada botão grava somente o campo indicado na origem correspondente.</p>
-                </div>
-            </div>
-            <div class="settings-services">
-                {% for source, service in services %}
-                    <article class="surface settings-source">
-                        <div class="settings-source-heading">
-                            <h3>{{ service.title }}</h3>
-                            {% if service.configured %}
-                                <span class="settings-chip settings-chip-ok">API disponível</span>
-                            {% else %}
-                                <span class="settings-chip settings-chip-warn">Atenção</span>
-                            {% endif %}
-                        </div>
-                        <p>{{ service.description }}</p>
-                        {% if service.error %}
-                            <div class="settings-alert settings-error" role="status">{{ service.error }}</div>
-                        {% endif %}
-                        {% for item in service.fields %}
-                            <form method="post" class="settings-edit-field" action="/configuracao/cooperado/{{ member.id }}/{{ source }}">
-                                <input type="hidden" name="_token" value="{{ token }}">
-                                <input type="hidden" name="expected" value="{{ item.expected }}">
-                                <input type="hidden" name="field" value="{{ item.field }}">
-                                <input type="hidden" name="competencia" value="{{ month }}">
-                                <label for="{{ source }}-{{ item.field }}">{{ item.label }}</label>
-                                <div class="settings-field-row">
-                                    <input id="{{ source }}-{{ item.field }}" name="value" type="{{ item.kind }}" value="{{ item.value }}" {% if item.field == 'weight' %}inputmode="decimal"{% elseif item.field == 'tax_number' %}inputmode="numeric"{% endif %} autocomplete="off" required>
-                                    <button type="submit" class="settings-primary">Salvar no {{ source == 'nextcloud' ? 'Nextcloud' : (source == 'kimai' ? 'Kimai' : 'Akaunting') }}</button>
-                                </div>
-                            </form>
-                        {% endfor %}
-                    </article>
-                {% endfor %}
-            </div>
-        </section>
-    {% endif %}
+    <p class="settings-editor-hint">Selecione <strong>Conferir e editar</strong> para consultar Nextcloud, Kimai e Akaunting em uma janela, sem sair da lista.</p>
 
     <section class="settings-actions surface">
         <h2>Depois de salvar</h2>

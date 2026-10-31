@@ -1,0 +1,41 @@
+<section class="member-editor-panel" data-member-editor-panel>
+    <header class="member-editor-heading">
+        <p class="section-kicker">Conciliaç��o das três fontes · {{ month }}</p>
+        <h2 id="member-editor-title">{{ member.alias }}</h2>
+        <p>Kimai: <strong>{{ member.username }}</strong> · Cadastro #{{ member.id }}</p>
+        <p>Altere apenas o campo na fonte responsável. A apuração da competência precisa ser reimportada após qualquer alteração.</p>
+    </header>
+    <div class="member-editor-sources">
+        {% for source, service in services %}
+            <section class="member-editor-source">
+                <div class="member-editor-source-heading">
+                    <h3>{{ service.title }}</h3>
+                    <span class="member-editor-status{{ service.configured ? ' is-ready' : ' is-warning' }}">
+                        {{ service.configured ? 'Disponível' : 'Atenção' }}
+                    </span>
+                </div>
+                <p class="member-editor-description">{{ service.description }}</p>
+                {% if service.error %}
+                    <p class="member-editor-source-error" role="note">{{ service.error }}</p>
+                {% endif %}
+                {% for item in service.fields %}
+                    <form method="post" class="member-editor-field" action="/configuracao/cooperado/{{ member.id }}/{{ source }}">
+                        <input type="hidden" name="_token" value="{{ token }}">
+                        <input type="hidden" name="expected" value="{{ item.expected }}">
+                        <input type="hidden" name="field" value="{{ item.field }}">
+                        <input type="hidden" name="competencia" value="{{ month }}">
+                        <label for="editor-{{ member.id }}-{{ source }}-{{ item.field }}">{{ item.label }}</label>
+                        <div class="member-editor-field-controls">
+                            <input id="editor-{{ member.id }}-{{ source }}-{{ item.field }}"
+                                   name="value" type="{{ item.kind }}" value="{{ item.value }}"
+                                   {% if item.field == 'weight' %}inputmode="decimal"{% elseif item.field == 'tax_number' %}inputmode="numeric"{% endif %}
+                                   autocomplete="off" required>
+                            <button type="submit" class="button button-primary">Salvar</button>
+                        </div>
+                    </form>
+                {% endfor %}
+            </section>
+        {% endfor %}
+    </div>
+    <p class="member-editor-footer">O peso e os dependentes são mantidos no Nextcloud; o Kimai e o Akaunting possuem seus próprios vínculos. Confira a identidade antes de alterar CPF/CNPJ.</p>
+</section>

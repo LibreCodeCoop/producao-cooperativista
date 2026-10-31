@@ -1,0 +1,87 @@
+/* Shared editor for the configuration list and production report. */
+.member-editor-dialog {
+    width:min(1100px,calc(100vw - 28px)); max-width:1100px;
+    max-height:min(90vh,920px); overflow-y:auto;
+    border:1px solid var(--line); border-radius:15px;
+    background:var(--surface); color:var(--text);
+    padding:0; box-shadow:0 22px 90px rgba(0,0,0,.3);
+}
+.member-editor-dialog::backdrop { background:rgba(11,23,31,.64); }
+.member-editor-dialog-top {
+    display:flex; justify-content:space-between; align-items:center;
+    gap:18px; position:sticky; top:0; z-index:2;
+    padding:14px 24px; background:var(--surface);
+    border-bottom:1px solid var(--line);
+}
+.member-editor-dialog-top h2 { margin:0; font-size:16px; }
+.member-editor-close {
+    background:transparent; color:var(--text);
+    border:1px solid var(--line); border-radius:8px;
+    padding:7px 11px; cursor:pointer; font:inherit; font-size:13px;
+}
+.member-editor-close:hover { border-color:var(--brand); }
+#member-editor-content, .member-editor-standalone { padding:22px; }
+#member-editor-feedback:empty { display:none; }
+#member-editor-feedback:not(:empty) {
+    margin:14px 24px 0; padding:11px 13px;
+    background:var(--brand-soft); border:1px solid var(--line);
+    border-radius:8px; font-size:13px;
+}
+.member-editor-heading h2 { margin:4px 0; font-size:clamp(20px,3vw,25px); }
+.member-editor-heading p { margin:4px 0; font-size:13px; color:var(--muted); line-height:1.5; }
+.member-editor-sources {
+    display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:12px; margin:21px 0;
+}
+.member-editor-source {
+    border:1px solid var(--line); border-radius:11px; min-width:0;
+    padding:17px; background:var(--surface);
+}
+.member-editor-source-heading { display:flex; flex-wrap:wrap; gap:6px; justify-content:space-between; align-items:center; }
+.member-editor-source-heading h3 { font-size:14px; margin:0; }
+.member-editor-status {
+    font-size:11px; border-radius:999px; padding:3px 8px; font-weight:650;
+    background:var(--brand-soft); color:var(--text);
+}
+.member-editor-status.is-warning, .member-editor-source-error { background:var(--warning-bg); }
+.member-editor-description, .member-editor-footer {
+    font-size:12px; line-height:1.65; color:var(--muted);
+}
+.member-editor-source-error { border:1px solid var(--line); padding:10px; border-radius:8px; font-size:12px; }
+.member-editor-field {
+    margin:13px 0; padding-top:12px; border-top:1px solid var(--line);
+}
+.member-editor-field label { display:block; font-size:12px; font-weight:650; margin-bottom:5px; }
+.member-editor-field-controls { display:flex; flex-wrap:wrap; gap:7px; }
+.member-editor-field-controls input {
+    width:100%; min-width:0; flex:1 1 125px; min-height:39px;
+    padding:8px; background:var(--surface); border:1px solid var(--line);
+    border-radius:7px; color:var(--text); font:inherit;
+}
+.member-editor-field-controls .button { min-height:39px; padding:8px 12px; }
+.member-editor-standalone { margin:18px 0; }
+.production-member-link {
+    display:inline-flex; align-items:center; gap:7px; text-decoration:none;
+    color:var(--brand); font-weight:700;
+}
+.production-member-link:hover { text-decoration:underline; }
+.production-member-link > span {
+    font-size:12px; opacity:.8; border:1px solid var(--line);
+    padding:2px 5px; border-radius:5px;
+}
+@media(max-width:900px) {
+    .member-editor-sources { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:620px) {
+    .member-editor-sources { grid-template-columns:1fr; }
+    .member-editor-dialog-top { padding:12px 15px; }
+    #member-editor-content,.member-editor-standalone { padding:15px; }
+}
+
+.member-editor-field-controls .button-primary {
+    color:#fff; background:var(--brand); border:1px solid var(--brand);
+}
+.member-editor-field-controls .button-primary:hover:not(:disabled) {
+    background:var(--brand-deep);
+}
+.member-editor-field-controls .button-primary:disabled { opacity:.55; cursor:wait; }

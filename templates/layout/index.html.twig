@@ -9,6 +9,8 @@
         <title>{% block title %}Visão geral{% endblock %} | Produção cooperativista</title>
         <link rel="icon" href="/img/favico.ico">
         <link rel="stylesheet" href="/css/app.css">
+        <link rel="stylesheet" href="/css/member-editor.css">
+        <script src="/js/member-editor.js" defer></script>
         <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
         {% block head %}{% endblock %}
         {# Page styles and DataTables load first; theme overrides load last. #}
@@ -44,6 +46,7 @@
         <main class="container page-content" id="main-content">
             {% block body %}{% endblock %}
         </main>
+        {{ include('layout/components/member_editor_dialog.html.twig') }}
         <footer class="app-footer">
             <div class="container">
                 <span>Produção cooperativista</span>

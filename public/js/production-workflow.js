@@ -133,8 +133,9 @@
             el('use-existing').disabled = true;
             resetReview();
             show(1);
-            notice('O peso foi salvo no Nextcloud. Reimporte esta competência antes de conferir e publicar.');
+            notice('O cadastro foi alterado na origem. Reimporte esta competência antes de conferir e publicar.');
         };
+        doc.addEventListener?.('member-source-changed', weightChanged);
 
         const loadPreview = async () => {
             if (loading || finished || needsImport) return false;

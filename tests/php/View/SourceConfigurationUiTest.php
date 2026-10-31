@@ -61,11 +61,12 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('cdn.datatables.net/2.1.8', $html);
         self::assertStringContainsString('cdn.datatables.net/buttons/3.1.2', $html);
         self::assertStringContainsString('id="settings-members"', $html);
+        self::assertStringContainsString('href="/configuracao/cooperado/12/editar?competencia=2026-08"', $html);
         self::assertStringContainsString('src="/js/settings-panel.js"', $html);
         self::assertStringContainsString('id="settings-status-filter"', $html);
         self::assertStringContainsString('value="Ativo" selected', $html);
         self::assertStringContainsString('value="all">Todos</option>', $html);
-        self::assertStringContainsString('Peso de participação', $html);
+        self::assertStringContainsString('<th scope="col">Peso</th>', $html);
         self::assertStringContainsString('data-weight-url="/configuracao/cooperado/12/peso"', $html);
         self::assertStringContainsString('data-weight-url="/configuracao/cooperado/13/peso"', $html);
         self::assertStringContainsString('1,25', $html);
@@ -87,15 +88,11 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringNotContainsString('src="/js/report-table.js"', $html);
     }
 
-    public function testSourceEditFormsKeepCsrfWithoutSecondPassword(): void
+    public function testSourceEditorIsReusableWithoutItsRoster(): void
     {
-        $html = $this->twig()->render('configuracao.index.html.twig', [
+        $data = [
             'token' => 'csrf-value',
             'month' => '2026-08',
-            'users' => [[
-                'id' => 12, 'username' => 'fake-user', 'alias' => 'Exemplo',
-                'hours' => 10.5, 'participates' => true, 'system' => false, 'enabled' => true,
-            ]],
             'member' => ['id' => 12, 'alias' => 'Exemplo', 'username' => 'fake-user'],
             'services' => [
                 'nextcloud' => [
@@ -119,19 +116,23 @@ final class SourceConfigurationUiTest extends TestCase
                     'error' => 'API de contatos: HTTP 403', 'fields' => [],
                 ],
             ],
-            'error' => '',
-            'notifications' => [],
-        ]);
-        self::assertStringContainsString('10,50 h', $html);
+        ];
+        $html = $this->twig()->render('configuracao/_member_editor.html.twig', $data);
+        self::assertStringContainsString('Exemplo', $html);
         self::assertStringContainsString('name="expected" value="revision-placeholder"', $html);
         self::assertStringContainsString('name="_token" value="csrf-value"', $html);
         self::assertStringContainsString('action="/configuracao/cooperado/12/nextcloud"', $html);
         self::assertStringContainsString('action="/configuracao/cooperado/12/kimai"', $html);
         self::assertSame(1, substr_count($html, 'name="field" value="dependents"'));
-
         self::assertStringContainsString('HTTP 403', $html);
-        self::assertStringContainsString('global', $html);
         self::assertStringNotContainsString('action="/configuracao/cooperado/12/akaunting"', $html);
         self::assertStringNotContainsString('name="action_token"', $html);
+        self::assertStringNotContainsString('id="settings-members"', $html);
+
+        $standalone = $this->twig()->render('configuracao.cooperado.html.twig', $data);
+        self::assertStringContainsString('<html lang="pt-BR">', $standalone);
+        self::assertStringContainsString('action="/configuracao/cooperado/12/nextcloud"', $standalone);
+        self::assertStringContainsString('id="member-editor-dialog"', $standalone);
     }
+
 }
