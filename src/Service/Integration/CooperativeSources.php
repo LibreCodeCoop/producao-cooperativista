@@ -58,7 +58,7 @@ final class CooperativeSources
         return $result;
     }
 
-    /** @return array{id: int, username: string, alias: string, preferences: array<string, string>, enabled: bool} */
+    /** @return array{id: int, username: string, alias: string, preferences: array<string, string>, enabled: bool, system: bool} */
     public function user(int $id): array
     {
         if ($id <= 0) {
@@ -83,6 +83,7 @@ final class CooperativeSources
             'alias' => (string) (($raw['alias'] ?? '') ?: $raw['username']),
             'preferences' => $preferences,
             'enabled' => (bool) ($raw['enabled'] ?? true),
+            'system' => (bool) ($raw['systemAccount'] ?? false),
         ];
     }
 

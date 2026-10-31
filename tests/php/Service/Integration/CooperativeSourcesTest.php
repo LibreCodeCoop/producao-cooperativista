@@ -55,6 +55,14 @@ final class CooperativeSourcesTest extends TestCase
         self::assertArrayNotHasKey('apiToken', $roster[0]);
     }
 
+    public function testIndividualKimaiLookupPreservesServiceAccountFlag(): void
+    {
+        $http = new MockHttpClient(static fn (): MockResponse => new MockResponse((string) json_encode([
+            'id' => 2, 'username' => 'service-bot', 'systemAccount' => true,
+        ])));
+        self::assertTrue($this->sources($http)->user(2)['system']);
+    }
+
     public function testImportedWeightsUseOnlyLocalSnapshotAndPreservePrecision(): void
     {
         $http = new MockHttpClient(static function (): MockResponse {
@@ -107,6 +115,7 @@ final class CooperativeSourcesTest extends TestCase
         });
         $sources = $this->sources($http);
         $sources->updateKimai(2, 'tax_number', '52998224725');
+        self::assertFalse($sources->user(2)['system']);
         self::assertSame('52998224725', $sources->user(2)['preferences']['tax_number']);
         self::assertArrayNotHasKey('dependents', $sources->user(2)['preferences']);
     }

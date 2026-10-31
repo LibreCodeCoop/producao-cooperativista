@@ -70,14 +70,10 @@ final class SourceConfiguration extends AbstractController
     {
         $month = $this->month($request->query->getString('competencia'));
         try {
-            $listed = array_filter(
-                $this->sources->users(),
-                static fn (array $row): bool => $row['id'] === $id && !$row['system'],
-            );
-            if ($listed === []) {
+            $member = $this->sources->user($id);
+            if ($member['system']) {
                 return new Response('Cooperado não encontrado ou não editável.', Response::HTTP_NOT_FOUND);
             }
-            $member = $this->sources->user($id);
             $data = [
                 'token' => $this->guard->token($request),
                 'month' => $month,
@@ -111,15 +107,10 @@ final class SourceConfiguration extends AbstractController
     public function weight(int $id): JsonResponse
     {
         try {
-            $listed = array_filter(
-                $this->sources->users(),
-                static fn (array $row): bool => $row['id'] === $id && !$row['system'],
-            );
-            if ($listed === []) {
+            $member = $this->sources->user($id);
+            if ($member['system']) {
                 return $this->weightResponse(['error' => 'Cooperado não encontrado ou não editável.'], Response::HTTP_NOT_FOUND);
             }
-
-            $member = $this->sources->user($id);
             $profile = $this->sources->nextcloudForMember([
                 'username' => $member['username'],
                 'preferences' => $member['preferences'],
@@ -173,14 +164,10 @@ final class SourceConfiguration extends AbstractController
 
         $month = $this->month($request->request->getString('competencia'));
         try {
-            $listed = array_filter(
-                $this->sources->users(),
-                static fn (array $row): bool => $row['id'] === $id && !$row['system']
-            );
-            if ($listed === []) {
+            $member = $this->sources->user($id);
+            if ($member['system']) {
                 throw new \DomainException('Cooperado não localizado ou conta de serviço não editável.');
             }
-            $member = $this->sources->user($id);
             $old = match ($source) {
                 'nextcloud' => $this->nextcloudValue($member, $field),
                 'kimai' => (string) ($member['preferences'][$field] ?? ''),
