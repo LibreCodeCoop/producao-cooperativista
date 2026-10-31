@@ -30,6 +30,7 @@ O projeto usa duas bases distintas: a do **ETL** (transformações, importaçõe
 * Nextcloud + Profile Fields
   * Criar no app `profile_fields` os campos `weight`, `tax_number` e `dependents`.
   * Preencher estes campos para cada cooperado; eles passam a ser a fonte oficial do peso, do CPF/CNPJ e da quantidade de dependentes usados no cálculo.
+  * O Kimai fornece horas e uma referência de CPF/CNPJ para conciliação, mas não fornece mais dependentes: a importação exige o valor explícito no Profile Fields. Veja `docs/member-data-authority.md`.
 * Akaunting
   * Dados de clientes
     * Definir número de identificação fiscal (cpf/cnpj) para todo fornecedor/cliente. Quando houver nota emitida para mais de um setor de um mesmo CNPJ e figurarem diferentes contas na LibreCode (conta = contrato), concatenar da seguinte forma: `<cpf/CNPJ>|<setor>`
