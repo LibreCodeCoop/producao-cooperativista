@@ -39,7 +39,7 @@
                     <h2 id="actions-heading">Ações</h2>
                 </div>
             </div>
-            <p class="actions-description">Ações que podem atualizar a base intermediária ou gerar documentos devem ser executadas somente após conferência.</p>
+            <p class="actions-description">O fechamento mensal reúne importação, conferência, ajustes de cooperados e publicação.</p>
             <div class="actions-list">
                 {% for acao in acoes %}
                     <a class="action-link{% if acao.danger|default(false) %} action-link-danger{% endif %}" href="{{ acao.url }}">
@@ -51,7 +51,7 @@
                     </a>
                 {% endfor %}
             </div>
-            <div class="actions-footnote">A prévia permite conferir resultados antes de qualquer publicação no Akaunting.</div>
+            <div class="actions-footnote">Limpeza da base de trabalho e edição de cooperados estão disponíveis dentro do fluxo de fechamento.</div>
         </section>
     </div>
 {% endblock %}

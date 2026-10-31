@@ -63,7 +63,7 @@
                 </div>
             {% endif %}
 
-            <form method="post" action="{{ url }}" class="reset-form">
+            <form method="post" action="{{ url }}?retorno={{ retorno|url_encode }}" class="reset-form">
                 <input type="hidden" name="_token" value="{{ token }}">
                 <div class="form-field">
                     <label for="confirmacao">Confirmação obrigatória</label>
@@ -76,7 +76,7 @@
 
                 <div class="form-actions">
                     <button type="submit" class="button button-danger" {% if not reset_available %}disabled{% endif %}>Limpar dados intermediários</button>
-                    <a href="/" class="button button-secondary">Voltar ao painel</a>
+                    <a href="/acoes/make-producao?ano-mes={{ retorno|url_encode }}" class="button button-secondary">Voltar à importação</a>
                 </div>
             </form>
 

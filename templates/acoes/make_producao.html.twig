@@ -60,8 +60,11 @@
             <div class="production-wizard-actions">
                 <button type="button" id="import-button" class="button button-primary">Importar competência</button>
                 <button type="button" id="use-existing" class="button">Conferir dados já importados</button>
+                <a class="button button-secondary production-reset-link" href="/acoes/zerar-banco-local?retorno={{ (inicio_ano ~ '-' ~ inicio_mes)|url_encode }}">
+                    Limpar base importada
+                </a>
             </div>
-            <p class="production-help">Depois de corrigir dados na origem, importe novamente antes de conferir e publicar. Não é necessário importar novamente se os dados já estiverem atualizados.</p>
+            <p class="production-help">A limpeza remove todos os dados intermediários importados, não apenas esta competência, e exige confirmação na próxima página. Ela não modifica os sistemas de origem nem os documentos já emitidos.</p>
         </section>
 
         <section data-workflow-step="2" hidden aria-labelledby="audit-title">

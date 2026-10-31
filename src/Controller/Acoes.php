@@ -84,6 +84,7 @@ class Acoes extends AbstractController
             'staging_configured' => trim((string) getenv('PRODUCAO_STAGING_DATABASE')) !== '',
             'token' => $this->guard->token($request),
             'url' => $this->urlGenerator->generate('app_acoes_zerarbancolocal'),
+            'retorno' => $request->query->getString('retorno', new \DateTimeImmutable('first day of -2 months')->format('Y-m')),
         ], new Response('', $status));
     }
 

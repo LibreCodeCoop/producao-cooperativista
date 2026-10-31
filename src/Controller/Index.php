@@ -72,20 +72,10 @@ class Index extends AbstractController
             'acoes' => [
                 'executa_producao' => [
                     'url' => $this->urlGenerator->generate('app_acoes_makeproducao'),
-                    'label' => 'Processar produção',
-                    'description' => 'Calcule, confira os relatórios e publique após a revisão.',
+                    'label' => 'Fechar produção mensal',
+                    'description' => 'Importe dados, confira os cooperados e publique após a revisão.',
                 ],
-                'configuracao' => [
-                    'url' => '/configuracao',
-                    'label' => 'Conferir dados nas fontes',
-                    'description' => 'Onde revisar CPF, peso, horas, faturas e categorias antes do cálculo.',
-                ],
-                'zerar_banco_local' => [
-                    'url' => $this->urlGenerator->generate('app_acoes_zerarbancolocal'),
-                    'label' => 'Limpar dados importados (ETL)',
-                    'description' => 'Reinicia apenas a base intermediária de importação.',
-                    'danger' => true,
-                ],
+
             ],
         ]);
     }
