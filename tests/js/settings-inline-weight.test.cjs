@@ -14,10 +14,10 @@ function fixture({rows = 1, getResult, saveResult} = {}) {
     const httpCalls = [];
 
     function createCell(id) {
-        const value = {textContent: 'Consultando…'};
+        const value = {textContent: '1,5'};
         const message = {textContent: ''};
         const edit = {
-            disabled: true, hidden: false, textContent: 'Editar',
+            disabled: false, hidden: false, textContent: 'Editar',
             matches(selector) { return selector === '[data-weight-edit]'; },
         };
         const input = {value: '', focused: false, focus() { this.focused = true; }};
@@ -118,20 +118,18 @@ test('weight input accepts Brazilian decimals but rejects invalid precision and 
     assert.equal(displayWeight(''), 'Não definido');
 });
 
-test('weight is read only for visible rows; pagination loads additional rows on demand', async () => {
+test('listing and pagination do not perform a Nextcloud request for every member', async () => {
     const f = fixture({rows: 3});
     await f.settle();
-    assert.equal(f.httpCalls.length, 1);
-    assert.ok(f.httpCalls[0].url.endsWith('/cooperado/1/peso'));
-    assert.equal(f.cells[0].value.textContent, '1,5');
-    assert.equal(f.cells[1].value.textContent, 'Consultando…');
+    assert.equal(f.httpCalls.length, 0);
+    assert.equal(f.cells[0].value.textContent, '1,5', 'Uses imported ETL snapshot');
     f.nextVisible([1, 2]);
     await f.settle();
-    assert.equal(f.httpCalls.length, 3);
-    assert.equal(f.cells[1].edit.disabled, false);
-    f.nextVisible([0, 1]);
+    assert.equal(f.httpCalls.length, 0);
+    f.table.emitClick(f.cells[1].edit);
     await f.settle();
-    assert.equal(f.httpCalls.length, 3, 'Avoid repeating lookups when returning to a page');
+    assert.equal(f.httpCalls.length, 1, 'Only explicit editing fetches the live weight');
+    assert.match(f.httpCalls[0].url, /cooperado\/2\/peso$/);
 });
 
 test('inline edit uses the live value, explicit submit, csrf and optimistic revision', async () => {
@@ -206,6 +204,8 @@ test('missing Nextcloud link reports an error without enabling save', async () =
     const f = fixture({getResult: {ok: false, status: 404, body: {error: 'Conta Nextcloud não vinculada.'}}});
     await f.settle();
     const row = f.cells[0];
+    f.table.emitClick(row.edit);
+    await f.settle();
     assert.equal(row.value.textContent, 'Indisponível');
     assert.equal(row.form.hidden, true);
     assert.match(row.message.textContent, /não vinculada/);

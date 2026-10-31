@@ -75,9 +75,46 @@
             '>' + escapeHtml(match[3]) + '</a>';
     }
 
-    function renderCell(value, type, column) {
+    const MONEY_COLUMNS = new Set([
+        'base_producao', 'bruto', 'liquido', 'auxilio', 'frra', 'inss',
+        'irpf', 'base_irpf', 'liquid_discount',
+    ]);
+    const brl = new Intl.NumberFormat('pt-BR', {
+        style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2,
+    });
+
+    function weightEditor(row, token, competence) {
+        const id = Number(row?.kimai_user_id);
+        if (!Number.isSafeInteger(id) || id <= 0) {
+            return escapeHtml(row?.peso ?? '');
+        }
+        const base = '/configuracao/cooperado/' + id;
+        const snapshot = escapeHtml(row.peso ?? '');
+        return '<div class="settings-weight-cell" data-weight-url="' + base + '/peso">' +
+            '<div class="settings-weight-display"><span data-weight-current>' + snapshot + '</span>' +
+            '<button type="button" class="settings-weight-edit" data-weight-edit>Editar</button></div>' +
+            '<small class="settings-weight-snapshot">Peso no ETL (última importação)</small>' +
+            '<form data-weight-form action="' + base + '/nextcloud" method="post" hidden>' +
+            '<input type="hidden" name="_token" value="' + escapeHtml(token) + '">' +
+            '<input type="hidden" name="field" value="weight">' +
+            '<input type="hidden" name="competencia" value="' + escapeHtml(competence) + '">' +
+            '<input type="hidden" name="expected" value="">' +
+            '<label>Peso atual no Nextcloud</label>' +
+            '<input type="text" name="value" inputmode="decimal" maxlength="8" required>' +
+            '<button type="submit">Salvar</button><button type="button" data-weight-cancel>Cancelar</button>' +
+            '</form><span data-weight-message role="status" aria-live="polite"></span></div>';
+    }
+
+    function renderCell(value, type, column, row = null, options = {}) {
         if (type !== 'display') {
             return value ?? '';
+        }
+        if (options.inlineWeight && column === 'peso') {
+            return weightEditor(row, options.csrf, options.competence);
+        }
+        if (options.inlineWeight && MONEY_COLUMNS.has(column) && value !== null
+            && value !== '' && Number.isFinite(Number(value))) {
+            return '<span class="money-cell">' + escapeHtml(brl.format(Number(value))) + '</span>';
         }
         if (column === 'URL' || column === 'nome') {
             const link = safeLinkHtml(value, column === 'nome');
@@ -88,7 +125,7 @@
         return nestedTableHtml(value) ?? escapeHtml(value);
     }
 
-    function buildColumns(rows, excluded = ['metadata']) {
+    function buildColumns(rows, excluded = ['metadata'], options = {}) {
         const keys = [...new Set(rows.flatMap(row =>
             row && typeof row === 'object' && !Array.isArray(row) ? Object.keys(row) : []
         ))];
@@ -96,7 +133,7 @@
             data: key,
             title: columnTitle(key),
             defaultContent: '',
-            render: (value, type) => renderCell(value, type, key),
+            render: (value, type, row) => renderCell(value, type, key, row, options),
         }));
     }
 
@@ -250,7 +287,12 @@
                 showError(errors, 'Nenhum registro encontrado para os filtros informados.');
                 return null;
             }
-            const columns = buildColumns(payload.data, excluded);
+            const reportOptions = {
+                inlineWeight: table.dataset.inlineWeight === 'yes',
+                csrf: table.dataset.csrf || '',
+                competence: table.dataset.competencia || '',
+            };
+            const columns = buildColumns(payload.data, excluded, reportOptions);
             if (!columns.length || !table.tFoot?.rows[0]) {
                 throw new Error('Não foi possível montar as colunas do relatório.');
             }
@@ -272,6 +314,9 @@
                 },
                 initComplete: function () {
                     setupFilters(this.api(), columns, doc, location, history);
+                    if (reportOptions.inlineWeight) {
+                        (options.inlineWeight || scope.SettingsInlineWeight)?.initialize?.(table, this.api(), options);
+                    }
                 },
             });
         } catch (error) {

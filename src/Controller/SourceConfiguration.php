@@ -48,6 +48,12 @@ final class SourceConfiguration extends AbstractController
                 $row['imported_weight'] = $importedWeights[$row['id']] ?? null;
             }
             unset($row);
+            usort($users, static function (array $a, array $b): int {
+                $rank = static fn (array $row): int => $row['system'] ? 2 : ($row['enabled'] ? 0 : 1);
+                return $rank($a) <=> $rank($b)
+                    ?: $b['hours'] <=> $a['hours']
+                    ?: strcasecmp($a['alias'], $b['alias']);
+            });
             $data['users'] = $users;
 
             $selected = $request->query->getInt('cooperado', 0);

@@ -22,7 +22,7 @@
 {% block body %}
     {% set filterColumns = filterColumns|default(['metadata']) %}
     <div id="erros" role="alert" aria-live="polite"></div>
-    <table id="example" data-url="{{ url }}" data-filter-columns="{{ filterColumns|json_encode|e('html_attr') }}"><tfoot><tr></tr></tfoot></table>
+    <table id="example" data-url="{{ url }}" data-filter-columns="{{ filterColumns|json_encode|e('html_attr') }}"{% if inlineWeight|default(false) %} data-inline-weight="yes" data-csrf="{{ token }}" data-competencia="{{ competencia }}"{% endif %}><tfoot><tr></tr></tfoot></table>
     <script src="/js/report-table.js" defer></script>
 {% endblock %}
 {% endif %}

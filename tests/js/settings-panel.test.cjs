@@ -128,7 +128,7 @@ test('default state shows active cooperatives, but keeps pagination and ordering
     assert.equal(DEFAULT_STATUS, 'Ativo');
     assert.deepEqual(readState('?competencia=2026-08'), {
         name: '', user: '', status: 'Ativo', activity: 'all',
-        search: '', page: 0, length: 10, order: [0, 'asc'],
+        search: '', page: 0, length: 10, order: [2, 'desc'],
     });
     const f = fixture();
     const dt = initializeSettingsTable(f.doc, {DataTable: f.DataTable, location: f.location, history: f.history});
@@ -136,7 +136,7 @@ test('default state shows active cooperatives, but keeps pagination and ordering
     assert.equal(dt.selector, '#settings-members');
     assert.equal(dt.settings.scrollX, true);
     assert.deepEqual(dt.settings.lengthMenu, [10, 25, 50, 100]);
-    assert.deepEqual(dt.settings.order, [[0, 'asc']]);
+    assert.deepEqual(dt.settings.order, [[2, 'desc']]);
     const buttons = dt.settings.layout.topStart.buttons;
     assert.deepEqual(buttons.map(button => typeof button === 'string' ? button : button.extend),
         ['pageLength', 'colvis', 'copy', 'csv', 'excel', 'pdf', 'print']);
@@ -222,10 +222,10 @@ test('invalid URL filter values cannot inject custom regex or invalid sorting', 
     const state = readState('?dtstatus=.^%2B&dtactivity=evil&dtorder=8:desc&dtpage=oops&dtlength=999');
     assert.equal(state.status, 'Ativo');
     assert.equal(state.activity, 'all');
-    assert.deepEqual(state.order, [0, 'asc']);
+    assert.deepEqual(state.order, [2, 'desc']);
     assert.equal(state.page, 0);
     assert.equal(state.length, 10);
-    assert.deepEqual(readState('?dtorder=3:desc').order, [0, 'asc'], 'Live field cannot be sorted from partial async data');
+    assert.deepEqual(readState('?dtorder=3:desc').order, [2, 'desc'], 'Live field cannot be sorted from partial async data');
     assert.equal(exactFilter('all'), '');
     assert.equal(exactFilter('Ativo'), '^Ativo$');
 });

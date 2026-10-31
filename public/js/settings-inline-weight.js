@@ -193,8 +193,8 @@
             if (cell) void save(cell, form);
         });
 
-        api.on('draw.dt', loadVisible);
-        loadVisible();
+        // Do not fetch a Nextcloud profile per visible row. The ETL already
+        // contains the last imported weight; fetch the live value on edit only.
 
         return {readCurrent, loadVisible};
     }

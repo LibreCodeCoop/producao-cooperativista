@@ -17,7 +17,7 @@
         const activity = params.get('dtactivity') || 'all';
         const page = params.get('dtpage') || '0';
         const length = params.get('dtlength') || '10';
-        const order = params.get('dtorder') || '0:asc';
+        const order = params.get('dtorder') || '2:desc';
         const orderMatch = /^([0-2]|[4-5]):(asc|desc)$/.exec(order);
 
         return {
@@ -28,7 +28,7 @@
             search: params.get('dtsearch') || '',
             page: /^\d{1,4}$/.test(page) ? Number(page) : 0,
             length: ['10', '25', '50', '100'].includes(length) ? Number(length) : 10,
-            order: orderMatch ? [Number(orderMatch[1]), orderMatch[2]] : [0, 'asc'],
+            order: orderMatch ? [Number(orderMatch[1]), orderMatch[2]] : [2, 'desc'],
         };
     }
 
@@ -45,7 +45,7 @@
             dtsearch: state.search,
             dtpage: state.page > 0 ? String(state.page) : '',
             dtlength: state.length === 10 ? '' : String(state.length),
-            dtorder: state.order?.[0] === 0 && state.order?.[1] === 'asc'
+            dtorder: state.order?.[0] === 2 && state.order?.[1] === 'desc'
                 ? '' : state.order?.join(':'),
         };
         for (const [key, value] of Object.entries(entries)) {
@@ -101,7 +101,7 @@
         let restoring = true;
 
         function currentState(api) {
-            const order = api.order()[0] || [0, 'asc'];
+            const order = api.order()[0] || [2, 'desc'];
             return {
                 name: fields.name.value.trim(), user: fields.user.value.trim(),
                 activity: fields.activity.value, status: fields.status.value,
@@ -153,7 +153,7 @@
                 fields.activity.value = 'all';
                 fields.status.value = status;
                 api.search('');
-                api.order([[0, 'asc']]);
+                api.order([[2, 'desc']]);
                 api.page.len(10);
                 apply();
             }
@@ -185,7 +185,7 @@
             scrollX: true,
             pageLength: 10,
             lengthMenu: [10, 25, 50, 100],
-            order: [[0, 'asc']],
+            order: [[2, 'desc']],
             columnDefs: [{targets: [3, 6], orderable: false, searchable: false}],
             layout: {
                 topStart: {

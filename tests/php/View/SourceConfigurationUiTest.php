@@ -68,8 +68,8 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('Peso de participação', $html);
         self::assertStringContainsString('data-weight-url="/configuracao/cooperado/12/peso"', $html);
         self::assertStringContainsString('data-weight-url="/configuracao/cooperado/13/peso"', $html);
-        self::assertStringContainsString('No ETL: 1,25', $html);
-        self::assertStringContainsString('No ETL: —', $html);
+        self::assertStringContainsString('1,25', $html);
+        self::assertStringContainsString('Não importado', $html);
         self::assertStringContainsString('data-weight-form', $html);
         self::assertStringContainsString('name="_token" value="csrf-value"', $html);
         self::assertStringContainsString('name="field" value="weight"', $html);

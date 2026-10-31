@@ -342,3 +342,24 @@ test('no DataTable root means the initializer does not perform any requests', as
     assert.equal(await initializeReportTable({ getElementById: () => null }, f.options), null);
     assert.equal(f.calls.fetch, 0);
 });
+
+test('production report formats money as BRL while retaining raw values for sorting', () => {
+    const opts = {inlineWeight: true, csrf: 'csrf', competence: '2026-08'};
+    const html = renderCell(100.320000001, 'display', 'base_producao', {}, opts);
+    assert.match(html, /R\$\s?100,32/);
+    assert.ok(!html.includes('000001'));
+    assert.equal(renderCell(100.320000001, 'sort', 'base_producao', {}, opts), 100.320000001);
+    assert.equal(renderCell(0, 'display', 'liquido', {}, opts).includes('0,00'), true);
+});
+
+test('production report weight reuses the existing Nextcloud editor, escaping untrusted values', () => {
+    const opts = {inlineWeight: true, csrf: 'csrf<&', competence: '2026-08'};
+    const row = {kimai_user_id: 14, peso: '1.25'};
+    const html = renderCell(row.peso, 'display', 'peso', row, opts);
+    assert.match(html, /data-weight-url="\/configuracao\/cooperado\/14\/peso"/);
+    assert.match(html, /name="field" value="weight"/);
+    assert.match(html, /csrf&lt;&amp;/);
+    assert.match(html, /Peso no ETL \(última importação\)/);
+    assert.equal(renderCell(row.peso, 'sort', 'peso', row, opts), '1.25');
+    assert.ok(!renderCell(1, 'display', 'peso', {kimai_user_id: 0}, opts).includes('data-weight-edit'));
+});
