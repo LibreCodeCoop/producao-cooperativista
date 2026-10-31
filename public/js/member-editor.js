@@ -31,8 +31,8 @@
     function copyTaxNumber(root, targetForm) {
         const reference = root?.querySelector?.('form[data-source="nextcloud"][data-field="tax_number"] [name="value"]');
         const target = targetForm?.querySelector?.('[name="value"]');
-        if (!reference?.value?.trim() || !target) return false;
-        target.value = reference.value;
+        if (!reference?.value?.trim() || reference.value !== reference.defaultValue || !target) return false;
+        target.value = reference.defaultValue;
         const button = targetForm.querySelector('[type="submit"]');
         if (button) button.disabled = target.value === target.defaultValue;
         return true;
@@ -109,7 +109,7 @@
                 if (copyTaxNumber(content, copy.closest('form'))) {
                     feedback.textContent = 'CPF/CNPJ copiado. Confira e salve separadamente nesta fonte.';
                 } else {
-                    feedback.textContent = 'CPF/CNPJ do Nextcloud não está disponível para copiar.';
+                    feedback.textContent = 'Salve primeiro o CPF/CNPJ no Nextcloud antes de copiá-lo para outra fonte.';
                 }
                 return;
             }
@@ -133,12 +133,13 @@
             if (button?.disabled) return;
             const input = form.querySelector('[name="value"]');
             const expected = form.querySelector('[name="expected"]');
+            const payload = new FormData(form);
             if (button) button.disabled = true;
             if (input) input.disabled = true;
             feedback.textContent = 'Salvando na origem…';
             try {
                 const response = await request(action.href, {
-                    method: 'POST', body: new FormData(form), credentials: 'same-origin',
+                    method: 'POST', body: payload, credentials: 'same-origin',
                     cache: 'no-store', redirect: 'error',
                     headers: {Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
                 });

@@ -128,7 +128,7 @@ test('AJAX save uses the same source endpoint and notifies the production workfl
     const f=fixture();
     await f.controller.load('/configuracao/cooperado/10/editar?competencia=2026-08');
     const originalFormData=globalThis.FormData;
-    globalThis.FormData=class {constructor(form){this.form=form;}};
+    globalThis.FormData=class {constructor(form){this.form=form;this.valueWasEnabled=!form.querySelector('[name="value"]').disabled;}};
     try {
         const button={disabled:false}, value={value:'2',defaultValue:'1',disabled:false}, expected={value:'old'};
         const form={
@@ -142,6 +142,7 @@ test('AJAX save uses the same source endpoint and notifies the production workfl
         assert.equal(expected.value,'new-revision');
         assert.equal(f.calls.length,2,'Save returns only JSON; no redundant full editor reload');
         assert.equal(f.calls[1].config.method,'POST');
+        assert.equal(f.calls[1].config.body.valueWasEnabled,true,'FormData must be assembled before disabling the edited input');
         assert.equal(f.calls[1].config.headers.Accept,'application/json');
         assert.equal(f.calls[1].config.redirect,'error');
         assert.equal(f.dispatched[0].type,'member-source-changed');
@@ -201,7 +202,7 @@ test('field save buttons activate only after an actual edit', () => {
 });
 
 test('copying the Nextcloud document only fills the selected destination, without posting', () => {
-    const source={value:'reference-value'};
+    const source={value:'reference-value',defaultValue:'reference-value'};
     const target={value:'other-value',defaultValue:'other-value'};
     const submit={disabled:true};
     const root={querySelector:()=>source};
@@ -210,6 +211,9 @@ test('copying the Nextcloud document only fills the selected destination, withou
     assert.equal(target.value,'reference-value');
     assert.equal(target.defaultValue,'other-value');
     assert.equal(submit.disabled,false);
+    source.value='unsaved-change';
+    assert.equal(copyTaxNumber(root,form),false,'Only the confirmed Nextcloud value may be copied');
+    assert.equal(target.value,'reference-value');
     assert.equal(copyTaxNumber({querySelector:()=>null},form),false);
 });
 
