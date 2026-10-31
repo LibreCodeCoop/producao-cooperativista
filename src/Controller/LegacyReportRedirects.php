@@ -9,10 +9,14 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
-/** Keep previously shared links working without maintaining duplicate report endpoints. */
+/**
+ * Keep previously shared links working without maintaining duplicate report endpoints.
+ *
+ * @psalm-suppress UnusedClass Routed by Symfony attributes.
+ */
 final class LegacyReportRedirects extends AbstractController
 {
-    private const ROUTES = [
+    private const array ROUTES = [
         'calculos' => 'app_calculos_index',
         'categorias' => 'app_categorias_index',
         'invoices' => 'app_invoices_index',

@@ -27,8 +27,10 @@ final class ReportNavigationTest extends WebTestCase
 
         $client->request('GET', '/calculos/ajuda?secao=total');
         self::assertSame(Response::HTTP_FOUND, $client->getResponse()->getStatusCode());
-        self::assertSame('/relatorios/calculos/ajuda?secao=total',
-            $client->getResponse()->headers->get('Location'));
+        self::assertSame(
+            '/relatorios/calculos/ajuda?secao=total',
+            $client->getResponse()->headers->get('Location')
+        );
     }
 
     public function testCanonicalReportsAreRoutedAndAvailableInDedicatedCatalog(): void
