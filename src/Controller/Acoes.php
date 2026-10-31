@@ -129,6 +129,31 @@ class Acoes extends AbstractController
         }
 
         $this->guard->assertAuthorized($request);
+        $operation = $request->request->getString('operation', 'preview');
+        if (!in_array($operation, ['import', 'preview', 'publish'], true)) {
+            return new Response('Etapa de processamento inválida.', Response::HTTP_BAD_REQUEST);
+        }
+        if ($operation === 'import' && ($download !== '1' || $publish !== '0')) {
+            return new Response('Importar não pode publicar documentos.', Response::HTTP_BAD_REQUEST);
+        }
+        if ($operation === 'preview' && $publish !== '0') {
+            return new Response('A prévia não pode publicar documentos.', Response::HTTP_BAD_REQUEST);
+        }
+        if ($operation === 'publish' && ($download !== '0' || $publish !== '1')) {
+            return new Response('Publicar não pode reimportar dados.', Response::HTTP_BAD_REQUEST);
+        }
+        $revision = $request->request->getString('expected_revision');
+        $excluded = $request->request->getString('omit_user_ids');
+        if ($operation === 'publish' && preg_match('/^[a-f0-9]{64}$/D', $revision) !== 1) {
+            return new Response('Confira a prévia antes de publicar. Revisão ausente ou inválida.', Response::HTTP_BAD_REQUEST);
+        }
+        if ($operation !== 'publish' && ($revision !== '' || $excluded !== '')) {
+            return new Response('Seleção de publicação enviada na etapa incorreta.', Response::HTTP_BAD_REQUEST);
+        }
+        if ($excluded !== '' && (strlen($excluded) > 2048
+            || preg_match('/^[1-9][0-9]*(?:,[1-9][0-9]*)*$/D', $excluded) !== 1)) {
+            return new Response('Seleção de cooperados inválida.', Response::HTTP_BAD_REQUEST);
+        }
 
         // Importation and publication must be separate operations so that
         // the financial manager can review the reports between them.
@@ -142,7 +167,7 @@ class Acoes extends AbstractController
         $runId = bin2hex(random_bytes(8));
 
         return new StreamedResponse(
-            function () use ($competencia, $download, $publish, $runId): void {
+            function () use ($competencia, $download, $publish, $operation, $revision, $excluded, $runId): void {
                 $this->logger->pushHandler($this->sseLogHandler);
                 try {
                     $this->logger->info('Iniciada execução {run_id} da competência {competencia}', [
@@ -159,7 +184,14 @@ class Acoes extends AbstractController
                     $output = new BufferedOutput();
                     $exitCode = $app->run(new ArrayInput([
                         'make:producao',
-                        ...CalculationCommandOptions::forWeb($competencia, $download, $publish === '1'),
+                        ...CalculationCommandOptions::forWeb(
+                            $competencia,
+                            $download,
+                            $publish === '1',
+                            $operation === 'import',
+                            $revision,
+                            $excluded,
+                        ),
                     ]), $output);
                     $details = $output->fetch();
                     $outcome = new ExecutionOutcome($exitCode, $runId, $details);

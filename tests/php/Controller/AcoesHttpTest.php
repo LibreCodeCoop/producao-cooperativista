@@ -63,9 +63,27 @@ final class AcoesHttpTest extends WebTestCase
         $client->request('POST', '/acoes/do-make-producao', [
             '_token' => $csrf, 'year' => '2026', 'month' => '08',
             'baixar_dados' => '1', 'atualiza_producao' => '1',
+            'operation' => 'publish',
+            'expected_revision' => str_repeat('a', 64),
         ]);
         self::assertSame(Response::HTTP_BAD_REQUEST, $client->getResponse()->getStatusCode());
-        self::assertStringContainsString('antes de gravar no Akaunting', $client->getResponse()->getContent());
+        self::assertStringContainsString('não pode reimportar', $client->getResponse()->getContent());
+    }
+
+    public function testPublicationWithoutReviewedSnapshotIsRejectedBeforeExecution(): void
+    {
+        $client = static::createClient();
+        $crawler = $client->request('GET', '/acoes/make-producao?ano-mes=2026-08');
+        $csrf = $crawler->filter('input[name="_token"]')->attr('value');
+        $client->request('POST', '/acoes/do-make-producao', [
+            '_token' => $csrf,
+            'year' => '2026', 'month' => '08',
+            'baixar_dados' => '0',
+            'atualiza_producao' => '1',
+            'operation' => 'publish',
+        ]);
+        self::assertSame(Response::HTTP_BAD_REQUEST, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Revisão ausente', $client->getResponse()->getContent());
     }
 
     public function testProcessPageRestoresPeriodFromAuditLinks(): void

@@ -27,6 +27,8 @@ declare(strict_types=1);
 namespace App\Controller\Api;
 
 use App\Service\Movimentacao;
+use App\Service\Calculation\ProductionPublicationSelection;
+use App\Service\Calculation\DecimalAllocation;
 use DateTime;
 use App\Service\ProducaoCooperativista;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -44,6 +46,7 @@ class Producao extends AbstractController
         private ProducaoCooperativista $producao,
         private Movimentacao $movimentacao,
         private ApiProblemResponder $apiErrors,
+        private ProductionPublicationSelection $selection,
     ) {
         $this->request = $requestStack->getCurrentRequest();
     }
@@ -71,6 +74,7 @@ class Producao extends AbstractController
 
             $list = $this->producao->getProducaoCooperativista();
             $trabalhadoPorCliente = $this->producao->getTrabalhadoPorCliente();
+            $snapshot = $this->selection->snapshot($list, $inicio->format('Y-m'));
             $output = [];
             foreach ($list as $cooperado) {
                 $array = $cooperado->getProducaoCooperativista()->getValues()->toArray();
@@ -80,7 +84,15 @@ class Producao extends AbstractController
                     $adiantamento = json_encode($array['adiantamento']);
                 }
                 $array['adiantamento'] = $adiantamento;
+                $taxNumber = $cooperado->getTaxNumber();
+                $array['kimai_user_id'] = $snapshot['ids'][$taxNumber];
+                // The settlement calculation retains intermediate precision.
+                // The report and payable document present values in BRL cents.
+                $array['base_producao'] = DecimalAllocation::amount(
+                    DecimalAllocation::cents($array['base_producao'])
+                );
                 $trabalhado = array_filter($trabalhadoPorCliente, fn ($c) => $c['tax_number'] === $array['tax_number']);
+                $array['hours_seconds'] = array_sum(array_column($trabalhado, 'trabalhado'));
                 $array['trabalhado'] = json_encode(array_values(array_map(function ($row) {
                     $minutosTrabalhados = $row['trabalhado'] / 60 / 60;
                     $minutosTrabalhados = floor($minutosTrabalhados);
@@ -99,6 +111,8 @@ class Producao extends AbstractController
                 'data' => array_values($output),
                 'metadata' => [
                     'total' => count($output),
+                    'revision' => $snapshot['revision'],
+                    'competence' => $inicio->format('Y-m'),
                     'date' => $this->producao->dates->getInicioProximoMes()->format('Y-m')
                 ],
             ];
