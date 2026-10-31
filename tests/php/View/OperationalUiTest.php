@@ -121,6 +121,9 @@ final class OperationalUiTest extends TestCase
         self::assertStringNotContainsString('data-workflow-step="4"', $html);
         self::assertStringContainsString('data-financial-review="yes"', $html);
         self::assertStringContainsString('data-production-mode="yes"', $html);
+        self::assertStringNotContainsString('id="reload-preview"', $html);
+        self::assertStringNotContainsString('data-inline-weight="yes"', $html);
+        self::assertStringNotContainsString('src="/js/settings-inline-weight.js"', $html);
         self::assertStringContainsString('data-manual-init="yes"', $html);
         self::assertStringContainsString('id="example"', $html);
         self::assertStringContainsString('href="/calculos?ano-mes=2026-08"', $html);
@@ -132,7 +135,7 @@ final class OperationalUiTest extends TestCase
         self::assertLessThan(
             strpos($html, 'id="example"'),
             strpos($html, '</form>'),
-            'The financial publication form must end before the independent Nextcloud inline editor.'
+            'The financial publication form must end before the review table.'
         );
     }
 
@@ -144,6 +147,10 @@ final class OperationalUiTest extends TestCase
                 'url' => '/api/v1/producao?ano-mes=2026-08',
             ]);
             self::assertStringContainsString('name="ano-mes" value="2026-08"', $html);
+            if ($view === 'producao.index.html.twig') {
+                self::assertStringContainsString('data-production-mode="yes"', $html);
+                self::assertStringNotContainsString('src="/js/settings-inline-weight.js"', $html);
+            }
             self::assertStringContainsString('href="/calculos?ano-mes=2026-08"', $html);
             self::assertStringContainsString(
                 'href="/acoes/make-producao?ano-mes=2026-08"',

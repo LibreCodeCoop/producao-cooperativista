@@ -42,9 +42,9 @@ test('total cliente renders as exact duration, without repeating decimal hours',
     assert.match(productionDetails({...row(5),trabalhado:'not-json'}), /Sem horas/);
 });
 
-test('a single compact production grid keeps currency numeric for sorting and safe inline editing', () => {
+test('a single compact production grid keeps imported weights read-only and currency numeric', () => {
     const opts = {
-        inlineWeight:true, csrf:'<csrf>', competence:'2026-08', financialReview:true,
+        productionMode:true, competence:'2026-08', financialReview:true,
         omitted:new Set([8]),
     };
     const cols = buildProductionColumns(opts);
@@ -58,8 +58,10 @@ test('a single compact production grid keeps currency numeric for sorting and sa
     assert.equal(cols[1].render(3600, 'display', row(5)), '1:00:00');
     assert.equal(cols[1].render(3600, 'sort', row(5)), 3600);
     const weight = cols[2].render(2.5, 'display', row(5));
-    assert.match(weight, /data-weight-url="\/configuracao\/cooperado\/5\/peso"/);
-    assert.match(weight, /&lt;csrf&gt;/);
+    assert.match(weight, /Peso da última importação/);
+    assert.match(weight, /2,5/);
+    assert.ok(!weight.includes('data-weight-edit'));
+    assert.ok(!weight.includes('<form'));
     assert.equal(cols[3].render(125.322222222, 'sort', row(5)), 125.322222222);
     assert.match(cols[3].render(125.322222222, 'display', row(5)), /125,32/);
     assert.equal(cols[3].render(125.322222222, 'export', row(5)), '125.32');
@@ -116,7 +118,7 @@ function makeGrid({
     const table = {
         dataset: {
             url:'/api/v1/producao?ano-mes=2026-08',filterColumns:'["metadata"]',
-            inlineWeight:'yes',csrf:'csrf',competencia:'2026-08',
+            competencia:'2026-08',
             productionMode:tableMode?'yes':'no',financialReview:tableMode?'yes':'no',
         },
         tFoot:{rows:[footer]},
@@ -139,7 +141,7 @@ function makeGrid({
     };
     const history = {urls:[],replaceState(_a,_b,url) {this.urls.push(url);}};
     const loc = new URL(location);
-    const evidence={columnDefs:null,table:null,inline:0,decisions:[],childHtml:null,childShown:false};
+    const evidence={columnDefs:null,table:null,decisions:[],childHtml:null,childShown:false};
     class DataTable {
         constructor(selector,opts) {
             evidence.table=this;
@@ -199,7 +201,6 @@ function makeGrid({
         history,
         location:loc,
         omitted:selectedIds,
-        inlineWeight:{initialize(){evidence.inline++;}},
         onDecisionChange(id,checked){evidence.decisions.push({id,checked});},
         async fetch() {
             if(!fetchCalled) throw Error('Must not fetch when payload provided');
@@ -213,7 +214,6 @@ test('shared DataTables adapter mounts reviewed rows, excludes interactive colum
     const f=makeGrid({selectedIds:new Set([8])});
     const api=await initializeReportTable(f.doc,f.options);
     assert.ok(api);
-    assert.equal(f.evidence.inline,1);
     assert.equal(f.evidence.table.options.columns.length,8);
     assert.equal(f.evidence.table.options.buttons,undefined);
     const buttons=f.evidence.table.options.layout.topStart.buttons;

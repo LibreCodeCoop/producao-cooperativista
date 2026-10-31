@@ -138,10 +138,8 @@
         doc.addEventListener?.('member-source-changed', weightChanged);
 
         const loadPreview = async () => {
-            const refresh = el('reload-preview');
             if (loading || finished || needsImport) return false;
             loading = true;
-            if (refresh) { refresh.disabled = true; refresh.textContent = 'Consultando…'; }
             resetReview();
             messages.replaceChildren();
             updateLinks();
@@ -179,8 +177,6 @@
                         invalidateApproval();
                         updateSummary();
                     },
-                    onEditing: invalidateApproval,
-                    onSaved: weightChanged,
                 });
                 if (!table) throw new Error('Não foi possível montar a tabela de conferência.');
                 preview = valid;
@@ -199,7 +195,6 @@
                 return false;
             } finally {
                 loading = false;
-                if (refresh) { refresh.disabled = false; refresh.textContent = 'Atualizar conferência'; }
             }
         };
 
@@ -217,7 +212,6 @@
         el('use-existing').addEventListener('click', () => {
             if (!needsImport) return loadPreview();
         });
-        el('reload-preview').addEventListener('click', () => loadPreview());
         el('publication-confirmation').addEventListener('change', updateSummary);
         el('back-import').addEventListener('click', () => {
             if (finished) return;

@@ -89,27 +89,6 @@
         maximumFractionDigits: 2,
     });
 
-    function weightEditor(row, token, competence) {
-        const id = Number(row?.kimai_user_id);
-        if (!Number.isSafeInteger(id) || id <= 0) {
-            return escapeHtml(row?.peso ?? '');
-        }
-        const base = '/configuracao/cooperado/' + id;
-        const snapshot = escapeHtml(row.peso ?? '');
-        return '<div class="settings-weight-cell" data-weight-url="' + base + '/peso">' +
-            '<div class="settings-weight-display"><span data-weight-current>' + snapshot + '</span>' +
-            '<button type="button" class="settings-weight-edit" data-weight-edit>Editar</button></div>' +
-            '<form data-weight-form action="' + base + '/nextcloud" method="post" hidden>' +
-            '<input type="hidden" name="_token" value="' + escapeHtml(token) + '">' +
-            '<input type="hidden" name="field" value="weight">' +
-            '<input type="hidden" name="competencia" value="' + escapeHtml(competence) + '">' +
-            '<input type="hidden" name="expected" value="">' +
-            '<label>Peso atual no Nextcloud</label>' +
-            '<input type="text" name="value" inputmode="decimal" maxlength="8" required>' +
-            '<button type="submit">Salvar</button><button type="button" data-weight-cancel>Cancelar</button>' +
-            '</form><span data-weight-message role="status" aria-live="polite"></span></div>';
-    }
-
     function duration(seconds) {
         const n = Number(seconds);
         if (!Number.isFinite(n) || n < 0) return '—';
@@ -232,17 +211,18 @@
     }
 
     function renderCell(value, type, column, row = null, options = {}) {
-        if (type === 'export' && options.inlineWeight && MONEY_COLUMNS.has(column)) {
+        if (type === 'export' && options.productionMode && MONEY_COLUMNS.has(column)) {
             return value !== null && value !== '' && Number.isFinite(Number(value))
                 ? decimalExport.format(Number(value)) : '';
         }
         if (type !== 'display') {
             return value ?? '';
         }
-        if (options.inlineWeight && column === 'peso') {
-            return weightEditor(row, options.csrf, options.competence);
+        if (options.productionMode && column === 'peso') {
+            const imported = value === null || value === '' || value === undefined ? '—' : String(value).replace('.', ',');
+            return '<span title="Peso da última importação">' + escapeHtml(imported) + '</span>';
         }
-        if (options.inlineWeight && MONEY_COLUMNS.has(column) && value !== null
+        if (options.productionMode && MONEY_COLUMNS.has(column) && value !== null
             && value !== '' && Number.isFinite(Number(value))) {
             return '<span class="money-cell">' + escapeHtml(brl.format(Number(value))) + '</span>';
         }
@@ -464,8 +444,7 @@
                 return null;
             }
             const reportOptions = {
-                inlineWeight: table.dataset.inlineWeight === 'yes',
-                csrf: table.dataset.csrf || '',
+                productionMode: table.dataset.productionMode === 'yes',
                 competence: table.dataset.competencia || '',
                 financialReview: table.dataset.financialReview === 'yes',
                 omitted: options.omitted,
@@ -483,7 +462,6 @@
             const cleanups = [];
             const cleanup = () => {
                 for (const fn of cleanups) fn();
-                table.weightEditorBinding?.destroy();
                 if (table.reportTableCleanup === cleanup) delete table.reportTableCleanup;
             };
             table.reportTableCleanup = cleanup;
@@ -523,9 +501,6 @@
                 },
                 initComplete: function () {
                     setupFilters(this.api(), columns, doc, location, history, cleanups);
-                    if (reportOptions.inlineWeight) {
-                        (options.inlineWeight || scope.SettingsInlineWeight)?.initialize?.(table, this.api(), options);
-                    }
                 },
             });
             if (productionMode && typeof table.addEventListener === 'function') {

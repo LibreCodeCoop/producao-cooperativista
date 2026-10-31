@@ -27,7 +27,6 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Domain\Competencia;
-use App\Service\Calculation\CalculationActionGuard;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -42,7 +41,6 @@ class Producao extends AbstractController
     public function __construct(
         RequestStack $requestStack,
         private UrlGeneratorInterface $urlGenerator,
-        private CalculationActionGuard $guard,
     ) {
         $this->request = $requestStack->getCurrentRequest();
     }
@@ -78,8 +76,7 @@ class Producao extends AbstractController
                 ],
             ),
             'competencia' => $inicio->format('Y-m'),
-            'inlineWeight' => true,
-            'token' => $this->guard->token($this->request),
+            'productionMode' => true,
             'filterColumns' => ['metadata', 'kimai_user_id', 'hours_seconds'],
         ]);
     }

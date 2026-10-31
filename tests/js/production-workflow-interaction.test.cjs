@@ -25,7 +25,7 @@ function fixture({previewError = false, malformed = false, importSuccess = true,
     publishSuccess = true, gridSuccess = true} = {}) {
     const items = new Map();
     for (const id of ['production-wizard','form-gera-producao','messages',
-        'import-button','use-existing','reload-preview','review-competence',
+        'import-button','use-existing','review-competence',
         'metric-members','metric-hours','metric-base','metric-net',
         'selection-summary','publication-summary','publication-confirmation',
         'submit','back-import','year','month']) items.set(id, element());
@@ -60,7 +60,9 @@ function fixture({previewError = false, malformed = false, importSuccess = true,
         '[data-workflow-step]': sections,
         '[data-report-path]': links,
     })[selector] || [];
+    const documentListeners = new Map();
     const doc = {
+        addEventListener(name, handler) {documentListeners.set(name, handler);},
         getElementById: id => items.get(id),
         querySelectorAll: selector => selector === '[data-step-indicator]' ? indicators : [],
     };
@@ -117,7 +119,9 @@ function fixture({previewError = false, malformed = false, importSuccess = true,
         get('publication-confirmation').checked = value;
         change('publication-confirmation');
     };
-    return {items,calls,rows,revision,links,indicators,form,step,get,click,change,decide,setConsent};
+    return {items,calls,rows,revision,links,indicators,form,step,get,click,change,decide,setConsent,
+        memberChanged: () => documentListeners.get('member-source-changed')?.(),
+    };
 }
 
 test('import and review are the only two stages, with a sortable shared grid', async () => {
@@ -207,13 +211,12 @@ test('freshness failures, missing grid and invalid data fail closed', async () =
     }
 });
 
-test('editing weight invalidates review and requires reimporting original sources', async () => {
+test('editing via member modal invalidates review and requires reimporting original sources', async () => {
     const f=fixture();
     await f.click('use-existing');
     f.setConsent(true);
-    f.calls.mount[0].onEditing();
-    assert.equal(f.get('submit').disabled,true);
-    f.calls.mount[0].onSaved();
+    assert.equal(f.get('submit').disabled,false);
+    f.memberChanged();
     assert.equal(f.step(),1);
     assert.equal(f.get('submit').disabled,true);
     assert.equal(f.get('use-existing').disabled,true);
@@ -225,12 +228,14 @@ test('editing weight invalidates review and requires reimporting original source
     assert.equal(f.calls.destroy,1);
 });
 
-test('reloading review and changing competence revoke approval and old selections', async () => {
+test('returning to import and reviewing again resets decisions and approval', async () => {
     const f=fixture();
     await f.click('use-existing');
     f.decide(8,true);
     f.setConsent(true);
-    await f.click('reload-preview');
+    await f.click('back-import');
+    assert.equal(f.step(),1);
+    await f.click('use-existing');
     assert.equal(f.calls.destroy,1);
     assert.equal(f.calls.mount.at(-1).omitted.size,0);
     assert.equal(f.get('publication-confirmation').checked,false);

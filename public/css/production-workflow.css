@@ -115,31 +115,14 @@
 
 /* Same reviewable, expandable data in the report and in the publication step. */
 #example .money-cell { white-space:nowrap; font-variant-numeric:tabular-nums; }
-#example .production-detail-button, #example .settings-weight-edit {
+#example .production-detail-button {
     font:inherit; font-size:12px; font-weight:700; padding:6px 10px;
     color:var(--brand); background:var(--surface);
     border:1px solid var(--line); border-radius:7px; cursor:pointer; white-space:nowrap;
 }
-#example .production-detail-button:hover, #example .settings-weight-edit:hover {
+#example .production-detail-button:hover {
     background:var(--brand-soft); border-color:var(--brand);
 }
-#example [data-weight-url] { min-width:145px; }
-#example .settings-weight-display { display:flex; align-items:center; gap:10px; }
-#example [data-weight-current] { font-weight:750; }
-#example .settings-weight-snapshot {
-    display:block; margin-top:4px; color:var(--muted); font-size:11px; white-space:normal;
-}
-#example [data-weight-form] { display:grid; gap:7px; margin-top:9px; }
-#example [data-weight-form][hidden] { display:none; }
-#example [data-weight-form] input[name="value"] {
-    max-width:105px; border:1px solid var(--line);
-    border-radius:6px; padding:7px; color:var(--text); background:var(--surface);
-}
-#example [data-weight-form] button {
-    border:1px solid var(--line); border-radius:6px; padding:6px 9px;
-    color:var(--text); background:var(--surface); cursor:pointer;
-}
-#example [data-weight-message] { display:block; margin-top:5px; color:var(--muted); font-size:11px; }
 .production-row-details {
     display:grid; grid-template-columns:minmax(0,1.4fr) minmax(220px,.8fr);
     gap:23px; padding:16px; color:var(--text); background:var(--brand-soft);
@@ -173,9 +156,6 @@
 }
 
 /* Compact review controls; detailed calculations stay one click away. */
-#example [data-weight-url] { min-width:95px; }
-#example .settings-weight-display { gap:5px; flex-wrap:nowrap; white-space:nowrap; }
-#example .settings-weight-edit { padding:4px 7px; font-size:11px; }
 #example .production-exclude-label {
     display:inline-flex; gap:5px; font-weight:600; white-space:nowrap;
     align-items:center; font-size:11px;

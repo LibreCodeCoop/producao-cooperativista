@@ -2,7 +2,6 @@
 {% block title %}Produção por cooperado{% endblock %}
 {% block head %}
     <link rel="stylesheet" href="/css/production-workflow.css">
-    <script src="/js/settings-inline-weight.js" defer></script>
 {% endblock %}
 {% block body %}
     <nav class="breadcrumbs" aria-label="Localização">
@@ -11,7 +10,7 @@
     <header class="page-heading page-heading-compact">
         <p class="eyebrow">Conferência mensal · Cooperados</p>
         <h1>Produção por cooperado</h1>
-        <p class="page-lead">Confira horas e valores em reais. O peso pode ser editado diretamente no Nextcloud; após alterá-lo, reimporte e recalcule para atualizar a apuração.</p>
+        <p class="page-lead">Confira horas e valores em reais. O peso exibido é o da última importação. Para editar o cadastro, clique no nome do cooperado e reimporte antes de conferir novamente.</p>
     </header>
     <div class="production-report-tools">
         <form method="get" action="/producao" class="production-month-picker">

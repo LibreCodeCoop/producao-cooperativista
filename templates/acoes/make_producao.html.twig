@@ -2,7 +2,6 @@
 {% block title %}Fechamento da produção cooperativista{% endblock %}
 {% block head %}
     <link rel="stylesheet" href="/css/production-workflow.css">
-    <script src="/js/settings-inline-weight.js" defer></script>
     <script src="/js/production-progress.js" defer></script>
     <script src="/js/production-workflow.js" defer></script>
 {% endblock %}
@@ -70,7 +69,7 @@
         <section data-workflow-step="2" hidden aria-labelledby="audit-title">
             <p class="section-kicker">Etapa 2 de 2 · <span id="review-competence"></span></p>
             <h2 id="audit-title">Conferir a apuração e selecionar exceções</h2>
-            <p>Ordene e filtre a produção por cooperado. Abra os detalhes para conferir cada cliente; o peso pode ser editado no Nextcloud. Todos serão publicados, exceto quem tiver a opção <strong>Não publicar agora</strong> marcada.</p>
+            <p>Ordene e filtre a produção por cooperado. Abra os detalhes para conferir cada cliente. Clique no nome para editar o cadastro nas fontes; qualquer alteração exige nova importação. O peso exibido é o da importação. Todos serão publicados, exceto quem tiver a opção <strong>Não publicar agora</strong> marcada.</p>
             <div class="production-metrics" role="status" aria-live="polite">
                 <div><span>Cooperados</span><strong id="metric-members">—</strong></div>
                 <div><span>Horas</span><strong id="metric-hours">—</strong></div>
@@ -82,15 +81,13 @@
                     <strong>Produção por cooperado</strong>
                     <small>As escolhas são mantidas mesmo ao filtrar, ordenar ou mudar de página. Use Detalhes para consultar clientes e deduções.</small>
                 </div>
-                <button type="button" id="reload-preview" class="button">Atualizar conferência</button>
             </div>
             {{ include('layout/components/datatable.html.twig', {
                 url: '/api/v1/producao?ano-mes=' ~ inicio_ano ~ '-' ~ inicio_mes,
                 filterColumns: ['metadata', 'kimai_user_id', 'hours_seconds'],
-                inlineWeight: true,
+                productionMode: true,
                 financialReview: true,
                 manualInit: true,
-                token: token,
                 competencia: inicio_ano ~ '-' ~ inicio_mes
             }) }}
             <div class="production-selection-summary" id="selection-summary" aria-live="polite"></div>
