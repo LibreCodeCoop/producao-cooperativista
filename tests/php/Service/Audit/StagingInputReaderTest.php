@@ -13,6 +13,7 @@ use App\Command\AuditInputsCommand;
 use App\Domain\Competencia;
 use App\Service\Audit\InputManifestBuilder;
 use App\Service\Audit\StagingInputReader;
+use App\Service\Import\StagingSchema;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\Command\Command;
@@ -77,7 +78,7 @@ final class StagingInputReaderTest extends KernelTestCase
         $reader = static::getContainer()->get(StagingInputReader::class);
         $december = $reader->read(Competencia::fromString('2024-12'));
         self::assertSame([9987101], array_map(intval(...), array_column($december['timesheet'], 'id')));
-        self::assertCount(9, $december);
+        self::assertSame(StagingSchema::TABLES, array_keys($december));
         $january = $reader->read(Competencia::fromString('2025-01'));
         self::assertSame([9987102], array_map(intval(...), array_column($january['timesheet'], 'id')));
     }
