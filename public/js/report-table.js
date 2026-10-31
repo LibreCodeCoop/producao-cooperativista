@@ -82,6 +82,12 @@
     const brl = new Intl.NumberFormat('pt-BR', {
         style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2,
     });
+    const decimalExport = new Intl.NumberFormat('en-US', {
+        useGrouping: false, minimumFractionDigits: 2, maximumFractionDigits: 2,
+    });
+    const percentFormat = new Intl.NumberFormat('pt-BR', {
+        maximumFractionDigits: 2,
+    });
 
     function weightEditor(row, token, competence) {
         const id = Number(row?.kimai_user_id);
@@ -93,7 +99,7 @@
         return '<div class="settings-weight-cell" data-weight-url="' + base + '/peso">' +
             '<div class="settings-weight-display"><span data-weight-current>' + snapshot + '</span>' +
             '<button type="button" class="settings-weight-edit" data-weight-edit>Editar</button></div>' +
-            '<small class="settings-weight-snapshot">Peso no ETL (última importação)</small>' +
+            '<small class="settings-weight-snapshot" data-weight-snapshot>Peso no ETL (última importação)</small>' +
             '<form data-weight-form action="' + base + '/nextcloud" method="post" hidden>' +
             '<input type="hidden" name="_token" value="' + escapeHtml(token) + '">' +
             '<input type="hidden" name="field" value="weight">' +
@@ -105,7 +111,98 @@
             '</form><span data-weight-message role="status" aria-live="polite"></span></div>';
     }
 
+    function duration(seconds) {
+        const n = Number(seconds);
+        if (!Number.isFinite(n) || n < 0) return '—';
+        const whole = Math.round(n);
+        return Math.floor(whole / 3600) + ':' +
+            String(Math.floor((whole % 3600) / 60)).padStart(2, '0') + ':' +
+            String(whole % 60).padStart(2, '0');
+    }
+
+    function productionDetails(record) {
+        let rows = [];
+        try {
+            const parsed = JSON.parse(record.trabalhado || '[]');
+            if (Array.isArray(parsed)) rows = parsed;
+        } catch {
+            // A damaged detail field must not expose HTML or break the report.
+        }
+        const work = rows.filter(item => item && typeof item === 'object').map(item => {
+            const percent = Number(item.percentual_trabalhado);
+            const share = item.percentual_trabalhado !== null &&
+                item.percentual_trabalhado !== undefined && Number.isFinite(percent)
+                ? percentFormat.format(percent) + '%' : '—';
+            return '<tr><td>' + escapeHtml(item.nome || '—') + '</td>' +
+                '<td>' + escapeHtml(item.trabalhado || '—') + '</td>' +
+                '<td>' + escapeHtml(duration(Number(item.total_cliente) * 3600)) + '</td>' +
+                '<td>' + escapeHtml(share) + '</td></tr>';
+        }).join('');
+        const moneyFields = [
+            ['Auxílio', 'auxilio'], ['FRRA', 'frra'], ['INSS', 'inss'],
+            ['IRPF', 'irpf'], ['Base IRPF', 'base_irpf'],
+            ['Desconto líquido', 'liquid_discount'], ['Adiantamentos', 'adiantamento'],
+        ];
+        const facts = moneyFields.filter(([,key]) => record[key] !== undefined &&
+            record[key] !== null && record[key] !== '').map(([label,key]) =>
+            '<div><dt>' + escapeHtml(label) + '</dt><dd>' +
+            (key === 'adiantamento' ? escapeHtml(record[key])
+                : escapeHtml(brl.format(Number(record[key])))) + '</dd></div>'
+        ).join('');
+        return '<div class="production-row-details"><div><h4>Horas por cliente</h4>' +
+            (work ? '<div class="production-detail-scroll"><table><thead><tr><th>Cliente</th>' +
+            '<th>Horas do cooperado</th><th>Tempo total do cliente</th>' +
+            '<th>Participação no cliente</th></tr></thead>' +
+            '<tbody>' + work + '</tbody></table></div>' : '<p>Sem horas de clientes detalhadas.</p>') +
+            '</div><div><h4>Composição financeira</h4><dl>' + facts + '</dl></div></div>';
+    }
+
+    function buildProductionColumns(options = {}) {
+        const cell = (key, title) => ({
+            data: key, title, name: key, defaultContent: '',
+            render: (value, type, row) => renderCell(value, type, key, row, options),
+        });
+        const columns = [
+            cell('name', 'Cooperado'),
+            {
+                data: 'hours_seconds', title: 'Horas', name: 'hours_seconds', defaultContent: '',
+                render: (value, type) => type === 'display' || type === 'export'
+                    ? escapeHtml(duration(value)) : Number(value || 0),
+            },
+            cell('peso', 'Peso'),
+            cell('base_producao', 'Base de produção'),
+            cell('bruto', 'Bruto'),
+            cell('liquido', 'Líquido'),
+            {
+                data: null, title: 'Conferir', name: 'detalhes',
+                orderable: false, searchable: false, defaultContent: '',
+                render: (_value, type) => type === 'display'
+                    ? '<button type="button" data-production-details class="production-detail-button" aria-expanded="false">Detalhes</button>'
+                    : '',
+            },
+        ];
+        if (options.financialReview) {
+            columns.push({
+                data: null, title: 'Publicação', name: 'decisao',
+                orderable: false, searchable: false, defaultContent: '',
+                render: (_value, type, row) => {
+                    if (type !== 'display') return '';
+                    const id = Number(row.kimai_user_id);
+                    if (!Number.isSafeInteger(id) || id <= 0) return '';
+                    return '<label class="production-exclude-label"><input type="checkbox" data-omit-user-id="' +
+                        id + '"' + (options.omitted?.has(id) ? ' checked' : '') +
+                        '> Não publicar agora</label>';
+                },
+            });
+        }
+        return columns;
+    }
+
     function renderCell(value, type, column, row = null, options = {}) {
+        if (type === 'export' && options.inlineWeight && MONEY_COLUMNS.has(column)) {
+            return value !== null && value !== '' && Number.isFinite(Number(value))
+                ? decimalExport.format(Number(value)) : '';
+        }
         if (type !== 'display') {
             return value ?? '';
         }
@@ -137,7 +234,7 @@
         }));
     }
 
-    function stateUrl(href, filters, globalSearch, page) {
+    function stateUrl(href, filters, globalSearch, page, length = 10, order = null) {
         const url = new URL(href);
         for (const [key, value] of Object.entries(filters)) {
             if (value) {
@@ -156,10 +253,20 @@
         } else {
             url.searchParams.delete('dtpage');
         }
+        if (length !== 10 && [25, 50, 100].includes(length)) {
+            url.searchParams.set('dtlength', String(length));
+        } else {
+            url.searchParams.delete('dtlength');
+        }
+        if (order && !(order[0] === 0 && order[1] === 'asc')) {
+            url.searchParams.set('dtorder', order.join(':'));
+        } else {
+            url.searchParams.delete('dtorder');
+        }
         return url.pathname + url.search + url.hash;
     }
 
-    function setupFilters(api, columns, doc, location, history) {
+    function setupFilters(api, columns, doc, location, history, cleanups = []) {
         const params = new URLSearchParams(location.search);
         const inputs = new Map();
         let restoring = true;
@@ -168,7 +275,10 @@
                 return;
             }
             const filters = Object.fromEntries([...inputs].map(([key, input]) => [key, input.value]));
-            const url = stateUrl(location.href, filters, api.search(), api.page());
+            const url = stateUrl(
+                location.href, filters, api.search(), api.page(),
+                api.page?.len?.() ?? 10, api.order?.()?.[0] ?? null,
+            );
             if (url !== location.pathname + location.search + location.hash) {
                 history.replaceState({}, '', url);
             }
@@ -177,7 +287,7 @@
         api.columns().every(function (index) {
             const column = this;
             const footer = column.footer();
-            if (!footer) {
+            if (!footer || columns[index].searchable === false) {
                 return;
             }
             const input = doc.createElement('input');
@@ -187,11 +297,11 @@
             footer.replaceChildren(input);
             inputs.set(input.name, input);
             if (input.value) {
-                column.search(input.value);
+                column.search(input.value, false, false);
             }
             input.addEventListener('keyup', () => {
                 if (column.search() !== input.value) {
-                    column.search(input.value).draw();
+                    column.search(input.value, false, false).draw();
                 }
                 save();
             });
@@ -208,12 +318,44 @@
         if (page && /^\d{1,5}$/.test(page) && Number(page) > 0) {
             api.page(Number(page)).draw(false);
         }
+        const length = params.get('dtlength');
+        if (['25', '50', '100'].includes(length) && api.page?.len) {
+            api.page.len(Number(length));
+            api.draw(false);
+        }
+        const match = /^(\d{1,2}):(asc|desc)$/.exec(params.get('dtorder') || '');
+        if (match && api.order) {
+            const index = Number(match[1]);
+            if (columns[index] && columns[index].orderable !== false) {
+                api.order([[index, match[2]]]).draw(false);
+            }
+        }
         restoring = false;
 
         const globalInput = doc.querySelector('#example_wrapper .dt-search input') ||
             doc.querySelector('#example_filter input');
         globalInput?.addEventListener('input', save);
-        api.on?.('search.dt page.dt', save);
+        // DataTables scrollX mirrors tfoot into its own scroll footer. DOM
+        // listeners on the original footer are not copied to that visible clone.
+        // Delegation keeps filtering functional after sorting and redraws.
+        const onFooterInput = event => {
+            const target = event.target;
+            const index = columns.findIndex(column =>
+                column.data === target?.name && column.searchable !== false
+            );
+            if (index < 0 || !target?.closest?.('tfoot') ||
+                !target.closest('#example_wrapper')) {
+                return;
+            }
+            const column = api.column(index);
+            if (column.search() !== target.value) {
+                column.search(target.value, false, false).draw();
+            }
+            save();
+        };
+        doc.addEventListener?.('input', onFooterInput);
+        cleanups.push(() => doc.removeEventListener?.('input', onFooterInput));
+        api.on?.('search.dt page.dt length.dt order.dt', save);
     }
 
     function apiErrorDetails(payload) {
@@ -253,6 +395,7 @@
         const history = options.history || scope.history;
 
         try {
+            table.reportTableCleanup?.();
             const excluded = JSON.parse(table.dataset.filterColumns || '["metadata"]');
             if (!Array.isArray(excluded) || !excluded.every(item => typeof item === 'string')) {
                 throw new Error('A configuração das colunas do relatório está inválida.');
@@ -260,12 +403,12 @@
             if (!table.dataset.url || typeof request !== 'function') {
                 throw new Error('A URL da API do relatório não está disponível.');
             }
-            const response = await request(table.dataset.url, {
+            const response = options.payload ? null : await request(table.dataset.url, {
                 credentials: 'same-origin',
                 headers: { Accept: 'application/json' },
                 cache: 'no-store',
             });
-            if (!response.ok) {
+            if (response && !response.ok) {
                 let details = '';
                 try {
                     details = apiErrorDetails(await response.json());
@@ -275,7 +418,7 @@
                 throw new Error('Não foi possível carregar o relatório (HTTP ' + response.status + ').' +
                     (details ? '\n' + details : ''));
             }
-            const payload = await response.json();
+            const payload = options.payload || await response.json();
             const details = apiErrorDetails(payload);
             if (details) {
                 throw new Error(details);
@@ -291,8 +434,12 @@
                 inlineWeight: table.dataset.inlineWeight === 'yes',
                 csrf: table.dataset.csrf || '',
                 competence: table.dataset.competencia || '',
+                financialReview: table.dataset.financialReview === 'yes',
+                omitted: options.omitted,
             };
-            const columns = buildColumns(payload.data, excluded, reportOptions);
+            const productionMode = table.dataset.productionMode === 'yes';
+            const columns = productionMode ?
+                buildProductionColumns(reportOptions) : buildColumns(payload.data, excluded, reportOptions);
             if (!columns.length || !table.tFoot?.rows[0]) {
                 throw new Error('Não foi possível montar as colunas do relatório.');
             }
@@ -300,25 +447,89 @@
                 throw new Error('O componente de tabela não foi carregado. Recarregue a página.');
             }
 
+            const cleanups = [];
+            const cleanup = () => {
+                for (const fn of cleanups) fn();
+                table.weightEditorBinding?.destroy();
+                if (table.reportTableCleanup === cleanup) delete table.reportTableCleanup;
+            };
+            table.reportTableCleanup = cleanup;
             const row = table.tFoot.rows[0];
             row.replaceChildren(...columns.map(() => doc.createElement('th')));
-            return new DataTableConstructor('#example', {
+            const selected = new DataTableConstructor('#example', {
                 scrollX: true,
                 data: payload.data,
                 columns,
+                pageLength: 10,
+                lengthMenu: [10, 25, 50, 100],
+                order: [[0, 'asc']],
                 fixedHeader: { header: false, footer: true },
                 layout: {
                     topStart: {
-                        buttons: ['pageLength', 'colvis', 'copy', 'csv', 'excel', 'pdf', 'print'],
+                        buttons: productionMode ? [
+                            'pageLength', 'colvis',
+                            ...['copy', 'csv', 'excel', 'pdf', 'print'].map(extend => ({
+                                extend, exportOptions: {columns: [0, 1, 2, 3, 4, 5], orthogonal: 'export'},
+                            })),
+                        ] : ['pageLength', 'colvis', 'copy', 'csv', 'excel', 'pdf', 'print'],
                     },
                 },
+                language: {
+                    search: 'Buscar cooperados e valores:',
+                    buttons: {
+                        pageLength: {'_':'Exibir %d registros','-1':'Exibir todos'},
+                        colvis:'Colunas', copy:'Copiar', csv:'CSV',
+                        excel:'Excel', pdf:'PDF', print:'Imprimir',
+                    },
+                    emptyTable: 'Nenhum registro nesta competência.',
+                    zeroRecords: 'Nenhum registro corresponde aos filtros.',
+                    info: 'Exibindo _START_ a _END_ de _TOTAL_ registros',
+                    infoEmpty: 'Nenhum registro',
+                    lengthMenu: 'Exibir _MENU_ registros',
+                    paginate: {first: 'Primeira', previous: 'Anterior', next: 'Próxima', last: 'Última'},
+                },
                 initComplete: function () {
-                    setupFilters(this.api(), columns, doc, location, history);
+                    setupFilters(this.api(), columns, doc, location, history, cleanups);
                     if (reportOptions.inlineWeight) {
                         (options.inlineWeight || scope.SettingsInlineWeight)?.initialize?.(table, this.api(), options);
                     }
                 },
             });
+            if (productionMode && typeof table.addEventListener === 'function') {
+                const onDetailsClick = event => {
+                    const button = event.target?.closest?.('[data-production-details]');
+                    if (!button) return;
+                    const row = selected.row(button.closest('tr'));
+                    if (!row || !row.child) return;
+                    if (row.child.isShown()) {
+                        row.child.hide();
+                        button.setAttribute('aria-expanded', 'false');
+                    } else {
+                        row.child(productionDetails(row.data())).show();
+                        button.setAttribute('aria-expanded', 'true');
+                    }
+                };
+                table.addEventListener('click', onDetailsClick);
+                cleanups.push(() => table.removeEventListener?.('click', onDetailsClick));
+            }
+            if (reportOptions.financialReview) {
+                const onDecisionChange = event => {
+                    const checkbox = event.target?.closest?.('[data-omit-user-id]');
+                    if (!checkbox) return;
+                    const id = Number(checkbox.dataset.omitUserId);
+                    if (Number.isSafeInteger(id) && id > 0) {
+                        options.onDecisionChange?.(id, checkbox.checked);
+                    }
+                };
+                table.addEventListener('change', onDecisionChange);
+                cleanups.push(() => table.removeEventListener?.('change', onDecisionChange));
+                selected.on('draw.dt', () => {
+                    for (const checkbox of table.querySelectorAll('[data-omit-user-id]')) {
+                        checkbox.checked = options.omitted?.has(Number(checkbox.dataset.omitUserId)) || false;
+                    }
+                });
+            }
+            return selected;
         } catch (error) {
             showError(errors, error.message || 'Não foi possível carregar o relatório.');
             return null;
@@ -329,10 +540,14 @@
         module.exports = {
             escapeHtml, columnTitle, nestedTableHtml, safeLinkHtml, renderCell, buildColumns,
             stateUrl, setupFilters, apiErrorDetails, initializeReportTable,
+            duration, productionDetails, buildProductionColumns,
         };
     } else {
+        scope.ReportTable = {initializeReportTable, duration};
         scope.addEventListener('DOMContentLoaded', () => {
-            void initializeReportTable();
+            if (scope.document?.getElementById('example')?.dataset?.manualInit !== 'yes') {
+                void initializeReportTable();
+            }
         });
     }
 })(typeof window === 'undefined' ? {} : window);

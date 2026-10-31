@@ -250,7 +250,7 @@ test('global search and pagination events save their state', async () => {
     const dt = await initializeReportTable(f.doc, f.options);
     dt.apiInstance.search('renda');
     dt.apiInstance.page(2);
-    dt.handlers['search.dt page.dt']();
+    dt.handlers['search.dt page.dt length.dt order.dt']();
     const latest = new URL(f.history.calls.at(-1), f.location.href);
     assert.equal(latest.searchParams.get('dtsearch'), 'renda');
     assert.equal(latest.searchParams.get('dtpage'), '2');

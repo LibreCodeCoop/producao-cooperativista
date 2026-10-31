@@ -98,6 +98,7 @@
             if (!input || !expected) return;
             expected.value = cell.dataset.weightExpected;
             input.value = cell.dataset.weightValue;
+            options.onEditing?.();
             ui.form.hidden = false;
             ui.edit.hidden = true;
             ui.feedback.textContent = 'O valor será gravado no Nextcloud, não diretamente no ETL.';
@@ -157,7 +158,12 @@
                 ui.edit.hidden = false;
                 ui.feedback.textContent = payload.message ||
                     'Salvo no Nextcloud. Reimporte a competência para atualizar o ETL.';
+                const snapshotLabel = cell.querySelector('[data-weight-snapshot]');
+                if (snapshotLabel) {
+                    snapshotLabel.textContent = 'Novo peso no Nextcloud. Reimporte para atualizar o ETL.';
+                }
                 // Do not change the imported ETL snapshot visible under this field.
+                options.onSaved?.();
             } catch (error) {
                 ui.feedback.textContent = error instanceof Error ? error.message
                     : 'Não foi possível salvar no Nextcloud.';
@@ -173,7 +179,7 @@
             }
         }
 
-        table.addEventListener('click', event => {
+        const onClick = event => {
             const button = event.target?.closest?.('[data-weight-edit], [data-weight-cancel]');
             if (!button) return;
             const cell = button.closest('[data-weight-url]');
@@ -183,20 +189,30 @@
             } else if (!button.disabled) {
                 void edit(cell);
             }
-        });
+        };
 
-        table.addEventListener('submit', event => {
+        const onSubmit = event => {
             const form = event.target?.closest?.('[data-weight-form]');
             if (!form) return;
             event.preventDefault();
             const cell = form.closest('[data-weight-url]');
             if (cell) void save(cell, form);
-        });
+        };
 
-        // Do not fetch a Nextcloud profile per visible row. The ETL already
-        // contains the last imported weight; fetch the live value on edit only.
-
-        return {readCurrent, loadVisible};
+        table.addEventListener('click', onClick);
+        table.addEventListener('submit', onSubmit);
+        // Do not fetch a Nextcloud profile per row; the edit action loads it.
+        const binding = {
+            readCurrent, loadVisible,
+            destroy() {
+                table.removeEventListener?.('click', onClick);
+                table.removeEventListener?.('submit', onSubmit);
+                if (table.dataset) delete table.dataset.weightEditorBound;
+                if (table.weightEditorBinding === binding) delete table.weightEditorBinding;
+            },
+        };
+        table.weightEditorBinding = binding;
+        return binding;
     }
 
     if (typeof module !== 'undefined' && module.exports) {

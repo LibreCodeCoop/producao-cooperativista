@@ -1,6 +1,7 @@
 {% block head %}
     <link rel="stylesheet" href="//cdn.datatables.net/2.1.8/css/dataTables.dataTables.css" />
     <link rel="stylesheet" href="//cdn.datatables.net/buttons/3.1.2/css/buttons.dataTables.css" />
+    <link rel="stylesheet" href="/css/data-grid.css" />
 
     <script type="text/javascript" language="javascript" src="//cdn.datatables.net/2.1.8/js/dataTables.js"></script>
 
@@ -22,7 +23,7 @@
 {% block body %}
     {% set filterColumns = filterColumns|default(['metadata']) %}
     <div id="erros" role="alert" aria-live="polite"></div>
-    <table id="example" data-url="{{ url }}" data-filter-columns="{{ filterColumns|json_encode|e('html_attr') }}"{% if inlineWeight|default(false) %} data-inline-weight="yes" data-csrf="{{ token }}" data-competencia="{{ competencia }}"{% endif %}><tfoot><tr></tr></tfoot></table>
+    <table id="example" data-url="{{ url }}" data-filter-columns="{{ filterColumns|json_encode|e('html_attr') }}"{% if inlineWeight|default(false) %} data-inline-weight="yes" data-csrf="{{ token }}" data-competencia="{{ competencia }}"{% endif %}{% if inlineWeight|default(false) %} data-production-mode="yes"{% endif %}{% if financialReview|default(false) %} data-financial-review="yes"{% endif %}{% if manualInit|default(false) %} data-manual-init="yes"{% endif %}><tfoot><tr></tr></tfoot></table>
     <script src="/js/report-table.js" defer></script>
 {% endblock %}
 {% endif %}
