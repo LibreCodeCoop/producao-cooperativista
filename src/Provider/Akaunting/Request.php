@@ -11,6 +11,7 @@ namespace App\Provider\Akaunting;
 
 use RuntimeException;
 use App\Service\Integration\TestConnectionGuard;
+use App\Service\Akaunting\PublicationWriteJournal;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -24,6 +25,7 @@ class Request
     public function __construct(
         private LoggerInterface $logger,
         ?HttpClientInterface $client = null,
+        private ?PublicationWriteJournal $publicationJournal = null,
     ) {
         $this->usesRealHttpClient = $client === null;
         $this->client = $client ?? HttpClient::create();
@@ -70,6 +72,14 @@ class Request
         // Never log credentials, request bodies, full URLs, or API response payloads.
         $path = parse_url($url, PHP_URL_PATH) ?: '/';
         $this->logger->debug('Akaunting HTTP {method} {path}', ['method' => $method, 'path' => $path]);
+
+        // Reserve local evidence BEFORE issuing any document write. No real
+        // network request is made when an earlier attempt is still unresolved.
+        $journalAttempt = null;
+        if ($this->publicationJournal?->supports($path, $method)) {
+            $journalAttempt = $this->publicationJournal->reserve($companyId, $method, $path, $body);
+        }
+
         try {
             // Only safe reads may be retried automatically. A failed write can
             // have reached Akaunting even if the response was lost.
@@ -110,12 +120,18 @@ class Request
             } while (true);
             $payload = $result->toArray(false);
         } catch (TransportExceptionInterface $error) {
+            if ($journalAttempt !== null) {
+                $this->publicationJournal?->finish($journalAttempt, 'uncertain');
+            }
             throw new RuntimeException(
                 'Falha de conexão com a API do Akaunting. Confira DNS, rede Docker, URL e disponibilidade do serviço.',
                 0,
                 $error
             );
         } catch (\Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface $error) {
+            if ($journalAttempt !== null) {
+                $this->publicationJournal?->finish($journalAttempt, 'uncertain', httpStatus: $status ?? null);
+            }
             throw new RuntimeException(
                 'A API do Akaunting retornou dados que não são JSON válido. Confira a URL e o serviço.',
                 0,
@@ -130,7 +146,45 @@ class Request
         ]);
 
         if (!is_array($payload)) {
+            if ($journalAttempt !== null) {
+                $this->publicationJournal?->finish($journalAttempt, 'uncertain', httpStatus: $status);
+            }
             throw new RuntimeException('Resposta da API do Akaunting não contém um objeto JSON.');
+        }
+
+        if ($journalAttempt !== null) {
+            if ($status >= 400) {
+                // A transport failure, timeout or server error may follow a
+                // committed write; only clear validation/permission rejection
+                // is safe to classify as rejected.
+                $outcome = $status >= 500 || in_array($status, [408, 425, 429], true)
+                    ? 'uncertain' : 'rejected';
+                $this->publicationJournal?->finish($journalAttempt, $outcome, httpStatus: $status);
+            } else {
+                $document = $payload['data'] ?? null;
+                $identified = is_array($document)
+                    && (int) ($document['id'] ?? 0) > 0
+                    && ($document['document_number'] ?? null) === ($body['document_number'] ?? null)
+                    && ($document['type'] ?? null) === ($body['type'] ?? null)
+                    && (int) ($document['contact_id'] ?? 0) === (int) ($body['contact_id'] ?? 0)
+                    && (!isset($document['company_id']) || (int) $document['company_id'] === $companyId)
+                    && (strtoupper($method) !== 'PATCH'
+                        || (int) $document['id'] === (int) substr($path, strrpos($path, '/') + 1))
+                    && empty($payload['errors'])
+                    && ($status === 200 || $status === 201);
+                $this->publicationJournal?->finish(
+                    $journalAttempt,
+                    $identified ? 'confirmed' : 'uncertain',
+                    $identified ? (int) $document['id'] : null,
+                    $status
+                );
+                if (!$identified) {
+                    throw new RuntimeException(
+                        'Akaunting não confirmou a identidade da gravação. A tentativa ficou bloqueada '
+                        . 'para conciliação antes de uma nova publicação.'
+                    );
+                }
+            }
         }
         if ($status >= 400) {
             // Existing document-number conflict is part of the idempotent upsert flow.

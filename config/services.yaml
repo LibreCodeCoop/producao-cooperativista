@@ -48,6 +48,9 @@ services:
     App\Service\Import\SourcePipeline:
         arguments:
             $steps: !tagged_iterator app.etl_source
+    App\Service\Akaunting\PublicationWriteJournal:
+        arguments:
+            $main: '@doctrine.dbal.main_connection'
     App\Service\Akaunting\CapitalSocialSettings:
         factory: ['App\Service\Akaunting\CapitalSocialSettings', 'fromEnvironment']
     App\Service\Akaunting\Source\CapitalSocial:
