@@ -239,3 +239,7 @@ A instalação produtiva usa o [Compose versionado e o procedimento operacional]
 ### Estilos
 
 Edite os arquivos em `resources/scss/`, não os CSS gerados. Para compilar, rode `npm ci --include=dev` e `npm run css:build`. Os arquivos em `public/css/` são versionados e servidos diretamente; Node.js/Sass não são exigidos no servidor de produção. O CI verifica que os estilos compilados estão atualizados.
+
+### Configuração administrativa
+
+Para editar integrações e regras, configure `CONFIG_ADMIN_USERS` no `.env` com os nomes autorizados na autenticação HTTP Basic. Credenciais são exibidas somente sob demanda e alterações são gravadas em `var/admin-config/settings.json` (privado, não versionado). O arquivo sobrepõe os parâmetros na próxima requisição ou execução CLI; proteja-o nos backups. Valores incorretos podem impedir a apuração ou a conexão com serviços externos.
