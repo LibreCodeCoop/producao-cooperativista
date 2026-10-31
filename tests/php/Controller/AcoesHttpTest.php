@@ -17,12 +17,21 @@ final class AcoesHttpTest extends WebTestCase
         self::assertSame(Response::HTTP_METHOD_NOT_ALLOWED, $client->getResponse()->getStatusCode());
     }
 
-    public function testIndexPreservesTheManualEtlRebuildAction(): void
+    public function testIndexShowsOneClosingActionAndResetRemainsInImportStep(): void
     {
         $client = static::createClient();
         $client->request('GET', '/');
         self::assertSame(Response::HTTP_OK, $client->getResponse()->getStatusCode());
-        self::assertStringContainsString('Limpar dados importados (ETL)', $client->getResponse()->getContent());
+        self::assertStringContainsString('Fechar produção mensal', $client->getResponse()->getContent());
+        self::assertStringNotContainsString('Limpar dados importados (ETL)', $client->getResponse()->getContent());
+
+        $client->request('GET', '/acoes/make-producao?ano-mes=2026-08');
+        self::assertSame(Response::HTTP_OK, $client->getResponse()->getStatusCode());
+        self::assertStringContainsString('Limpar base importada', $client->getResponse()->getContent());
+        self::assertStringContainsString(
+            'href="/acoes/zerar-banco-local?retorno=2026-08"',
+            $client->getResponse()->getContent(),
+        );
     }
 
     public function testEtlResetPostWithoutCsrfIsForbidden(): void
