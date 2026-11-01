@@ -203,6 +203,55 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
         self::assertStringContainsString('Histórico incompleto', $rows[0]['situacao']);
     }
 
+    public function testZeroNetBillConfirmsCapitalRetentionOnlyWhenSettledByMatchingZeroPayment(): void
+    {
+        $this->document(80, 1, 'bill', 11, '0.00', [11 => '-39.90', 12 => '39.90']);
+        $this->transaction(80, 1, 'expense', 11, '0.00', 80);
+        $this->document(81, 1, 'bill', 11, '0.00', [11 => '-32.17', 12 => '32.17'], 'draft');
+        $this->transaction(81, 1, 'expense', 11, '0.00', 81);
+        $this->document(82, 1, 'bill', 11, '0.00', [11 => '-72.92', 12 => '72.92']);
+        $this->document(83, 1, 'bill', 11, '0.00', [11 => '-20.00', 12 => '20.00']);
+        $this->transaction(83, 1, 'expense', 11, '0.00', 83, '2025-06-01 08:00:00');
+        $this->document(84, 1, 'bill', 11, '0.00', [11 => '-15.00', 12 => '15.00']);
+        $this->transaction(84, 1, 'income', 11, '0.00', 84);
+
+        $rows = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows(null, '2025-05-31');
+        self::assertCount(5, $rows);
+        $byId = array_column($rows, null, 'id');
+        self::assertSame('confirmado', $byId[80]['status']);
+        self::assertSame('retencao', $byId[80]['kind']);
+        self::assertEqualsWithDelta(39.90, $byId[80]['amount'], 0.001);
+        foreach ([81, 82, 83, 84] as $id) {
+            self::assertSame('revisar', $byId[$id]['status'], 'Document ' . $id . ' must not be recognized');
+            self::assertEqualsWithDelta(0, $byId[$id]['amount'], 0.001);
+        }
+    }
+
+    public function testExplicitCapitalRefundWithoutDocumentIsCountedOnceWithoutIncludingOverpayment(): void
+    {
+        $this->transaction(100, 1, 'expense', 16, '300.00');
+        $this->connection->update('transactions', ['description' => 'Devolução de Capital Social'], ['id' => 100]);
+        $this->transaction(101, 1, 'expense', 16, '130.88');
+        $this->connection->update('transactions', ['description' => 'DevoluçãodeCapitalSocial_20220105'], ['id' => 101]);
+        $this->transaction(102, 1, 'income', 25, '6.00');
+        $this->connection->update('transactions', ['description' => 'Devolução valor pago a maior'], ['id' => 102]);
+        $this->transaction(103, 1, 'expense', 16, '25.00', 90);
+        $this->connection->update('transactions', ['description' => 'Devolução de capital social'], ['id' => 103]);
+
+        $rows = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows();
+        self::assertCount(4, $rows);
+        $byId = array_column($rows, null, 'id');
+        foreach ([100 => -300.00, 101 => -130.88] as $id => $amount) {
+            self::assertSame('confirmado', $byId[$id]['status']);
+            self::assertSame('devolucao', $byId[$id]['kind']);
+            self::assertEqualsWithDelta($amount, $byId[$id]['amount'], 0.001);
+        }
+        foreach ([102, 103] as $id) {
+            self::assertSame('revisar', $byId[$id]['status']);
+            self::assertEqualsWithDelta(0, $byId[$id]['amount'], 0.001);
+        }
+    }
+
     public function testEmptyLedgerDoesNotProduceError500(): void
     {
         self::assertSame([], new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows());

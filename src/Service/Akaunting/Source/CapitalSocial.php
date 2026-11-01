@@ -124,13 +124,19 @@ final class CapitalSocial
             $looksLikeReturn = (bool) preg_match('/devolu|restitui|estorn|pag[oa] a maior/u', $description);
             $income = $entry['type'] === 'income' && (int) $entry['category_id'] === $this->settings->categoryId
                 && $entry['currency_code'] === 'BRL' && self::cents($entry['amount']) > 0 && !$looksLikeReturn;
+            // A documented refund without a linked bill is still a capital
+            // restitution, even if its historical expense category is generic.
+            $refund = $entry['type'] === 'expense' && (int) $entry['category_id'] === 16
+                && $entry['currency_code'] === 'BRL' && self::cents($entry['amount']) > 0
+                && $entry['document_id'] === null
+                && (bool) preg_match('/devolu[çc][ãa]o\s*de\s*capital\s*social/u', $description);
             $reason = '';
             if ($entry['document_id'] !== null) {
                 $income = false;
                 $reason = 'Lançamento menciona capital social, mas a fatura vinculada não contém item/categoria de capital.';
-            } elseif ($looksLikeReturn) {
+            } elseif ($looksLikeReturn && !$refund) {
                 $reason = 'Descrição de restituição/estorno: corrigir a classificação na origem antes de incluir no capital social.';
-            } elseif (!$income) {
+            } elseif (!$income && !$refund) {
                 $reason = 'Movimentação possivelmente relacionada ao capital social, mas sem classificação confiável.';
             }
             $rows[] = $this->movement(
@@ -139,8 +145,8 @@ final class CapitalSocial
                 $canonical[self::identityKey($entry)],
                 (string) $entry['name'],
                 (string) $entry['date'],
-                $income ? 'integralizacao' : 'revisao',
-                $income ? self::cents($entry['amount']) : 0,
+                $income ? 'integralizacao' : ($refund ? 'devolucao' : 'revisao'),
+                $income ? self::cents($entry['amount']) : ($refund ? -self::cents($entry['amount']) : 0),
                 $reason,
                 abs(self::cents($entry['amount'])),
                 (string) $entry['currency_code']
@@ -152,10 +158,15 @@ final class CapitalSocial
                 ? self::cents($doc['capital_amount']) : self::cents($doc['document_amount']);
             $total = self::cents($doc['document_amount']);
             $paid = self::cents($doc['paid_amount']);
-            $hasPayment = $paid > 0 && !empty($doc['paid_at']);
-            $fullPayment = $hasPayment && ($total <= 0 || $paid >= $total);
             $isBill = $doc['type'] === 'bill';
             $isInvoice = $doc['type'] === 'invoice';
+            // A settled zero-net production bill can withhold capital in full.
+            // Its zero-value payment record proves settlement without a bank outflow.
+            $nettedCapital = $isBill && $doc['status'] === 'paid' && $total === 0
+                && $paid === 0 && $capital < 0 && (int) $doc['capital_items'] > 0
+                && !empty($doc['paid_at']);
+            $hasPayment = ($paid > 0 && !empty($doc['paid_at'])) || $nettedCapital;
+            $fullPayment = $hasPayment && ($total <= 0 || $paid >= $total);
             $reason = '';
             $value = 0;
             $kind = 'revisao';
