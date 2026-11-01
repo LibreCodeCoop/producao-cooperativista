@@ -27,11 +27,18 @@
                 <div class="admin-settings-fields">
                     {% for field in requirement.fields %}
                         <div class="admin-settings-field">
-                            <label for="config-{{ field.key }}"><strong>{{ field.key }}</strong>
+                            <label for="config-{{ field.key }}"><strong>{{ field.key == 'APP_BRAND_DISPLAY_MODE' ? 'Exibição no cabeçalho' : field.key }}</strong>
                                 {% if field.critical %}<small>Alteração crítica — revise antes de salvar</small>{% endif %}
                             </label>
                             <div class="admin-settings-input">
-                                {% if field.json %}
+                                {% if field.key == 'APP_BRAND_DISPLAY_MODE' %}
+                                    <select id="config-{{ field.key }}" name="{{ field.key }}"
+                                            data-config-input data-initial-value="{{ field.value }}" data-critical="no">
+                                        <option value="logo_and_text"{% if field.value == 'logo_and_text' %} selected{% endif %}>Logo e texto</option>
+                                        <option value="logo_only"{% if field.value == 'logo_only' %} selected{% endif %}>Somente logo</option>
+                                        <option value="text_only"{% if field.value == 'text_only' %} selected{% endif %}>Somente texto</option>
+                                    </select>
+                                {% elseif field.json %}
                                     <textarea id="config-{{ field.key }}" name="{{ field.key }}" rows="2" data-config-input data-critical="{{ field.critical ? 'yes' : 'no' }}">{{ field.value }}</textarea>
                                 {% else %}
                                     <input id="config-{{ field.key }}" name="{{ field.key }}" type="{{ field.secret ? 'password' : 'text' }}" value="{{ field.value }}"

@@ -110,7 +110,7 @@
 }
 .admin-settings-input {
     display:flex; gap:8px; align-items:start;
-    input, textarea {
+    input, textarea, select {
         width:100%; min-width:0; min-height:40px; border:1px solid var(--line);
         border-radius:8px; padding:9px 11px; background:var(--surface);
         color:var(--text); font:inherit; font-size:13px;

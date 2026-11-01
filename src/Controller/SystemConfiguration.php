@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Service\Config\RuntimeConfig;
+use App\Service\Config\BrandSettings;
 use App\Service\Calculation\CalculationActionGuard;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -40,7 +41,9 @@ final class SystemConfiguration extends AbstractController
                 }
                 $group['fields'][] = [
                     'key' => $key,
-                    'value' => $secret ? '' : $value,
+                    'value' => $secret ? '' : ($key === 'APP_BRAND_DISPLAY_MODE'
+                        && !in_array($value, BrandSettings::DISPLAY_MODES, true)
+                        ? BrandSettings::DEFAULT_DISPLAY_MODE : $value),
                     'secret' => $secret,
                     'present' => $value !== '',
                     'json' => self::isJson($key),
@@ -62,8 +65,8 @@ final class SystemConfiguration extends AbstractController
         return [
             [
                 'title' => 'Identidade visual',
-                'purpose' => 'Nome e logotipo exibidos na navegação. Não altera a razão social nem os dados fiscais.',
-                'keys' => ['APP_BRAND_NAME', 'APP_BRAND_LOGO_URL'],
+                'purpose' => 'Escolha o que aparece no cabeçalho. Não altera a razão social nem os dados fiscais.',
+                'keys' => ['APP_BRAND_NAME', 'APP_BRAND_LOGO_URL', 'APP_BRAND_DISPLAY_MODE'],
             ],
             [
                 'title' => 'Nextcloud · Profile Fields',
@@ -175,6 +178,9 @@ final class SystemConfiguration extends AbstractController
     {
         if (strlen($value) > 4096 || preg_match('/[\\x00-\\x1F]/', $value)) {
             throw new \InvalidArgumentException('Parâmetro inválido.');
+        }
+        if ($key === 'APP_BRAND_DISPLAY_MODE' && !in_array($value, BrandSettings::DISPLAY_MODES, true)) {
+            throw new \InvalidArgumentException('Modo de exibição da marca inválido.');
         }
         if ($value === '') {
             return '';

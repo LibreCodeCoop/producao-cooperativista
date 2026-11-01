@@ -8,6 +8,7 @@
         <script src="/js/theme.js"></script>
         {% set brandName = app_brand is defined ? app_brand.name : "LibreCode" %}
         {% set brandLogo = app_brand is defined ? app_brand.logoUrl : "https://librecode.coop/assets/images/logo/librecode.png" %}
+        {% set brandDisplayMode = app_brand is defined ? app_brand.displayMode : "logo_and_text" %}
         <title>{% block title %}Fechamento{% endblock %} | {{ brandName }}</title>
         <link rel="icon" href="/img/favico.ico">
         <link rel="stylesheet" href="/css/app.css">
@@ -22,16 +23,16 @@
         <a class="skip-link" href="#main-content">Ir para o conteúdo</a>
         <header class="app-header">
             <div class="container header-inner">
-                <a class="brand" href="/acoes/make-producao" aria-label="Fechamento da produção cooperativista">
-                    {% if brandLogo %}
-                        <img class="brand-logo" src="{{ brandLogo }}" alt="" width="74" height="44">
-                    {% else %}
-                        <span class="brand-mark" aria-hidden="true">{{ brandName|slice(0, 2)|upper }}</span>
+                <a class="brand" href="/acoes/make-producao" aria-label="{{ brandName }}: abrir fechamento da produção cooperativista">
+                    {% if brandDisplayMode != 'text_only' %}
+                        <img class="brand-logo" src="{{ brandLogo }}" alt="{{ brandDisplayMode == 'logo_only' ? brandName : '' }}" width="74" height="44">
                     {% endif %}
-                    <span class="brand-text">
-                        <strong>{{ brandName }}</strong>
-                        <small>Produção cooperativista</small>
-                    </span>
+                    {% if brandDisplayMode != 'logo_only' %}
+                        <span class="brand-text">
+                            <strong>{{ brandName }}</strong>
+                            <small>Produção cooperativista</small>
+                        </span>
+                    {% endif %}
                 </a>
                 <div class="header-actions">
                     {% set currentPath = app is defined and app.request is defined ? app.request.pathInfo : '' %}

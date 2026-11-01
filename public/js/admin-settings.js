@@ -5,7 +5,7 @@
     function changedFields(form) {
         const changes = {};
         for (const input of form.querySelectorAll('[data-config-input]')) {
-            if (input.value !== input.defaultValue) {
+            if (input.value !== (input.dataset.initialValue ?? input.defaultValue)) {
                 changes[input.name] = input.value;
             }
         }
@@ -89,7 +89,11 @@
                                 reveal.textContent = '👁 Mostrar';
                             }
                         } else {
-                            input.defaultValue = input.value;
+                            if (input.dataset.initialValue !== undefined) {
+                                input.dataset.initialValue = input.value;
+                            } else {
+                                input.defaultValue = input.value;
+                            }
                         }
                     }
                     feedback.textContent = result.message;

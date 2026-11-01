@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace App\Tests\View;
 
 use PHPUnit\Framework\TestCase;
+use App\Service\Config\BrandSettings;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
 
@@ -35,6 +36,40 @@ final class OperationalUiTest extends TestCase
         self::assertStringContainsString('href="/configuracao"', $html);
         self::assertStringNotContainsString('>Visão geral</a>', $html);
         self::assertStringContainsString('src="https://librecode.coop/assets/images/logo/librecode.png"', $html);
+    }
+
+    public function testAllThreeBrandModesKeepHeaderAccessible(): void
+    {
+        $previous = getenv('APP_BRAND_DISPLAY_MODE');
+        try {
+            foreach ([
+                'logo_and_text' => [true, true],
+                'logo_only' => [true, false],
+                'text_only' => [false, true],
+            ] as $mode => [$showLogo, $showText]) {
+                putenv('APP_BRAND_DISPLAY_MODE=' . $mode);
+                $html = $this->twig()->render('index.relatorios.html.twig', [
+                    'relatorios' => [],
+                    'app_brand' => new BrandSettings(),
+                ]);
+                self::assertSame(1, preg_match('~<header class="app-header">(.*?)</header>~s', $html, $matches));
+                $header = $matches[1];
+                self::assertSame($showLogo, str_contains($header, 'class="brand-logo"'), $mode);
+                self::assertSame($showText, str_contains($header, 'class="brand-text"'), $mode);
+                self::assertStringContainsString(
+                    'aria-label="LibreCode: abrir fechamento da produção cooperativista"',
+                    $header,
+                );
+                self::assertStringContainsString('<title>Relatórios | LibreCode</title>', $html);
+                self::assertStringContainsString('LibreCode · Produção cooperativista', $html);
+                if ($mode === 'logo_only') {
+                    self::assertStringContainsString('alt="LibreCode"', $header);
+                    self::assertStringNotContainsString('<small>Produção cooperativista</small>', $header);
+                }
+            }
+        } finally {
+            putenv($previous === false ? 'APP_BRAND_DISPLAY_MODE' : 'APP_BRAND_DISPLAY_MODE=' . $previous);
+        }
     }
 
     public function testReportsCatalogExposesTheFinancialReports(): void

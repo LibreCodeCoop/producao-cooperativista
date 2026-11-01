@@ -46,6 +46,28 @@ final class SystemConfigurationHttpTest extends WebTestCase
         self::assertNotEmpty($crawler->filter('#admin-settings')->attr('data-token'));
     }
 
+    public function testBrandModeIsAnExplicitChoiceAndRejectsInvalidValues(): void
+    {
+        $client = static::createClient();
+        $crawler = $client->request('GET', '/configuracao/integracoes', server: ['REMOTE_USER' => 'librecode']);
+        $select = $crawler->filter('select#config-APP_BRAND_DISPLAY_MODE');
+        self::assertCount(1, $select);
+        self::assertSame('logo_and_text', $select->attr('data-initial-value'));
+        self::assertSame([
+            'logo_and_text', 'logo_only', 'text_only',
+        ], $select->filter('option')->each(static fn ($option): ?string => $option->attr('value')));
+        $token = $crawler->filter('#admin-settings')->attr('data-token');
+        $version = $crawler->filter('#admin-settings')->attr('data-version');
+
+        foreach (['invalid', ''] as $invalid) {
+            $client->request('POST', '/configuracao/integracoes/salvar', [
+                '_token' => $token, 'version' => $version, 'group' => '0',
+                'changes' => json_encode(['APP_BRAND_DISPLAY_MODE' => $invalid], JSON_THROW_ON_ERROR),
+            ], server: ['REMOTE_USER' => 'librecode']);
+            self::assertSame(Response::HTTP_BAD_REQUEST, $client->getResponse()->getStatusCode());
+        }
+    }
+
     public function testRevealRequiresCsrfAndAllowsOnlySecretKeys(): void
     {
         $client = static::createClient();

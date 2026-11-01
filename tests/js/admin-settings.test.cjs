@@ -18,7 +18,9 @@ function fixture(options = {}) {
     const reveal = {dataset:{revealKey:'KIMAI_API_TOKEN'}, disabled:false,textContent:'Mostrar',
         addEventListener:(name,callback)=>{toggleHandlers[name]=callback;},
         getAttribute:key=>attrs[key],setAttribute:(key,value)=>{attrs[key]=value;}};
-    const inputs = [field,secret];
+    const displayMode={name:'APP_BRAND_DISPLAY_MODE',value:'logo_and_text',
+        dataset:{initialValue:'logo_and_text',critical:'no',secret:'no'}};
+    const inputs = options.withDisplayMode ? [field,secret,displayMode] : [field,secret];
     const form = {dataset:{adminSettingsGroup:'1'},
         querySelectorAll:sel=>sel==='[data-config-input]'?inputs:sel==='[data-reveal-key]'?[reveal]:[],
         querySelector:sel=>sel==='[type="submit"]'?save:
@@ -37,7 +39,7 @@ function fixture(options = {}) {
     let confirms=0;
     const confirmChange=()=>{confirms++;return options.confirm!==false;};
     const result=initialize(doc,request,confirmChange);
-    return {handlers,field,secret,save,feedback,reveal,toggleHandlers,
+    return {handlers,field,secret,displayMode,save,feedback,reveal,toggleHandlers,
         attrs,requests,panel,form,confirms:()=>confirms,result};
 }
 
@@ -101,4 +103,24 @@ test('failed configuration request does not claim success',async()=>{
     assert.equal(f.save.disabled,false);
     await f.toggleHandlers.click();
     assert.equal(f.secret.type,'password');
+});
+
+test('brand mode selector starts unchanged, submits its value, and resets after save', async () => {
+    const f=fixture({withDisplayMode:true});
+    assert.equal(f.save.disabled,true);
+    f.displayMode.value='logo_only';
+    f.handlers.input();
+    assert.deepEqual(changedFields(f.form),{APP_BRAND_DISPLAY_MODE:'logo_only'});
+    await f.handlers.submit({preventDefault(){}});
+    assert.deepEqual(JSON.parse(f.requests[0].init.body.get('changes')),
+        {APP_BRAND_DISPLAY_MODE:'logo_only'});
+    assert.equal(f.confirms(),0,'Brand display is not a financial or connection change');
+    assert.equal(f.displayMode.dataset.initialValue,'logo_only');
+    assert.equal(f.save.disabled,true);
+    f.displayMode.value='text_only';
+    f.handlers.input();
+    assert.equal(f.save.disabled,false);
+    f.displayMode.value='logo_only';
+    f.handlers.input();
+    assert.equal(f.save.disabled,true);
 });

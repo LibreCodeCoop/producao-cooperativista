@@ -29,6 +29,26 @@ final class BrandSettingsTest extends TestCase
         }
     }
 
+    public function testDisplayModeDefaultsAndAcceptsOnlyThreeOptions(): void
+    {
+        $previous = getenv('APP_BRAND_DISPLAY_MODE');
+        try {
+            putenv('APP_BRAND_DISPLAY_MODE');
+            $settings = new BrandSettings();
+            self::assertSame('logo_and_text', $settings->getDisplayMode());
+
+            foreach (BrandSettings::DISPLAY_MODES as $mode) {
+                putenv('APP_BRAND_DISPLAY_MODE=' . $mode);
+                self::assertSame($mode, $settings->getDisplayMode());
+            }
+
+            putenv('APP_BRAND_DISPLAY_MODE=invalid');
+            self::assertSame('logo_and_text', $settings->getDisplayMode());
+        } finally {
+            putenv($previous === false ? 'APP_BRAND_DISPLAY_MODE' : 'APP_BRAND_DISPLAY_MODE=' . $previous);
+        }
+    }
+
     public function testRejectsUnsafeBrandUrls(): void
     {
         foreach (['javascript:alert(1)', 'http://exemplo.coop/a.png', '//exemplo.coop/a.png',
