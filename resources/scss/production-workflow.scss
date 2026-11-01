@@ -106,6 +106,30 @@
 }
 .production-exclude-label { display:flex; align-items:center; gap:8px; cursor:pointer; font-size:12px; white-space:nowrap; }
 .production-final .production-wizard-actions { margin-top:16px; }
+/* Persistent progress beside the import action, not below the long review table. */
+.production-job-status {
+    display:flex; align-items:center; flex-wrap:wrap; gap:10px;
+    padding:13px 15px; margin-top:15px; border:1px solid var(--line);
+    border-radius:9px; background:var(--brand-soft); font-size:13px;
+    line-height:1.5;
+}
+.production-job-status[hidden] { display:none; }
+.production-job-status[data-state="failed"] { background:var(--danger-soft); border-color:var(--danger); }
+.production-job-status[data-state="completed"] { border-color:var(--brand); }
+.production-job-indicator {
+    flex:0 0 10px; width:10px; height:10px; border-radius:50%; background:var(--brand);
+}
+.production-job-status[data-state="running"] .production-job-indicator {
+    animation:production-pulse 1.5s ease-in-out infinite;
+}
+.production-job-status[data-state="failed"] .production-job-indicator { background:var(--danger); }
+.production-job-elapsed { margin-left:auto; white-space:nowrap; color:var(--muted); font-variant-numeric:tabular-nums; }
+.production-job-status > a { flex-basis:100%; font-size:12px; font-weight:700; }
+.production-job-status > a[hidden] { display:none; }
+@keyframes production-pulse { 50% { opacity:.25; } }
+@media (prefers-reduced-motion:reduce) {
+    .production-job-status[data-state="running"] .production-job-indicator { animation:none; }
+}
 .production-messages { margin:17px 0 0; }
 .production-messages:empty { display:none; }
 .production-messages h3 { font-size:14px; margin:0 0 7px; }

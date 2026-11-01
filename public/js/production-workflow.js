@@ -66,6 +66,10 @@
         const grid = options.reportTable || win.ReportTable;
         const messages = el('messages');
         const importButton = el('import-button');
+        const importStatus = el('import-status');
+        const importStatusText = el('import-status-text');
+        const importElapsed = el('import-elapsed');
+        const importProfileLink = el('import-profile-link');
         const publishButton = el('submit');
         const omitted = new Set();
         let preview = null;
@@ -237,13 +241,45 @@
             syncNavigation();
             setAction('import');
             messages.replaceChildren();
+            const buttonLabel = importButton.textContent;
+            const started = (options.nowMs || Date.now)();
+            const renderElapsed = () => {
+                if (importElapsed) importElapsed.textContent =
+                    Math.max(0, Math.floor(((options.nowMs || Date.now)() - started) / 1000)) + ' s';
+            };
+            const updateStatus = ({state, message}) => {
+                if (!importStatus) return;
+                importStatus.hidden = false;
+                importStatus.dataset.state = state;
+                if (importStatusText) importStatusText.textContent = message;
+                if (importProfileLink) importProfileLink.hidden =
+                    state !== 'failed' || !/PROFILE_DEPENDENTS|PROFILE_SOURCE/.test(message);
+                renderElapsed();
+            };
+            importButton.textContent = 'Importando…';
+            updateStatus({state: 'running', message: 'Conectando às fontes. Aguardando resposta do servidor…'});
+            importStatus?.scrollIntoView?.({block: 'nearest'});
+            const timer = setInterval(renderElapsed, 1000);
             try {
-                if (await progress.submit(form, messages, importButton, options)) {
+                const success = await progress.submit(form, messages, importButton, {
+                    ...options,
+                    onStatus: updateStatus,
+                });
+                if (success) {
+                    updateStatus({state: 'completed', message: 'Importação concluída. Carregando conferência…'});
                     needsImport = false;
                     el('use-existing').disabled = false;
                     await loadPreview();
+                } else if (importStatus?.dataset.state === 'running') {
+                    updateStatus({state: 'failed', message: 'Importação interrompida. Confira o erro abaixo.'});
                 }
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Falha ao importar dados.';
+                updateStatus({state: 'failed', message});
+                notice(message);
             } finally {
+                clearInterval(timer);
+                importButton.textContent = buttonLabel;
                 processing = false;
                 syncNavigation();
             }

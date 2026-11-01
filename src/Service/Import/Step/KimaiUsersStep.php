@@ -18,7 +18,8 @@ use Symfony\Component\DependencyInjection\Attribute\AsTaggedItem;
  * Source adapter; extracted dynamically by Symfony's tagged iterator.
  * @psalm-suppress UnusedClass
  */
-#[AsTaggedItem(priority: 100)]
+// Validate cooperado profiles before the ETL writes other sources.
+#[AsTaggedItem(priority: 1000)]
 final readonly class KimaiUsersStep implements SourceStep
 {
     public function __construct(private Users $source)

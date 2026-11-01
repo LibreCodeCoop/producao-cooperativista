@@ -136,6 +136,27 @@ test('preview sends only one POST with SSE headers and never asks to confirm pub
     assert.match(s.messages.children[0].textContent, /^Execução iniciada em/);
 });
 
+test('status callback reports start, current integration and terminal result', async () => {
+    const status=[];
+    const s=setup({fetch:() => response(
+        'event: info\ndata: "Etapa 1 de 8: Clientes do Kimai."\n\n' +
+        'event: info\ndata: "Etapa 2 de 8: Cooperados do Kimai."\n\n' +
+        'event: failed\ndata: "Erro PROFILE_DEPENDENTS Kimai #17"\n\n'
+    )});
+    s.options.onStatus=state=>status.push(state);
+    assert.equal(await submit(s.form,s.messages,s.button,s.options),false);
+    assert.deepEqual(status,[
+        {state:'running',message:'Iniciando importação.'},
+        {state:'running',message:'Etapa 1 de 8: Clientes do Kimai.'},
+        {state:'running',message:'Etapa 2 de 8: Cooperados do Kimai.'},
+        {state:'failed',message:'Erro PROFILE_DEPENDENTS Kimai #17'},
+    ]);
+    assert.equal(s.button.disabled,false);
+    assert.equal(alerts(s.messages).length,3);
+    assert.equal(s.messages.children[1].scrolled,undefined,
+        'Stage progress must not jump the page while import is underway');
+});
+
 test('publishing requires explicit confirmation; declining performs no POST', async () => {
     const s = setup({ publish: true, confirmed: false });
     assert.equal(await submit(s.form, s.messages, s.button, s.options), false);

@@ -39,12 +39,18 @@ final readonly class ExecutionOutcome
                 break;
             }
         }
+        $userId = '';
+        if (in_array($guide->code, ['PROFILE_DEPENDENTS', 'PROFILE_SOURCE'], true)
+            && preg_match('/usuário Kimai #([1-9][0-9]*)/u', $this->details, $matches)) {
+            $userId = sprintf(' Cadastro Kimai #%s.', $matches[1]);
+        }
         return sprintf(
-            'Execução %s: erro %s.%s %s Como resolver: %s Consulte os detalhes privados no log do servidor.',
+            'Execução %s: erro %s.%s %s%s Como resolver: %s Consulte os detalhes privados no log do servidor.',
             $this->executionId,
             $guide->code,
             $stage,
             $guide->summary,
+            $userId,
             $guide->instructions
         );
     }

@@ -10,10 +10,12 @@ declare(strict_types=1);
 namespace App\Service\Import;
 
 use App\Helper\Dates;
+use App\Helper\ArrayValue;
 use App\Service\Cooperative\ProfileRegistry;
 use DateTime;
 use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use RuntimeException;
 use Throwable;
 
@@ -81,10 +83,28 @@ final class SourcePipeline
         $this->dates->setInicio($competence);
         $normalized = $this->dates->getInicio();
         $enabled = array_fill_keys($this->selectedStageNames(), true);
+        $total = count($enabled);
+        $position = 0;
         foreach ($this->steps as $step) {
             if (!isset($enabled[$step->name()])) {
                 continue;
             }
+            ++$position;
+            $label = match ($step->name()) {
+                'kimai.customers' => 'Clientes do Kimai',
+                'kimai.projects' => 'Projetos do Kimai',
+                'kimai.users', 'kimai.users.basic' => 'Cooperados do Kimai e perfis Nextcloud',
+                'kimai.timesheets' => 'Horas trabalhadas do Kimai',
+                'akaunting.categories' => 'Categorias do Akaunting',
+                'akaunting.taxes' => 'Tributos do Akaunting',
+                'akaunting.documents' => 'Documentos financeiros do Akaunting',
+                'akaunting.transactions' => 'Transações financeiras do Akaunting',
+                default => 'Fonte ' . $step->name(),
+            };
+            $this->logger->info(new ArrayValue([
+                'event' => 'info',
+                'data' => sprintf('Etapa %d de %d: %s.', $position, $total, $label),
+            ]));
             $this->logger->info('Importando dados da etapa {step} para a competência {month}', [
                 'step' => $step->name(),
                 'month' => $normalized->format('Y-m'),
@@ -92,10 +112,21 @@ final class SourcePipeline
             try {
                 $step->synchronize(clone $normalized);
             } catch (Throwable $error) {
+                // The only exception detail forwarded to the operator is a
+                // constructed, non-PII marker with a Kimai numeric ID.
+                $profileHint = $error instanceof \DomainException
+                    && (str_starts_with($error->getMessage(), 'PROFILE_DEPENDENTS:')
+                        || str_starts_with($error->getMessage(), 'PROFILE_SOURCE:'))
+                    ? ' ' . $error->getMessage()
+                    : '';
                 throw new RuntimeException(sprintf(
-                    'Falha na importação de %s, etapa %s. Verifique a origem e os logs antes de reexecutar.',
+                    'Falha na importação de %s, etapa %s.%s Verifique a origem e os logs antes de reexecutar.',
                     $normalized->format('Y-m'),
-                    $step->name()
+                    $step->name(),
+                    $profileHint !== '' ? $profileHint
+                        : ($error instanceof TransportExceptionInterface
+                            ? ' SOURCE_CONNECTION_FAILED: serviço de origem não respondeu.'
+                            : ''),
                 ), 0, $error);
             }
         }

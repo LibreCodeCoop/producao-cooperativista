@@ -22,12 +22,14 @@ function element() {
 }
 
 function fixture({previewError = false, malformed = false, importSuccess = true,
-    publishSuccess = true, gridSuccess = true, withdrawalGoal = null} = {}) {
+    publishSuccess = true, gridSuccess = true, withdrawalGoal = null,
+    importError = 'Falha na importação'} = {}) {
     const items = new Map();
     for (const id of ['production-wizard','form-gera-producao','messages',
         'import-button','use-existing','review-competence',
         'metric-members','metric-hours','metric-base','metric-net','withdrawal-goal',
         'selection-summary','publication-summary','publication-confirmation',
+        'import-status','import-status-text','import-elapsed','import-profile-link',
         'submit','year','month']) items.set(id, element());
 
     items.get('year').value = '2026';
@@ -95,12 +97,17 @@ function fixture({previewError = false, malformed = false, importSuccess = true,
             };
         },
         progress: {
-            async submit(activeForm) {
+            async submit(activeForm, _messages, _button, opts) {
                 calls.submit.push(Object.fromEntries(
                     Object.entries(activeForm.elements).map(([k,v]) => [k,v.value])
                 ));
-                return activeForm.elements.operation.value === 'import' ?
-                    importSuccess : publishSuccess;
+                if (activeForm.elements.operation.value === 'import') {
+                    opts.onStatus?.({state:'running', message:'Etapa 2 de 8: Cooperados do Kimai.'});
+                    opts.onStatus?.({state:importSuccess ? 'completed' : 'failed',
+                        message:importSuccess ? 'Importação concluída.' : importError});
+                    return importSuccess;
+                }
+                return publishSuccess;
             },
             addMessage(_target, severity, message) {calls.notices.push({severity,message});},
         },
@@ -220,10 +227,17 @@ test('import never publishes and requires the same preview to complete', async (
     assert.equal(f.calls.submit[0].baixar_dados,'1');
     assert.equal(f.calls.submit[0].atualiza_producao,'0');
     assert.equal(f.step(),2);
-    const bad=fixture({importSuccess:false});
+    assert.equal(f.get('import-status').hidden,false);
+    assert.equal(f.get('import-status').dataset.state,'completed');
+    assert.match(f.get('import-status-text').textContent,/concluída/);
+    assert.equal(f.get('import-button').textContent,'');
+    const bad=fixture({importSuccess:false, importError:'Erro PROFILE_DEPENDENTS: Kimai #17'});
     await bad.click('import-button');
     assert.equal(bad.step(),1);
     assert.equal(bad.calls.fetch.length,0);
+    assert.equal(bad.get('import-status').dataset.state,'failed');
+    assert.equal(bad.get('import-profile-link').hidden,false);
+    assert.match(bad.get('import-status-text').textContent,/Kimai #17/);
 });
 
 test('freshness failures, missing grid and invalid data fail closed', async () => {

@@ -32,6 +32,20 @@ final class ExecutionOutcomeTest extends TestCase
         $this->assertStringContainsString('run-001', $outcome->message());
     }
 
+    public function testDependentFailureShowsOnlySafeKimaiIdAndHowToRepair(): void
+    {
+        $outcome = new ExecutionOutcome(
+            Command::FAILURE,
+            'run-001',
+            'Falha na etapa importação: PROFILE_DEPENDENTS: usuário Kimai #27 com CPF [PRIVATE].',
+        );
+        self::assertSame('failed', $outcome->event());
+        self::assertStringContainsString('PROFILE_DEPENDENTS', $outcome->message());
+        self::assertStringContainsString('Kimai #27', $outcome->message());
+        self::assertStringContainsString('Cooperados e vínculos', $outcome->message());
+        self::assertStringNotContainsString('[PRIVATE]', $outcome->message());
+    }
+
     public function testLongTraceDoesNotFloodBrowserMessage(): void
     {
         $outcome = new ExecutionOutcome(Command::FAILURE, 'run-001', str_repeat('X', 2000));

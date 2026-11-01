@@ -26,6 +26,21 @@ final readonly class FailureGuide
     {
         $message = mb_strtolower($rawMessage);
         return match (true) {
+            str_contains($message, 'source_connection_failed') => new self(
+                'SERVICO_INACESSIVEL',
+                'A conexão com uma integração expirou ou foi interrompida durante a importação.',
+                'Verifique a disponibilidade e a latência da integração informada na etapa. Nenhum dado fiscal deve ser corrigido por causa de uma falha de rede.'
+            ),
+            str_contains($message, 'profile_source') => new self(
+                'PROFILE_SOURCE',
+                'Há um cadastro ou vínculo inconsistente entre Kimai, Nextcloud e Akaunting.',
+                'Em Configuração → Cooperados e vínculos, abra o usuário Kimai indicado, confira os vínculos e dados fiscais, salve a correção na origem e reimporte a competência.'
+            ),
+            str_contains($message, 'profile_dependents') => new self(
+                'PROFILE_DEPENDENTS',
+                'Cadastro de cooperado sem quantidade válida de dependentes no Nextcloud.',
+                'Em Configuração → Cooperados e vínculos, abra o usuário Kimai indicado, confira a conta Nextcloud e informe o número inteiro de dependentes (inclusive zero quando confirmado). Salve na origem e reimporte. Não presuma zero sem conferência.'
+            ),
             str_contains($message, 'publication_write_attempts') => new self(
                 'REGISTRO_PUBLICACAO_AUSENTE',
                 'A estrutura de auditoria de publicações não foi instalada no banco do ETL.',

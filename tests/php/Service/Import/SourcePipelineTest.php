@@ -35,6 +35,30 @@ final class SourcePipelineTest extends TestCase
         self::assertSame(['primeira:2025-11-01', 'segunda:2025-11-01'], $events->getArrayCopy());
     }
 
+    public function testStagesEmitSafeProgressEventsWithOrdinalAndTotal(): void
+    {
+        $events = new ArrayObject();
+        $log = new \Monolog\Logger('app');
+        $handler = new \Monolog\Handler\TestHandler();
+        $log->pushHandler($handler);
+        $pipeline = new SourcePipeline([
+            $this->step('kimai.customers', $events),
+            $this->step('kimai.users', $events),
+        ], $log, new Dates(now: new DateTime('2026-11-01')));
+        $pipeline->run(new DateTime('2026-09-01'));
+        $progress = [];
+        foreach ($handler->getRecords() as $record) {
+            $value = json_decode((string) $record->message, true);
+            if (is_array($value) && ($value['event'] ?? '') === 'info') {
+                $progress[] = $value['data'];
+            }
+        }
+        self::assertSame([
+            'Etapa 1 de 2: Clientes do Kimai.',
+            'Etapa 2 de 2: Cooperados do Kimai e perfis Nextcloud.',
+        ], $progress);
+    }
+
     public function testFailingConnectorAbortsLaterStagesWithoutWritingFinancialDocuments(): void
     {
         $events = new ArrayObject();
@@ -65,6 +89,39 @@ final class SourcePipelineTest extends TestCase
             self::assertStringContainsString('akaunting', $error->getMessage());
             self::assertSame('Falha de origem', $error->getPrevious()?->getMessage());
             self::assertSame(['kimai:2024-02-01', 'failure:2024-02'], $events->getArrayCopy());
+        }
+    }
+
+    public function testDependentValidationKeepsOnlyAllowedDiagnosticMetadata(): void
+    {
+        $events = new ArrayObject();
+        $pipeline = new SourcePipeline([
+            new class ($events) implements SourceStep {
+                public function __construct(private ArrayObject $events)
+                {
+                }
+                public function name(): string
+                {
+                    return 'kimai.users';
+                }
+                public function synchronize(DateTime $competence): void
+                {
+                    $this->events->append('kimai.users');
+                    throw new \DomainException(
+                        'PROFILE_DEPENDENTS: usuário Kimai #12 sem dependentes (CPF never-stream-this)'
+                    );
+                }
+            },
+            $this->step('not-run', $events),
+        ], new NullLogger(), new Dates(now: new DateTime('2026-11-01')));
+
+        try {
+            $pipeline->run(new DateTime('2026-09-01'));
+            self::fail('Invalid dependents must block import.');
+        } catch (RuntimeException $error) {
+            self::assertStringContainsString('kimai.users', $error->getMessage());
+            self::assertStringContainsString('Kimai #12', $error->getMessage());
+            self::assertSame(['kimai.users'], $events->getArrayCopy());
         }
     }
 

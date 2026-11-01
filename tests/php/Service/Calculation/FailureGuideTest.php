@@ -22,6 +22,9 @@ final class FailureGuideTest extends TestCase
 
     public static function pastProductionErrors(): iterable
     {
+        yield ['SOURCE_CONNECTION_FAILED: integração temporariamente indisponível', 'SERVICO_INACESSIVEL'];
+        yield ['PROFILE_SOURCE: usuário Kimai #28 sem vínculo válido', 'PROFILE_SOURCE'];
+        yield ['PROFILE_DEPENDENTS: usuário Kimai #15 com campo ausente', 'PROFILE_DEPENDENTS'];
         yield ['Código de cliente inválido na movimentação do Akaunting', 'CLIENTE_SEM_CODIGO'];
         yield ['Environment variable AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS must contain valid JSON.', 'CONFIG_JSON'];
         yield ['Could not resolve host: akaunting.nginx', 'SERVICO_INACESSIVEL'];

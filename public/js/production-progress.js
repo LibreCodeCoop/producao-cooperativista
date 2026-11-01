@@ -55,7 +55,8 @@
         item.className = 'alert' + (['warning', 'success', 'info'].includes(severity) ? ' ' + severity : '');
         item.textContent = String(content);
         target.appendChild(item);
-        item.scrollIntoView?.({ block: 'nearest' });
+        // Progress updates should not jump the page away from its status panel.
+        if (severity !== 'info') item.scrollIntoView?.({ block: 'nearest' });
         return item;
     }
 
@@ -82,6 +83,8 @@
             return false;
         }
 
+        const report = (state, message) => options.onStatus?.({state, message: String(message)});
+        report('running', publishing ? 'Iniciando publicação.' : 'Iniciando importação.');
         const heading = doc.createElement('h3');
         heading.textContent = 'Execução iniciada em ' + (options.now || (() => new Date()))().toLocaleString('pt-BR');
         messages.appendChild(heading);
@@ -116,10 +119,12 @@
                 if (eventName === 'done' || eventName === 'failed') {
                     completed = true;
                     succeeded = eventName === 'done';
+                    report(succeeded ? 'completed' : 'failed', message);
                     addMessage(messages, succeeded ? 'success' : '', message, doc);
                 } else if (eventName === 'warning' || eventName === 'alert') {
                     addMessage(messages, 'warning', message, doc);
                 } else if (eventName === 'info') {
+                    report('running', message);
                     addMessage(messages, 'info', message, doc);
                 }
             });
@@ -142,6 +147,7 @@
             }
             return succeeded;
         } catch (error) {
+            report('failed', error.message || 'Falha de conexão com o servidor.');
             addMessage(messages, '', error.message || 'Falha de conexão com o servidor.', doc);
             return false;
         } finally {

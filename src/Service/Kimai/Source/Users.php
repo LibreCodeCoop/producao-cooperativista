@@ -90,8 +90,22 @@ class Users
             } catch (\DomainException $error) {
                 $this->logger->warning('Importação bloqueada por inconsistência cadastral entre fontes.', [
                     'error_class' => $error::class,
+                    'kimai_user_id' => (int) ($row['id'] ?? 0),
                 ]);
-                throw $error;
+                $message = mb_strtolower($error->getMessage());
+                if (str_contains($message, 'dependentes ausentes')
+                    || str_contains($message, 'dependentes inválido')) {
+                    // A Kimai ID is safe to show to the authenticated finance
+                    // team; never stream names, CPF or remote API responses.
+                    throw new \DomainException(sprintf(
+                        'PROFILE_DEPENDENTS: usuário Kimai #%d sem quantidade válida de dependentes no Nextcloud Profile Fields.',
+                        (int) ($row['id'] ?? 0),
+                    ), 0, $error);
+                }
+                throw new \DomainException(sprintf(
+                    'PROFILE_SOURCE: usuário Kimai #%d com cadastro ou vínculo inconsistente entre fontes.',
+                    (int) ($row['id'] ?? 0),
+                ), 0, $error);
             } catch (\Throwable $error) {
                 $this->logger->error('Falha ao importar perfil do cooperado.', [
                     'error_class' => $error::class,

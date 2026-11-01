@@ -46,6 +46,33 @@ final class UsersDependentsValidationTest extends TestCase
         $validate->invoke($source, []);
     }
 
+    public function testImportIdentifiesOnlyTheKimaiIdOfInvalidDependentRecord(): void
+    {
+        $source = new class () extends Users {
+            public function __construct()
+            {
+            }
+            public function doRequestKimai(string $endpoint, array $query = [], ?callable $parseFunction = null): array
+            {
+                return [['id' => 17, 'username' => 'synthetic']];
+            }
+            public function fromArray(array $array): \App\Entity\Producao\User
+            {
+                throw new \DomainException('Dependentes ausentes ou inválidos no Nextcloud Profile Fields.');
+            }
+        };
+        new ReflectionClass(Users::class)->getProperty('logger')
+            ->setValue($source, new \Psr\Log\NullLogger());
+        try {
+            $source->getList();
+            self::fail('Missing dependents must be reported.');
+        } catch (DomainException $error) {
+            self::assertStringContainsString('PROFILE_DEPENDENTS', $error->getMessage());
+            self::assertStringContainsString('Kimai #17', $error->getMessage());
+            self::assertStringNotContainsString('synthetic', $error->getMessage());
+        }
+    }
+
     public function testExplicitZeroFromNextcloudIsValid(): void
     {
         $source = new ReflectionClass(Users::class)->newInstanceWithoutConstructor();
