@@ -46,9 +46,21 @@
             {% endif %}
             <div class="production-period-fields">
                 <div class="form-field">
-                    <label for="competence-month">Competência trabalhada</label>
-                    <input type="month" id="competence-month" value="{{ inicio_ano }}-{{ inicio_mes }}"
-                           min="2020-01" max="2099-12" required>
+                    <label for="month">Mês</label>
+                    <select id="month">
+                        {% for label in ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'] %}
+                            {% set number = '%02d'|format(loop.index) %}
+                            <option value="{{ number }}"{% if inicio_mes == number %} selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label for="year">Ano</label>
+                    <select id="year">
+                        {% for j in range('now'|date('Y') - 2, 'now'|date('Y') + 1) %}
+                            <option value="{{ j }}"{% if inicio_ano == j %} selected{% endif %}>{{ j }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
             </div>
             <div class="production-wizard-actions">

@@ -6,7 +6,7 @@
 }
 .production-month-picker { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
 .production-month-picker label { font-size:13px; font-weight:700; }
-.production-month-picker input, .production-period-fields input[type="month"] {
+.production-month-picker input, .production-period-fields select {
     min-height:43px; padding:8px 11px; border:1px solid var(--line);
     border-radius:8px; background:var(--surface); color:var(--text); font:inherit;
 }
@@ -45,7 +45,7 @@
 .production-period-fields { display:flex; flex-wrap:wrap; gap:15px; }
 .production-period-fields .form-field { flex:1 1 145px; max-width:240px; }
 .production-period-fields label { display:block; margin-bottom:5px; font-size:13px; font-weight:700; }
-.production-period-fields input[type="month"] { width:100%; }
+.production-period-fields select { width:100%; }
 .production-wizard-actions { display:flex; flex-wrap:wrap; gap:11px; margin-top:22px; align-items:center; }
 .production-wizard-actions .button { min-height:43px; }
 .button-primary {

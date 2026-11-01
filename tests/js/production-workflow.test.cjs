@@ -4,7 +4,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {money, hours, monthParts, validatePreview, selectedMembers, initialize} =
+const {money, hours, validatePreview, selectedMembers, initialize} =
     require('../../public/js/production-workflow.js');
 
 const revision = 'a'.repeat(64);
@@ -62,12 +62,4 @@ test('all cooperados included by default, exclusion does not redistribute amount
 
 test('pages without wizard are left unchanged', () => {
     assert.equal(initialize({getElementById: () => null}), false);
-});
-
-test('native month field passes a validated competence without external packages', () => {
-    assert.deepEqual(monthParts('2026-08'), ['2026', '08']);
-    assert.deepEqual(monthParts('2025-12'), ['2025', '12']);
-    for(const input of ['', '2026-13', '2026-8', '2026/08', '2026-00']) {
-        assert.throws(() => monthParts(input), /competência válida/);
-    }
 });

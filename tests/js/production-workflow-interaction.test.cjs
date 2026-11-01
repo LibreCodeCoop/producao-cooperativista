@@ -28,9 +28,10 @@ function fixture({previewError = false, malformed = false, importSuccess = true,
         'import-button','use-existing','review-competence',
         'metric-members','metric-hours','metric-base','metric-net','withdrawal-goal',
         'selection-summary','publication-summary','publication-confirmation',
-        'submit','competence-month']) items.set(id, element());
+        'submit','year','month']) items.set(id, element());
 
-    items.get('competence-month').value = '2026-08';
+    items.get('year').value = '2026';
+    items.get('month').value = '08';
     items.get('submit').disabled = true;
     const form = items.get('form-gera-producao');
     form.elements = {};
@@ -288,8 +289,8 @@ test('returning to import and reviewing again resets decisions and approval', as
     assert.equal(f.get('submit').disabled,true);
     f.indicators[0].trigger('click');
     assert.equal(f.step(),1);
-    f.get('competence-month').value='2026-09';
-    f.change('competence-month');
+    f.get('month').value='09';
+    f.change('month');
     assert.ok(f.links.every(link=>link.href.endsWith('ano-mes=2026-09')));
     assert.equal(f.get('submit').disabled,true);
 });

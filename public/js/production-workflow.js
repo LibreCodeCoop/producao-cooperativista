@@ -42,13 +42,6 @@
         return {rows, revision: payload.metadata.revision};
     }
 
-    function monthParts(value) {
-        if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(value || '')) {
-            throw new Error('Informe uma competência válida no formato ano e mês.');
-        }
-        return value.split('-');
-    }
-
     function selectedMembers(rows, omitted) {
         const excluded = new Set(omitted);
         return {
@@ -82,7 +75,7 @@
         let finished = false;
         let needsImport = false;
 
-        const competence = () => el('competence-month').value;
+        const competence = () => el('year').value + '-' + el('month').value;
         const stepButtons = [...doc.querySelectorAll('[data-step-indicator]')];
         const activeStep = () => Number([...wizard.querySelectorAll('[data-workflow-step]')].find(section => !section.hidden)?.dataset.workflowStep || 1);
         const syncNavigation = () => {
@@ -102,9 +95,8 @@
             syncNavigation();
         };
         const setAction = (operation) => {
-            const [year, month] = monthParts(competence());
-            form.elements.year.value = year;
-            form.elements.month.value = month;
+            form.elements.year.value = el('year').value;
+            form.elements.month.value = el('month').value;
             form.elements.operation.value = operation;
             form.elements.baixar_dados.value = operation === 'import' ? '1' : '0';
             form.elements.atualiza_producao.value = operation === 'publish' ? '1' : '0';
@@ -165,7 +157,6 @@
             messages.replaceChildren();
             updateLinks();
             try {
-                monthParts(competence());
                 const response = await request(wizard.dataset.previewUrl + '?ano-mes=' +
                     encodeURIComponent(competence()), {
                     credentials: 'same-origin', headers: {Accept: 'application/json'}, cache: 'no-store',
@@ -292,7 +283,7 @@
                 syncNavigation();
             }
         });
-        for (const input of [el('competence-month')]) {
+        for (const input of [el('month'), el('year')]) {
             input.addEventListener('change', () => {
                 resetReview();
                 updateLinks();
@@ -307,7 +298,7 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = {money, hours, monthParts, validatePreview, selectedMembers, initialize};
+        module.exports = {money, hours, validatePreview, selectedMembers, initialize};
     } else {
         scope.addEventListener('DOMContentLoaded', () => initialize());
     }
