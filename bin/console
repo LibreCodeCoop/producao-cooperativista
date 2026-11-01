@@ -20,6 +20,7 @@ if (file_exists(__DIR__.'/../.env')) {
     $dotenv->usePutenv()->loadEnv(__DIR__.'/../.env', overrideExistingVars: true);
 }
 \App\Service\Config\RuntimeConfig::apply(dirname(__DIR__));
+\App\Service\Config\SourceEnvironment::apply();
 
 return function (array $context) {
     $kernel = new Kernel($context['APP_ENV'], (bool) $context['APP_DEBUG']);

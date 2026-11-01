@@ -92,8 +92,9 @@ final class SystemConfiguration extends AbstractController
                 'title' => 'Apuração cooperativista',
                 'purpose' => 'Banco de importação, perfil, categorias, itens e parâmetros financeiros.',
                 'keys' => [
-                    'DATABASE_URL', 'PRODUCAO_STAGING_DATABASE', 'COOPERATIVE_PROFILE', 'CNPJ_COMPANY',
-                    'CNPJ_CLIENTES_INTERNOS', 'DIA_UTIL_PAGAMENTO', 'PERCENTUAL_MAXIMO', 'HOLYDAYS_LIST', 'LOCALE',
+                    'DATABASE_URL', 'PRODUCAO_STAGING_DATABASE', 'PRODUCAO_FECHAMENTO_DEFASAGEM_MESES', 'COOPERATIVE_PROFILE', 'CNPJ_COMPANY',
+                    'CNPJ_CLIENTES_INTERNOS', 'PRODUCAO_META_LIQUIDA_MENSAL',
+                    'PRODUCAO_META_HORAS_REFERENCIA', 'DIA_UTIL_PAGAMENTO', 'PERCENTUAL_MAXIMO', 'HOLYDAYS_LIST', 'LOCALE',
                 ],
             ],
             [
@@ -207,6 +208,17 @@ final class SystemConfiguration extends AbstractController
         }
         if (str_ends_with($key, '_MES_PADRAO') && (!ctype_digit($value) || (int)$value < 1 || (int)$value > 12)) {
             throw new \InvalidArgumentException('Mês inválido.');
+        }
+        if ($key === 'PRODUCAO_FECHAMENTO_DEFASAGEM_MESES' && (!ctype_digit($value) || (int) $value < 1 || (int) $value > 12)) {
+            throw new \InvalidArgumentException('Defasagem de fechamento inválida.');
+        }
+        if ($key === 'PRODUCAO_META_LIQUIDA_MENSAL'
+            && (!is_numeric($value) || (float) $value <= 0 || (float) $value > 1000000)) {
+            throw new \InvalidArgumentException('Meta líquida inválida.');
+        }
+        if ($key === 'PRODUCAO_META_HORAS_REFERENCIA'
+            && (!ctype_digit($value) || (int) $value < 1 || (int) $value > 744)) {
+            throw new \InvalidArgumentException('Horas de referência inválidas.');
         }
         if ($key === 'DIA_UTIL_PAGAMENTO' && (!ctype_digit($value) || (int)$value < 1 || (int)$value > 31)) {
             throw new \InvalidArgumentException('Dia de pagamento inválido.');

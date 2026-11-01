@@ -11,14 +11,19 @@ namespace App\Controller;
 
 use App\Helper\ArrayValue;
 use App\Domain\Competencia;
+use App\Service\Config\CompetenceDefaults;
+use App\Service\Config\SourceEnvironment;
+use App\Service\Config\RuntimeConfig;
 use App\Helper\SseLogHandler;
 use App\Kernel;
 use App\Service\Calculation\CalculationActionGuard;
 use App\Service\Calculation\CalculationExecutionLock;
 use App\Service\Import\StagingDatabaseResetter;
+use App\Service\Import\StagingSchema;
 use App\Service\Calculation\ExecutionOutcome;
 use App\Service\Calculation\CalculationCommandOptions;
 use Monolog\Logger;
+use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -41,6 +46,10 @@ class Acoes extends AbstractController
         private Kernel $kernel,
         private CalculationActionGuard $guard,
         private StagingDatabaseResetter $stagingDatabaseResetter,
+        private CompetenceDefaults $competences,
+        private RuntimeConfig $runtimeConfig,
+        #[Autowire(service: 'doctrine.dbal.main_connection')]
+        private Connection $etlDb,
         private CalculationExecutionLock $executionLock,
     ) {
     }
@@ -79,13 +88,70 @@ class Acoes extends AbstractController
         }
 
         return $this->render('acoes/zerar_banco_local.html.twig', [
+            'execution_environment' => SourceEnvironment::stage(),
+            'source_profile' => SourceEnvironment::selectedProfile(),
+            'production_profile_ready' => SourceEnvironment::productionReady(),
+            'source_switch_possible' => $this->emptyWorkDatabase(),
+            'config_version' => $this->runtimeConfig->snapshot()['version'],
             'response' => $message,
             'response_is_error' => $status >= Response::HTTP_BAD_REQUEST,
             'staging_configured' => trim((string) getenv('PRODUCAO_STAGING_DATABASE')) !== '',
             'token' => $this->guard->token($request),
             'url' => $this->urlGenerator->generate('app_acoes_zerarbancolocal'),
-            'retorno' => $request->query->getString('retorno', new \DateTimeImmutable('first day of -2 months')->format('Y-m')),
+            'retorno' => $request->query->getString('retorno', CompetenceDefaults::workMonth()),
         ], new Response('', $status));
+    }
+
+    #[Route('/acoes/origem-dados', methods: ['POST'])]
+    public function selectDataSources(Request $request): Response
+    {
+        $this->guard->assertAuthorized($request);
+        $user = $request->server->getString('REMOTE_USER');
+        $admins = array_filter(array_map(trim(...), explode(',', (string) getenv('CONFIG_ADMIN_USERS'))));
+        if ($user === '' || !in_array($user, $admins, true)) {
+            return new Response('Troca de fontes restrita a administradores.', Response::HTTP_FORBIDDEN);
+        }
+        if (SourceEnvironment::stage() === 'production') {
+            return new Response('Fontes não podem ser trocadas em produção.', Response::HTTP_FORBIDDEN);
+        }
+        $profile = $request->request->getString('profile');
+        $version = $request->request->getString('version');
+        if (!in_array($profile, ['production', 'staging'], true) || !ctype_digit($version)) {
+            return new Response('Perfil de dados inválido.', Response::HTTP_BAD_REQUEST);
+        }
+        if ($profile === 'production' && !SourceEnvironment::productionReady()) {
+            return new Response('Perfil de produção não configurado neste ambiente.', Response::HTTP_CONFLICT);
+        }
+        try {
+            $this->executionLock->acquire();
+            if (!$this->emptyWorkDatabase()) {
+                return new Response('Limpe primeiro a base intermediária do ETL para evitar misturar fontes.', Response::HTTP_CONFLICT);
+            }
+            $this->runtimeConfig->save(['APP_DATA_SOURCE_PROFILE' => $profile], (int) $version);
+            $this->logger->notice('Fonte externa do ambiente não produtivo alterada.', [
+                'profile' => $profile,
+            ]);
+            return $this->redirectToRoute('app_acoes_zerarbancolocal', [
+                'retorno' => CompetenceDefaults::workMonth(),
+                'origem' => 'atualizada',
+            ], Response::HTTP_SEE_OTHER);
+        } catch (\DomainException $error) {
+            return new Response($error->getMessage(), Response::HTTP_CONFLICT);
+        } finally {
+            $this->executionLock->release();
+        }
+    }
+
+    private function emptyWorkDatabase(): bool
+    {
+        try {
+            return array_all(StagingSchema::TABLES, fn ($table) => !((int) $this->etlDb->fetchOne(
+                'SELECT COUNT(*) FROM ' . $this->etlDb->quoteIdentifier($table)
+            ) !== 0));
+        } catch (\Doctrine\DBAL\Exception) {
+            // Never allow switching data sources if storage is inaccessible.
+            return false;
+        }
     }
 
     #[Route('/acoes/make-producao', methods: ['GET'])]
@@ -94,7 +160,7 @@ class Acoes extends AbstractController
         $requested = $request->query->getString('ano-mes');
         try {
             $inicio = $requested === ''
-                ? new \DateTimeImmutable('first day of -2 months')
+                ? Competencia::fromString(CompetenceDefaults::workMonth())->start()
                 : Competencia::fromString($requested)->start();
         } catch (\InvalidArgumentException $error) {
             return new Response($error->getMessage(), Response::HTTP_BAD_REQUEST);
@@ -103,6 +169,7 @@ class Acoes extends AbstractController
         return $this->render('acoes/make_producao.html.twig', [
             'inicio_ano' => $inicio->format('Y'),
             'inicio_mes' => $inicio->format('m'),
+            'imported_competence' => $this->competences->importedMonth(),
             'url' => $this->urlGenerator->generate('app_acoes_domakeproducao'),
             'baixar_dados' => $request->query->getBoolean('baixar_dados') ? 1 : 0,
             'atualiza_producao' => $request->query->getBoolean('atualiza_producao')
@@ -139,6 +206,13 @@ class Acoes extends AbstractController
         }
         if ($operation === 'preview' && $publish !== '0') {
             return new Response('A prévia não pode publicar documentos.', Response::HTTP_BAD_REQUEST);
+        }
+        if ($operation === 'publish') {
+            try {
+                SourceEnvironment::assertWritable();
+            } catch (\DomainException $error) {
+                return new Response($error->getMessage(), Response::HTTP_FORBIDDEN);
+            }
         }
         if ($operation === 'publish' && ($download !== '0' || $publish !== '1')) {
             return new Response('Publicar não pode reimportar dados.', Response::HTTP_BAD_REQUEST);

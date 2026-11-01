@@ -33,6 +33,43 @@ final class AcoesHttpTest extends WebTestCase
         );
     }
 
+    public function testProductionShowsOnlyItsOwnSourcesAndRejectsSwitch(): void
+    {
+        $previousStage = getenv('APP_DEPLOYMENT_STAGE');
+        $previousAdmins = getenv('CONFIG_ADMIN_USERS');
+        try {
+            putenv('APP_DEPLOYMENT_STAGE=production');
+            putenv('CONFIG_ADMIN_USERS=librecode');
+            $client = static::createClient();
+            $crawler = $client->request('GET', '/acoes/zerar-banco-local', server: [
+                'REMOTE_USER' => 'librecode',
+            ]);
+            self::assertSame(Response::HTTP_OK, $client->getResponse()->getStatusCode());
+            $html = (string) $client->getResponse()->getContent();
+            self::assertStringContainsString('Ambiente de execução:', $html);
+            self::assertStringContainsString('Este ambiente de produção não permite trocar suas fontes', $html);
+            self::assertStringNotContainsString('action="/acoes/origem-dados"', $html);
+
+            $client->request('POST', '/acoes/origem-dados', [
+                '_token' => $crawler->filter('input[name="_token"]')->attr('value'),
+                'profile' => 'staging', 'version' => '0',
+            ], server: ['REMOTE_USER' => 'librecode']);
+            self::assertSame(Response::HTTP_FORBIDDEN, $client->getResponse()->getStatusCode());
+        } finally {
+            putenv($previousStage === false ? 'APP_DEPLOYMENT_STAGE' : 'APP_DEPLOYMENT_STAGE=' . $previousStage);
+            putenv($previousAdmins === false ? 'CONFIG_ADMIN_USERS' : 'CONFIG_ADMIN_USERS=' . $previousAdmins);
+        }
+    }
+
+    public function testSourceSwitchRequiresCsrfAndNeverAcceptsGet(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/acoes/origem-dados');
+        self::assertSame(Response::HTTP_METHOD_NOT_ALLOWED, $client->getResponse()->getStatusCode());
+        $client->request('POST', '/acoes/origem-dados', ['profile' => 'production', 'version' => '0']);
+        self::assertSame(Response::HTTP_FORBIDDEN, $client->getResponse()->getStatusCode());
+    }
+
     public function testEtlResetPostWithoutCsrfIsForbidden(): void
     {
         $client = static::createClient();

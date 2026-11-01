@@ -26,6 +26,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\Config\CompetenceDefaults;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -34,7 +35,8 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 class Index extends AbstractController
 {
     public function __construct(
-        private UrlGeneratorInterface $urlGenerator
+        private UrlGeneratorInterface $urlGenerator,
+        private CompetenceDefaults $competences
     ) {
     }
 
@@ -48,6 +50,7 @@ class Index extends AbstractController
     public function reports(): Response
     {
         return $this->render('index.relatorios.html.twig', [
+            'imported_competence' => $this->competences->importedMonth(),
             'relatorios' => [
                 'calculos' => [
                     'url' => $this->urlGenerator->generate('app_calculos_index'),

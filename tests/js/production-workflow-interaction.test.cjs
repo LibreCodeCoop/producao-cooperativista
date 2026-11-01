@@ -22,16 +22,15 @@ function element() {
 }
 
 function fixture({previewError = false, malformed = false, importSuccess = true,
-    publishSuccess = true, gridSuccess = true} = {}) {
+    publishSuccess = true, gridSuccess = true, withdrawalGoal = null} = {}) {
     const items = new Map();
     for (const id of ['production-wizard','form-gera-producao','messages',
         'import-button','use-existing','review-competence',
-        'metric-members','metric-hours','metric-base','metric-net',
+        'metric-members','metric-hours','metric-base','metric-net','withdrawal-goal',
         'selection-summary','publication-summary','publication-confirmation',
-        'submit','year','month']) items.set(id, element());
+        'submit','competence-month']) items.set(id, element());
 
-    items.get('year').value = '2026';
-    items.get('month').value = '08';
+    items.get('competence-month').value = '2026-08';
     items.get('submit').disabled = true;
     const form = items.get('form-gera-producao');
     form.elements = {};
@@ -90,7 +89,7 @@ function fixture({previewError = false, malformed = false, importSuccess = true,
                 async json() {
                     return previewError ? {error:{message:'Erro da fonte fiscal'}} :
                         malformed ? {metadata:{competence:'2026-07'},data:rows} :
-                            {metadata:{competence:'2026-08',revision},data:rows};
+                            {metadata:{competence:'2026-08',revision,withdrawal_goal:withdrawalGoal},data:rows};
                 },
             };
         },
@@ -144,6 +143,29 @@ test('import and review are the only two stages, with a sortable shared grid', a
         '/relatorios/producao?ano-mes=2026-08','/relatorios/calculos?ano-mes=2026-08',
         '/relatorios/invoices?ano-mes=2026-08',
     ]);
+});
+
+test('net withdrawal reference is displayed without changing selection or actual payout', async () => {
+    const goal={mode:'simulation_only',net_target:50000,reference_hours:165,required_pool:130000,
+        available_pool:120000,shortfall:10000,potential_surplus:0};
+    const f=fixture({withdrawalGoal:goal});
+    await f.click('use-existing');
+    const info=f.get('withdrawal-goal');
+    assert.equal(info.hidden,false);
+    assert.match(info.textContent,/R\$\s?50\.000,00/);
+    assert.match(info.textContent,/165 h/);
+    assert.match(info.textContent,/10\.000,00/);
+    assert.match(info.textContent,/rateio vigente/);
+    assert.match(f.get('metric-net').textContent,/107,35/);
+    assert.equal(f.calls.mount[0].payload.data[0].liquido,75.23);
+});
+
+test('tax table unavailable does not block financial review', async () => {
+    const f=fixture({withdrawalGoal:{mode:'unavailable'}});
+    await f.click('use-existing');
+    assert.equal(f.step(),2);
+    assert.match(f.get('withdrawal-goal').textContent,/indisponível/);
+    assert.equal(f.get('submit').disabled,true);
 });
 
 test('exclude decisions persist outside page, sorting and column filters', async () => {
@@ -266,8 +288,8 @@ test('returning to import and reviewing again resets decisions and approval', as
     assert.equal(f.get('submit').disabled,true);
     f.indicators[0].trigger('click');
     assert.equal(f.step(),1);
-    f.get('month').value='09';
-    f.change('month');
+    f.get('competence-month').value='2026-09';
+    f.change('competence-month');
     assert.ok(f.links.every(link=>link.href.endsWith('ano-mes=2026-09')));
     assert.equal(f.get('submit').disabled,true);
 });

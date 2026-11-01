@@ -201,6 +201,15 @@ pre { overflow-x: auto; max-width: 100%; }
 .breadcrumbs a { color: var(--muted); text-decoration: none; }
 .breadcrumbs a:hover { color: var(--brand); text-decoration: underline; }
 .reset-layout { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: 22px; align-items: start; }
+.reset-environment { padding: 18px 24px; margin-bottom: 18px; }
+.reset-environment h2 { margin:0 0 8px; font-size:17px; }
+.reset-environment p { margin:7px 0 0; font-size:13px; line-height:1.6; color:var(--muted); }
+.reset-environment form { margin-top:12px; display:flex; flex-wrap:wrap; gap:9px; align-items:center; }
+.reset-environment label { font-size:12px; font-weight:650; }
+.reset-environment select {
+    min-height:38px; padding:6px 10px; background:var(--surface); color:var(--text);
+    border:1px solid var(--line); border-radius:8px;
+}
 .reset-explainer, .reset-operation { padding: 28px; }
 .reset-explainer > h2, .reset-operation h2 { margin: 0 0 22px; font-size: 21px; }
 .reset-facts { display: flex; flex-direction: column; gap: 21px; }

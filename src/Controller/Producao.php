@@ -27,6 +27,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Domain\Competencia;
+use App\Service\Config\CompetenceDefaults;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -41,6 +42,7 @@ class Producao extends AbstractController
     public function __construct(
         RequestStack $requestStack,
         private UrlGeneratorInterface $urlGenerator,
+        private CompetenceDefaults $competences,
     ) {
         $this->request = $requestStack->getCurrentRequest();
     }
@@ -50,7 +52,7 @@ class Producao extends AbstractController
     {
         $requested = $this->request->query->getString('ano-mes');
         if ($requested === '') {
-            $inicio = new \DateTime('first day of -2 months');
+            $inicio = \DateTime::createFromFormat('!Y-m', $this->competences->reportMonth());
             return new RedirectResponse(
                 $this->urlGenerator->generate(
                     'app_producao_index',

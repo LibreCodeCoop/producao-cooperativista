@@ -118,7 +118,9 @@ final class OperationalUiTest extends TestCase
         self::assertStringContainsString('Operação indisponível nesta instalação', $html);
         self::assertStringContainsString('Não remove tabelas, migrações, logs', $html);
         self::assertStringNotContainsString('PRODUCAO_ACTION_TOKEN', $html);
-        self::assertStringContainsString('PRODUCAO_STAGING_DATABASE', $html);
+        self::assertStringContainsString('Ambiente e fontes', $html);
+        self::assertStringContainsString('Ambiente de execução', $html);
+        self::assertStringNotContainsString('Orientações para a administração do servidor', $html);
         self::assertSame(2, substr_count($html, 'disabled'));
     }
 

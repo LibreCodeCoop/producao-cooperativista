@@ -237,3 +237,37 @@ Edite os arquivos em `resources/scss/`, não os CSS gerados. Para compilar, rode
 ### Configuração administrativa
 
 Para editar integrações e regras, configure `CONFIG_ADMIN_USERS` no `.env` com os nomes autorizados na autenticação HTTP Basic. Credenciais são exibidas somente sob demanda e alterações são gravadas em `var/admin-config/settings.json` (privado, não versionado). O arquivo sobrepõe os parâmetros na próxima requisição ou execução CLI; proteja-o nos backups. Valores incorretos podem impedir a apuração ou a conexão com serviços externos.
+
+### Competência de fechamento e leitura das fontes
+
+A competência é o mês das horas trabalhadas. Para a LibreCode, a regra
+configurável é trabalhar em M, faturar/receber em M+1 e fechar em M+2
+(`PRODUCAO_FECHAMENTO_DEFASAGEM_MESES=2`). O formulário sugere essa
+competência, mas permite selecionar manualmente outros meses. Já os
+relatórios, sem data na URL, mostram a última competência de horas
+efetivamente importada, para evitar aparentar perda de dados após a virada
+do mês. Mudar a data sugerida nunca limpa a base.
+
+A página de limpeza exibe o ambiente real: `APP_DEPLOYMENT_STAGE` pode ser
+`production`, `staging` ou `development`; na ausência desse parâmetro,
+`APP_ENV=prod` identifica produção. Ambiente de execução **não** é origem
+dos dados. Apenas em instalações não produtivas um administrador pode
+selecionar `APP_DATA_SOURCE_PROFILE=production`. Essa opção só aparece
+quando as dez variáveis `SOURCE_PRODUCTION_*` do exemplo estiverem
+configuradas separadamente. Configure o acesso SQL ao Akaunting de
+produção com usuário **somente leitura**, sem permissão de gravação.
+Não é permitido mudar de fonte enquanto **qualquer** tabela de importação
+possuir dados. O seletor de origem não é apresentado em produção.
+
+Ao utilizar fontes de produção em desenvolvimento/homologação, atualizações
+de perfis Nextcloud e publicações no Akaunting são bloqueadas. Essa opção
+é para importação e conferência, não para alterar cadastros reais.
+
+A meta `PRODUCAO_META_LIQUIDA_MENSAL` (R$ 50.000 por padrão), para
+`PRODUCAO_META_HORAS_REFERENCIA` (165 h por padrão), é **uma simulação
+não vinculante**. O cálculo estima a base necessária para uma pessoa
+física atingir o líquido proporcional às horas usando as tabelas de
+INSS/IRPF da competência. A comparação não desconta antecipações e
+descontos individuais nem altera o rateio atual, os pagamentos ou as
+sobras contábeis. Uma distribuição real limitada por teto e destinação
+de excedente exige uma política formal adicional, não implementada aqui.

@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace App\Provider\Akaunting;
 
 use RuntimeException;
+use App\Service\Config\SourceEnvironment;
 use App\Service\Integration\TestConnectionGuard;
 use App\Service\Akaunting\PublicationWriteJournal;
 use Psr\Log\LoggerInterface;
@@ -33,6 +34,9 @@ class Request
 
     public function send(string $endpoint, array $body = [], array $query = [], string $method = 'POST'): array
     {
+        if (!in_array(strtoupper($method), ['GET', 'HEAD'], true)) {
+            SourceEnvironment::assertWritable();
+        }
         $baseUrl = rtrim(trim((string) getenv('AKAUNTING_API_BASE_URL')), '/');
         $username = trim((string) getenv('AKAUNTING_AUTH_USER'));
         $token = (string) getenv('AKAUNTING_AUTH_TOKEN');

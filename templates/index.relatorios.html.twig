@@ -7,6 +7,7 @@
         <h1>Relatórios</h1>
         <p class="page-lead">Consulte os dados da última importação e a memória da apuração. Para atualizar os dados, utilize o fechamento mensal.</p>
     </header>
+    {% if imported_competence|default(null) %}<p class="information-note">Última competência importada: <strong>{{ imported_competence }}</strong>. Os relatórios sem data selecionada abrem esta competência.</p>{% endif %}
     <section class="surface dashboard-reports" aria-labelledby="reports-heading">
         <h2 id="reports-heading">Escolha o relatório</h2>
         <div class="reports-grid">

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Nextcloud;
 
 use Psr\Log\LoggerInterface;
+use App\Service\Config\SourceEnvironment;
 use RuntimeException;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -135,6 +136,7 @@ class ProfileFieldsClient
     /** Create only two admin-only, hidden reference fields. */
     public function ensureLinkDefinitions(): void
     {
+        SourceEnvironment::assertWritable();
         $definitions = $this->activeDefinitions();
         foreach (['kimai_user_id' => 'Usuário Kimai', 'akaunting_contact_id' => 'Contato Akaunting'] as $key => $label) {
             if (isset($definitions[$key])) {
@@ -173,6 +175,7 @@ class ProfileFieldsClient
 
     public function updateUserField(string $userUid, string $fieldKey, string|int|float $value): void
     {
+        SourceEnvironment::assertWritable();
         $allowed = [
             $this->getTaxNumberFieldKey() => 'text',
             $this->getWeightFieldKey() => 'number',

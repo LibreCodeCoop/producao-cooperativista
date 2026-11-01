@@ -36,24 +36,19 @@
         <section data-workflow-step="1" aria-labelledby="import-title">
             <p class="section-kicker">Etapa 1 de 2</p>
             <h2 id="import-title">Importar dados</h2>
-            <p>Defina a competência das horas trabalhadas. A importação atualiza os dados intermediários do ETL sem criar documentos financeiros.</p>
+            <p>Defina a competência das horas trabalhadas. Na configuração atual, a apuração é feita dois meses após o trabalho. A importação atualiza apenas os dados intermediários do ETL.</p>
+            {% if imported_competence|default(null) and imported_competence != inicio_ano ~ '-' ~ inicio_mes %}
+                <div class="information-note">
+                    <strong>Última competência importada: {{ imported_competence }}</strong>
+                    <p><a href="/acoes/make-producao?ano-mes={{ imported_competence }}">Conferir essa competência</a>.
+                        Selecionar outro mês não apaga os dados já importados.</p>
+                </div>
+            {% endif %}
             <div class="production-period-fields">
                 <div class="form-field">
-                    <label for="month">Mês</label>
-                    <select id="month">
-                        {% for label in ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'] %}
-                            {% set number = '%02d'|format(loop.index) %}
-                            <option value="{{ number }}"{% if inicio_mes == number %} selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="form-field">
-                    <label for="year">Ano</label>
-                    <select id="year">
-                        {% for j in range('now'|date('Y') - 2, 'now'|date('Y') + 1) %}
-                            <option value="{{ j }}"{% if inicio_ano == j %} selected{% endif %}>{{ j }}</option>
-                        {% endfor %}
-                    </select>
+                    <label for="competence-month">Competência trabalhada</label>
+                    <input type="month" id="competence-month" value="{{ inicio_ano }}-{{ inicio_mes }}"
+                           min="2020-01" max="2099-12" required>
                 </div>
             </div>
             <div class="production-wizard-actions">
@@ -76,6 +71,7 @@
                 <div><span>Base da produção</span><strong id="metric-base">—</strong></div>
                 <div><span>Líquido previsto</span><strong id="metric-net">—</strong></div>
             </div>
+            <p class="production-help" id="withdrawal-goal" role="status" aria-live="polite" hidden></p>
             <div class="production-table-intro">
                 <div>
                     <strong>Produção por cooperado</strong>

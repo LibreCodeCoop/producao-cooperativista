@@ -26,6 +26,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Service\Config\SourceEnvironment;
 use App\Service\Movimentacao;
 use App\Helper\ArrayValue;
 use App\Service\Calculation\CalculationExecutionLock;
@@ -133,6 +134,9 @@ class MakeProducaoCommand extends AbstractBaseCommand
         if (!$input->getOption('ano-mes')) {
             $output->writeln('<error>--ano-mes é obrigatório</error>');
             return Command::INVALID;
+        }
+        if ($input->getOption('atualiza-producao')) {
+            SourceEnvironment::assertWritable();
         }
         $baixarDados = (string) $input->getOption('baixar-dados');
         if (!in_array($baixarDados, ['0', '1'], true)) {

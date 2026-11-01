@@ -27,8 +27,19 @@
                 <div class="admin-settings-fields">
                     {% for field in requirement.fields %}
                         <div class="admin-settings-field">
-                            <label for="config-{{ field.key }}"><strong>{{ field.key == 'APP_BRAND_DISPLAY_MODE' ? 'Exibição no cabeçalho' : field.key }}</strong>
+                            {% set friendlyNames = {
+                                'APP_BRAND_DISPLAY_MODE': 'Exibição no cabeçalho',
+                                'PRODUCAO_FECHAMENTO_DEFASAGEM_MESES': 'Meses entre o trabalho e o fechamento',
+                                'PRODUCAO_META_LIQUIDA_MENSAL': 'Meta líquida mensal (R$)',
+                                'PRODUCAO_META_HORAS_REFERENCIA': 'Horas mensais de referência'
+                            } %}
+                            <label for="config-{{ field.key }}"><strong>{{ friendlyNames[field.key]|default(field.key) }}</strong>
                                 {% if field.critical %}<small>Alteração crítica — revise antes de salvar</small>{% endif %}
+                                {% if field.key in ['PRODUCAO_META_LIQUIDA_MENSAL', 'PRODUCAO_META_HORAS_REFERENCIA'] %}
+                                    <small>Referência para simulação, sem alterar o rateio ou pagamentos.</small>
+                                {% elseif field.key == 'PRODUCAO_FECHAMENTO_DEFASAGEM_MESES' %}
+                                    <small>Hoje: horas no mês M; faturamento em M+1; fechamento em M+2.</small>
+                                {% endif %}
                             </label>
                             <div class="admin-settings-input">
                                 {% if field.key == 'APP_BRAND_DISPLAY_MODE' %}

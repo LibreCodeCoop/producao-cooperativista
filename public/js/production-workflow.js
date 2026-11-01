@@ -42,6 +42,13 @@
         return {rows, revision: payload.metadata.revision};
     }
 
+    function monthParts(value) {
+        if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(value || '')) {
+            throw new Error('Informe uma competência válida no formato ano e mês.');
+        }
+        return value.split('-');
+    }
+
     function selectedMembers(rows, omitted) {
         const excluded = new Set(omitted);
         return {
@@ -75,7 +82,7 @@
         let finished = false;
         let needsImport = false;
 
-        const competence = () => el('year').value + '-' + el('month').value;
+        const competence = () => el('competence-month').value;
         const stepButtons = [...doc.querySelectorAll('[data-step-indicator]')];
         const activeStep = () => Number([...wizard.querySelectorAll('[data-workflow-step]')].find(section => !section.hidden)?.dataset.workflowStep || 1);
         const syncNavigation = () => {
@@ -95,8 +102,9 @@
             syncNavigation();
         };
         const setAction = (operation) => {
-            form.elements.year.value = el('year').value;
-            form.elements.month.value = el('month').value;
+            const [year, month] = monthParts(competence());
+            form.elements.year.value = year;
+            form.elements.month.value = month;
             form.elements.operation.value = operation;
             form.elements.baixar_dados.value = operation === 'import' ? '1' : '0';
             form.elements.atualiza_producao.value = operation === 'publish' ? '1' : '0';
@@ -157,6 +165,7 @@
             messages.replaceChildren();
             updateLinks();
             try {
+                monthParts(competence());
                 const response = await request(wizard.dataset.previewUrl + '?ano-mes=' +
                     encodeURIComponent(competence()), {
                     credentials: 'same-origin', headers: {Accept: 'application/json'}, cache: 'no-store',
@@ -199,6 +208,23 @@
                 el('metric-hours').textContent = hours(valid.rows.reduce((sum, row) => sum + row.seconds, 0));
                 el('metric-base').textContent = money(cents(valid.rows, 'base') / 100);
                 el('metric-net').textContent = money(cents(valid.rows, 'net') / 100);
+                const goal = el('withdrawal-goal');
+                if (goal && payload.metadata?.withdrawal_goal?.mode === 'simulation_only') {
+                    const target = payload.metadata.withdrawal_goal;
+                    goal.hidden = false;
+                    goal.textContent = 'Meta de referência: ' + money(target.net_target) + ' líquidos por ' +
+                        target.reference_hours + ' h. Base necessária estimada: ' + money(target.required_pool) +
+                        '. Base distribuída nesta competência: ' + money(target.available_pool) +
+                        (target.shortfall > 0
+                            ? '. Diferença para a meta: ' + money(target.shortfall)
+                            : '. Excedente potencial: ' + money(target.potential_surplus)) +
+                        '. Somente pessoas físicas, sem adiantamentos e descontos individuais. ' +
+                        'A simulação não altera o rateio vigente.';
+                } else if (goal && payload.metadata?.withdrawal_goal?.mode === 'unavailable') {
+                    goal.hidden = false;
+                    goal.textContent = 'Simulação da meta indisponível para as regras tributárias desta competência. ' +
+                        'O cálculo e o rateio atuais permanecem válidos.';
+                }
                 invalidateApproval();
                 updateSummary();
                 return true;
@@ -266,7 +292,7 @@
                 syncNavigation();
             }
         });
-        for (const input of [el('month'), el('year')]) {
+        for (const input of [el('competence-month')]) {
             input.addEventListener('change', () => {
                 resetReview();
                 updateLinks();
@@ -281,7 +307,7 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = {money, hours, validatePreview, selectedMembers, initialize};
+        module.exports = {money, hours, monthParts, validatePreview, selectedMembers, initialize};
     } else {
         scope.addEventListener('DOMContentLoaded', () => initialize());
     }

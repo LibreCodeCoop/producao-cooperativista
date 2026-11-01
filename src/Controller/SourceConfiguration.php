@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Service\Integration\CooperativeSources;
+use App\Service\Config\CompetenceDefaults;
 use App\Service\Calculation\CalculationActionGuard;
 use App\Service\Integration\MemberParameterValidator;
 use Psr\Log\LoggerInterface;
@@ -20,6 +21,7 @@ final class SourceConfiguration extends AbstractController
 {
     public function __construct(
         private CooperativeSources $sources,
+        private CompetenceDefaults $competences,
         private CalculationActionGuard $guard,
         private MemberParameterValidator $validator,
         private LoggerInterface $logger,
@@ -434,7 +436,7 @@ final class SourceConfiguration extends AbstractController
     private function month(string $input): string
     {
         if ($input === '') {
-            return new \DateTimeImmutable('first day of -2 months')->format('Y-m');
+            return $this->competences->reportMonth();
         }
         if (!preg_match('/^20[0-9]{2}-(?:0[1-9]|1[0-2])$/D', $input)) {
             throw new \InvalidArgumentException('Competência inválida.');

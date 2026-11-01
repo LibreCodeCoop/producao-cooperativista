@@ -26,6 +26,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Service\Config\CompetenceDefaults;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -40,6 +41,7 @@ class TrabalhadoSummarized extends AbstractController
     public function __construct(
         RequestStack $requestStack,
         private UrlGeneratorInterface $urlGenerator,
+        private CompetenceDefaults $competences,
     ) {
         $this->request = $requestStack->getCurrentRequest();
     }
@@ -47,10 +49,9 @@ class TrabalhadoSummarized extends AbstractController
     #[Route('/relatorios/trabalhado-summarized', methods: ['GET'])]
     public function index(): Response
     {
-        $inicio = \DateTime::createFromFormat('!Y-m', $this->request->query->getString('ano-mes'));
-        if (!$inicio instanceof \DateTime) {
-            $inicio = new \DateTime();
-            $inicio->modify('-2 month');
+        $requested = $this->request->query->getString('ano-mes');
+        if ($requested === '') {
+            $inicio = \DateTime::createFromFormat('!Y-m', $this->competences->reportMonth());
             return new RedirectResponse(
                 $this->urlGenerator->generate(
                     'app_trabalhadosummarized_index',
@@ -61,6 +62,11 @@ class TrabalhadoSummarized extends AbstractController
                 )
             );
         }
+        try {
+            $inicio = \App\Domain\Competencia::fromString($requested)->start();
+        } catch (\InvalidArgumentException $error) {
+            return new Response($error->getMessage(), Response::HTTP_BAD_REQUEST);
+        }
 
         return $this->render('trabalhadoSummarized.index.html.twig', [
             'url' => $this->urlGenerator->generate(
@@ -70,6 +76,5 @@ class TrabalhadoSummarized extends AbstractController
                 ],
             ),
         ]);
-        return $response;
     }
 }

@@ -27,6 +27,7 @@ declare(strict_types=1);
 namespace App\Controller\Api;
 
 use App\Service\Movimentacao;
+use App\Service\Calculation\NetWithdrawalGoal;
 use App\Service\Calculation\ProductionPublicationSelection;
 use App\Service\Calculation\ProductionValueExplanations;
 use App\Service\Calculation\DecimalAllocation;
@@ -49,6 +50,7 @@ class Producao extends AbstractController
         private ApiProblemResponder $apiErrors,
         private ProductionPublicationSelection $selection,
         private ProductionValueExplanations $valueExplanations,
+        private NetWithdrawalGoal $withdrawalGoal,
     ) {
         $this->request = $requestStack->getCurrentRequest();
     }
@@ -114,12 +116,20 @@ class Producao extends AbstractController
                 }, $trabalhado)));
                 $output[] = $array;
             }
+            try {
+                $goal = $this->withdrawalGoal->evaluate($output, (int) $inicio->format('Y'), (int) $inicio->format('m'));
+            } catch (\Throwable) {
+                // Forecasts may be unavailable for future tax tables.
+                // Never interrupt the existing settlement for a what-if goal.
+                $goal = ['mode' => 'unavailable'];
+            }
             $response = [
                 'data' => array_values($output),
                 'metadata' => [
                     'total' => count($output),
                     'revision' => $snapshot['revision'],
                     'competence' => $inicio->format('Y-m'),
+                    'withdrawal_goal' => $goal,
                     'date' => $this->producao->dates->getInicioProximoMes()->format('Y-m')
                 ],
             ];

@@ -29,6 +29,7 @@ namespace App\Controller;
 use App\Domain\Competencia;
 use App\Service\Movimentacao;
 use App\Service\ProducaoCooperativista;
+use App\Service\Config\CompetenceDefaults;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -43,6 +44,7 @@ class Calculos extends AbstractController
     public function __construct(
         RequestStack $requestStack,
         private UrlGeneratorInterface $urlGenerator,
+        private CompetenceDefaults $competences,
         private ProducaoCooperativista $producao,
         private Movimentacao $movimentacao,
     ) {
@@ -54,7 +56,7 @@ class Calculos extends AbstractController
     {
         $requested = $this->request->query->getString('ano-mes');
         if ($requested === '') {
-            $inicio = new \DateTime('first day of -2 months');
+            $inicio = \DateTime::createFromFormat('!Y-m', $this->competences->reportMonth());
             return new RedirectResponse($this->urlGenerator->generate('app_calculos_index', [
                 'ano-mes' => $inicio->format('Y-m'),
             ]));
