@@ -225,7 +225,7 @@ table.dataTable > tbody > tr:nth-child(even):not(.selected) { background-color: 
 @media print {
     :root[data-theme="dark"] { color-scheme: light; }
     :root[data-theme="dark"] body { background: white; color: black; }
-    .theme-controls { display: none !important; }
+    .theme-toggle { display: none !important; }
 }
 
 :root[data-theme="dark"] .header-nav-link[aria-current="page"] {
