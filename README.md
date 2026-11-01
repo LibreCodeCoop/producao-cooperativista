@@ -250,7 +250,10 @@ do mês. Mudar a data sugerida nunca limpa a base.
 
 A página de limpeza exibe o ambiente real: `APP_DEPLOYMENT_STAGE` pode ser
 `production`, `staging` ou `development`; na ausência desse parâmetro,
-`APP_ENV=prod` identifica produção. Ambiente de execução **não** é origem
+`APP_ENV=prod` identifica produção. Quando o Symfony local usa
+`APP_ENV=prod` para cache e desempenho, configure explicitamente
+`APP_DEPLOYMENT_STAGE=development`; na instalação de produção, configure
+`APP_DEPLOYMENT_STAGE=production`. Ambiente de execução **não** é origem
 dos dados. Apenas em instalações não produtivas um administrador pode
 selecionar `APP_DATA_SOURCE_PROFILE=production`. Essa opção só aparece
 quando as dez variáveis `SOURCE_PRODUCTION_*` do exemplo estiverem
@@ -260,7 +263,10 @@ Não é permitido mudar de fonte enquanto **qualquer** tabela de importação
 possuir dados. O seletor de origem não é apresentado em produção.
 
 Ao utilizar fontes de produção em desenvolvimento/homologação, atualizações
-de perfis Nextcloud e publicações no Akaunting são bloqueadas. Essa opção
+de perfis Nextcloud e publicações no Akaunting são bloqueadas. Em desenvolvimento,
+outras gravações externas também ficam bloqueadas por padrão, salvo
+aprovação no servidor com `APP_NONPROD_SOURCE_WRITES_ENABLED=1` e uso
+de fontes de homologação. Essa opção
 é para importação e conferência, não para alterar cadastros reais.
 
 A meta `PRODUCAO_META_LIQUIDA_MENSAL` (R$ 50.000 por padrão), para

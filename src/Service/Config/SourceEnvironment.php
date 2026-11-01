@@ -23,14 +23,12 @@ final class SourceEnvironment
 
     public static function stage(): string
     {
+        // APP_ENV controls Symfony caching/performance, not infrastructure:
+        // a local development instance may run APP_ENV=prod. The deployment
+        // stage is an explicit server-side setting when it is provided.
         $configured = trim((string) getenv('APP_DEPLOYMENT_STAGE'));
-        // APP_ENV=prod is authoritative: never allow a secondary setting
-        // to make the production server appear writable as "staging".
-        if (getenv('APP_ENV') === 'prod') {
-            return 'production';
-        }
         if ($configured === '') {
-            return 'development';
+            return getenv('APP_ENV') === 'prod' ? 'production' : 'development';
         }
         if (!in_array($configured, ['production', 'staging', 'development'], true)) {
             throw new DomainException('APP_DEPLOYMENT_STAGE deve ser production, staging ou development.');
@@ -60,8 +58,16 @@ final class SourceEnvironment
 
     public static function assertWritable(): void
     {
-        if (self::stage() !== 'production' && self::selectedProfile() === 'production') {
-            throw new DomainException('A consulta às fontes de produção no ambiente de testes é somente leitura.');
+        if (self::stage() === 'production') {
+            return;
+        }
+        if (self::selectedProfile() === 'production') {
+            throw new DomainException('A consulta às fontes de produção em desenvolvimento é somente leitura.');
+        }
+        // In development even locally configured endpoints may point at
+        // production. Explicitly opt in before modifying external sources.
+        if (getenv('APP_ENV') !== 'test' && getenv('APP_NONPROD_SOURCE_WRITES_ENABLED') !== '1') {
+            throw new DomainException('Gravações em sistemas externos estão bloqueadas neste ambiente.');
         }
     }
 

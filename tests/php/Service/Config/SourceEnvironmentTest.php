@@ -19,6 +19,7 @@ final class SourceEnvironmentTest extends TestCase
 
     private const array KEYS = [
         'APP_ENV', 'APP_DEPLOYMENT_STAGE', 'APP_DATA_SOURCE_PROFILE',
+        'APP_NONPROD_SOURCE_WRITES_ENABLED',
         'KIMAI_API_BASE_URL', 'KIMAI_API_TOKEN',
         'AKAUNTING_API_BASE_URL', 'AKAUNTING_AUTH_USER',
         'AKAUNTING_AUTH_TOKEN', 'AKAUNTING_COMPANY_ID', 'DATABASE_AKAUNTING_URL',
@@ -29,7 +30,7 @@ final class SourceEnvironmentTest extends TestCase
     {
         foreach ([...self::KEYS, ...array_map(
             static fn (string $key): string => 'SOURCE_PRODUCTION_' . $key,
-            array_slice(self::KEYS, 3),
+            array_slice(self::KEYS, 4),
         )] as $key) {
             $this->previous[$key] = getenv($key);
             $this->previousEnv[$key] = $_ENV[$key] ?? null;
@@ -92,25 +93,39 @@ final class SourceEnvironmentTest extends TestCase
     {
         putenv('APP_DEPLOYMENT_STAGE=staging');
         putenv('APP_DATA_SOURCE_PROFILE=production');
-        foreach (array_slice(self::KEYS, 3) as $key) {
+        foreach (array_slice(self::KEYS, 4) as $key) {
             putenv('SOURCE_PRODUCTION_' . $key . '=safe-test-value');
             putenv($key . '=staging-value');
         }
         self::assertTrue(SourceEnvironment::productionReady());
         SourceEnvironment::apply();
-        foreach (array_slice(self::KEYS, 3) as $key) {
+        foreach (array_slice(self::KEYS, 4) as $key) {
             self::assertSame('safe-test-value', getenv($key));
         }
         self::assertSame('production', SourceEnvironment::selectedProfile());
     }
 
-    public function testProductionFrameworkEnvOverridesUnsafeStageConfig(): void
+    public function testExplicitStageSeparatesInfrastructureFromSymfonyRuntime(): void
     {
         putenv('APP_ENV=prod');
         putenv('APP_DEPLOYMENT_STAGE=development');
         putenv('APP_DATA_SOURCE_PROFILE=staging');
-        self::assertSame('production', SourceEnvironment::stage());
-        self::assertSame('production', SourceEnvironment::selectedProfile());
+        putenv('APP_NONPROD_SOURCE_WRITES_ENABLED');
+        self::assertSame('development', SourceEnvironment::stage());
+        self::assertSame('staging', SourceEnvironment::selectedProfile());
+        $this->expectException(DomainException::class);
+        SourceEnvironment::assertWritable();
+    }
+
+    public function testLocalStagingWritesRequireExplicitApprovalButNeverAllowProductionWrites(): void
+    {
+        putenv('APP_ENV=prod');
+        putenv('APP_DEPLOYMENT_STAGE=development');
+        putenv('APP_DATA_SOURCE_PROFILE=staging');
+        putenv('APP_NONPROD_SOURCE_WRITES_ENABLED=1');
+        SourceEnvironment::assertWritable();
+        putenv('APP_DATA_SOURCE_PROFILE=production');
+        $this->expectException(DomainException::class);
         SourceEnvironment::assertWritable();
     }
 

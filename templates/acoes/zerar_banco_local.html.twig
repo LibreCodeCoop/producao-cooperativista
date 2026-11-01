@@ -30,9 +30,11 @@
                 <label for="source-profile">Fontes para a próxima importação</label>
                 <select id="source-profile" name="profile">
                     <option value="staging"{{ source_profile|default('staging') == 'staging' ? ' selected' : '' }}>Fontes configuradas neste ambiente</option>
-                    {% if production_profile_ready|default(false) %}
-                        <option value="production"{{ source_profile == 'production' ? ' selected' : '' }}>Sistemas de produção (somente leitura)</option>
-                    {% endif %}
+                    <option value="production"
+                            {{ source_profile == 'production' ? 'selected' : '' }}
+                            {{ not production_profile_ready|default(false) ? 'disabled' : '' }}>
+                        Sistemas de produção ({{ production_profile_ready|default(false) ? 'somente leitura' : 'não configurados' }})
+                    </option>
                 </select>
                 <button type="submit" class="button button-secondary"
                         {{ not source_switch_possible|default(false) ? 'disabled' : '' }}>Trocar fontes</button>
