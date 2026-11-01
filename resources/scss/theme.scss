@@ -34,32 +34,23 @@ table.dataTable > tbody > tr:nth-child(even):not(.selected) { background-color: 
     gap: 12px;
 }
 .header-actions nav { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-.theme-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
-.theme-toggle, .theme-system {
+.theme-toggle {
     display: inline-flex;
+    flex: 0 0 auto;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 8px 12px;
-    min-height: 38px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
     border: 1px solid var(--line);
     border-radius: 9px;
     background: var(--surface);
     color: var(--text);
-    font: inherit;
-    font-size: 12px;
-    font-weight: 700;
     cursor: pointer;
 }
-.theme-toggle:hover, .theme-system:hover {
-    background: var(--brand-soft);
-    border-color: var(--brand);
-    color: var(--text);
-}
-.theme-toggle-icon { display: inline-block; min-width: 1.1em; font-size: 17px; line-height: 1; }
-.theme-status { font-size: 11px; color: var(--muted); white-space: nowrap; }
-.theme-system { padding: 7px 9px; font-size: 11px; }
-.theme-system[hidden] { display: none; }
+.theme-toggle:hover { background: var(--brand-soft); border-color: var(--brand); }
+.theme-toggle:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+.theme-toggle-icon { display: inline-block; font-size: 19px; line-height: 1; }
 
 @media (max-width: 900px) {
     .header-inner { flex-wrap: wrap; gap: 12px; padding-block: 12px; }
@@ -68,7 +59,6 @@ table.dataTable > tbody > tr:nth-child(even):not(.selected) { background-color: 
 @media (max-width: 620px) {
     .header-inner { align-items: flex-start; }
     .header-actions { width: 100%; justify-content: space-between; }
-    .theme-controls { gap: 6px; }
 }
 
 /* Neutral surfaces, navigation, notes and forms. */

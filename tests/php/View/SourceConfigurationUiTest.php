@@ -30,6 +30,8 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('<h1>Configuração</h1>', $html);
         self::assertStringContainsString('Cooperados e vínculos', $html);
         self::assertStringContainsString('href="/configuracao/integracoes"', $html);
+        self::assertStringContainsString('href="/configuracao/cooperados"', $html);
+        self::assertStringContainsString('action="/configuracao/cooperados"', $html);
         self::assertStringNotContainsString('Desbloquear administração', $html);
         self::assertStringNotContainsString('PRODUCAO_ACTION_TOKEN', $html);
         self::assertStringNotContainsString('name="action_token"', $html);
@@ -73,6 +75,8 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('title="Peso da última importação"', $html);
         self::assertStringContainsString('1,25', $html);
         self::assertStringContainsString('Não importado', $html);
+        self::assertStringContainsString('data-order="-1"', $html);
+        self::assertStringContainsString('data-order="1.25"', $html);
         self::assertStringNotContainsString('data-weight-form', $html);
         self::assertStringNotContainsString('name="field" value="weight"', $html);
         self::assertStringNotContainsString('src="/js/settings-inline-weight.js"', $html);

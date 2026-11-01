@@ -17,6 +17,24 @@ final class ReportNavigationTest extends WebTestCase
         self::assertSame('/acoes/make-producao', $client->getResponse()->headers->get('Location'));
     }
 
+    public function testSettingsBaseRedirectsToCanonicalMembersRoutePreservingFilters(): void
+    {
+        $client = static::createClient();
+        $router = static::getContainer()->get('router');
+        self::assertSame('app_sourceconfiguration_index', $router->match('/configuracao')['_route']);
+        self::assertSame('app_sourceconfiguration_members', $router->match('/configuracao/cooperados')['_route']);
+        self::assertSame('app_systemconfiguration_index', $router->match('/configuracao/integracoes')['_route']);
+
+        $client->request('GET', '/configuracao?competencia=2026-08&dtorder=0%3Aasc&dtname=Ana');
+        self::assertSame(Response::HTTP_FOUND, $client->getResponse()->getStatusCode());
+        $location = (string) $client->getResponse()->headers->get('Location');
+        self::assertSame('/configuracao/cooperados', (string) parse_url($location, PHP_URL_PATH));
+        parse_str((string) parse_url($location, PHP_URL_QUERY), $params);
+        self::assertSame('2026-08', $params['competencia']);
+        self::assertSame('0:asc', $params['dtorder']);
+        self::assertSame('Ana', $params['dtname']);
+    }
+
     public function testCanonicalReportsAreRoutedAndAvailableInDedicatedCatalog(): void
     {
         $client = static::createClient();

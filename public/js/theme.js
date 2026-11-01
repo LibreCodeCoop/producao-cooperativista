@@ -53,10 +53,7 @@
 
         function renderControls() {
             const button = document.getElementById('theme-toggle');
-            const reset = document.getElementById('theme-system');
-            const label = document.getElementById('theme-toggle-label');
             const icon = document.getElementById('theme-toggle-icon');
-            const status = document.getElementById('theme-status');
             const next = theme === DARK ? LIGHT : DARK;
 
             if (button) {
@@ -64,13 +61,7 @@
                 button.setAttribute('aria-label', action);
                 button.title = action;
             }
-            if (label) label.textContent = next === DARK ? 'Tema escuro' : 'Tema claro';
             if (icon) icon.textContent = next === DARK ? '☾' : '☀';
-            if (reset) reset.hidden = mode === SYSTEM;
-            if (status) {
-                const currentLabel = theme === DARK ? 'Escuro' : 'Claro';
-                status.textContent = mode === SYSTEM ? 'Navegador · ' + currentLabel : currentLabel;
-            }
         }
 
         function apply() {
@@ -101,9 +92,6 @@
             bound = true;
             document.getElementById('theme-toggle')?.addEventListener('click', () => {
                 select(theme === DARK ? LIGHT : DARK);
-            });
-            document.getElementById('theme-system')?.addEventListener('click', () => {
-                select(SYSTEM);
             });
             renderControls();
         }

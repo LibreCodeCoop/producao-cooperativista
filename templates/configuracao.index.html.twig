@@ -7,7 +7,7 @@
 {% endblock %}
 {% block body %}
 <nav class="breadcrumbs" aria-label="Localização">
-    <a href="/acoes/make-producao">Fechamento</a><span>/</span><span aria-current="page">Configuração</span>
+    <a href="/acoes/make-producao">Fechamento</a><span>/</span><span>Configuração</span><span>/</span><span aria-current="page">Cooperados</span>
 </nav>
 <header class="page-heading">
     <h1>Configuração</h1>
@@ -29,7 +29,7 @@
                 <h2>Cooperados e vínculos</h2>
                 <p>Lista baseada nas contas do Kimai. Clique no nome para conferir o cadastro nas fontes.</p>
             </div>
-            <form action="/configuracao" method="get" class="settings-month">
+            <form action="/configuracao/cooperados" method="get" class="settings-month">
                 <label for="settings-month">Competência</label>
                 <input type="month" name="competencia" id="settings-month" value="{{ month }}" min="2020-01" max="2099-12">
                 <button class="settings-secondary" type="submit">Aplicar</button>
@@ -70,7 +70,7 @@
                             <td>{% if not user.system %}<a href="/configuracao/cooperado/{{ user.id }}/editar?competencia={{ month|url_encode }}" class="settings-link" data-member-editor-open data-settings-member-link>{{ user.alias }}</a>{% else %}{{ user.alias }}{% endif %}</td>
                             <td>{{ user.username }}</td>
                             <td data-order="{{ user.hours }}">{{ user.hours|number_format(2, ',', '.') }} h</td>
-                            <td data-order="{{ user.imported_weight is not null ? user.imported_weight : '' }}" title="Peso da última importação">{{ user.imported_weight is not null ? user.imported_weight|replace({'.': ','}) : 'Não importado' }}</td>
+                            <td data-order="{{ user.imported_weight is not null ? user.imported_weight : -1 }}" title="Peso da última importação">{{ user.imported_weight is not null ? user.imported_weight|replace({'.': ','}) : 'Não importado' }}</td>
                             <td>{{ user.participates ? 'Com horas' : 'Sem horas' }}</td>
                             <td>{{ status }}</td>
                         </tr>

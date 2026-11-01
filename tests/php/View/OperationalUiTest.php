@@ -33,7 +33,7 @@ final class OperationalUiTest extends TestCase
         self::assertStringContainsString('href="#main-content"', $html);
         self::assertSame(1, preg_match_all('/class="header-nav-link"[^>]*>Fechamento<\/a>/', $html));
         self::assertStringContainsString('href="/relatorios"', $html);
-        self::assertStringContainsString('href="/configuracao"', $html);
+        self::assertStringContainsString('href="/configuracao/cooperados"', $html);
         self::assertStringNotContainsString('>Visão geral</a>', $html);
         self::assertStringContainsString('src="https://librecode.coop/assets/images/logo/librecode.png"', $html);
     }
@@ -93,10 +93,11 @@ final class OperationalUiTest extends TestCase
         self::assertStringContainsString('src="/js/theme.js"', $html);
         self::assertStringContainsString('href="/css/theme.css"', $html);
         self::assertStringContainsString('id="theme-toggle"', $html);
-        self::assertStringContainsString('id="theme-toggle-label"', $html);
-        self::assertStringContainsString('id="theme-status"', $html);
-        self::assertStringContainsString('id="theme-system" class="theme-system" hidden', $html);
-        self::assertStringContainsString('aria-live="polite"', $html);
+        self::assertStringContainsString('id="theme-toggle-icon"', $html);
+        self::assertStringNotContainsString('id="theme-toggle-label"', $html);
+        self::assertStringNotContainsString('id="theme-status"', $html);
+        self::assertStringNotContainsString('id="theme-system"', $html);
+        self::assertStringContainsString('aria-label="Ativar tema escuro"', $html);
         self::assertStringContainsString('type="button" id="theme-toggle"', $html);
         self::assertLessThan(
             strpos($html, 'href="/css/app.css"'),

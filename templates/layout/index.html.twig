@@ -39,16 +39,11 @@
                     <nav aria-label="Navegação principal">
                         <a class="header-nav-link" href="/acoes/make-producao"{% if currentPath == '/' or currentPath starts with '/acoes/' %} aria-current="page"{% endif %}>Fechamento</a>
                         <a class="header-nav-link" href="/relatorios"{% if currentPath starts with '/relatorios' %} aria-current="page"{% endif %}>Relatórios</a>
-                        <a class="header-nav-link" href="/configuracao"{% if currentPath starts with '/configuracao' %} aria-current="page"{% endif %}>Configuração</a>
+                        <a class="header-nav-link" href="/configuracao/cooperados"{% if currentPath starts with '/configuracao' %} aria-current="page"{% endif %}>Configuração</a>
                     </nav>
-                    <div class="theme-controls" aria-label="Aparência do sistema">
-                        <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Ativar tema escuro">
-                            <span id="theme-toggle-icon" class="theme-toggle-icon" aria-hidden="true">☾</span>
-                            <span id="theme-toggle-label">Tema escuro</span>
-                        </button>
-                        <button type="button" id="theme-system" class="theme-system" hidden title="Voltar ao padrão do navegador">Seguir navegador</button>
-                        <span id="theme-status" class="theme-status" role="status" aria-live="polite">Navegador</span>
-                    </div>
+                    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Ativar tema escuro" title="Ativar tema escuro">
+                        <span id="theme-toggle-icon" class="theme-toggle-icon" aria-hidden="true">☾</span>
+                    </button>
                 </div>
             </div>
         </header>

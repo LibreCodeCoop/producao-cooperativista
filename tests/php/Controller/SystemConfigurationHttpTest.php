@@ -41,7 +41,7 @@ final class SystemConfigurationHttpTest extends WebTestCase
         self::assertStringContainsString('data-reveal-key="KIMAI_API_TOKEN"', $html);
         self::assertStringContainsString('data-admin-settings-group', $html);
         self::assertStringContainsString('data-token=', $html);
-        self::assertStringContainsString('href="/configuracao"', $html);
+        self::assertStringContainsString('href="/configuracao/cooperados"', $html);
         self::assertStringContainsString('no-store', (string) $client->getResponse()->headers->get('Cache-Control'));
         self::assertNotEmpty($crawler->filter('#admin-settings')->attr('data-token'));
     }

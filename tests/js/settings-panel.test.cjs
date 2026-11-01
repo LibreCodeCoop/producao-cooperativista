@@ -6,7 +6,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
-    DEFAULT_STATUS, readState, tableStateUrl, exactFilter, initializeSettingsTable,
+    DEFAULT_STATUS, DEFAULT_ORDER, readState, tableStateUrl, exactFilter, initializeSettingsTable,
 } = require('../../public/js/settings-panel.js');
 
 function element(value = '') {
@@ -20,7 +20,7 @@ function element(value = '') {
     };
 }
 
-function fixture(href = 'https://librecode.example/configuracao?competencia=2026-08', rows) {
+function fixture(href = 'https://librecode.example/configuracao/cooperados?competencia=2026-08', rows) {
     const elements = {
         'settings-members': element(),
         'settings-name-filter': element(),
@@ -128,7 +128,7 @@ test('default state shows active cooperatives, but keeps pagination and ordering
     assert.equal(DEFAULT_STATUS, 'Ativo');
     assert.deepEqual(readState('?competencia=2026-08'), {
         name: '', user: '', status: 'Ativo', activity: 'all',
-        search: '', page: 0, length: 10, order: [2, 'desc'],
+        search: '', page: 0, length: 10, order: [[3, 'desc'], [2, 'desc']],
     });
     const f = fixture();
     const dt = initializeSettingsTable(f.doc, {DataTable: f.DataTable, location: f.location, history: f.history});
@@ -136,7 +136,7 @@ test('default state shows active cooperatives, but keeps pagination and ordering
     assert.equal(dt.selector, '#settings-members');
     assert.equal(dt.settings.scrollX, true);
     assert.deepEqual(dt.settings.lengthMenu, [10, 25, 50, 100]);
-    assert.deepEqual(dt.settings.order, [[2, 'desc']]);
+    assert.deepEqual(dt.settings.order, [[3, 'desc'], [2, 'desc']]);
     const buttons = dt.settings.layout.topStart.buttons;
     assert.deepEqual(buttons.map(button => typeof button === 'string' ? button : button.extend),
         ['pageLength', 'colvis', 'copy', 'csv', 'excel', 'pdf', 'print']);
@@ -149,6 +149,27 @@ test('default state shows active cooperatives, but keeps pagination and ordering
     assert.deepEqual(dt.queries.get(5), {value: '^Ativo$', regex: true});
     assert.equal(f.elements['settings-visible-count'].textContent, '2');
     assert.equal(f.history.urls.length, 0);
+});
+
+test('default sort prioritizes imported weight, then imported hours; manual sort replaces it', () => {
+    const f = fixture();
+    const dt = initializeSettingsTable(f.doc, {DataTable: f.DataTable, location: f.location, history: f.history});
+    assert.deepEqual(DEFAULT_ORDER, [[3, 'desc'], [2, 'desc']]);
+    assert.deepEqual(dt.apiInstance.order(), DEFAULT_ORDER);
+    const defaultUrl = new URL(tableStateUrl(f.location.href, {
+        name:'',user:'',activity:'all',status:'Ativo',search:'',page:0,length:10,order: DEFAULT_ORDER,
+    }), f.location.href);
+    assert.equal(defaultUrl.searchParams.has('dtorder'),false);
+    dt.apiInstance.order([[0, 'asc']]);
+    dt.fire('search.dt page.dt length.dt order.dt');
+    assert.deepEqual(dt.apiInstance.order(), [[0, 'asc']]);
+    assert.equal(new URL(f.history.urls.at(-1), f.location.href).searchParams.get('dtorder'), '0:asc');
+    const restored = readState('?dtorder=3:desc,2:desc');
+    assert.deepEqual(restored.order, DEFAULT_ORDER);
+    const resumed = readState('?dtorder=0:asc');
+    assert.deepEqual(resumed.order, [[0, 'asc']]);
+    f.elements['settings-default-filters'].emit('click');
+    assert.deepEqual(dt.apiInstance.order(), DEFAULT_ORDER);
 });
 
 test('name, username and hours have editable filters and update URL', () => {
@@ -186,16 +207,16 @@ test('clear all filters shows inactive and service accounts; restore hides them'
 });
 
 test('restores shared URL filters, pagination, search and sort and keeps competence', () => {
-    const f = fixture('https://librecode.example/configuracao?competencia=2026-08&cooperado=2&dtname=Cel&dtsearch=cel&dtstatus=all&dtactivity=Com%20horas&dtpage=1&dtlength=25&dtorder=2:desc');
+    const f = fixture('https://librecode.example/configuracao/cooperados?competencia=2026-08&cooperado=2&dtname=Cel&dtsearch=cel&dtstatus=all&dtactivity=Com%20horas&dtpage=1&dtlength=25&dtorder=2:desc');
     const dt = initializeSettingsTable(f.doc, {DataTable: f.DataTable, location: f.location, history: f.history});
     assert.equal(f.elements['settings-name-filter'].value, 'Cel');
     assert.equal(f.elements['settings-status-filter'].value, 'all');
     assert.equal(dt.apiInstance.page.len(), 25);
-    assert.deepEqual(dt.apiInstance.order()[0], [2, 'desc']);
+    assert.deepEqual(dt.apiInstance.order(), [[2, 'desc']]);
     assert.equal(dt.apiInstance.search(), 'cel');
     const url = new URL(tableStateUrl(f.location.href, {
         name: 'A & B', user: '', activity: 'Sem horas', status: 'Desativado',
-        search: 'p', page: 2, length: 25, order: [2, 'desc'],
+        search: 'p', page: 2, length: 25, order: [[2, 'desc']],
     }), f.location.href);
     assert.equal(url.searchParams.get('competencia'), '2026-08');
     assert.equal(url.searchParams.get('cooperado'), '2');
@@ -222,10 +243,12 @@ test('invalid URL filter values cannot inject custom regex or invalid sorting', 
     const state = readState('?dtstatus=.^%2B&dtactivity=evil&dtorder=8:desc&dtpage=oops&dtlength=999');
     assert.equal(state.status, 'Ativo');
     assert.equal(state.activity, 'all');
-    assert.deepEqual(state.order, [2, 'desc']);
+    assert.deepEqual(state.order, [[3, 'desc'], [2, 'desc']]);
     assert.equal(state.page, 0);
     assert.equal(state.length, 10);
-    assert.deepEqual(readState('?dtorder=3:desc').order, [3, 'desc'], 'Imported weight supports sorting');
+    assert.deepEqual(readState('?dtorder=3:desc').order, [[3, 'desc']], 'Imported weight supports sorting');
+    assert.deepEqual(readState('?dtorder=3:desc,3:asc').order, DEFAULT_ORDER, 'Duplicate sort columns are rejected');
+    assert.deepEqual(readState('?dtorder=3:desc,javascript:asc').order, DEFAULT_ORDER, 'Only known sort columns are accepted');
     assert.equal(exactFilter('all'), '');
     assert.equal(exactFilter('Ativo'), '^Ativo$');
 });

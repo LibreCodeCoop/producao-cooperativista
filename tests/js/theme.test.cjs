@@ -44,9 +44,6 @@ function makeFixture({systemDark = false, stored = null, storageBlocked = false}
     const controls = {
         'theme-toggle': element(),
         'theme-toggle-icon': element(),
-        'theme-toggle-label': element(),
-        'theme-system': element(),
-        'theme-status': element(),
     };
     const attrs = new Map();
     const classes = new Set();
@@ -116,9 +113,8 @@ test('no browser choice follows light operating system immediately before DOMCon
     assert.equal(f.html.style.colorScheme, 'light');
     assert.equal(f.html.classList.contains('dark'), false);
     f.ready();
-    assert.equal(f.controls['theme-toggle-label'].textContent, 'Tema escuro');
-    assert.equal(f.controls['theme-status'].textContent, 'Navegador · Claro');
-    assert.equal(f.controls['theme-system'].hidden, true);
+    assert.equal(f.controls['theme-toggle-icon'].textContent, '☾');
+    assert.equal(f.controls['theme-toggle'].title, 'Ativar tema escuro');
     assert.equal(f.controls['theme-toggle'].attributes.get('aria-label'), 'Ativar tema escuro');
     assert.equal(f.storageData.size, 0);
 });
@@ -130,12 +126,11 @@ test('system dark mode is used by default, without writing a saved preference', 
     assert.equal(f.html.classList.contains('dark'), true); // Supports native DataTables dark mode.
     f.ready();
     assert.equal(f.controls['theme-toggle-icon'].textContent, '☀');
-    assert.equal(f.controls['theme-toggle-label'].textContent, 'Tema claro');
-    assert.equal(f.controls['theme-status'].textContent, 'Navegador · Escuro');
+    assert.equal(f.controls['theme-toggle'].title, 'Ativar tema claro');
     assert.equal(f.storageData.size, 0);
 });
 
-test('toggle switches contrast, persists manual selection, and offers return to browser', () => {
+test('single icon toggles contrast and saves explicit preference', () => {
     const f = makeFixture({systemDark: true});
     const manager = createThemeManager(f.win);
     f.ready();
@@ -143,20 +138,16 @@ test('toggle switches contrast, persists manual selection, and offers return to 
     assert.equal(manager.getMode(), 'light');
     assert.equal(manager.getTheme(), 'light');
     assert.equal(f.storageData.get(STORAGE_KEY), 'light');
-    assert.equal(f.controls['theme-system'].hidden, false);
-    assert.equal(f.controls['theme-status'].textContent, 'Claro');
+    assert.equal(f.controls['theme-toggle-icon'].textContent, '☾');
     assert.equal(f.controls['theme-toggle'].attributes.get('aria-label'), 'Ativar tema escuro');
     f.controls['theme-toggle'].click();
     assert.equal(manager.getMode(), 'dark');
     assert.equal(f.storageData.get(STORAGE_KEY), 'dark');
-    f.controls['theme-system'].click();
-    assert.equal(manager.getMode(), 'system');
     assert.equal(manager.getTheme(), 'dark');
-    assert.equal(f.storageData.has(STORAGE_KEY), false);
-    assert.equal(f.controls['theme-system'].hidden, true);
+    assert.equal(f.controls['theme-toggle-icon'].textContent, '☀');
 });
 
-test('manual selection survives navigation, ignores OS changes until reset', () => {
+test('saved manual selection ignores OS changes until browser preference is cleared', () => {
     const f = makeFixture({systemDark: false, stored: 'dark'});
     const manager = createThemeManager(f.win);
     assert.equal(manager.getMode(), 'dark');
@@ -165,11 +156,11 @@ test('manual selection survives navigation, ignores OS changes until reset', () 
     f.media.change(true);
     f.media.change(false);
     assert.equal(manager.getTheme(), 'dark');
-    f.controls['theme-system'].click();
+    f.onStorage(null);
+    assert.equal(manager.getMode(), 'system');
     assert.equal(manager.getTheme(), 'light');
     f.media.change(true);
     assert.equal(manager.getTheme(), 'dark');
-    assert.equal(f.controls['theme-status'].textContent, 'Navegador · Escuro');
 });
 
 test('updates from another tab synchronize immediately and invalid values revert to system', () => {
@@ -196,9 +187,9 @@ test('blocked localStorage does not break theme switching', () => {
     f.controls['theme-toggle'].click();
     assert.equal(manager.getTheme(), 'light');
     assert.equal(manager.getMode(), 'light');
-    f.controls['theme-system'].click();
+    f.controls['theme-toggle'].click();
     assert.equal(manager.getTheme(), 'dark');
-    assert.equal(manager.getMode(), 'system');
+    assert.equal(manager.getMode(), 'dark');
 });
 
 

@@ -10,6 +10,24 @@
     const STATES = ['Ativo', 'Desativado', 'Conta de serviço', 'all'];
     const ACTIVITIES = ['all', 'Com horas', 'Sem horas'];
     const DEFAULT_STATUS = 'Ativo';
+    const DEFAULT_ORDER = [[3, 'desc'], [2, 'desc']];
+
+    // DataTables supports multiple sort criteria, but a header click can still
+    // replace them with a single column. Persist either shape in the URL.
+    function parseOrder(value) {
+        if (!value) return DEFAULT_ORDER.map(pair => [...pair]);
+        const parts = value.split(',');
+        if (parts.length > 6) return DEFAULT_ORDER.map(pair => [...pair]);
+        const seen = new Set();
+        const order = [];
+        for (const part of parts) {
+            const match = /^([0-5]):(asc|desc)$/.exec(part);
+            if (!match || seen.has(match[1])) return DEFAULT_ORDER.map(pair => [...pair]);
+            seen.add(match[1]);
+            order.push([Number(match[1]), match[2]]);
+        }
+        return order;
+    }
 
     function readState(search) {
         const params = new URLSearchParams(search || '');
@@ -17,8 +35,7 @@
         const activity = params.get('dtactivity') || 'all';
         const page = params.get('dtpage') || '0';
         const length = params.get('dtlength') || '10';
-        const order = params.get('dtorder') || '2:desc';
-        const orderMatch = /^([0-5]):(asc|desc)$/.exec(order);
+        const order = parseOrder(params.get('dtorder'));
 
         return {
             name: params.get('dtname') || '',
@@ -28,7 +45,7 @@
             search: params.get('dtsearch') || '',
             page: /^\d{1,4}$/.test(page) ? Number(page) : 0,
             length: ['10', '25', '50', '100'].includes(length) ? Number(length) : 10,
-            order: orderMatch ? [Number(orderMatch[1]), orderMatch[2]] : [2, 'desc'],
+            order,
         };
     }
 
@@ -45,8 +62,8 @@
             dtsearch: state.search,
             dtpage: state.page > 0 ? String(state.page) : '',
             dtlength: state.length === 10 ? '' : String(state.length),
-            dtorder: state.order?.[0] === 2 && state.order?.[1] === 'desc'
-                ? '' : state.order?.join(':'),
+            dtorder: JSON.stringify(state.order) === JSON.stringify(DEFAULT_ORDER)
+                ? '' : state.order?.map(part => part.join(':')).join(','),
         };
         for (const [key, value] of Object.entries(entries)) {
             if (value) {
@@ -101,7 +118,7 @@
         let restoring = true;
 
         function currentState(api) {
-            const order = api.order()[0] || [2, 'desc'];
+            const order = api.order();
             return {
                 name: fields.name.value.trim(), user: fields.user.value.trim(),
                 activity: fields.activity.value, status: fields.status.value,
@@ -130,7 +147,7 @@
             columnFilters(api, fields);
             api.search(state.search);
             api.page.len(state.length);
-            api.order([state.order]);
+            api.order(state.order);
             api.draw();
             if (state.page > 0 && state.page < api.page.info().pages) {
                 api.page(state.page).draw('page');
@@ -153,7 +170,7 @@
                 fields.activity.value = 'all';
                 fields.status.value = status;
                 api.search('');
-                api.order([[2, 'desc']]);
+                api.order(DEFAULT_ORDER.map(pair => [...pair]));
                 api.page.len(10);
                 apply();
             }
@@ -184,7 +201,7 @@
             scrollX: true,
             pageLength: 10,
             lengthMenu: [10, 25, 50, 100],
-            order: [[2, 'desc']],
+            order: DEFAULT_ORDER.map(pair => [...pair]),
             layout: {
                 topStart: {
                     // Export the complete imported ETL snapshot, never live source values.
@@ -214,7 +231,7 @@
 
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = {
-            FILTER_KEYS, DEFAULT_STATUS, readState, tableStateUrl, exactFilter,
+            FILTER_KEYS, DEFAULT_STATUS, DEFAULT_ORDER, parseOrder, readState, tableStateUrl, exactFilter,
             columnFilters, initializeSettingsTable,
         };
     } else {

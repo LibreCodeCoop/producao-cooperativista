@@ -29,6 +29,12 @@ final class SourceConfiguration extends AbstractController
     #[Route('/configuracao', methods: ['GET'])]
     public function index(Request $request): Response
     {
+        return $this->redirectToRoute('app_sourceconfiguration_members', $request->query->all());
+    }
+
+    #[Route('/configuracao/cooperados', methods: ['GET'])]
+    public function members(Request $request): Response
+    {
         $month = $this->month($request->query->getString('competencia'));
         $data = [
             'token' => $this->guard->token($request),
@@ -52,6 +58,7 @@ final class SourceConfiguration extends AbstractController
             usort($users, static function (array $a, array $b): int {
                 $rank = static fn (array $row): int => $row['system'] ? 2 : ($row['enabled'] ? 0 : 1);
                 return $rank($a) <=> $rank($b)
+                    ?: (float) ($b['imported_weight'] ?? -1) <=> (float) ($a['imported_weight'] ?? -1)
                     ?: $b['hours'] <=> $a['hours']
                     ?: strcasecmp($a['alias'], $b['alias']);
             });
@@ -263,8 +270,8 @@ final class SourceConfiguration extends AbstractController
 
             return $response;
         }
-        return $this->redirectToRoute('app_sourceconfiguration_index', [
-            'cooperado' => $id, 'competencia' => $month,
+        return $this->redirectToRoute('app_sourceconfiguration_members', [
+            'competencia' => $month,
         ], Response::HTTP_SEE_OTHER);
     }
 
