@@ -77,9 +77,71 @@
         return bound;
     }
 
+    function bindHelpTooltips(doc = scope.document, viewport = scope) {
+        if (!doc?.body || typeof doc.createElement !== 'function') return 0;
+        const triggers = [...doc.querySelectorAll('.calc-definition[data-help]')];
+        if (!triggers.length) return 0;
+
+        const tooltip = doc.createElement('div');
+        tooltip.className = 'calc-tooltip';
+        tooltip.setAttribute('role', 'tooltip');
+        tooltip.hidden = true;
+        doc.body.appendChild(tooltip);
+        let active = null;
+
+        const place = () => {
+            if (!active) return;
+            const anchor = active.getBoundingClientRect();
+            if (anchor.bottom <= 0 || anchor.top >= viewport.innerHeight) {
+                active = null;
+                tooltip.hidden = true;
+                return;
+            }
+            const box = tooltip.getBoundingClientRect();
+            const margin = 12;
+            const gap = 9;
+            const above = anchor.top - margin - gap;
+            const below = viewport.innerHeight - anchor.bottom - margin - gap;
+            const useAbove = above >= box.height || above > below;
+            const top = useAbove ? anchor.top - box.height - gap : anchor.bottom + gap;
+
+            tooltip.style.left = Math.round(Math.max(margin,
+                Math.min(anchor.right - box.width, viewport.innerWidth - box.width - margin))) + 'px';
+            tooltip.style.top = Math.round(Math.max(margin,
+                Math.min(top, viewport.innerHeight - box.height - margin))) + 'px';
+        };
+
+        const show = trigger => {
+            active = trigger;
+            tooltip.textContent = trigger.dataset.help;
+            tooltip.hidden = false;
+            tooltip.style.visibility = 'hidden';
+            place();
+            tooltip.style.visibility = 'visible';
+        };
+        const hide = trigger => {
+            if (active !== trigger) return;
+            active = null;
+            tooltip.hidden = true;
+        };
+
+        for (const trigger of triggers) {
+            trigger.addEventListener('mouseenter', () => show(trigger));
+            trigger.addEventListener('mouseleave', () => hide(trigger));
+            trigger.addEventListener('focus', () => show(trigger));
+            trigger.addEventListener('blur', () => hide(trigger));
+        }
+        viewport.addEventListener?.('resize', place);
+        doc.addEventListener?.('scroll', place, true);
+        return triggers.length;
+    }
+
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = { bindHighlights };
+        module.exports = { bindHighlights, bindHelpTooltips };
     } else {
-        scope.addEventListener('DOMContentLoaded', () => bindHighlights());
+        scope.addEventListener('DOMContentLoaded', () => {
+            bindHighlights();
+            bindHelpTooltips();
+        });
     }
 })(typeof window === 'undefined' ? {} : window);

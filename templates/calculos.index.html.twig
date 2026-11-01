@@ -131,7 +131,7 @@
                         {% for nome, item in data %}
                             {% if nome in group.keys %}
                             <tr id="{{ nome }}" data-calc-row="{{ nome }}">
-                                <th scope="row" class="label_{{ nome }}" data-highlight-key="{{ nome }}" tabindex="0" title="{{ glossary[nome]|default(item.label) }}">
+                                <th scope="row" class="label_{{ nome }}" data-highlight-key="{{ nome }}" tabindex="0">
                                     <span>{{ item.label }}</span>
                                     <a class="calc-definition" href="/relatorios/calculos/ajuda#{{ nome }}" data-help="{{ glossary[nome]|default(item.label) }}" aria-label="Ajuda sobre {{ item.label }}: {{ glossary[nome]|default(item.label) }}">?</a>
                                 </th>

@@ -47,6 +47,11 @@ final class CalculationAuditUiTest extends TestCase
         self::assertStringContainsString('data-highlight-key="total_notas_clientes"', $html);
         self::assertStringContainsString('href="/relatorios/calculos/ajuda#total_notas_clientes"', $html);
         self::assertStringContainsString('data-help=', $html);
+        self::assertStringNotContainsString('tabindex="0" title=', $html);
+        self::assertMatchesRegularExpression(
+            '/<th scope="row"[^>]+data-highlight-key="total_notas_clientes"[^>]+tabindex="0">/',
+            $html,
+        );
         self::assertStringContainsString('href="/configuracao/cooperados"', $html);
         self::assertStringContainsString('R$ 100,00', $html);
         self::assertStringContainsString('Fundo de Reserva', $html);
