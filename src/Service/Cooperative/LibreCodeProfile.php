@@ -23,6 +23,7 @@ final readonly class LibreCodeProfile implements CooperativeProfile
     public function sources(): array
     {
         return [
+            'kimai.users',
             'kimai.customers',
             'kimai.projects',
             'akaunting.documents',
@@ -30,7 +31,6 @@ final readonly class LibreCodeProfile implements CooperativeProfile
             'akaunting.transactions',
             'akaunting.categories',
             'akaunting.taxes',
-            'kimai.users',
         ];
     }
 
