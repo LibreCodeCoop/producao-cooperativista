@@ -158,10 +158,12 @@ final class CooperativeSources
     }
 
     /** Validates both identities and uniqueness before any remote modification. */
-    public function linkMember(int $kimaiId, string $uid, int $contactId): void
+    public function linkMember(int $kimaiId, string $uid, int $contactId, ?int $targetKimaiId = null): void
     {
         $member = $this->user($kimaiId);
-        if ($member['system'] || $uid === '' || $contactId <= 0
+        $targetKimaiId ??= $kimaiId;
+        $targetMember = $targetKimaiId === $kimaiId ? $member : $this->user($targetKimaiId);
+        if ($member['system'] || $targetMember['system'] || $uid === '' || $contactId <= 0
             || !$this->profileFields->userExists($uid)) {
             throw new \DomainException('Selecione uma conta Nextcloud e um contato financeiro válidos.');
         }
@@ -173,7 +175,7 @@ final class CooperativeSources
         }
         $existing = $this->profileFields->getFieldsForUser($uid);
         $currentKimai = trim((string) ($existing['kimai_user_id'] ?? ''));
-        if ($currentKimai !== '' && $currentKimai !== (string) $kimaiId) {
+        if ($currentKimai !== '' && $currentKimai !== (string) $kimaiId && $currentKimai !== (string) $targetKimaiId) {
             throw new \DomainException('Conta Nextcloud já vinculada a outro usuário Kimai.');
         }
         $currentFinancial = trim((string) ($existing['akaunting_contact_id'] ?? ''));
@@ -190,7 +192,7 @@ final class CooperativeSources
         if (!in_array(strlen($profileTax), [11, 14], true) || $profileTax !== $contactTax) {
             throw new \DomainException('CPF/CNPJ divergente entre o Profile Fields e o contato do Akaunting.');
         }
-        $otherKimai = $this->profileFields->findUserUidByLink('kimai_user_id', $kimaiId);
+        $otherKimai = $this->profileFields->findUserUidByLink('kimai_user_id', $targetKimaiId);
         if ($otherKimai !== null && $otherKimai !== $uid) {
             throw new \DomainException('Usuário Kimai já vinculado a outra conta Nextcloud.');
         }
@@ -202,8 +204,8 @@ final class CooperativeSources
         if ($currentFinancial !== (string) $contactId) {
             $this->updateNextcloud($uid, 'akaunting_contact_id', (string) $contactId);
         }
-        if ($currentKimai !== (string) $kimaiId) {
-            $this->updateNextcloud($uid, 'kimai_user_id', (string) $kimaiId);
+        if ($currentKimai !== (string) $targetKimaiId) {
+            $this->updateNextcloud($uid, 'kimai_user_id', (string) $targetKimaiId);
         }
     }
 

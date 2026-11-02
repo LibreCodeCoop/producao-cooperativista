@@ -76,6 +76,31 @@ final class ProfileFieldsLinkTest extends TestCase
         self::assertSame(['kimai_user_id', 'akaunting_contact_id'], $created);
     }
 
+    public function testExistingVisibleLinkFieldsAreRestrictedWithoutChangingIdentifiers(): void
+    {
+        $updated = [];
+        $http = new MockHttpClient(static function (string $method, string $url, array $options) use (&$updated): MockResponse {
+            if ($method === 'GET') {
+                return self::response([
+                    ['id' => 4, 'field_key' => 'kimai_user_id', 'label' => 'Kimai link', 'type' => 'text', 'active' => true,
+                        'edit_policy' => 'users', 'exposure_policy' => 'private', 'sort_order' => 9],
+                    ['id' => 5, 'field_key' => 'akaunting_contact_id', 'label' => 'Accounting link', 'type' => 'text', 'active' => true,
+                        'edit_policy' => 'admins', 'exposure_policy' => 'hidden'],
+                ]);
+            }
+            self::assertSame('PUT', $method);
+            self::assertStringEndsWith('/definitions/4', $url);
+            $updated[] = json_decode($options['body'], true);
+            return self::response(['id' => 4]);
+        });
+        new ProfileFieldsClient($http, new NullLogger())->ensureLinkDefinitions();
+        self::assertCount(1, $updated);
+        self::assertSame('Kimai link', $updated[0]['label']);
+        self::assertSame('admins', $updated[0]['editPolicy']);
+        self::assertSame('hidden', $updated[0]['exposurePolicy']);
+        self::assertSame(9, $updated[0]['sortOrder']);
+    }
+
     public function testImporterUsesExplicitIdentifiersWithoutCpfDiscovery(): void
     {
         $requests = [];

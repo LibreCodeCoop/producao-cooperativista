@@ -42,6 +42,27 @@ final class MemberLinksTest extends TestCase
         ], $values);
     }
 
+    public function testAdministratorCanCorrectExistingKimaiLinkToAnotherUnusedUser(): void
+    {
+        $values = ['kimai_user_id' => '17', 'akaunting_contact_id' => '31'];
+        $profile = $this->profileClient($values);
+        $this->source($profile)->linkMember(17, 'nc-account', 31, 18);
+        self::assertSame('18', $values['kimai_user_id']);
+        self::assertSame('31', $values['akaunting_contact_id']);
+    }
+
+    public function testUnrelatedExistingKimaiLinkCannotBeOverwritten(): void
+    {
+        $values = ['kimai_user_id' => '19'];
+        $source = $this->source($this->profileClient($values));
+        $this->expectException(\DomainException::class);
+        try {
+            $source->linkMember(17, 'nc-account', 31, 18);
+        } finally {
+            self::assertSame(['kimai_user_id' => '19'], $values);
+        }
+    }
+
     public function testExistingKimaiLinkToAnotherUidBlocksEveryWrite(): void
     {
         $values = [];
@@ -119,9 +140,12 @@ final class MemberLinksTest extends TestCase
     private function source(ProfileFieldsClient $profile, string $contactTax = '00000000000', ?string $currency = 'BRL'): CooperativeSources
     {
         $logger = new NullLogger();
-        $http = new MockHttpClient(static fn (): MockResponse => new MockResponse((string) json_encode([
-            'id' => 17, 'username' => 'time-user', 'alias' => 'Example', 'systemAccount' => false,
-        ])));
+        $http = new MockHttpClient(static function (string $method, string $url): MockResponse {
+            $id = (int) basename(parse_url($url, PHP_URL_PATH) ?: '');
+            return new MockResponse((string) json_encode([
+                'id' => $id, 'username' => 'time-user', 'alias' => 'Example', 'systemAccount' => false,
+            ]));
+        });
         $db = $this->createStub(Connection::class);
         $db->method('fetchAssociative')->willReturn([
             'id' => 31, 'company_id' => 1, 'type' => 'vendor', 'name' => 'Example',

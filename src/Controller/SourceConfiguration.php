@@ -170,12 +170,14 @@ final class SourceConfiguration extends AbstractController
         $this->guard->assertAuthorized($request);
         $uid = trim($request->request->getString('nextcloud_uid'));
         $contact = trim($request->request->getString('akaunting_contact_id'));
+        $kimai = trim($request->request->getString('kimai_user_id'));
         if ($id <= 0 || $uid === '' || mb_strlen($uid) > 128
-            || !ctype_digit($contact) || (int) $contact <= 0) {
-            return $this->linkResponse(['error' => 'Selecione a conta Nextcloud e o contato financeiro.'], 400);
+            || !ctype_digit($contact) || (int) $contact <= 0
+            || !preg_match('/^[1-9][0-9]*$/D', $kimai) || filter_var($kimai, FILTER_VALIDATE_INT) === false) {
+            return $this->linkResponse(['error' => 'Informe um usuário Kimai válido, uma conta Nextcloud e um contato financeiro.'], 400);
         }
         try {
-            $this->sources->linkMember($id, $uid, (int) $contact);
+            $this->sources->linkMember($id, $uid, (int) $contact, (int) $kimai);
             $this->logger->notice('Vínculo entre contas confirmado.', ['member_id' => $id]);
             return $this->linkResponse(['message' => 'Vínculos salvos no Nextcloud. Reimporte antes do próximo fechamento.']);
         } catch (\DomainException | \InvalidArgumentException $error) {
@@ -305,6 +307,7 @@ final class SourceConfiguration extends AbstractController
         $links = [
             'uid' => '',
             'contact_id' => '',
+            'kimai_id' => (string) $id,
             'linked' => false,
             'kimai_linked' => false,
         ];
@@ -314,6 +317,7 @@ final class SourceConfiguration extends AbstractController
                 $links['uid'] = $profile['uid'];
                 $values = $profile['values'];
                 $links['contact_id'] = trim((string) ($values['akaunting_contact_id'] ?? ''));
+                $links['kimai_id'] = trim((string) ($values['kimai_user_id'] ?? '')) ?: (string) $id;
                 $links['kimai_linked'] = trim((string) ($values['kimai_user_id'] ?? '')) === (string) $id;
                 $links['linked'] = $links['kimai_linked'] && $links['contact_id'] !== '';
                 if ($links['kimai_linked']) {

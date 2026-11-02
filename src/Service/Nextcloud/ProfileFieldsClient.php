@@ -17,7 +17,7 @@ class ProfileFieldsClient
     /** @var array<string, array<string, mixed>> */
     private array $fieldsByUserUid = [];
 
-    /** @var array<string, array{id:int,type:string}>|null */
+    /** @var array<string, array<string,mixed>>|null */
     private ?array $cachedDefinitions = null;
     /** @var array<string,bool> */
     private array $existingUsers = [];
@@ -55,7 +55,7 @@ class ProfileFieldsClient
     }
 
     /**
-     * @return array<string, array{id: int, type: string}>
+     * @return array<string, array<string, mixed>>
      */
     public function activeDefinitions(): array
     {
@@ -70,7 +70,14 @@ class ProfileFieldsClient
             $id = (int) ($item['id'] ?? 0);
             $key = $item['field_key'] ?? null;
             if ($id > 0 && is_string($key) && $key !== '') {
-                $definitions[$key] = ['id' => $id, 'type' => (string) ($item['type'] ?? '')];
+                $definitions[$key] = [
+                    'id' => $id,
+                    'type' => (string) ($item['type'] ?? ''),
+                    'label' => (string) ($item['label'] ?? $key),
+                    'edit_policy' => (string) ($item['edit_policy'] ?? ''),
+                    'exposure_policy' => (string) ($item['exposure_policy'] ?? ''),
+                    'sort_order' => (int) ($item['sort_order'] ?? 0),
+                ];
             }
         }
         return $this->cachedDefinitions = $definitions;
@@ -136,8 +143,21 @@ class ProfileFieldsClient
         $definitions = $this->activeDefinitions();
         foreach (['kimai_user_id' => 'Usuário Kimai', 'akaunting_contact_id' => 'Contato Akaunting'] as $key => $label) {
             if (isset($definitions[$key])) {
-                if ($definitions[$key]['type'] !== 'text') {
+                $definition = $definitions[$key];
+                if ($definition['type'] !== 'text') {
                     throw new \DomainException('Campo de vínculo com tipo incompatível no Profile Fields.');
+                }
+                if ($definition['edit_policy'] !== 'admins' || $definition['exposure_policy'] !== 'hidden') {
+                    $this->requestOcs('/ocs/v2.php/apps/profile_fields/api/v1/definitions/' . $definition['id'], 'PUT', [
+                        'json' => [
+                            'label' => $definition['label'],
+                            'type' => 'text',
+                            'editPolicy' => 'admins',
+                            'exposurePolicy' => 'hidden',
+                            'sortOrder' => $definition['sort_order'],
+                            'active' => true,
+                        ],
+                    ]);
                 }
                 continue;
             }

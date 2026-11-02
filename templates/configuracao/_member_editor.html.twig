@@ -29,8 +29,13 @@
             <p class="member-editor-description">Identificadores técnicos restritos à administração, gravados no Nextcloud Profile Fields.</p>
             <form method="post" class="member-link-form" action="/configuracao/cooperado/{{ member.id }}/vincular" autocomplete="off">
                 <input type="hidden" name="_token" value="{{ token }}">
-                <p class="member-link-origin">Usuário Kimai: ID {{ member.id }}</p>
+                <p class="member-editor-description">Confirme os identificadores associados a esta conta. Alterar o Kimai transfere este vínculo para outro usuário após conferir que não há duplicidade.</p>
                 <div class="member-link-fields">
+                    <div>
+                        <label for="member-kimai-{{ member.id }}">Usuário Kimai (ID)</label>
+                        <input id="member-kimai-{{ member.id }}" type="number" name="kimai_user_id"
+                               value="{{ link.kimai_id|default(member.id) }}" min="1" step="1" required>
+                    </div>
                     <div>
                         <label for="member-uid-{{ member.id }}">Conta Nextcloud</label>
                         <input id="member-uid-{{ member.id }}" type="search" name="nextcloud_uid"
