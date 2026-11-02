@@ -67,6 +67,11 @@ class Index extends AbstractController
                     'label' => 'Entradas e saídas',
                     'description' => 'Recebimentos e pagamentos considerados no período.',
                 ],
+                'faturas-conferencia' => [
+                    'url' => $this->urlGenerator->generate('app_invoices_pending'),
+                    'label' => 'Faturas para conferência',
+                    'description' => 'Situação de emissão e recebimento das faturas, inclusive rascunhos. Relatório separado das movimentações financeiras.',
+                ],
                 'capital-social-summarized' => [
                     'url' => $this->urlGenerator->generate('app_capitalsocialsummarized_index'),
                     'label' => 'Capital social',

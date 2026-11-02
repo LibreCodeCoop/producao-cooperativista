@@ -289,8 +289,8 @@
             if (pendingLink) {
                 const pending = payload.unconfirmed_invoices;
                 pendingLink.hidden = pending.count === 0;
-                pendingLink.href = '/relatorios/invoices?ano-mes=' +
-                    encodeURIComponent(competence()) + '&pendentes=1';
+                pendingLink.href = '/relatorios/faturas-conferencia?ano-mes=' +
+                    encodeURIComponent(competence());
                 pendingLink.textContent = 'Conferir ' + pending.count + ' ' +
                     (pending.count === 1 ? 'fatura' : 'faturas') +
                     ' no Akaunting (' + money(pending.amount) + ' em valores nominais)';

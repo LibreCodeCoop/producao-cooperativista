@@ -220,16 +220,18 @@ final class OperationalUiTest extends TestCase
         $html = $this->twig()->render('invoices.index.html.twig', [
             'competencia' => '2026-09',
             'financial_month' => '2026-10',
-            'url' => '/api/v1/invoices?ano-mes=2026-09&pendentes=1',
+            'url' => '/api/v1/faturas-conferencia?ano-mes=2026-09',
             'pendentes' => true,
             'workflow_asset_version' => 'a1b2c3d4e5f6',
         ]);
         self::assertStringContainsString('Faturas para conferência', $html);
         self::assertStringContainsString('data-pending-invoices="yes"', $html);
-        self::assertStringContainsString('name="pendentes" value="1"', $html);
+        self::assertStringContainsString('action="/relatorios/faturas-conferencia"', $html);
+        self::assertStringNotContainsString('name="pendentes" value="1"', $html);
         self::assertStringContainsString('id="pending-invoice-summary"', $html);
         self::assertStringContainsString('src="/js/report-table.js?v=a1b2c3d4e5f6"', $html);
-        self::assertStringContainsString('ano-mes=2026-09&amp;pendentes=1', $html);
+        self::assertStringContainsString('/api/v1/faturas-conferencia?ano-mes=2026-09', $html);
+        self::assertStringContainsString('/relatorios/invoices?ano-mes=2026-09', $html);
         self::assertStringContainsString('Situação da fatura', $html);
         self::assertStringContainsString('Recebimento registrado', $html);
         self::assertStringContainsString('não consulta o extrato bancário em tempo real', $html);

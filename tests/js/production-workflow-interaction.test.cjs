@@ -291,7 +291,7 @@ test('source inspection opens directly without the financial error or a page jum
     assert.equal(f.get('production-publication-controls').hidden,true);
     assert.equal(f.get('pending-invoices-link').hidden,false);
     assert.equal(f.get('pending-invoices-link').href,
-        '/relatorios/invoices?ano-mes=2026-08&pendentes=1');
+        '/relatorios/faturas-conferencia?ano-mes=2026-08');
     assert.match(f.get('pending-invoices-link').textContent,/7 faturas/);
     assert.match(f.get('imported-data-summary').textContent,/214/);
     assert.match(f.get('imported-data-summary').textContent,/2\.007,63/);

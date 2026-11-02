@@ -54,23 +54,10 @@ class Invoices extends AbstractController
     #[Route('/api/v1/invoices', methods: ['GET'])]
     public function index(): JsonResponse
     {
-        // This filter must use staged invoices directly: the ordinary movement
-        // report intentionally excludes unconfirmed customer receipts.
+        // Retain compatibility with earlier clients of the query-string
+        // variant, but never present it as a filter on financial movements.
         if ($this->request->query->getString('pendentes') === '1') {
-            try {
-                $competence = Competencia::fromString($this->request->query->getString('ano-mes'));
-                $report = $this->sourceReview->pendingInvoiceReport($competence);
-                $base = rtrim((string) getenv('AKAUNTING_API_BASE_URL'), '/');
-                $company = (string) getenv('AKAUNTING_COMPANY_ID');
-                foreach ($report['data'] as &$row) {
-                    $row['URL'] = $base . '/' . $company . '/sales/invoices/' . $row['id'];
-                }
-                unset($row);
-
-                return new JsonResponse($report);
-            } catch (\Throwable $error) {
-                return $this->apiErrors->fromThrowable($error, 'InvoicesPendingReview');
-            }
+            return $this->pending();
         }
 
         $this->movimentacao->dates->setDiaUtilPagamento(
@@ -126,10 +113,31 @@ class Invoices extends AbstractController
             'data' => array_values($movimentacao),
             'metadata' => [
                 'total' => count($movimentacao),
-                'date' => $this->movimentacao->dates->getInicioProximoMes()->format('Y-m')
+                'date' => $this->movimentacao->dates->getInicioProximoMes()->format('Y-m'),
+                'report_kind' => 'financial_movements',
             ],
         ];
         return new JsonResponse($response);
+    }
+
+    #[Route('/api/v1/faturas-conferencia', name: 'app_api_invoices_pending', methods: ['GET'])]
+    public function pending(): JsonResponse
+    {
+        try {
+            $competence = Competencia::fromString($this->request->query->getString('ano-mes'));
+            $report = $this->sourceReview->pendingInvoiceReport($competence);
+            $base = rtrim((string) getenv('AKAUNTING_API_BASE_URL'), '/');
+            $company = (string) getenv('AKAUNTING_COMPANY_ID');
+            foreach ($report['data'] as &$row) {
+                $row['URL'] = $base . '/' . $company . '/sales/invoices/' . $row['id'];
+            }
+            unset($row);
+            $report['metadata']['report_kind'] = 'invoices_for_reconciliation';
+
+            return new JsonResponse($report);
+        } catch (\Throwable $error) {
+            return $this->apiErrors->fromThrowable($error, 'InvoicesPendingReview');
+        }
     }
 
     private function addUrlToAccount(array $movimentacao): array

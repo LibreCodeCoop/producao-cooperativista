@@ -29,6 +29,7 @@ namespace App\Controller;
 use App\Domain\Competencia;
 use App\Service\Config\CompetenceDefaults;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
@@ -49,6 +50,31 @@ class Invoices extends AbstractController
     #[Route('/relatorios/invoices', methods: ['GET'])]
     public function index(): Response
     {
+        if ($this->request->query->getString('pendentes') === '1') {
+            // Compatibility for links created before invoice reconciliation
+            // was separated into its own report. It is not a table filter.
+            $requested = $this->request->query->getString('ano-mes');
+            try {
+                $period = Competencia::fromString($requested ?: $this->competences->reportMonth());
+            } catch (\InvalidArgumentException $error) {
+                return new Response($error->getMessage(), Response::HTTP_BAD_REQUEST);
+            }
+            return new RedirectResponse($this->urlGenerator->generate('app_invoices_pending', [
+                'ano-mes' => (string) $period,
+            ]), Response::HTTP_FOUND);
+        }
+
+        return $this->renderReport(false);
+    }
+
+    #[Route('/relatorios/faturas-conferencia', name: 'app_invoices_pending', methods: ['GET'])]
+    public function pending(): Response
+    {
+        return $this->renderReport(true);
+    }
+
+    private function renderReport(bool $pendingOnly): Response
+    {
         $requested = $this->request->query->getString('ano-mes');
         if ($requested === '') {
             // The reports catalog links here without a month. Render the
@@ -62,14 +88,11 @@ class Invoices extends AbstractController
             return new Response($error->getMessage(), Response::HTTP_BAD_REQUEST);
         }
 
-        $pendingOnly = $this->request->query->getString('pendentes') === '1';
         $params = ['ano-mes' => $inicio->format('Y-m')];
-        if ($pendingOnly) {
-            $params['pendentes'] = '1';
-        }
+        $apiRoute = $pendingOnly ? 'app_api_invoices_pending' : 'app_api_invoices_index';
 
         return $this->render('invoices.index.html.twig', [
-            'url' => $this->urlGenerator->generate('app_api_invoices_index', $params),
+            'url' => $this->urlGenerator->generate($apiRoute, $params),
             'competencia' => $inicio->format('Y-m'),
             'financial_month' => Competencia::fromString($requested)->financialMonth(),
             'pendentes' => $pendingOnly,
