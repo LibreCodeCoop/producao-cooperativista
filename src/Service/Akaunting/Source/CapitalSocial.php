@@ -61,11 +61,11 @@ final class CapitalSocial
             $dateFilterP = ' AND pt.paid_at <= :end_of_day';
         }
         $entries = $this->accounting->executeQuery(
-            "SELECT t.id, t.contact_id, c.name, c.tax_number, t.amount, t.description, t.document_id, t.currency_code, t.paid_at AS date, t.type, t.category_id, cat.name AS category_name
+            "SELECT t.id, t.contact_id, c.name, c.tax_number, t.amount, t.description, t.document_id, t.currency_code, t.paid_at AS date, t.type, t.category_id, cat.name AS category_name, cat.code AS category_code
              FROM transactions t
              JOIN contacts c ON c.id = t.contact_id AND c.company_id = t.company_id
              LEFT JOIN categories cat ON cat.id = t.category_id AND cat.company_id = t.company_id
-             WHERE (t.category_id = :category_id OR LOWER(t.description) LIKE '%capital social%'
+             WHERE (t.category_id = :category_id OR cat.code = 'capital-social-refund' OR LOWER(t.description) LIKE '%capital social%'
                     OR REPLACE(LOWER(t.description), ' ', '') LIKE '%capitalsocial%')
                AND (t.document_id IS NULL OR NOT EXISTS (
                  SELECT 1 FROM documents dx
@@ -157,10 +157,14 @@ final class CapitalSocial
                 && $entry['currency_code'] === 'BRL' && self::cents($entry['amount']) > 0 && !$looksLikeReturn;
             // A documented refund without a linked bill is still a capital
             // restitution, even if its historical expense category is generic.
-            $refund = $entry['type'] === 'expense' && (int) $entry['category_id'] === 16
-                && $entry['currency_code'] === 'BRL' && self::cents($entry['amount']) > 0
-                && $entry['document_id'] === null
+            $legacyRefund = (int) $entry['category_id'] === 16
                 && (bool) preg_match('/devolu[çc][ãa]o\s*de\s*capital\s*social/u', $description);
+            // Dedicated refund category is an explicit business classification,
+            // independent from the free-text description of a past transaction.
+            $dedicatedRefund = (string) ($entry['category_code'] ?? '') === 'capital-social-refund';
+            $refund = $entry['type'] === 'expense' && ($legacyRefund || $dedicatedRefund)
+                && $entry['currency_code'] === 'BRL' && self::cents($entry['amount']) > 0
+                && $entry['document_id'] === null;
             $reason = '';
             if ($entry['document_id'] !== null) {
                 $income = false;

@@ -30,8 +30,9 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
         foreach (['document_items', 'documents', 'transactions', 'contacts', 'categories'] as $table) {
             $this->connection->executeStatement('DROP TABLE IF EXISTS ' . $table);
         }
-        $this->connection->executeStatement('CREATE TABLE categories (id INT PRIMARY KEY, company_id INT NOT NULL, name VARCHAR(191) NOT NULL)');
+        $this->connection->executeStatement('CREATE TABLE categories (id INT PRIMARY KEY, company_id INT NOT NULL, name VARCHAR(191) NOT NULL, code VARCHAR(191) NULL)');
         $this->connection->insert('categories', ['id' => 48, 'company_id' => 1, 'name' => 'Conta Capital']);
+        $this->connection->insert('categories', ['id' => 52, 'company_id' => 1, 'name' => 'Devolução de quotas', 'code' => 'capital-social-refund']);
         $this->connection->executeStatement('CREATE TABLE contacts (id INT PRIMARY KEY, company_id INT NOT NULL, name VARCHAR(191) NOT NULL, tax_number VARCHAR(20) NULL)');
         $this->connection->executeStatement('CREATE TABLE transactions (id INT PRIMARY KEY, company_id INT NOT NULL, contact_id INT NOT NULL, category_id INT NOT NULL, amount DECIMAL(15,2) NOT NULL, currency_code VARCHAR(5) NOT NULL, description VARCHAR(191) NOT NULL DEFAULT \'\', paid_at DATETIME NOT NULL, type VARCHAR(30) NOT NULL, document_id INT NULL, deleted_at DATETIME NULL)');
         $this->connection->executeStatement('CREATE TABLE documents (id INT PRIMARY KEY, company_id INT NOT NULL, contact_id INT NOT NULL, contact_name VARCHAR(191) NOT NULL, type VARCHAR(30) NOT NULL, status VARCHAR(30) NOT NULL, currency_code VARCHAR(5) NOT NULL, issued_at DATETIME NOT NULL, category_id INT NOT NULL, amount DECIMAL(15,2) NOT NULL, due_at DATETIME NOT NULL, deleted_at DATETIME NULL)');
@@ -248,6 +249,16 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
         self::assertArrayNotHasKey(102, $byId);
         self::assertSame('revisar', $byId[103]['status']);
         self::assertEqualsWithDelta(0, $byId[103]['amount'], 0.001);
+    }
+
+    public function testDedicatedRefundCategoryConfirmsCapitalWithoutMatchingDescription(): void
+    {
+        $this->transaction(120, 1, 'expense', 52, '60.00');
+        $rows = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows();
+        self::assertCount(1, $rows);
+        self::assertSame('confirmado', $rows[0]['status']);
+        self::assertSame('devolucao', $rows[0]['kind']);
+        self::assertEqualsWithDelta(-60.00, $rows[0]['amount'], 0.001);
     }
 
     public function testAdvancePaymentDeductedFromPaidBillDoesNotOverstateCapitalSettlement(): void
