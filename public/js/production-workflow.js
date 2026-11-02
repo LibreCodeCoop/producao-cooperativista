@@ -215,6 +215,7 @@
             sourceReview = null;
             omitted.clear();
             invalidateApproval();
+            if (el('source-financial-status')) el('source-financial-status').hidden = true;
             if (sourceReviewPanel) sourceReviewPanel.hidden = true;
             if (calculatedReview) calculatedReview.hidden = false;
             if (publicationControls) publicationControls.hidden = false;
@@ -231,6 +232,30 @@
         };
         doc.addEventListener?.('member-source-changed', weightChanged);
 
+        const showSourceReview = (payload, financialProblem = null) => {
+            sourceReview = payload;
+            if (sourceReviewPanel) sourceReviewPanel.hidden = false;
+            if (calculatedReview) calculatedReview.hidden = true;
+            if (publicationControls) publicationControls.hidden = true;
+            if (el('calculated-review-intro')) el('calculated-review-intro').hidden = true;
+            if (el('audit-title')) el('audit-title').textContent = 'Conferir dados importados';
+            el('imported-data-summary').textContent = sourceReviewText(payload);
+            el('review-competence').textContent = competence();
+            const issue = el('source-financial-status');
+            if (issue) {
+                issue.hidden = !financialProblem;
+                issue.textContent = financialProblem
+                    ? 'A apuração para pagamento está bloqueada. Confira as faturas e custos ' +
+                        'importados abaixo e concilie os recebimentos antes de publicar.'
+                    : '';
+            }
+            show(2);
+            invalidateApproval();
+            // Do not send the user to the generic warning at the bottom of the page.
+            // This panel is the result they requested, not a failed import.
+            sourceReviewPanel?.scrollIntoView?.({block: 'start'});
+        };
+
         const loadSourceReview = async financialProblem => {
             const url = wizard.dataset.sourcesUrl + '?ano-mes=' + encodeURIComponent(competence());
             const response = await request(url, {
@@ -238,24 +263,32 @@
             });
             if (!response.ok) throw new Error('Não foi possível consultar os lançamentos importados.');
             const payload = validateSourceReview(await response.json(), competence());
-            sourceReview = payload;
-            if (sourceReviewPanel) sourceReviewPanel.hidden = false;
-            if (calculatedReview) calculatedReview.hidden = true;
-            if (publicationControls) publicationControls.hidden = true;
-            if (el('calculated-review-intro')) el('calculated-review-intro').hidden = true;
-            if (el('audit-title')) el('audit-title').textContent =
-                'Conferir fontes importadas — cálculo financeiro pendente';
-            el('imported-data-summary').textContent = sourceReviewText(payload);
-            el('review-competence').textContent = competence();
-            show(2);
-            invalidateApproval();
-            notice('A prévia financeira está bloqueada: ' +
-                (financialProblem?.resolution || 'concilie as receitas e despesas antes de publicar.'));
+            showSourceReview(payload, financialProblem);
             return true;
+        };
+
+        const reviewImportedData = async () => {
+            if (loading || finished || needsImport) return false;
+            loading = true;
+            resetReview();
+            messages.replaceChildren();
+            updateLinks();
+            try {
+                return await loadSourceReview();
+            } catch (error) {
+                resetReview();
+                show(1);
+                notice(error instanceof Error ? error.message : 'Falha na consulta das fontes.');
+                return false;
+            } finally {
+                loading = false;
+                syncNavigation();
+            }
         };
 
         const loadPreview = async () => {
             if (loading || finished || needsImport) return false;
+            const previouslyImported = sourceReview;
             loading = true;
             resetReview();
             messages.replaceChildren();
@@ -332,6 +365,10 @@
                 return true;
             } catch (error) {
                 resetReview();
+                if (previouslyImported?.competence === competence()) {
+                    showSourceReview(previouslyImported, {code: 'PREVIEW_FAILED'});
+                    return false;
+                }
                 show(1);
                 notice(error instanceof Error ? error.message : 'Falha ao carregar a conferência.');
                 return false;
@@ -376,12 +413,10 @@
                     updateStatus({state: 'completed', message: 'Importação concluída. Carregando conferência…'});
                     needsImport = false;
                     el('use-existing').disabled = false;
-                    const ready = await loadPreview();
+                    const ready = await reviewImportedData();
                     updateStatus({state: 'completed', message: ready
-                        ? sourceReview
-                            ? 'Importação concluída. Fontes disponíveis para conferência; cálculo financeiro bloqueado.'
-                            : 'Importação concluída. Prévia financeira disponível para conferência.'
-                        : 'Importação concluída. A conferência apresentou uma pendência, veja a mensagem abaixo.'});
+                        ? 'Importação concluída. Dados de origem disponíveis para conferência.'
+                        : 'Importação concluída. Não foi possível abrir a conferência; veja a mensagem abaixo.'});
                 } else if (importStatus?.dataset.state === 'running') {
                     updateStatus({state: 'failed', message: 'Importação interrompida. Confira o erro abaixo.'});
                 }
@@ -397,7 +432,10 @@
             }
         });
         el('use-existing').addEventListener('click', () => {
-            if (!needsImport) return loadPreview();
+            if (!needsImport) return reviewImportedData();
+        });
+        el('calculate-financial-preview').addEventListener('click', () => {
+            if (sourceReview && !processing && !needsImport) return loadPreview();
         });
         for (const button of stepButtons) {
             button.addEventListener('click', () => {

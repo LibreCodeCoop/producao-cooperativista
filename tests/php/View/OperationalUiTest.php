@@ -183,6 +183,26 @@ final class OperationalUiTest extends TestCase
         );
     }
 
+    public function testProductionReviewAssetsAreVersionedToAvoidStaleBrowserScripts(): void
+    {
+        $html = $this->twig()->render('acoes/make_producao.html.twig', [
+            'inicio_ano' => '2026', 'inicio_mes' => '09',
+            'url' => '/acoes/do-make-producao', 'token' => 'csrf-token',
+            'workflow_asset_version' => 'a1b2c3d4e5f6',
+        ]);
+
+        self::assertStringContainsString(
+            'src="/js/production-workflow.js?v=a1b2c3d4e5f6"',
+            $html
+        );
+        self::assertStringContainsString(
+            'href="/css/production-workflow.css?v=a1b2c3d4e5f6"',
+            $html
+        );
+        self::assertStringContainsString('id="calculate-financial-preview"', $html);
+        self::assertStringContainsString('data-sources-url="/api/v1/producao/fontes"', $html);
+    }
+
     public function testAuditPagesKeepTheSelectedPeriodAndReturnPath(): void
     {
         foreach (['producao.index.html.twig', 'invoices.index.html.twig'] as $view) {

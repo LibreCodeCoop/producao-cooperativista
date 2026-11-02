@@ -11,7 +11,8 @@ function element() {
     return {
         value: '', dataset: {}, children: [], textContent: '',
         checked: false, disabled: false, hidden: false,
-        attributes: new Map(),
+        attributes: new Map(), scrolls: [],
+        scrollIntoView(options) {this.scrolls.push(options);},
         classList: {toggle() {}},
         addEventListener(name, fn) {handlers.set(name, fn);},
         trigger(name) {return handlers.get(name)?.({target: this, preventDefault() {}});},
@@ -30,7 +31,8 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
         'metric-members','metric-hours','metric-base','metric-net','withdrawal-goal',
         'selection-summary','publication-summary','publication-confirmation',
         'import-status','import-status-text','import-elapsed','import-profile-link',
-        'imported-data-review','imported-data-summary','calculated-review',
+        'imported-data-review','imported-data-summary','source-financial-status',
+        'calculate-financial-preview','calculated-review',
         'production-publication-controls','calculated-review-intro','audit-title',
         'submit','year','month']) items.set(id, element());
 
@@ -136,6 +138,10 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
     const get = id => items.get(id);
     const step = () => sections.findIndex(node => !node.hidden) + 1;
     const click = id => get(id).trigger('click');
+    const preview = async () => {
+        await click('use-existing');
+        return click('calculate-financial-preview');
+    };
     const change = id => get(id).trigger('change');
     const decide = (id, excluded) => {
         const config = calls.mount.at(-1);
@@ -145,7 +151,7 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
         get('publication-confirmation').checked = value;
         change('publication-confirmation');
     };
-    return {items,calls,rows,revision,links,indicators,form,step,get,click,change,decide,setConsent,
+    return {items,calls,rows,revision,links,indicators,form,step,get,click,preview,change,decide,setConsent,
         memberChanged: () => documentListeners.get('member-source-changed')?.(),
     };
 }
@@ -155,10 +161,10 @@ test('import and review are the only two stages, with a sortable shared grid', a
     assert.equal(f.step(),1);
     assert.equal(f.indicators[0].attributes.get('aria-current'),'step');
     assert.equal(f.indicators[1].disabled,true);
-    await f.click('use-existing');
+    await f.preview();
     assert.equal(f.step(),2);
     assert.equal(f.indicators[1].disabled,false);
-    assert.equal(f.calls.fetch.length,1);
+    assert.equal(f.calls.fetch.length,2,'Source inspection and financial preview are independent');
     assert.equal(f.calls.mount.length,1);
     assert.equal(f.calls.mount[0].payload.data.length,2);
     assert.equal(f.calls.mount[0].omitted.size,0);
@@ -176,7 +182,7 @@ test('net withdrawal reference is displayed without changing selection or actual
     const goal={mode:'simulation_only',net_target:50000,reference_hours:165,required_pool:130000,
         available_pool:120000,shortfall:10000,potential_surplus:0};
     const f=fixture({withdrawalGoal:goal});
-    await f.click('use-existing');
+    await f.preview();
     const info=f.get('withdrawal-goal');
     assert.equal(info.hidden,false);
     assert.match(info.textContent,/R\$\s?50\.000,00/);
@@ -189,7 +195,7 @@ test('net withdrawal reference is displayed without changing selection or actual
 
 test('tax table unavailable does not block financial review', async () => {
     const f=fixture({withdrawalGoal:{mode:'unavailable'}});
-    await f.click('use-existing');
+    await f.preview();
     assert.equal(f.step(),2);
     assert.match(f.get('withdrawal-goal').textContent,/indisponível/);
     assert.equal(f.get('submit').disabled,true);
@@ -197,7 +203,7 @@ test('tax table unavailable does not block financial review', async () => {
 
 test('exclude decisions persist outside page, sorting and column filters', async () => {
     const f=fixture();
-    await f.click('use-existing');
+    await f.preview();
     f.decide(8,true);
     assert.deepEqual([...f.calls.mount[0].omitted],[8]);
     assert.match(f.get('selection-summary').textContent,/1 não publicados agora/);
@@ -225,7 +231,7 @@ test('exclude decisions persist outside page, sorting and column filters', async
 
 test('decision changes invalidate the previous financial authorization', async () => {
     const f=fixture();
-    await f.click('use-existing');
+    await f.preview();
     f.setConsent(true);
     assert.equal(f.get('submit').disabled,false);
     f.decide(5,true);
@@ -259,13 +265,15 @@ test('import never publishes and requires the same preview to complete', async (
     assert.match(bad.get('import-status-text').textContent,/Kimai #17/);
 });
 
-test('economic block opens source-only audit without authorizing a financial publication', async () => {
+test('source inspection opens directly without the financial error or a page jump', async () => {
     const f=fixture({previewError:true,economicFailure:true});
     await f.click('use-existing');
     assert.equal(f.step(),2);
-    assert.equal(f.calls.fetch.length,2);
-    assert.equal(f.calls.fetch[1].url,'/api/v1/producao/fontes?ano-mes=2026-08');
-    assert.equal(f.calls.mount.length,0,'Must not fabricate a calculated table');
+    assert.equal(f.calls.fetch.length,1,'The financial API must not be called');
+    assert.equal(f.calls.fetch[0].url,'/api/v1/producao/fontes?ano-mes=2026-08');
+    assert.equal(f.calls.notices.length,0,'No warning at the bottom of the page');
+    assert.equal(f.get('imported-data-review').scrolls.length,1,'Focus the requested audit section');
+    assert.equal(f.get('source-financial-status').hidden,true);
     assert.equal(f.get('imported-data-review').hidden,false);
     assert.equal(f.get('calculated-review').hidden,true);
     assert.equal(f.get('production-publication-controls').hidden,true);
@@ -273,6 +281,14 @@ test('economic block opens source-only audit without authorizing a financial pub
     assert.match(f.get('imported-data-summary').textContent,/2\.007,63/);
     assert.match(f.get('imported-data-summary').textContent,/2329/);
     assert.equal(f.indicators[1].disabled,false);
+
+    await f.click('calculate-financial-preview');
+    assert.equal(f.step(),2,'Economic deficits may not hide the imported evidence');
+    assert.equal(f.calls.fetch.length,3);
+    assert.equal(f.calls.mount.length,0,'Must not fabricate a calculated table');
+    assert.equal(f.get('source-financial-status').hidden,false);
+    assert.match(f.get('source-financial-status').textContent,/bloqueada/);
+    assert.equal(f.calls.notices.length,0,'No repeated generic financial warning');
     f.setConsent(true);
     assert.equal(f.get('submit').disabled,true);
     await f.click('submit');
@@ -289,23 +305,27 @@ test('successful source import shows audit state when finance cannot be calculat
     assert.equal(f.calls.submit[0].operation,'import');
     assert.equal(f.step(),2);
     assert.equal(f.get('import-status').dataset.state,'completed');
-    assert.match(f.get('import-status-text').textContent,/cálculo financeiro bloqueado/);
+    assert.match(f.get('import-status-text').textContent,/Dados de origem disponíveis/);
+    assert.equal(f.calls.fetch.length,1,'Import cannot automatically calculate a blocked financial preview');
+    assert.equal(f.calls.notices.length,0);
     assert.equal(f.get('submit').disabled,true);
 });
 
 test('freshness failures, missing grid and invalid data fail closed', async () => {
     for (const config of [{previewError:true},{malformed:true},{gridSuccess:false}]) {
         const f=fixture(config);
-        await f.click('use-existing');
-        assert.equal(f.step(),1);
+        await f.preview();
+        assert.equal(f.step(),2,'Staged data must remain available when preview validation fails');
+        assert.equal(f.get('imported-data-review').hidden,false);
+        assert.equal(f.get('source-financial-status').hidden,false);
         assert.equal(f.get('submit').disabled,true);
-        assert.ok(f.calls.notices.length);
+        assert.equal(f.calls.notices.length,0);
     }
 });
 
 test('editing via member modal invalidates review and requires reimporting original sources', async () => {
     const f=fixture();
-    await f.click('use-existing');
+    await f.preview();
     f.setConsent(true);
     assert.equal(f.get('submit').disabled,false);
     f.memberChanged();
@@ -315,11 +335,12 @@ test('editing via member modal invalidates review and requires reimporting origi
     assert.equal(f.indicators[1].disabled,true);
     f.indicators[1].trigger('click');
     assert.equal(f.step(),1);
-    await f.click('use-existing');
-    assert.equal(f.calls.fetch.length,1,'Cannot bypass reimport within this session');
+    await f.preview();
+    assert.equal(f.calls.fetch.length,2,'Cannot bypass reimport within this session');
     await f.click('import-button');
     assert.equal(f.step(),2);
     assert.equal(f.get('use-existing').disabled,false);
+    await f.click('calculate-financial-preview');
     assert.equal(f.calls.destroy,1);
 });
 
@@ -328,7 +349,7 @@ test('step buttons allow returning to import and review without re-fetching or r
     assert.equal(f.indicators[1].disabled, true);
     f.indicators[1].trigger('click');
     assert.equal(f.step(), 1);
-    await f.click('use-existing');
+    await f.preview();
     f.decide(8, true);
     f.setConsent(true);
     assert.equal(f.get('submit').disabled, false);
@@ -338,18 +359,18 @@ test('step buttons allow returning to import and review without re-fetching or r
     f.indicators[1].trigger('click');
     assert.equal(f.step(), 2);
     assert.deepEqual([...f.calls.mount[0].omitted], [8]);
-    assert.equal(f.calls.fetch.length, 1);
+    assert.equal(f.calls.fetch.length, 2);
     assert.equal(f.get('submit').disabled, true);
 });
 
 test('returning to import and reviewing again resets decisions and approval', async () => {
     const f=fixture();
-    await f.click('use-existing');
+    await f.preview();
     f.decide(8,true);
     f.setConsent(true);
     f.indicators[0].trigger('click');
     assert.equal(f.step(),1);
-    await f.click('use-existing');
+    await f.preview();
     assert.equal(f.calls.destroy,1);
     assert.equal(f.calls.mount.at(-1).omitted.size,0);
     assert.equal(f.get('publication-confirmation').checked,false);
@@ -364,7 +385,7 @@ test('returning to import and reviewing again resets decisions and approval', as
 
 test('failed publication requires explicit reconfirmation and warns about uncertain writes', async () => {
     const f=fixture({publishSuccess:false});
-    await f.click('use-existing');
+    await f.preview();
     f.setConsent(true);
     await f.click('submit');
     assert.equal(f.calls.submit.length,1);

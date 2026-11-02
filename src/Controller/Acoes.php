@@ -170,12 +170,29 @@ class Acoes extends AbstractController
             'inicio_ano' => $inicio->format('Y'),
             'inicio_mes' => $inicio->format('m'),
             'imported_competence' => $this->competences->importedMonth(),
+            'workflow_asset_version' => $this->workflowAssetVersion(),
             'url' => $this->urlGenerator->generate('app_acoes_domakeproducao'),
             'baixar_dados' => $request->query->getBoolean('baixar_dados') ? 1 : 0,
             'atualiza_producao' => $request->query->getBoolean('atualiza_producao')
                 && !$request->query->getBoolean('baixar_dados') ? 1 : 0,
             'token' => $this->guard->token($request),
         ]);
+    }
+
+    /**
+     * Revalidate the workflow scripts and styles when a deployment changes.
+     * Avoid stale browser caches keeping older review behavior in circulation.
+     */
+    private function workflowAssetVersion(): string
+    {
+        $hash = hash_init('sha256');
+        $base = $this->kernel->getProjectDir() . '/public';
+        foreach (['/js/production-workflow.js', '/css/production-workflow.css'] as $asset) {
+            if (!hash_update_file($hash, $base . $asset)) {
+                throw new RuntimeException('Não foi possível identificar a versão dos arquivos de interface.');
+            }
+        }
+        return substr(hash_final($hash), 0, 12);
     }
 
     #[Route('/acoes/do-make-producao', methods: ['POST'])]
