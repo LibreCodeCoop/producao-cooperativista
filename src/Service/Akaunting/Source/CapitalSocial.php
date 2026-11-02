@@ -109,10 +109,11 @@ final class CapitalSocial
                        COALESCE((SELECT -SUM(di.total) FROM document_items di
                                  WHERE di.document_id = d.id AND di.item_id = 31
                                    AND di.deleted_at IS NULL AND di.total < 0), 0) AS advance_deducted,
-                       -- Diferenca oriunda exclusivamente de deducao nao-capital
-                       -- inserida depois da data do ultimo pagamento.
+                       -- Diferenca explicada somente por linha avulsa de
+                       -- Servico (item legado 8), posterior ao pagamento. INSS,
+                       -- IRPF e outros descontos nao podem justificar excesso.
                        COALESCE((SELECT -SUM(di.total) FROM document_items di
-                                 WHERE di.document_id = d.id AND di.item_id <> :item_id
+                                 WHERE di.document_id = d.id AND di.item_id = 8
                                    AND di.deleted_at IS NULL AND di.total < 0
                                    AND di.created_at > (SELECT MAX(pt.paid_at) FROM transactions pt
                                      WHERE pt.document_id = d.id AND pt.company_id = d.company_id

@@ -286,12 +286,15 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
         // A bill of 3,303.00 was paid. Later a -17.69 non-capital line
         // changed the recorded total to 3,285.31, not the bank transfer.
         $this->document(120, 1, 'bill', 11, '3285.31', [
-            26 => '3365.50', 11 => '-62.50', 8 => '-17.69',
+            26 => '3118.88', 28 => '-623.77', 32 => '870.39', 11 => '-62.50', 8 => '-17.69',
         ]);
         $this->transaction(120, 1, 'expense', 11, '3303.00', 120);
+        // Akaunting rebuilt every line after the bank payment, including
+        // the legitimate INSS retention. Only the miscellaneous Service
+        // adjustment explains the R$ 17.69 discrepancy.
         $this->connection->update('document_items', [
             'created_at' => '2025-06-03 12:00:00',
-        ], ['id' => 1208]);
+        ], ['document_id' => 120]);
         $rows = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows();
         self::assertCount(1, $rows);
         self::assertSame('confirmado', $rows[0]['status']);
