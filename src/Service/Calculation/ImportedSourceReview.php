@@ -41,10 +41,11 @@ final readonly class ImportedSourceReview
             ['start' => $start->format('Y-m-d'), 'end' => $competence->endExclusive()->format('Y-m-d')],
         ) ?: [];
         $memberRows = $this->database->fetchAllAssociative(
-            'SELECT t.user_id AS id, u.alias AS name, COUNT(*) AS entries, COALESCE(SUM(t.duration), 0) AS seconds '
+            'SELECT t.user_id AS id, u.alias AS name, u.peso AS weight, '
+            . 'COUNT(*) AS entries, COALESCE(SUM(t.duration), 0) AS seconds '
             . 'FROM timesheet t LEFT JOIN users u ON u.id = t.user_id '
             . 'WHERE t.begin >= :start AND t.begin < :end '
-            . 'GROUP BY t.user_id, u.alias ORDER BY t.user_id',
+            . 'GROUP BY t.user_id, u.alias, u.peso ORDER BY t.user_id',
             ['start' => $start->format('Y-m-d'), 'end' => $competence->endExclusive()->format('Y-m-d')],
         );
         $members = [];
@@ -53,8 +54,58 @@ final readonly class ImportedSourceReview
             $members[] = [
                 'id' => $id,
                 'name' => trim((string) ($member['name'] ?? '')) ?: 'Kimai #' . $id,
+                'weight' => $member['weight'] === null ? null : (float) $member['weight'],
                 'entries' => (int) $member['entries'],
                 'seconds' => (int) $member['seconds'],
+            ];
+        }
+
+        // The original financial table is unavailable before settlement.
+        // Preserve its per-member layout and work-by-customer details without
+        // manufacturing a payable monetary amount.
+        $customerWork = $this->database->fetchAllAssociative(
+            'SELECT t.user_id AS user_id, c.id AS customer_id, c.name AS customer_name, '
+            . 'COALESCE(SUM(t.duration), 0) AS seconds '
+            . 'FROM timesheet t '
+            . 'LEFT JOIN projects p ON p.id = t.project_id '
+            . 'LEFT JOIN customers c ON c.id = p.customer_id '
+            . 'WHERE t.begin >= :start AND t.begin < :end '
+            . 'GROUP BY t.user_id, c.id, c.name ORDER BY t.user_id, c.name',
+            ['start' => $start->format('Y-m-d'), 'end' => $competence->endExclusive()->format('Y-m-d')],
+        );
+        $totalByCustomer = [];
+        foreach ($customerWork as $item) {
+            $customer = $item['customer_id'] === null ? 'missing' : (string) $item['customer_id'];
+            $totalByCustomer[$customer] = ($totalByCustomer[$customer] ?? 0) + (int) $item['seconds'];
+        }
+        $workByMember = [];
+        foreach ($customerWork as $item) {
+            $memberId = (int) $item['user_id'];
+            $customer = $item['customer_id'] === null ? 'missing' : (string) $item['customer_id'];
+            $seconds = (int) $item['seconds'];
+            $total = $totalByCustomer[$customer];
+            $hours = intdiv($seconds, 3600) . ':' . str_pad((string) intdiv($seconds % 3600, 60), 2, '0', STR_PAD_LEFT);
+            $workByMember[$memberId][] = [
+                'nome' => trim((string) ($item['customer_name'] ?? '')) ?: 'Cliente sem cadastro vinculado',
+                'trabalhado' => $hours,
+                'percentual_trabalhado' => $total > 0 ? round($seconds * 100 / $total, 2) : null,
+                'total_cliente' => round($total / 3600, 4),
+            ];
+        }
+        $data = [];
+        foreach ($members as $member) {
+            $data[] = [
+                'kimai_user_id' => $member['id'],
+                'name' => $member['name'],
+                'hours_seconds' => $member['seconds'],
+                'peso' => $member['weight'],
+                'base_producao' => null,
+                'bruto' => null,
+                'liquido' => null,
+                'trabalhado' => json_encode(
+                    $workByMember[$member['id']] ?? [],
+                    JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE,
+                ),
             ];
         }
 
@@ -134,6 +185,7 @@ final readonly class ImportedSourceReview
             'competence' => $workMonth,
             'financial_month' => $financialMonth,
             'publication_allowed' => false,
+            'data' => $data,
             'hours' => [
                 'entries' => (int) ($work['entries'] ?? 0),
                 'members' => (int) ($work['members'] ?? 0),

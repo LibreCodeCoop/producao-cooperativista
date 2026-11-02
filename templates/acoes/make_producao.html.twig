@@ -12,12 +12,12 @@
     <header class="page-heading">
         <p class="eyebrow">Produção cooperativista · Fechamento mensal</p>
         <h1>Fechar a produção</h1>
-        <p class="page-lead">Importe a competência, confira a apuração e decida quem terá documentos publicados. A conferência e a seleção acontecem na mesma tabela.</p>
+        <p class="page-lead">Importe a competência e confira os apontamentos por cooperado na tabela. Quando os dados estiverem revisados, calcule os valores para decidir sobre uma futura publicação no Akaunting.</p>
     </header>
 
     <nav class="production-steps" aria-label="Etapas do fechamento">
         <button type="button" data-step-indicator="1" aria-current="step"><b>1</b> Importar dados</button>
-        <button type="button" data-step-indicator="2" disabled title="Disponível após consultar os dados importados"><b>2</b> Conferir e publicar</button>
+        <button type="button" data-step-indicator="2" disabled title="Disponível após consultar os dados importados"><b>2</b> Conferir e calcular</button>
     </nav>
 
     <div class="production-wizard surface" id="production-wizard" data-preview-url="/api/v1/producao" data-sources-url="/api/v1/producao/fontes">
@@ -83,17 +83,19 @@
 
         <section data-workflow-step="2" hidden aria-labelledby="audit-title">
             <p class="section-kicker">Etapa 2 de 2 · <span id="review-competence"></span></p>
-            <h2 id="audit-title">Conferir a apuração e selecionar exceções</h2>
+            <h2 id="audit-title">Conferir produção por cooperado</h2>
             <p id="calculated-review-intro">Ordene e filtre a produção por cooperado. Abra os detalhes para conferir cada cliente. Clique no nome para editar o cadastro nas fontes; qualquer alteração exige nova importação. O peso exibido é o da importação. Todos serão publicados, exceto quem tiver a opção <strong>Não publicar agora</strong> marcada.</p>
             <div id="imported-data-review" class="information-note" hidden>
-                <h3>Conferência dos dados importados</h3>
-                <p>Apontamentos do Kimai e lançamentos do Akaunting importados para esta competência. Estes valores permitem conciliar as fontes, mas <strong>não constituem uma apuração para pagamento</strong>.</p>
-                <pre id="imported-data-summary" class="production-source-summary" aria-live="polite"></pre>
+                <h3>Dados importados para conferência</h3>
+                <p>Confira cooperados, horas, pesos e clientes na <strong>tabela abaixo</strong>, usando os mesmos filtros e a opção Detalhes. Valores de produção e retirada ainda não calculados aparecem como <strong>A apurar</strong>.</p>
                 <p id="source-financial-status" role="status" hidden></p>
                 <div class="production-wizard-actions">
-                    <button type="button" id="calculate-financial-preview" class="button button-secondary">Calcular prévia financeira</button>
+                    <button type="button" id="calculate-financial-preview" class="button button-secondary">Calcular valores para publicação</button>
                 </div>
-                <p>A publicação só será habilitada após uma prévia financeira válida e sua confirmação explícita.</p>
+                <details id="source-transaction-details">
+                    <summary>Verificar faturamento, despesas e documentos importados</summary>
+                    <pre id="imported-data-summary" class="production-source-summary" aria-live="polite"></pre>
+                </details>
             </div>
             <div id="calculated-review">
             <div class="production-metrics" role="status" aria-live="polite">

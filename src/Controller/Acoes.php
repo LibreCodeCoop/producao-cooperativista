@@ -187,7 +187,7 @@ class Acoes extends AbstractController
     {
         $hash = hash_init('sha256');
         $base = $this->kernel->getProjectDir() . '/public';
-        foreach (['/js/production-workflow.js', '/css/production-workflow.css'] as $asset) {
+        foreach (['/js/production-workflow.js', '/js/report-table.js', '/css/production-workflow.css'] as $asset) {
             if (!hash_update_file($hash, $base . $asset)) {
                 throw new RuntimeException('Não foi possível identificar a versão dos arquivos de interface.');
             }

@@ -199,6 +199,7 @@ final class OperationalUiTest extends TestCase
             'href="/css/production-workflow.css?v=a1b2c3d4e5f6"',
             $html
         );
+        self::assertStringContainsString('src="/js/report-table.js?v=a1b2c3d4e5f6"', $html);
         self::assertStringContainsString('id="calculate-financial-preview"', $html);
         self::assertStringContainsString('data-sources-url="/api/v1/producao/fontes"', $html);
     }

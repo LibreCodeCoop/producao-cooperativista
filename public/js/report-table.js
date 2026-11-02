@@ -197,6 +197,13 @@
     }
 
     function renderCell(value, type, column, row = null, options = {}) {
+        // Monetary allocations do not exist until a financial preview succeeds.
+        // Source-only inspection must not render null as zero or export invented cents.
+        if (options.sourceOnly && options.productionMode && MONEY_COLUMNS.has(column)) {
+            return type === 'display'
+                ? '<span class="money-cell" title="Ainda não calculado">A apurar</span>'
+                : '';
+        }
         if (type === 'export' && options.productionMode && MONEY_COLUMNS.has(column)) {
             return value !== null && value !== '' && Number.isFinite(Number(value))
                 ? decimalExport.format(Number(value)) : '';
@@ -430,7 +437,9 @@
             const reportOptions = {
                 productionMode: table.dataset.productionMode === 'yes',
                 competence: table.dataset.competencia || '',
-                financialReview: table.dataset.financialReview === 'yes',
+                financialReview: typeof options.financialReview === 'boolean'
+                    ? options.financialReview : table.dataset.financialReview === 'yes',
+                sourceOnly: options.sourceOnly === true,
                 omitted: options.omitted,
             };
             const productionMode = table.dataset.productionMode === 'yes';

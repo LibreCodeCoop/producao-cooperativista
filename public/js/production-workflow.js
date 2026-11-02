@@ -55,6 +55,11 @@
             !Array.isArray(payload?.client_cost_transactions?.by_customer) ||
             !Array.isArray(payload?.internal_expense_transactions?.by_category) ||
             !Array.isArray(payload?.unconfirmed_invoices?.documents) ||
+            !Array.isArray(payload?.data) ||
+            payload.data.length !== Number(payload.hours.members) ||
+            !payload.data.every(row => Number.isSafeInteger(row?.kimai_user_id) &&
+                row.kimai_user_id > 0 && Number.isFinite(Number(row?.hours_seconds)) &&
+                row?.base_producao === null && row?.bruto === null && row?.liquido === null) ||
             !Number.isSafeInteger(Number(payload?.unconfirmed_invoices?.count)) ||
             !Number.isFinite(Number(payload?.unconfirmed_invoices?.amount))) {
             throw new Error('Não foi possível verificar as fontes importadas desta competência.');
@@ -104,7 +109,7 @@
                 lines.push('  ' + item.label + ' · ' + money(item.amount));
             }
         }
-        lines.push('', 'Conferência de fontes, sem base de produção calculada. A publicação permanece bloqueada.');
+        lines.push('', 'Valores monetários por cooperado serão apresentados após o cálculo financeiro.');
         return lines.join('\n');
     }
 
@@ -144,6 +149,7 @@
         let preview = null;
         let sourceReview = null;
         let table = null;
+        let tableMode = null;
         let loading = false;
         let processing = false;
         let finished = false;
@@ -219,6 +225,7 @@
             if (sourceReviewPanel) sourceReviewPanel.hidden = true;
             if (calculatedReview) calculatedReview.hidden = false;
             if (publicationControls) publicationControls.hidden = false;
+            if (el('selection-summary')) el('selection-summary').hidden = false;
             if (el('calculated-review-intro')) el('calculated-review-intro').hidden = false;
             if (el('audit-title')) el('audit-title').textContent =
                 'Conferir a apuração e selecionar exceções';
@@ -232,27 +239,59 @@
         };
         doc.addEventListener?.('member-source-changed', weightChanged);
 
-        const showSourceReview = (payload, financialProblem = null) => {
+        const showSourceReview = async (payload, financialProblem = null, reuseTable = false) => {
+            if (!grid || typeof grid.initializeReportTable !== 'function') {
+                throw new Error('A tabela de cooperados não carregou. Recarregue a página.');
+            }
+            show(2);
+            if (!reuseTable || tableMode !== 'source' || !table) {
+                if (table?.destroy) table.destroy();
+                table = null;
+                tableMode = null;
+                const reportTable = el('example');
+                if (reportTable?.dataset) {
+                    reportTable.dataset.competencia = competence();
+                }
+                const mounted = await grid.initializeReportTable(doc, {
+                    ...options, payload, omitted, sourceOnly: true, financialReview: false,
+                });
+                if (!mounted) throw new Error('Não foi possível montar a tabela de cooperados.');
+                table = mounted;
+                tableMode = 'source';
+            }
             sourceReview = payload;
             if (sourceReviewPanel) sourceReviewPanel.hidden = false;
-            if (calculatedReview) calculatedReview.hidden = true;
+            if (calculatedReview) calculatedReview.hidden = false;
             if (publicationControls) publicationControls.hidden = true;
+            if (el('selection-summary')) el('selection-summary').hidden = true;
             if (el('calculated-review-intro')) el('calculated-review-intro').hidden = true;
-            if (el('audit-title')) el('audit-title').textContent = 'Conferir dados importados';
+            if (el('withdrawal-goal')) el('withdrawal-goal').hidden = true;
+            if (el('audit-title')) el('audit-title').textContent = 'Conferir produção por cooperado';
             el('imported-data-summary').textContent = sourceReviewText(payload);
             el('review-competence').textContent = competence();
+            el('metric-members').textContent = String(payload.hours.members);
+            el('metric-hours').textContent = hours(payload.hours.seconds);
+            el('metric-base').textContent = 'A apurar';
+            el('metric-net').textContent = 'A apurar';
             const issue = el('source-financial-status');
             if (issue) {
                 issue.hidden = !financialProblem;
-                issue.textContent = financialProblem
-                    ? 'A apuração para pagamento está bloqueada. Confira as faturas e custos ' +
-                        'importados abaixo e concilie os recebimentos antes de publicar.'
-                    : '';
+                issue.textContent = !financialProblem ? '' :
+                    financialProblem.code === 'BASE_ECONOMICA'
+                        ? 'O cálculo da retirada ainda não tem receita suficiente confirmada para ' +
+                            payload.financial_month + '. Há ' + payload.unconfirmed_invoices.count +
+                            ' fatura(s) sem pagamento confirmado (' +
+                            money(payload.unconfirmed_invoices.amount) + '). ' +
+                            'Se o cliente já pagou, o financeiro deve conferir a baixa no Akaunting. ' +
+                            'Se ainda não pagou, a conferência das horas permanece disponível. ' +
+                            'Consulte os detalhes em "Verificar faturamento, despesas e documentos importados".'
+                        : 'Não foi possível concluir o cálculo de retirada. Os dados importados ' +
+                            'permanecem disponíveis para conferência. Consulte o relatório de ' +
+                            'movimentações e os logs técnicos antes de tentar publicar.';
             }
-            show(2);
             invalidateApproval();
-            // Do not send the user to the generic warning at the bottom of the page.
-            // This panel is the result they requested, not a failed import.
+            syncNavigation();
+            // Focus the familiar table, not the technical financial movements.
             sourceReviewPanel?.scrollIntoView?.({block: 'start'});
         };
 
@@ -263,7 +302,7 @@
             });
             if (!response.ok) throw new Error('Não foi possível consultar os lançamentos importados.');
             const payload = validateSourceReview(await response.json(), competence());
-            showSourceReview(payload, financialProblem);
+            await showSourceReview(payload, financialProblem);
             return true;
         };
 
@@ -301,6 +340,10 @@
                 if (!response.ok) {
                     const payload = await response.json().catch(() => ({}));
                     if (payload?.code === 'BASE_ECONOMICA') {
+                        if (previouslyImported?.competence === competence() && tableMode === 'source' && table) {
+                            await showSourceReview(previouslyImported, payload, true);
+                            return true;
+                        }
                         return await loadSourceReview(payload);
                     }
                     throw new Error(payload?.error?.message ||
@@ -312,6 +355,8 @@
                 if (sourceReviewPanel) sourceReviewPanel.hidden = true;
                 if (calculatedReview) calculatedReview.hidden = false;
                 if (publicationControls) publicationControls.hidden = false;
+                if (el('selection-summary')) el('selection-summary').hidden = false;
+                if (el('calculated-review-intro')) el('calculated-review-intro').hidden = false;
                 if (!grid || typeof grid.initializeReportTable !== 'function') {
                     throw new Error('O DataTables não carregou. Recarregue a página antes de publicar.');
                 }
@@ -323,6 +368,8 @@
                         '?ano-mes=' + encodeURIComponent(competence());
                 }
                 if (table?.destroy) table.destroy();
+                table = null;
+                tableMode = null;
                 table = await grid.initializeReportTable(doc, {
                     ...options,
                     payload,
@@ -336,6 +383,7 @@
                     },
                 });
                 if (!table) throw new Error('Não foi possível montar a tabela de conferência.');
+                tableMode = 'calculated';
                 preview = valid;
                 syncNavigation();
                 el('review-competence').textContent = competence();
@@ -366,7 +414,8 @@
             } catch (error) {
                 resetReview();
                 if (previouslyImported?.competence === competence()) {
-                    showSourceReview(previouslyImported, {code: 'PREVIEW_FAILED'});
+                    await showSourceReview(previouslyImported, {code: 'PREVIEW_FAILED'},
+                        tableMode === 'source' && !!table);
                     return false;
                 }
                 show(1);

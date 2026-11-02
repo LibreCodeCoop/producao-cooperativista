@@ -15,15 +15,21 @@ final class ImportedSourceReviewTest extends TestCase
     public function testFinancialDeficitAllowsSourceReviewButNeverPublication(): void
     {
         $database = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]);
-        $database->executeStatement('CREATE TABLE timesheet (id INT, user_id INT, begin TEXT, duration INT)');
-        $database->executeStatement('CREATE TABLE users (id INT, alias TEXT)');
-        $database->insert('users', ['id' => 5, 'alias' => 'Cooperada A']);
-        $database->insert('users', ['id' => 19, 'alias' => 'Cooperado B']);
+        $database->executeStatement('CREATE TABLE timesheet (id INT, user_id INT, project_id INT, begin TEXT, duration INT)');
+        $database->executeStatement('CREATE TABLE users (id INT, alias TEXT, peso REAL)');
+        $database->executeStatement('CREATE TABLE projects (id INT, customer_id INT)');
+        $database->executeStatement('CREATE TABLE customers (id INT, name TEXT)');
+        $database->insert('customers', ['id' => 17, 'name' => 'Cliente A']);
+        $database->insert('customers', ['id' => 18, 'name' => 'Cliente B']);
+        $database->insert('projects', ['id' => 70, 'customer_id' => 17]);
+        $database->insert('projects', ['id' => 80, 'customer_id' => 18]);
+        $database->insert('users', ['id' => 5, 'alias' => 'Cooperada A', 'peso' => 1.5]);
+        $database->insert('users', ['id' => 19, 'alias' => 'Cooperado B', 'peso' => 2.0]);
         $database->executeStatement('CREATE TABLE invoices (id INT, document_number TEXT, amount REAL, due_at TEXT, category_id INT, metadata TEXT, transaction_of_month TEXT, type TEXT, category_type TEXT, archive INT)');
         $database->executeStatement('CREATE TABLE transactions (id INT, type TEXT, category_id INT, category_name TEXT, customer_reference TEXT, amount REAL, metadata TEXT, transaction_of_month TEXT, archive INT)');
-        $database->insert('timesheet', ['id' => 1, 'user_id' => 5, 'begin' => '2026-09-04', 'duration' => 3600]);
-        $database->insert('timesheet', ['id' => 2, 'user_id' => 19, 'begin' => '2026-09-05', 'duration' => 7200]);
-        $database->insert('timesheet', ['id' => 3, 'user_id' => 30, 'begin' => '2026-08-03', 'duration' => 5000]);
+        $database->insert('timesheet', ['id' => 1, 'user_id' => 5, 'project_id' => 70, 'begin' => '2026-09-04', 'duration' => 3600]);
+        $database->insert('timesheet', ['id' => 2, 'user_id' => 19, 'project_id' => 70, 'begin' => '2026-09-05', 'duration' => 7200]);
+        $database->insert('timesheet', ['id' => 3, 'user_id' => 30, 'project_id' => 80, 'begin' => '2026-08-03', 'duration' => 5000]);
 
         foreach ([
             [2329, 'sent', 29877.75],
@@ -72,9 +78,24 @@ final class ImportedSourceReviewTest extends TestCase
             self::assertFalse($result['publication_allowed']);
             self::assertArrayNotHasKey('revision', $result);
             self::assertSame(['entries' => 2, 'members' => 2, 'seconds' => 10800, 'by_member' => [
-                ['id' => 5, 'name' => 'Cooperada A', 'entries' => 1, 'seconds' => 3600],
-                ['id' => 19, 'name' => 'Cooperado B', 'entries' => 1, 'seconds' => 7200],
+                ['id' => 5, 'name' => 'Cooperada A', 'weight' => 1.5, 'entries' => 1, 'seconds' => 3600],
+                ['id' => 19, 'name' => 'Cooperado B', 'weight' => 2.0, 'entries' => 1, 'seconds' => 7200],
             ]], $result['hours']);
+            self::assertCount(2, $result['data']);
+            self::assertSame(5, $result['data'][0]['kimai_user_id']);
+            self::assertSame(1.5, $result['data'][0]['peso']);
+            self::assertSame(3600, $result['data'][0]['hours_seconds']);
+            self::assertNull($result['data'][0]['base_producao']);
+            self::assertNull($result['data'][0]['bruto']);
+            self::assertNull($result['data'][0]['liquido']);
+            self::assertSame([[
+                'nome' => 'Cliente A', 'trabalhado' => '1:00',
+                'percentual_trabalhado' => 33.33, 'total_cliente' => 3,
+            ]], json_decode($result['data'][0]['trabalhado'], true));
+            self::assertSame([[
+                'nome' => 'Cliente A', 'trabalhado' => '2:00',
+                'percentual_trabalhado' => 66.67, 'total_cliente' => 3,
+            ]], json_decode($result['data'][1]['trabalhado'], true));
             self::assertSame(['count' => 1, 'amount' => 100.0], $result['income_transactions']);
             self::assertSame(2007.63, $result['client_cost_transactions']['amount']);
             self::assertSame([['label' => '1234', 'amount' => 2007.63]], $result['client_cost_transactions']['by_customer']);

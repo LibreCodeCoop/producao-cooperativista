@@ -108,6 +108,33 @@ function fixture(payload = { data: [{ id: 1, name: 'Teste', metadata: '{}' }] },
     return { table, footer, errors, doc, calls, options, history, location };
 }
 
+test('the familiar production columns can display source data without inventing monetary values', () => {
+    const f=fixture({data:[{
+        kimai_user_id:5,name:'Cooperada A',hours_seconds:3600,peso:1.5,
+        base_producao:null,bruto:null,liquido:null,
+        trabalhado:'[{"nome":"Cliente A","trabalhado":"1:00","percentual_trabalhado":33.33,"total_cliente":3}]',
+    }]});
+    f.table.dataset.productionMode='yes';
+    f.table.dataset.financialReview='yes';
+    return initializeReportTable(f.doc,{
+        ...f.options,sourceOnly:true,financialReview:false,
+        payload:{data:[{
+            kimai_user_id:5,name:'Cooperada A',hours_seconds:3600,peso:1.5,
+            base_producao:null,bruto:null,liquido:null,
+            trabalhado:'[{"nome":"Cliente A","trabalhado":"1:00","percentual_trabalhado":33.33,"total_cliente":3}]',
+        }]},
+    }).then(dt=>{
+        assert.ok(dt);
+        assert.deepEqual(dt.settings.columns.map(c=>c.title),[
+            'Cooperado','Horas','Peso','Base de produção','Bruto','Líquido','Detalhes',
+        ]);
+        assert.match(dt.settings.columns[3].render(null,'display'),/A apurar/);
+        assert.equal(dt.settings.columns[3].render(null,'export'),'');
+        assert.match(dt.settings.columns[1].render(3600,'display'),/1:00:00/);
+        assert.match(dt.settings.columns[2].render(1.5,'display'),/1,5/);
+    });
+});
+
 test('HTML escaping protects financial values, quotes and empty cells', () => {
     assert.equal(escapeHtml('<b id="a">&\'X</b>'), '&lt;b id=&quot;a&quot;&gt;&amp;&#39;X&lt;/b&gt;');
     assert.equal(renderCell(0, 'display', 'amount'), '0');

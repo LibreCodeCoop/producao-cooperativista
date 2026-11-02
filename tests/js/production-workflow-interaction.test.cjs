@@ -74,7 +74,7 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
         querySelectorAll: selector => selector === '[data-step-indicator]' ? indicators : [],
     };
 
-    const calls = {fetch: [],submit: [],notices: [],mount: [],destroy: 0};
+    const calls = {fetch: [],submit: [],notices: [],mount: [],sourceMount: [],destroy: 0,sourceDestroy: 0};
     const rows = [
         {kimai_user_id: 5, name: 'Pessoa A', peso: 1.5,
             base_producao: 100.3200001, liquido: 75.23, hours_seconds: 7200},
@@ -84,8 +84,12 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
     const revision = 'c'.repeat(64);
     const reportTable = {
         async initializeReportTable(_doc, options) {
-            calls.mount.push(options);
-            return gridSuccess ? {destroy() {calls.destroy++;}} : null;
+            if (options.sourceOnly) calls.sourceMount.push(options);
+            else calls.mount.push(options);
+            if (!gridSuccess) return null;
+            return options.sourceOnly
+                ? {destroy() {calls.sourceDestroy++;}}
+                : {destroy() {calls.destroy++;}};
         },
     };
     const options = {
@@ -95,9 +99,13 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
             if (url.startsWith('/api/v1/producao/fontes?')) {
                 return {ok:true,async json() {return {
                     competence:'2026-08', financial_month:'2026-09', publication_allowed:false,
-                    hours:{entries:214,members:7,seconds:80000,by_member:[
-                        {id:1,name:'Pessoa A',entries:50,seconds:80000},
+                    hours:{entries:214,members:2,seconds:10800,by_member:[
+                        {id:5,name:'Pessoa A',weight:1.5,entries:100,seconds:7200},
+                        {id:8,name:'Pessoa B',weight:2,entries:114,seconds:3600},
                     ]},
+                    data:rows.map(row => ({
+                        ...row,base_producao:null,bruto:null,liquido:null,trabalhado:'[]',
+                    })),
                     income_transactions:{amount:0,count:0},
                     client_cost_transactions:{amount:2007.63,by_customer:[{label:'cliente A',amount:2007.63}]},
                     internal_expense_transactions:{amount:11818.04,by_category:[{label:'infra',amount:11818.04}]},
@@ -275,7 +283,11 @@ test('source inspection opens directly without the financial error or a page jum
     assert.equal(f.get('imported-data-review').scrolls.length,1,'Focus the requested audit section');
     assert.equal(f.get('source-financial-status').hidden,true);
     assert.equal(f.get('imported-data-review').hidden,false);
-    assert.equal(f.get('calculated-review').hidden,true);
+    assert.equal(f.get('calculated-review').hidden,false,'The same member table remains visible');
+    assert.equal(f.calls.sourceMount.length,1);
+    assert.equal(f.calls.sourceMount[0].sourceOnly,true);
+    assert.equal(f.calls.sourceMount[0].financialReview,false);
+    assert.ok(f.calls.sourceMount[0].payload.data.every(row => row.liquido === null));
     assert.equal(f.get('production-publication-controls').hidden,true);
     assert.match(f.get('imported-data-summary').textContent,/214/);
     assert.match(f.get('imported-data-summary').textContent,/2\.007,63/);
@@ -284,10 +296,12 @@ test('source inspection opens directly without the financial error or a page jum
 
     await f.click('calculate-financial-preview');
     assert.equal(f.step(),2,'Economic deficits may not hide the imported evidence');
-    assert.equal(f.calls.fetch.length,3);
+    assert.equal(f.calls.fetch.length,2,'The staged data can be reused for a financial error');
+    assert.equal(f.calls.sourceMount.length,1,'Do not reset the source table');
     assert.equal(f.calls.mount.length,0,'Must not fabricate a calculated table');
     assert.equal(f.get('source-financial-status').hidden,false);
-    assert.match(f.get('source-financial-status').textContent,/bloqueada/);
+    assert.match(f.get('source-financial-status').textContent,/O cálculo da retirada ainda não/);
+    assert.match(f.get('source-financial-status').textContent,/7 fatura/);
     assert.equal(f.calls.notices.length,0,'No repeated generic financial warning');
     f.setConsent(true);
     assert.equal(f.get('submit').disabled,true);
@@ -312,7 +326,7 @@ test('successful source import shows audit state when finance cannot be calculat
 });
 
 test('freshness failures, missing grid and invalid data fail closed', async () => {
-    for (const config of [{previewError:true},{malformed:true},{gridSuccess:false}]) {
+    for (const config of [{previewError:true},{malformed:true}]) {
         const f=fixture(config);
         await f.preview();
         assert.equal(f.step(),2,'Staged data must remain available when preview validation fails');
@@ -321,6 +335,11 @@ test('freshness failures, missing grid and invalid data fail closed', async () =
         assert.equal(f.get('submit').disabled,true);
         assert.equal(f.calls.notices.length,0);
     }
+    const unavailable=fixture({gridSuccess:false});
+    await unavailable.click('use-existing');
+    assert.equal(unavailable.step(),1,'A missing DataTables library must fail closed');
+    assert.equal(unavailable.get('submit').disabled,true);
+    assert.ok(unavailable.calls.notices.length);
 });
 
 test('editing via member modal invalidates review and requires reimporting original sources', async () => {
