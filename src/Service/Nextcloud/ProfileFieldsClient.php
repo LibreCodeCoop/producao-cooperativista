@@ -302,11 +302,12 @@ class ProfileFieldsClient
                     FILTER_VALIDATE_INT,
                     ['options' => ['min_range' => 1]],
                 );
-                if (!$financialId) {
-                    throw new \DomainException('Cooperado vinculado ao Kimai sem contato financeiro definido no Profile Fields.');
-                }
                 $user = $this->applyFieldsToUser($user, $linked['values']);
-                $user['akaunting_contact_id'] = $financialId;
+                // The Kimai profile link must work independently of the
+                // financial contact. Dependents and weight belong to Nextcloud.
+                if ($financialId) {
+                    $user['akaunting_contact_id'] = $financialId;
+                }
                 return $user;
             }
         }

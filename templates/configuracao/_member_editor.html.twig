@@ -9,7 +9,8 @@
         <div class="member-link-title">
             <h3>Vínculos entre sistemas</h3>
             <span class="member-editor-status{{ link.linked|default(false) ? ' is-ready' : ' is-warning' }}">
-                {{ link.linked|default(false) ? 'Vinculado' : 'A confirmar' }}
+                {{ link.linked|default(false) ? 'Vinculado'
+                    : (link.kimai_linked|default(false) ? 'Kimai vinculado · financeiro pendente' : 'A confirmar') }}
             </span>
         </div>
         <form method="post" class="member-link-form" action="/configuracao/cooperado/{{ member.id }}/vincular" autocomplete="off">

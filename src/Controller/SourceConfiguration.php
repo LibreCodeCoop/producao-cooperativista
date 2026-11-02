@@ -298,6 +298,7 @@ final class SourceConfiguration extends AbstractController
             'uid' => '',
             'contact_id' => '',
             'linked' => false,
+            'kimai_linked' => false,
         ];
         try {
             $profile = $this->sources->nextcloudForMember($member);
@@ -305,16 +306,16 @@ final class SourceConfiguration extends AbstractController
                 $links['uid'] = $profile['uid'];
                 $values = $profile['values'];
                 $links['contact_id'] = trim((string) ($values['akaunting_contact_id'] ?? ''));
-                $links['linked'] = trim((string) ($values['kimai_user_id'] ?? '')) === (string) $id
-                    && $links['contact_id'] !== '';
-                if ($links['linked']) {
+                $links['kimai_linked'] = trim((string) ($values['kimai_user_id'] ?? '')) === (string) $id;
+                $links['linked'] = $links['kimai_linked'] && $links['contact_id'] !== '';
+                if ($links['kimai_linked']) {
                     foreach (['tax_number', 'weight', 'dependents'] as $field) {
                         $value = (string) ($values[self::profileKey($field)] ?? '');
                         $services['nextcloud']['fields'][] = $this->field($id, 'nextcloud', $field, $value);
                     }
                     $services['nextcloud']['configured'] = true;
                 } else {
-                    $services['nextcloud']['error'] = 'Confirme ambos os vínculos antes de alterar o cadastro.';
+                    $services['nextcloud']['error'] = 'Confirme o vínculo com o Kimai antes de alterar o cadastro.';
                 }
             } else {
                 $services['nextcloud']['error'] = 'Escolha a conta Nextcloud para continuar.';
@@ -380,7 +381,11 @@ final class SourceConfiguration extends AbstractController
     /** @param array<string, mixed> $member */
     private function linkedContactId(array $member): int
     {
-        return (int) $this->confirmedProfile($member)['values']['akaunting_contact_id'];
+        $contactId = (int) ($this->confirmedProfile($member)['values']['akaunting_contact_id'] ?? 0);
+        if ($contactId <= 0) {
+            throw new \DomainException('Selecione o contato financeiro antes de editar dados no Akaunting.');
+        }
+        return $contactId;
     }
 
     /**
@@ -390,9 +395,8 @@ final class SourceConfiguration extends AbstractController
     private function confirmedProfile(array $member): array
     {
         $profile = $this->sources->nextcloudForMember($member);
-        if (!$profile['exists'] || (string) ($profile['values']['kimai_user_id'] ?? '') !== (string) $member['id']
-            || (int) ($profile['values']['akaunting_contact_id'] ?? 0) <= 0) {
-            throw new \DomainException('Vínculos entre Nextcloud, Kimai e Akaunting precisam ser confirmados antes da edição.');
+        if (!$profile['exists'] || (string) ($profile['values']['kimai_user_id'] ?? '') !== (string) $member['id']) {
+            throw new \DomainException('Confirme o vínculo Nextcloud–Kimai antes de editar o perfil.');
         }
         return $profile;
     }

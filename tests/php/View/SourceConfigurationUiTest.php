@@ -132,6 +132,11 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('Como funciona o peso de participação', $html);
         self::assertStringContainsString('quatro casas decimais', $html);
         self::assertStringContainsString('0,75', $html);
+        $data['links'] = ['uid' => 'nc-user', 'kimai_linked' => true,
+            'contact_id' => '', 'linked' => false];
+        $partialLink = $this->twig()->render('configuracao/_member_editor.html.twig', $data);
+        self::assertStringContainsString('Kimai vinculado · financeiro pendente', $partialLink);
+        self::assertStringContainsString('name="field" value="dependents"', $partialLink);
         self::assertStringContainsString('class="member-link-form"', $html);
         self::assertStringContainsString('data-links-prepare', $html);
         self::assertStringContainsString('data-link-source="akaunting"', $html);

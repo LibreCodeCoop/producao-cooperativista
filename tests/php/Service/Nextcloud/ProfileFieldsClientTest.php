@@ -276,6 +276,52 @@ final class ProfileFieldsClientTest extends TestCase
         ]));
     }
 
+    public function testLinkedKimaiProfileProvidesZeroDependentsWithoutRequiringFinancialContact(): void
+    {
+        putenv('PROFILE_FIELDS_API_BASE_URL=https://nextcloud.example.com');
+        putenv('PROFILE_FIELDS_AUTH_USER=api-user');
+        putenv('PROFILE_FIELDS_AUTH_TOKEN=api-token');
+
+        $calls = [];
+        $http = new MockHttpClient(static function (string $method, string $url, array $options) use (&$calls): MockResponse {
+            $calls[] = $url;
+            if (str_ends_with($url, '/definitions')) {
+                return new MockResponse((string) json_encode(['ocs' => [
+                    'meta' => ['statuscode' => 100],
+                    'data' => [
+                        ['id' => 10, 'field_key' => 'kimai_user_id', 'type' => 'text', 'active' => true],
+                        ['id' => 11, 'field_key' => 'dependents', 'type' => 'number', 'active' => true],
+                    ],
+                ]]));
+            }
+            if (str_ends_with($url, '/users/lookup')) {
+                self::assertSame('POST', $method);
+                self::assertLookupPayload($options, [
+                    'fieldKey' => 'kimai_user_id', 'fieldValue' => '21',
+                ]);
+                return new MockResponse((string) json_encode(['ocs' => [
+                    'meta' => ['statuscode' => 100],
+                    'data' => [
+                        'user_uid' => 'nextcloud-uid',
+                        'fields' => [
+                            'kimai_user_id' => ['value' => ['value' => '21']],
+                            'dependents' => ['value' => ['value' => 0]],
+                        ],
+                    ],
+                ]]));
+            }
+            self::fail('Unexpected API request: ' . $url);
+        });
+
+        $row = ['id' => 21, 'username' => 'different-kimai-username', 'tax_number' => '12345678901'];
+        $enriched = new ProfileFieldsClient($http, new NullLogger())->enrichUser($row);
+
+        self::assertSame(0, $enriched['dependents']);
+        self::assertSame('12345678901', $enriched['tax_number']);
+        self::assertArrayNotHasKey('akaunting_contact_id', $enriched);
+        self::assertCount(2, $calls);
+    }
+
     public function testEnrichUserFallsBackToUserUidWhenTaxNumberLookupReturnsNoResult(): void
     {
         putenv('PROFILE_FIELDS_API_BASE_URL=https://nextcloud.example.com');
