@@ -27,7 +27,7 @@
         <div class="settings-section-heading">
             <div>
                 <h2>Cooperados e vínculos</h2>
-                <p>Lista baseada nas contas do Kimai. Clique no nome para conferir o cadastro nas fontes.</p>
+                <p>Lista baseada nas contas do Kimai. Clique no nome para conferir o cadastro ou no total de horas para abrir os apontamentos.</p>
             </div>
             <form action="/configuracao/cooperados" method="get" class="settings-month">
                 <label for="settings-month">Competência</label>
@@ -69,7 +69,7 @@
                         <tr data-member-row{% if member and member.id == user.id %} class="settings-selected"{% endif %}>
                             <td>{% if not user.system %}<a href="/configuracao/cooperado/{{ user.id }}/editar?competencia={{ month|url_encode }}" class="settings-link" data-member-editor-open data-settings-member-link>{{ user.alias }}</a>{% else %}{{ user.alias }}{% endif %}</td>
                             <td>{{ user.username }}</td>
-                            <td data-order="{{ user.hours }}">{{ user.hours|number_format(2, ',', '.') }} h</td>
+                            <td data-order="{{ user.hours }}">{% if not user.system %}<a class="settings-link" href="/relatorios/apontamentos?ano-mes={{ month|url_encode }}&amp;cooperado={{ user.id }}" title="Conferir os apontamentos importados deste cooperado">{{ user.hours|number_format(2, ',', '.') }} h</a>{% else %}{{ user.hours|number_format(2, ',', '.') }} h{% endif %}</td>
                             <td data-order="{{ user.imported_weight is not null ? user.imported_weight : -1 }}" title="Peso da última importação">{{ user.imported_weight is not null ? user.imported_weight|replace({'.': ','}) : 'Não importado' }}</td>
                             <td>{{ user.participates ? 'Com horas' : 'Sem horas' }}</td>
                             <td>{{ status }}</td>

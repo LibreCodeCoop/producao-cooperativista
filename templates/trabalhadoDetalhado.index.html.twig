@@ -1,0 +1,64 @@
+{% extends 'layout/index.html.twig' %}
+{% block title %}Apontamentos detalhados do Kimai{% endblock %}
+{% block head %}
+    <link rel="stylesheet" href="/css/production-workflow.css">
+    <link rel="stylesheet" href="/css/timesheet-report.css?v={{ timesheet_asset_version }}">
+{% endblock %}
+{% block body %}
+    <nav class="breadcrumbs" aria-label="Localização">
+        <a href="/relatorios">Relatórios</a><span aria-hidden="true">/</span>
+        <span aria-current="page">Apontamentos detalhados</span>
+    </nav>
+    <header class="page-heading page-heading-compact">
+        <p class="eyebrow">Conferência de trabalho · {{ competencia }}</p>
+        <h1>Apontamentos detalhados</h1>
+        <p class="page-lead">Cada lançamento importado do Kimai, com cooperado, cliente, projeto, início, fim, duração e descrição. São dados da última importação desta competência, não uma consulta ao Kimai em tempo real.</p>
+    </header>
+    <div class="production-report-tools">
+        <form method="get" action="/relatorios/apontamentos" class="production-month-picker">
+            <label for="timesheet-competence">Competência do trabalho</label>
+            <input type="month" name="ano-mes" id="timesheet-competence" value="{{ competencia }}" required>
+            <input type="hidden" name="cooperado" id="timesheet-month-member" value="">
+            <input type="hidden" name="cliente" id="timesheet-month-customer" value="">
+            <button class="button button-primary" type="submit">Consultar</button>
+        </form>
+        <nav class="production-report-nav" aria-label="Relatórios relacionados">
+            <a href="/relatorios/trabalhado-summarized?ano-mes={{ competencia }}">Resumo por cooperado</a>
+            <a href="/relatorios/producao?ano-mes={{ competencia }}">Produção por cooperado</a>
+            {% if kimai_timesheet_url %}
+                <a href="{{ kimai_timesheet_url }}" target="_blank" rel="noopener noreferrer" title="Abrir a lista de apontamentos na origem; os dados lá podem ter sido alterados após a importação">Abrir Kimai</a>
+            {% endif %}
+        </nav>
+    </div>
+    <section class="surface timesheet-report" aria-labelledby="timesheet-detail-heading">
+        <h2 id="timesheet-detail-heading">Registros importados</h2>
+        <div class="timesheet-filters">
+            <div>
+                <label for="timesheet-member-filter">Cooperado</label>
+                <select id="timesheet-member-filter"><option value="">Todos os cooperados</option></select>
+            </div>
+            <div>
+                <label for="timesheet-customer-filter">Cliente</label>
+                <select id="timesheet-customer-filter"><option value="">Todos os clientes</option></select>
+            </div>
+            <button id="timesheet-clear-filters" type="button" class="button button-secondary">Limpar filtros</button>
+        </div>
+        <p class="timesheet-summary" id="timesheet-summary" role="status" aria-live="polite">Carregando apontamentos importados...</p>
+        <p class="production-help">Os totais abaixo consideram todos os registros que correspondem aos filtros, não apenas a página visível. Horas são somadas a partir da duração registrada no Kimai; eventuais horários sobrepostos não são deduplicados. A atividade é mostrada pelo ID porque seu nome não integra o snapshot atual. Links individuais para o Kimai podem exigir permissão de edição ou administração.</p>
+        {{ include('layout/components/datatable.html.twig', {
+            manualInit: true,
+            timesheetDetails: true,
+            filterColumns: ['metadata']
+        }) }}
+        <section class="timesheet-client-summary" aria-labelledby="timesheet-client-heading">
+            <h3 id="timesheet-client-heading">Total por cliente (apontamentos filtrados)</h3>
+            <div class="timesheet-summary-scroll">
+                <table class="timesheet-client-table">
+                    <thead><tr><th scope="col">Cliente</th><th scope="col">Registros</th><th scope="col">Horas</th></tr></thead>
+                    <tbody id="timesheet-client-body"><tr><td colspan="3">Carregando...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+    </section>
+    <script src="/js/timesheet-report.js?v={{ timesheet_asset_version }}" defer></script>
+{% endblock %}

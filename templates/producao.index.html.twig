@@ -23,6 +23,7 @@
             <a href="/relatorios/invoices?ano-mes={{ competencia }}">Entradas e saídas</a>
             <a href="/relatorios/faturas-conferencia?ano-mes={{ competencia }}">Faturas para conferir</a>
             <a href="/relatorios/trabalhado-summarized?ano-mes={{ competencia }}">Horas por cooperado</a>
+            <a href="/relatorios/apontamentos?ano-mes={{ competencia }}">Apontamentos detalhados</a>
             {% if kimai_timesheet_url|default(null) %}
                 <a href="{{ kimai_timesheet_url }}" target="_blank" rel="noopener noreferrer" title="Abrir a lista de apontamentos no Kimai; selecionar cooperado e período no sistema de origem">Apontamentos no Kimai</a>
             {% endif %}

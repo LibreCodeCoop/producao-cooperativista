@@ -10,7 +10,7 @@
     <header class="page-heading page-heading-compact">
         <p class="eyebrow">Conferência de apontamentos · {{ competencia|default('') }}</p>
         <h1>Horas por cooperado</h1>
-        <p class="page-lead">Apontamentos importados do Kimai, antes de qualquer distribuição financeira. O nome do cooperado pode ser filtrado diretamente na tabela.</p>
+        <p class="page-lead">Apontamentos importados do Kimai, antes de qualquer distribuição financeira. Clique no nome para visualizar todos os apontamentos e os totalizadores por cliente.</p>
     </header>
     <div class="production-report-tools">
         <form method="get" action="/relatorios/trabalhado-summarized" class="production-month-picker">
@@ -19,6 +19,7 @@
             <button type="submit" class="button button-primary">Consultar</button>
         </form>
         <nav aria-label="Relatórios relacionados" class="production-report-nav">
+            <a href="/relatorios/apontamentos?ano-mes={{ competencia }}">Apontamentos detalhados</a>
             <a href="/relatorios/producao?ano-mes={{ competencia|default('') }}">Produção por cooperado</a>
             <a href="/relatorios/calculos?ano-mes={{ competencia|default('') }}">Memória de cálculo</a>
             <a href="/acoes/make-producao?ano-mes={{ competencia|default('') }}">Voltar ao fechamento</a>

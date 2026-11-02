@@ -82,10 +82,15 @@ class Index extends AbstractController
                     'label' => 'Produção',
                     'description' => 'Distribuição da produção por cooperado e competência.',
                 ],
+                'apontamentos' => [
+                    'url' => $this->urlGenerator->generate('app_trabalhadodetalhado_index'),
+                    'label' => 'Apontamentos detalhados',
+                    'description' => 'Cada horário registrado, cliente, projeto e totalizações por cliente.',
+                ],
                 'trabalhado' => [
                     'url' => $this->urlGenerator->generate('app_trabalhadosummarized_index'),
-                    'label' => 'Horas por cliente',
-                    'description' => 'Apontamentos importados por cliente e competência.',
+                    'label' => 'Horas por cooperado',
+                    'description' => 'Resumo das horas importadas por cooperado na competência.',
                 ],
             ],
         ]);

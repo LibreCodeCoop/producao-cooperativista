@@ -138,10 +138,10 @@
             return '<div><dt>' + escapeHtml(label) + help + '</dt><dd>' +
                 value + '</dd></div>';
         }).join('');
-        const workLink = options.competence && record.name
-            ? safeLink('/relatorios/trabalhado-summarized?ano-mes=' +
-                encodeURIComponent(options.competence) + '&nome=' +
-                encodeURIComponent(String(record.name)), 'Conferir horas por cooperado', true) : null;
+        const workLink = options.competence && Number.isSafeInteger(Number(record.kimai_user_id)) && Number(record.kimai_user_id) > 0
+            ? safeLink('/relatorios/apontamentos?ano-mes=' +
+                encodeURIComponent(options.competence) + '&cooperado=' +
+                encodeURIComponent(String(record.kimai_user_id)), 'Conferir todos os apontamentos', true) : null;
         return '<div class="production-row-details"><div><h4>Horas por cliente</h4>' +
             (workLink ? '<p>' + workLink + '</p>' : '') +
             (work ? '<div class="production-detail-scroll"><table><thead><tr><th>Cliente</th>' +
@@ -152,6 +152,52 @@
             '</div><div><h4>Composição financeira</h4>' +
             (sourceOnly ? '<p class="production-help">Ainda não calculada. Valores a apurar não são zero.</p>' : '') +
             '<dl>' + facts + '</dl></div></div>';
+    }
+
+    function buildTimesheetColumns(options = {}) {
+        const cell = (key, title, extra = {}) => ({
+            data: key, name: key, title, defaultContent: '', ...extra,
+            render: (value, type, row) => {
+                if (key === 'duracao_segundos') {
+                    return type === 'display' || type === 'export'
+                        ? (value === null || value === '' ? '—' : escapeHtml(duration(Number(value))))
+                        : value === null || value === '' ? -1 : Number(value);
+                }
+                if (key === 'inicio' || key === 'fim') {
+                    if (type !== 'display') return value ?? '';
+                    if (!value) return key === 'fim' ? 'Sem término' : '—';
+                    const match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2})/.exec(value);
+                    return match ? escapeHtml(match[3] + '/' + match[2] + '/' + match[1] + ' ' + match[4])
+                        : escapeHtml(value);
+                }
+                if (key === 'atividade_id') return type === 'display' ? '#' + escapeHtml(value) : value;
+                if (key === 'faturavel') return Number(value) === 1 ? 'Sim' : 'Não';
+                if (key === 'apontamento_id') {
+                    if (type !== 'display') return value;
+                    const id = Number(value);
+                    if (!Number.isSafeInteger(id) || id <= 0) return '—';
+                    const base = options.kimaiBase;
+                    const link = safeLink(typeof base === 'string' && base.endsWith('/en/timesheet/')
+                        ? base + id + '/edit' : '', '#' + id);
+                    return link || '#' + escapeHtml(id);
+                }
+                return type === 'display' ? escapeHtml(value ?? '') : value ?? '';
+            },
+        });
+        return [
+            cell('nome', 'Cooperado'),
+            cell('cliente', 'Cliente'),
+            cell('projeto', 'Projeto'),
+            cell('atividade_id', 'Atividade (ID)'),
+            cell('inicio', 'Início'),
+            cell('fim', 'Fim'),
+            cell('duracao_segundos', 'Duração'),
+            cell('descricao', 'Descrição', {className: 'timesheet-description'}),
+            cell('faturavel', 'Faturável'),
+            cell('apontamento_id', 'Registro Kimai'),
+            cell('member_id', 'ID cooperado', {visible: false}),
+            cell('customer_id', 'ID cliente', {visible: false}),
+        ];
     }
 
     function buildProductionColumns(options = {}) {
@@ -177,12 +223,12 @@
                 render: (value, type, row) => {
                     if (type !== 'display' && type !== 'export') return Number(value || 0);
                     const label = duration(value);
-                    if (type !== 'display' || !options.competence || !row?.name) {
+                    if (type !== 'display' || !options.competence || !Number.isSafeInteger(Number(row?.kimai_user_id)) || Number(row?.kimai_user_id) <= 0) {
                         return escapeHtml(label);
                     }
-                    return safeLink('/relatorios/trabalhado-summarized?ano-mes=' +
-                        encodeURIComponent(options.competence) + '&nome=' +
-                        encodeURIComponent(String(row.name)), label, true) || escapeHtml(label);
+                    return safeLink('/relatorios/apontamentos?ano-mes=' +
+                        encodeURIComponent(options.competence) + '&cooperado=' +
+                        encodeURIComponent(String(row.kimai_user_id)), label, true) || escapeHtml(label);
                 },
             },
             cell('peso', 'Peso'),
@@ -591,10 +637,13 @@
                 financialMovements: table.dataset.financialMovements === 'yes',
                 capitalSocialSummary: table.dataset.capitalSocialSummary === 'yes',
                 omitted: options.omitted,
+                timesheetDetails: table.dataset.timesheetDetails === 'yes',
+                kimaiBase: table.dataset.kimaiBase || '',
             };
             const productionMode = table.dataset.productionMode === 'yes';
-            const columns = productionMode ?
-                buildProductionColumns(reportOptions) : buildColumns(payload.data, excluded, reportOptions);
+            const columns = reportOptions.timesheetDetails ? buildTimesheetColumns(reportOptions)
+                : productionMode ? buildProductionColumns(reportOptions)
+                    : buildColumns(payload.data, excluded, reportOptions);
             if (!columns.length || !table.tFoot?.rows[0]) {
                 throw new Error('Não foi possível montar as colunas do relatório.');
             }
@@ -616,11 +665,17 @@
                 columns,
                 pageLength: 10,
                 lengthMenu: [10, 25, 50, 100],
-                order: [[0, 'asc']],
+                order: [[reportOptions.timesheetDetails ? 4 : 0, 'asc']],
                 fixedHeader: { header: false, footer: true },
                 layout: {
                     topStart: {
-                        buttons: productionMode ? [
+                        buttons: reportOptions.timesheetDetails ? [
+                            'pageLength', 'colvis',
+                            ...['copy', 'csv', 'excel', 'pdf', 'print'].map(extend => ({
+                                extend, exportOptions: {columns: ':visible', orthogonal: 'export',
+                                    modifier: {search: 'applied'}},
+                            })),
+                        ] : productionMode ? [
                             'pageLength', 'colvis',
                             ...['copy', 'csv', 'excel', 'pdf', 'print'].map(extend => ({
                                 extend, exportOptions: {columns: [0, 1, 2, 3, 4, 5], orthogonal: 'export'},
@@ -629,7 +684,7 @@
                     },
                 },
                 language: {
-                    search: 'Buscar cooperados e valores:',
+                    search: reportOptions.timesheetDetails ? 'Buscar nos apontamentos:' : 'Buscar cooperados e valores:',
                     buttons: {
                         pageLength: {'_':'Exibir %d registros','-1':'Exibir todos'},
                         colvis:'Colunas', copy:'Copiar', csv:'CSV',
@@ -693,7 +748,7 @@
         module.exports = {
             escapeHtml, columnTitle, nestedTableHtml, safeLink, renderCell, buildColumns,
             stateUrl, setupFilters, apiErrorDetails, initializeReportTable,
-            duration, productionDetails, buildProductionColumns,
+            duration, productionDetails, buildProductionColumns, buildTimesheetColumns,
         };
     } else {
         scope.ReportTable = {initializeReportTable, duration};

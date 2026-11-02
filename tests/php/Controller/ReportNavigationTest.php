@@ -99,6 +99,25 @@ final class ReportNavigationTest extends WebTestCase
         }
     }
 
+    public function testTimesheetDetailsReportUsesImportedSourceAndKeepsFilters(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/relatorios/apontamentos?ano-mes=2026-09&cooperado=1');
+        self::assertSame(Response::HTTP_OK, $client->getResponse()->getStatusCode());
+        $html = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Apontamentos detalhados', $html);
+        self::assertStringContainsString('data-timesheet-details="yes"', $html);
+        self::assertStringContainsString('data-competencia="2026-09"', $html);
+        self::assertStringContainsString('id="timesheet-member-filter"', $html);
+        self::assertStringContainsString('id="timesheet-client-body"', $html);
+        self::assertStringContainsString('/api/v1/apontamentos?ano-mes=2026-09', $html);
+        self::assertMatchesRegularExpression('~/js/timesheet-report\.js\?v=[a-f0-9]{12}~', $html);
+        $client->request('GET', '/relatorios/apontamentos?ano-mes=invalid');
+        self::assertSame(Response::HTTP_BAD_REQUEST, $client->getResponse()->getStatusCode());
+        $client->request('GET', '/api/v1/apontamentos?ano-mes=invalid');
+        self::assertSame(Response::HTTP_BAD_REQUEST, $client->getResponse()->getStatusCode());
+    }
+
     public function testCanonicalReportsAreRoutedAndAvailableInDedicatedCatalog(): void
     {
         $client = static::createClient();
@@ -112,9 +131,11 @@ final class ReportNavigationTest extends WebTestCase
             'capital-social' => 'app_capitalsocial_index',
             'capital-social-summarized' => 'app_capitalsocialsummarized_index',
             'trabalhado-summarized' => 'app_trabalhadosummarized_index',
+            'apontamentos' => 'app_trabalhadodetalhado_index',
         ] as $path => $route) {
             self::assertSame($route, $router->match('/relatorios/' . $path)['_route']);
         }
+        self::assertSame('app_api_trabalhadodetalhado_index', $router->match('/api/v1/apontamentos')['_route']);
         self::assertSame('app_calculos_ajuda', $router->match('/relatorios/calculos/ajuda')['_route']);
         self::assertSame(
             'app_api_invoices_pending',
@@ -127,5 +148,6 @@ final class ReportNavigationTest extends WebTestCase
         self::assertStringContainsString('href="/relatorios/producao"', $client->getResponse()->getContent());
         self::assertStringContainsString('href="/relatorios/faturas-conferencia"', $client->getResponse()->getContent());
         self::assertStringContainsString('Faturas para conferência', $client->getResponse()->getContent());
+        self::assertStringContainsString('Apontamentos detalhados', $client->getResponse()->getContent());
     }
 }

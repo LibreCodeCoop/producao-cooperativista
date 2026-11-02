@@ -61,6 +61,12 @@ class TrabalhadoSummarized extends AbstractController
             return $this->apiErrors->fromThrowable($th, 'TrabalhadoSummarized');
         }
 
+        foreach ($trabalhadoSummarized as &$row) {
+            $row['nome_url'] = '/relatorios/apontamentos?ano-mes='
+                . rawurlencode($inicio->format('Y-m')) . '&cooperado=' . (int) $row['kimai_user_id'];
+        }
+        unset($row);
+
         $response = [
             'data' => array_values($trabalhadoSummarized),
             'metadata' => [

@@ -132,16 +132,18 @@ class ProducaoCooperativista
         $qb = $this->entityManager->getConnection()->createQueryBuilder();
 
         $qb
-            ->addSelect('u.alias AS nome')
+            ->addSelect('t.user_id AS kimai_user_id')
+            ->addSelect("COALESCE(NULLIF(TRIM(u.alias), ''), CONCAT('Kimai #', t.user_id)) AS nome")
             ->addSelect('u.tax_number')
             ->addSelect("SEC_TO_TIME(SUM(t.duration)) AS total_horas")
             ->from('timesheet', 't')
-            ->join('t', 'users', 'u', 'u.id = t.user_id')
-            ->join('t', 'projects', 'p', 'p.id = t.project_id')
-            ->join('p', 'customers', 'c', 'c.id = p.customer_id')
+            ->leftJoin('t', 'users', 'u', 'u.id = t.user_id')
+            ->leftJoin('t', 'projects', 'p', 'p.id = t.project_id')
+            ->leftJoin('p', 'customers', 'c', 'c.id = p.customer_id')
             ->where($qb->expr()->gte('t.begin', $qb->createNamedParameter($this->dates->getInicio()->format('Y-m-d'))))
-            ->andWhere($qb->expr()->lte('t.end', $qb->createNamedParameter($this->dates->getFim()->format('Y-m-d H:i:s'))))
-            ->groupBy('u.alias')
+            ->andWhere($qb->expr()->lt('t.begin', $qb->createNamedParameter((clone $this->dates->getInicio())->modify('first day of next month')->format('Y-m-d'))))
+            ->groupBy('t.user_id')
+            ->addGroupBy('u.alias')
             ->addGroupBy('u.tax_number')
             ->orderBy('u.alias');
         $result = $qb->executeQuery();

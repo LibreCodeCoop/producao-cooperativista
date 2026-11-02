@@ -76,6 +76,7 @@ class TrabalhadoSummarized extends AbstractController
                 ],
             ),
             'competencia' => $inicio->format('Y-m'),
+            'filterColumns' => ['kimai_user_id', 'metadata'],
             'workflow_asset_version' => substr(
                 (string) hash_file('sha256', $this->getParameter('kernel.project_dir')
                     . '/public/js/report-table.js'),
