@@ -48,11 +48,18 @@ git merge --ff-only FETCH_HEAD
 docker compose config -q
 docker compose build php
 docker compose up -d php nginx
-docker compose exec -T php composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+docker compose exec -T php composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader --no-scripts
 docker compose exec -T -u www-data php php bin/console cache:clear --env=prod --no-debug
-docker compose exec -T php php bin/console doctrine:migrations:status --no-ansi
+docker compose exec -T -u www-data php php bin/console doctrine:migrations:status --no-ansi
 docker compose ps
 ```
+
+Never run Symfony cache commands as root. PHP-FPM uses the mapped
+www-data UID/GID. Composer auto-scripts or cache:clear executed as root can
+recreate var/cache/prod as root, causing HTTP 500 when writing route cache.
+Composer installation above disables scripts; subsequent cache:clear runs
+explicitly as www-data. The entrypoint repairs the disposable cache on
+startup. Do not recursively change ownership of financial data or logs.
 
 Do not run automatic migration, ETL reset, external import, or write-to-Akaunting commands merely to deploy UI changes. Migration execution and financial publication require separate validation and authorization. A PHP worker restart after cache clear ensures old in-memory opcode caches cannot continue serving the previous code.
 
