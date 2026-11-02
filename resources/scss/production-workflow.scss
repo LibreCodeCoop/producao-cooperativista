@@ -230,3 +230,14 @@
     .finance-help > div { width:min(245px,60vw); }
     .production-reset-link { margin-left:0; }
 }
+
+.production-source-summary {
+    margin:16px 0; padding:16px; background:var(--surface);
+    border:1px solid var(--line); border-radius:9px; color:var(--text);
+    font-family:inherit; font-size:13px; line-height:1.75;
+    white-space:pre-wrap; overflow-wrap:anywhere; max-height:580px; overflow:auto;
+}
+#imported-data-review[hidden],
+#calculated-review[hidden],
+#production-publication-controls[hidden],
+#calculated-review-intro[hidden] { display:none; }
