@@ -130,4 +130,15 @@
 .member-fields-main .member-editor-field { display:inline-block; vertical-align:top; width:min(100%,290px); margin-right:12px; }
 .member-editor-advanced summary { cursor:pointer; font-weight:650; font-size:13px; }
 .member-editor-advanced .member-editor-sources { margin-bottom:0; }
+.member-editor-fiscal-status { margin:14px 0; display:grid; gap:10px; }
+.member-editor-fiscal-status > div {
+    display:grid; grid-template-columns:minmax(130px,1fr) minmax(0,2fr);
+    gap:10px; padding:10px 0; border-bottom:1px solid var(--line);
+}
+.member-editor-fiscal-status dt { font-size:12px; font-weight:650; }
+.member-editor-fiscal-status dd { margin:0; font-size:12px; line-height:1.6; overflow-wrap:anywhere; }
+.member-editor-admin-links .member-link-panel { margin:15px 0 0; }
+@media(max-width:620px) {
+    .member-editor-fiscal-status > div { grid-template-columns:1fr; gap:3px; }
+}
 @media(max-width:620px) { .member-link-fields { grid-template-columns:1fr; } .member-fields-main .member-editor-field { display:block; width:100%; } }

@@ -6,18 +6,28 @@
   atual de dependentes. Zero dependentes deve ser explícito; ausência
   ou valor inválido bloqueiam a importação dos cooperados participantes
   da competência, sem presumir zero para os demais usuários do Kimai.
-- Kimai: identificador local, apontamentos e projetos. A preferência
-  `tax_number` é usada para confirmar a identidade no Nextcloud.
+- Kimai: identificador local, apontamentos e projetos. A preferência fiscal
+  legada `tax_number` ainda pode existir no cadastro histórico, mas
+  **não é chave de vínculo na importação mensal**. Se presente, pode ser
+  comparada com o CPF/CNPJ do Nextcloud apenas para detectar divergências
+  na interface de auditoria. A importação mensal ignora essa preferência
+  legada: lê o CPF/CNPJ do perfil explicitamente vinculado no Nextcloud.
   Dependentes não são importados do Kimai.
 - Akaunting: contato e documentos financeiros. O CPF/CNPJ do contato
   é cópia de conciliação, não fonte para preencher dependentes ou
   substituir automaticamente o CPF informado no Nextcloud.
 - ETL: fotografias por competência, não um cadastro mestre independente.
 
-O painel de configuração permite editar dependentes exclusivamente na fonte
-Nextcloud. A importação exige que a quantidade esteja informada explicitamente
-para todos os usuários referenciados pelos apontamentos do mês e bloqueia
-registros participantes com referência fiscal divergente entre sistemas.
+O painel de configuração permite editar CPF/CNPJ de referência, peso e
+dependentes exclusivamente no Nextcloud Profile Fields, com escrita restrita
+aos administradores configurados da aplicação. Os outros sistemas não oferecem
+três formulários de edição para o mesmo identificador. A importação mensal
+exige vínculos explícitos `kimai_user_id` e `akaunting_contact_id`,
+administrados no Nextcloud, e dependentes informados explicitamente para
+todos os participantes. O CPF/CNPJ continua necessário nos documentos legais
+do Akaunting, mas não é utilizado para escolher automaticamente o contato.
+Divergências fiscais bloqueiam a importação; não são corrigidas por cópia
+automática entre fontes.
 
 A lista de participantes é determinada pelos apontamentos **atuais da competência**
 consultados diretamente no Kimai, nunca por cadastros ativos ou por um snapshot

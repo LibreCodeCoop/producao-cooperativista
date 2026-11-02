@@ -291,7 +291,7 @@ class ProfileFieldsClient
      * @param array<string, mixed> $user
      * @return array<string, mixed>
      */
-    public function enrichUser(array $user): array
+    public function enrichUser(array $user, bool $requireExplicitLink = false): array
     {
         $id = (int) ($user['id'] ?? 0);
         if ($id > 0 && isset($this->activeDefinitions()['kimai_user_id'])) {
@@ -317,6 +317,13 @@ class ProfileFieldsClient
                 return $user;
             }
         }
+        if ($requireExplicitLink) {
+            throw new \DomainException(
+                'PROFILE_SOURCE: cooperado participante sem kimai_user_id explícito no Nextcloud Profile Fields. '
+                . 'Solicite ao administrador que vincule as contas antes de importar.'
+            );
+        }
+
         $taxNumber = trim((string) ($user['tax_number'] ?? ''));
         if ($taxNumber === '') {
             return $user;

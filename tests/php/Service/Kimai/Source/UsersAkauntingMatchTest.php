@@ -66,6 +66,32 @@ final class UsersAkauntingMatchTest extends TestCase
         return $row['akaunting_contact_id'] ?? null;
     }
 
+    public function testMonthlyImportRequiresExplicitFinancialContactWithoutTaxLookup(): void
+    {
+        $this->source->setRequiredUserIds([22]);
+        $this->contact(17, 1, 'reference', 'one@example.test');
+        $reflection = new ReflectionMethod(Users::class, 'updateWithAkauntingData');
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('akaunting_contact_id');
+        $reflection->invoke($this->source, [
+            'tax_number' => 'reference',
+            'kimai_username' => 'participant',
+        ]);
+    }
+
+    public function testExplicitFinancialIdWinsOverDuplicateFiscalNumbers(): void
+    {
+        $this->source->setRequiredUserIds([22]);
+        $this->contact(17, 1, 'reference', 'one@example.test');
+        $this->contact(19, 1, 'reference', 'two@example.test');
+        $reflection = new ReflectionMethod(Users::class, 'updateWithAkauntingData');
+        $row = $reflection->invoke($this->source, [
+            'tax_number' => 'reference',
+            'akaunting_contact_id' => 17,
+        ]);
+        self::assertSame(17, $row['akaunting_contact_id']);
+    }
+
     public function testMatchUsesExactTaxNumberAndCompanyNotEmail(): void
     {
         $this->contact(10, 1, 'different', 'shared@example.test');

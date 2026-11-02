@@ -99,6 +99,12 @@ final class SourceConfigurationUiTest extends TestCase
             'token' => 'csrf-value',
             'month' => '2026-08',
             'member' => ['id' => 12, 'alias' => 'Exemplo', 'username' => 'fake-user'],
+            'can_manage' => true,
+            'fiscal' => [
+                'nextcloud' => 'Referência cadastral disponível no Profile Fields.',
+                'akaunting' => 'CPF/CNPJ confere com o Profile Fields.',
+                'kimai' => 'CPF/CNPJ confere com o Profile Fields.',
+            ],
             'services' => [
                 'nextcloud' => [
                     'title' => 'Nextcloud · Profile Fields', 'configured' => true,
@@ -108,6 +114,8 @@ final class SourceConfigurationUiTest extends TestCase
                             'kind' => 'text', 'expected' => 'revision-placeholder'],
                         ['field' => 'dependents', 'label' => 'Dependentes', 'value' => '0',
                             'kind' => 'number', 'expected' => 'revision-placeholder'],
+                        ['field' => 'tax_number', 'label' => 'CPF/CNPJ', 'value' => 'SYNTHETIC',
+                            'kind' => 'text', 'expected' => 'revision-placeholder'],
                     ],
                 ],
                 'kimai' => [
@@ -127,7 +135,11 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('name="expected" value="revision-placeholder"', $html);
         self::assertStringContainsString('name="_token" value="csrf-value"', $html);
         self::assertStringContainsString('action="/configuracao/cooperado/12/nextcloud"', $html);
-        self::assertStringContainsString('action="/configuracao/cooperado/12/kimai"', $html);
+        self::assertStringNotContainsString('action="/configuracao/cooperado/12/kimai"', $html);
+        self::assertSame(1, substr_count($html, 'name="field" value="tax_number"'));
+        self::assertStringContainsString('Administração dos vínculos técnicos', $html);
+        self::assertStringContainsString('Conferência fiscal entre as fontes', $html);
+        self::assertSame(1, substr_count($html, 'value="SYNTHETIC"'));
         self::assertSame(1, substr_count($html, 'name="field" value="dependents"'));
         self::assertStringContainsString('Como funciona o peso de participação', $html);
         self::assertStringContainsString('quatro casas decimais', $html);
@@ -135,16 +147,32 @@ final class SourceConfigurationUiTest extends TestCase
         $data['links'] = ['uid' => 'nc-user', 'kimai_linked' => true,
             'contact_id' => '', 'linked' => false];
         $partialLink = $this->twig()->render('configuracao/_member_editor.html.twig', $data);
-        self::assertStringContainsString('Kimai vinculado · financeiro pendente', $partialLink);
+        self::assertStringContainsString('Contato financeiro pendente', $partialLink);
         self::assertStringContainsString('name="field" value="dependents"', $partialLink);
         self::assertStringContainsString('class="member-link-form"', $html);
         self::assertStringContainsString('data-links-prepare', $html);
         self::assertStringContainsString('data-link-source="akaunting"', $html);
         self::assertStringContainsString('data-source="nextcloud" data-field="weight"', $html);
-        self::assertStringContainsString('HTTP 403', $html);
+        self::assertStringNotContainsString('HTTP 403', $html);
         self::assertStringNotContainsString('action="/configuracao/cooperado/12/akaunting"', $html);
         self::assertStringNotContainsString('name="action_token"', $html);
         self::assertStringNotContainsString('id="settings-members"', $html);
+
+        $nonAdmin = $data;
+        $nonAdmin['can_manage'] = false;
+        $nonAdmin['links'] = ['kimai_linked' => true, 'linked' => true];
+        $readOnly = $this->twig()->render('configuracao/_member_editor.html.twig', $nonAdmin);
+        self::assertStringNotContainsString('name="akaunting_contact_id"', $readOnly);
+        self::assertStringNotContainsString('data-link-source="nextcloud"', $readOnly);
+        self::assertStringNotContainsString('name="field" value="tax_number"', $readOnly);
+        self::assertStringNotContainsString('SYNTHETIC', $readOnly);
+        self::assertStringNotContainsString('ID 12', $readOnly);
+        self::assertStringNotContainsString('fake-user', $readOnly);
+        self::assertStringNotContainsString('Administração dos vínculos técnicos', $readOnly);
+        self::assertStringNotContainsString('name="_token"', $readOnly);
+        self::assertStringContainsString('Vínculos confirmados', $readOnly);
+        self::assertStringContainsString('Peso:', $readOnly);
+        self::assertStringContainsString('Dependentes:', $readOnly);
 
         $standalone = $this->twig()->render('configuracao.cooperado.html.twig', $data);
         self::assertStringContainsString('<html lang="pt-BR">', $standalone);

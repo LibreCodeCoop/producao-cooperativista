@@ -236,32 +236,4 @@ final class CooperativeSources
         }
     }
 
-    public function updateKimai(int $id, string $field, string|int $value): void
-    {
-        if (!in_array($field, ['tax_number'], true)) {
-            throw new \InvalidArgumentException('Campo Kimai não permitido.');
-        }
-        $this->user($id); // Recheck existence before attempting a write.
-        $base = rtrim((string) getenv('KIMAI_API_BASE_URL'), '/');
-        $token = (string) getenv('KIMAI_API_TOKEN');
-        if ($base === '' || $token === '') {
-            throw new RuntimeException('Integração Kimai indisponível.');
-        }
-        $response = $this->http->request('PATCH', $base . '/users/' . $id . '/preferences', [
-            'headers' => ['Authorization' => 'Bearer ' . $token, 'Accept' => 'application/json'],
-            'json' => [['name' => $field, 'value' => (string) $value]],
-            'timeout' => 20,
-        ]);
-        if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 300) {
-            throw new RuntimeException('Kimai recusou a atualização de preferência (HTTP ' . $response->getStatusCode() . ').');
-        }
-        if ((string) ($this->user($id)['preferences'][$field] ?? '') !== (string) $value) {
-            throw new RuntimeException('Kimai não confirmou o novo valor. Confira a origem antes de repetir.');
-        }
-    }
-
-    public function updateAkauntingTaxNumber(int $contactId, string $newNumber): void
-    {
-        $this->akauntingContacts->updateTaxNumber($contactId, $newNumber);
-    }
 }

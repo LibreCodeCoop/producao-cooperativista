@@ -182,7 +182,7 @@
             event.preventDefault();
             const action = new URL(form.action, location.href);
             if (action.origin !== new URL(location.href).origin ||
-                !/^\/configuracao\/cooperado\/[1-9]\d*\/(nextcloud|kimai|akaunting)$/.test(action.pathname)) {
+                !/^\/configuracao\/cooperado\/[1-9]\d*\/nextcloud$/.test(action.pathname)) {
                 feedback.textContent = 'Destino de gravação inválido.';
                 return;
             }

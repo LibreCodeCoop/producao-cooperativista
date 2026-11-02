@@ -85,12 +85,28 @@ final class SourceConfiguration extends AbstractController
                 return new Response('Cooperado não encontrado ou não editável.', Response::HTTP_NOT_FOUND);
             }
             $editor = $this->serviceFields($member);
+            $canManage = $this->isAdmin($request);
+            $services = $editor['services'];
+            if (!$canManage) {
+                // Do not pass fiscal or technical identifiers to the template,
+                // even if its administrator-only sections change later.
+                $services['nextcloud']['fields'] = array_values(array_filter(
+                    $services['nextcloud']['fields'],
+                    static fn (array $field): bool => $field['field'] !== 'tax_number',
+                ));
+                unset($services['kimai'], $services['akaunting']);
+            }
             $data = [
-                'token' => $this->guard->token($request),
+                'token' => $canManage ? $this->guard->token($request) : '',
                 'month' => $month,
-                'member' => $member,
-                'services' => $editor['services'],
-                'links' => $editor['links'],
+                'member' => $canManage ? $member : ['alias' => $member['alias']],
+                'services' => $services,
+                'links' => $canManage ? $editor['links'] : [
+                    'linked' => $editor['links']['linked'],
+                    'kimai_linked' => $editor['links']['kimai_linked'],
+                ],
+                'fiscal' => $editor['fiscal'],
+                'can_manage' => $canManage,
             ];
             $template = $request->isXmlHttpRequest()
                 ? 'configuracao/_member_editor.html.twig'
@@ -179,25 +195,31 @@ final class SourceConfiguration extends AbstractController
         return $response;
     }
 
-    private function assertAdmin(Request $request): void
+    private function isAdmin(Request $request): bool
     {
         $user = $request->server->getString('REMOTE_USER');
         $allowed = array_filter(array_map(trim(...), explode(',', (string) getenv('CONFIG_ADMIN_USERS'))));
-        if ($user === '' || !in_array($user, $allowed, true)) {
-            throw new AccessDeniedHttpException('Administração de vínculos não autorizada.');
+
+        return $user !== '' && in_array($user, $allowed, true);
+    }
+
+    private function assertAdmin(Request $request): void
+    {
+        if (!$this->isAdmin($request)) {
+            throw new AccessDeniedHttpException('Administração de cadastro e vínculos não autorizada.');
         }
     }
 
     #[Route('/configuracao/cooperado/{id}/{source}', requirements: ['id' => '\\d+', 'source' => 'nextcloud|kimai|akaunting'], methods: ['POST'])]
     public function save(Request $request, int $id, string $source): Response
     {
-        // HTTP Basic is enforced by Nginx. Only reject forged cross-site POSTs here.
+        // Service credentials can edit administrator-only Nextcloud fields.
+        // Only configured administrators may invoke those writes.
+        $this->assertAdmin($request);
         $this->guard->assertAuthorized($request);
         $field = $request->request->getString('field');
         $allowed = [
             'nextcloud' => ['tax_number', 'weight', 'dependents'],
-            'kimai' => ['tax_number'],
-            'akaunting' => ['tax_number'],
         ];
         if (!in_array($field, $allowed[$source] ?? [], true)) {
             return $this->saveError('Campo não autorizado.', Response::HTTP_BAD_REQUEST);
@@ -209,11 +231,7 @@ final class SourceConfiguration extends AbstractController
             if ($member['system']) {
                 throw new \DomainException('Cooperado não localizado ou conta de serviço não editável.');
             }
-            $old = match ($source) {
-                'nextcloud' => $this->nextcloudValue($member, $field),
-                'kimai' => (string) ($member['preferences'][$field] ?? ''),
-                'akaunting' => (string) $this->sources->contactOverview($this->linkedContactId($member))['tax_number'],
-            };
+            $old = $this->nextcloudValue($member, $field);
             $expected = $request->request->getString('expected');
             if ($expected === '' || !hash_equals(self::revision($id, $source, $field, $old), $expected)) {
                 return $this->saveError('Dados alterados na origem desde a abertura do formulário. Reabra a edição antes de salvar.', Response::HTTP_CONFLICT);
@@ -224,15 +242,11 @@ final class SourceConfiguration extends AbstractController
                 ? (float) $value !== (float) $old
                 : (string) $value !== $old;
             if ($changed) {
-                match ($source) {
-                    'nextcloud' => $this->sources->updateNextcloud(
-                        $this->resolvedNextcloudUid($member),
-                        self::profileKey($field),
-                        $value,
-                    ),
-                    'kimai' => $this->sources->updateKimai($id, $field, $value),
-                    'akaunting' => $this->sources->updateAkauntingTaxNumber($this->linkedContactId($member), (string) $value),
-                };
+                $this->sources->updateNextcloud(
+                    $this->resolvedNextcloudUid($member),
+                    self::profileKey($field),
+                    $value,
+                );
                 // Never log PII or the previous/new field values.
                 $this->logger->notice('Parâmetro de cooperado alterado na origem.', [
                     'source' => $source, 'field' => $field, 'member_id' => $id,
@@ -253,10 +267,7 @@ final class SourceConfiguration extends AbstractController
                 'source' => $source, 'field' => $field, 'member_id' => $id,
                 'error_class' => $error::class,
             ]);
-            $message = $source === 'akaunting' && str_contains($error->getMessage(), 'HTTP 403')
-                ? 'A API de contatos do Akaunting recusou a edição (HTTP 403). Confira a permissão '
-                    . 'de atualização de contatos financeiros da conta de integração e a empresa selecionada.'
-                : 'A origem não confirmou a gravação. Confira o cadastro e tente novamente.';
+            $message = 'O Profile Fields não confirmou a gravação. Confira o cadastro e tente novamente.';
             return $this->saveError($message, Response::HTTP_BAD_GATEWAY);
         }
         if ($request->isXmlHttpRequest()) {
@@ -284,7 +295,7 @@ final class SourceConfiguration extends AbstractController
 
     /**
      * @param array<string, mixed> $member
-     * @return array{services: array<string, array<string, mixed>>, links: array<string, mixed>}
+     * @return array{services: array<string, array<string, mixed>>, links: array<string, mixed>, fiscal: array<string, string>}
      */
     private function serviceFields(array $member): array
     {
@@ -300,11 +311,21 @@ final class SourceConfiguration extends AbstractController
             'linked' => false,
             'kimai_linked' => false,
         ];
+        $referenceTax = '';
+        $fiscal = [
+            'nextcloud' => 'Cadastro não verificado.',
+            'kimai' => 'Preferência legada não consultada.',
+            'akaunting' => 'Contato financeiro não verificado.',
+        ];
         try {
             $profile = $this->sources->nextcloudForMember($member);
             if ($profile['exists']) {
                 $links['uid'] = $profile['uid'];
                 $values = $profile['values'];
+                $referenceTax = trim((string) ($values[self::profileKey('tax_number')] ?? ''));
+                $fiscal['nextcloud'] = $referenceTax !== ''
+                    ? 'Referência cadastral disponível no Profile Fields.'
+                    : 'CPF/CNPJ não informado no Profile Fields.';
                 $links['contact_id'] = trim((string) ($values['akaunting_contact_id'] ?? ''));
                 $links['kimai_linked'] = trim((string) ($values['kimai_user_id'] ?? '')) === (string) $id;
                 $links['linked'] = $links['kimai_linked'] && $links['contact_id'] !== '';
@@ -325,28 +346,50 @@ final class SourceConfiguration extends AbstractController
             $services['nextcloud']['error'] = 'Conta Nextcloud indisponível. Confira o vínculo e as permissões.';
         }
 
-        foreach (['tax_number'] as $field) {
-            $services['kimai']['fields'][] = $this->field($id, 'kimai', $field, (string) ($member['preferences'][$field] ?? ''));
-        }
+        $legacyKimaiTax = trim((string) ($member['preferences']['tax_number'] ?? ''));
+        $fiscal['kimai'] = $legacyKimaiTax === ''
+            ? 'Preferência legada ausente; o vínculo usa o ID interno.'
+            : self::compareTaxNumber($referenceTax, $legacyKimaiTax);
 
         $contactId = $links['linked'] ? (int) $links['contact_id'] : 0;
         if ($contactId > 0) {
             try {
                 $contact = $this->sources->contactOverview($contactId);
-                $services['akaunting']['fields'][] = $this->field($id, 'akaunting', 'tax_number', $contact['tax_number']);
+                $fiscal['akaunting'] = self::compareTaxNumber(
+                    $referenceTax,
+                    (string) $contact['tax_number'],
+                );
                 $services['akaunting']['configured'] = $contact['editable'];
                 $services['akaunting']['error'] = $contact['reason'];
             } catch (\Throwable) {
                 $services['akaunting']['error'] = 'Contato financeiro não encontrado na empresa configurada.';
+                $fiscal['akaunting'] = 'Não foi possível conferir o contato financeiro.';
             }
         } else {
             $services['akaunting']['error'] = 'Selecione um contato financeiro para vincular.';
+            $fiscal['akaunting'] = 'Contato financeiro ainda não vinculado.';
         }
 
         $services['nextcloud']['description'] = 'Peso e dependentes.';
         $services['kimai']['description'] = 'Registro de horas.';
         $services['akaunting']['description'] = 'Dados financeiros.';
-        return ['services' => $services, 'links' => $links];
+        return ['services' => $services, 'links' => $links, 'fiscal' => $fiscal];
+    }
+
+    private static function compareTaxNumber(string $reference, string $candidate): string
+    {
+        $reference = strtoupper((string) preg_replace('/[^a-zA-Z0-9]/', '', $reference));
+        $candidate = strtoupper((string) preg_replace('/[^a-zA-Z0-9]/', '', $candidate));
+        if ($reference === '') {
+            return 'Não verificado: CPF/CNPJ ausente no cadastro de referência.';
+        }
+        if ($candidate === '') {
+            return 'CPF/CNPJ ausente nesta origem.';
+        }
+
+        return hash_equals($reference, $candidate)
+            ? 'CPF/CNPJ confere com o Profile Fields.'
+            : 'CPF/CNPJ divergente do Profile Fields; conferir cadastro na origem.';
     }
 
     /** @return array{field: string, label: string, value: string, expected: string, kind: string} */
@@ -376,16 +419,6 @@ final class SourceConfiguration extends AbstractController
     private function resolvedNextcloudUid(array $member): string
     {
         return $this->confirmedProfile($member)['uid'];
-    }
-
-    /** @param array<string, mixed> $member */
-    private function linkedContactId(array $member): int
-    {
-        $contactId = (int) ($this->confirmedProfile($member)['values']['akaunting_contact_id'] ?? 0);
-        if ($contactId <= 0) {
-            throw new \DomainException('Selecione o contato financeiro antes de editar dados no Akaunting.');
-        }
-        return $contactId;
     }
 
     /**

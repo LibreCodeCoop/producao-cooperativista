@@ -91,6 +91,7 @@ final class AkauntingContactGateway
         ], $rows);
     }
 
+    /** @psalm-suppress PossiblyUnusedMethod Retained for standalone Akaunting contact maintenance. */
     public function updateTaxNumber(int $contactId, string $taxNumber): void
     {
         $identity = $this->identity($contactId);

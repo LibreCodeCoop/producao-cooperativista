@@ -103,13 +103,38 @@ final class ProfileFieldsLinkTest extends TestCase
 
         $user = new ProfileFieldsClient($http, new NullLogger())->enrichUser([
             'id' => 17, 'username' => 'time-user',
-        ]);
+        ], true);
         self::assertSame('52998224725', $user['tax_number']);
         self::assertSame(1.75, $user['peso']);
         self::assertSame(0, $user['dependents']);
         self::assertSame(31, $user['akaunting_contact_id']);
         self::assertCount(2, $requests);
         self::assertStringEndsWith('/users/lookup', $requests[1][1]);
+    }
+
+    public function testMonthlyImportRejectsMissingIdentifierWithoutFallbackToTaxNumber(): void
+    {
+        $calls = [];
+        $http = new MockHttpClient(static function (string $method, string $url, array $options) use (&$calls): MockResponse {
+            $calls[] = $url;
+            if ($method === 'GET') {
+                return self::response([
+                    ['id' => 4, 'type' => 'text', 'active' => true, 'field_key' => 'kimai_user_id'],
+                ]);
+            }
+            self::assertSame('kimai_user_id', json_decode($options['body'], true)['fieldKey']);
+            return self::response([]);
+        });
+        try {
+            new ProfileFieldsClient($http, new NullLogger())->enrichUser([
+                'id' => 17, 'username' => 'legacy-user', 'tax_number' => 'synthetic-fiscal-id',
+            ], true);
+            self::fail('The monthly import must require an explicit Kimai link.');
+        } catch (\DomainException $error) {
+            self::assertStringContainsString('kimai_user_id explícito', $error->getMessage());
+        }
+        self::assertCount(2, $calls);
+        self::assertStringEndsWith('/users/lookup', $calls[1]);
     }
 
     public function testExplicitKimaiLinkDoesNotSilentlyOverwriteConflictingFiscalIdentity(): void

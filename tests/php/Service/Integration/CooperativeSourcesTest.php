@@ -93,33 +93,6 @@ final class CooperativeSourcesTest extends TestCase
         self::assertSame([2 => '1.2500', 4 => '2.75'], $sources->importedWeights());
     }
 
-    public function testUpdatesKimaiOnlyApprovedPreferenceAndConfirmsReadback(): void
-    {
-        $updated = false;
-        $http = new MockHttpClient(static function (string $method, string $url, array $options) use (&$updated): MockResponse {
-            if ($method === 'PATCH') {
-                self::assertStringEndsWith('/users/2/preferences', $url);
-                self::assertSame([['name' => 'tax_number', 'value' => '52998224725']], json_decode($options['body'], true));
-                $updated = true;
-                return new MockResponse('{}');
-            }
-            self::assertSame('GET', $method);
-            return new MockResponse((string) json_encode([
-                'id' => 2, 'username' => 'member-b', 'alias' => 'Bruna',
-                'apiToken' => 'not-for-twig',
-                'preferences' => [
-                    ['name' => 'tax_number', 'value' => $updated ? '52998224725' : ''],
-                    ['name' => 'dependents', 'value' => '7'],
-                ],
-            ]));
-        });
-        $sources = $this->sources($http);
-        $sources->updateKimai(2, 'tax_number', '52998224725');
-        self::assertFalse($sources->user(2)['system']);
-        self::assertSame('52998224725', $sources->user(2)['preferences']['tax_number']);
-        self::assertArrayNotHasKey('dependents', $sources->user(2)['preferences']);
-    }
-
     public function testUnlinkedNextcloudAccountIsOnlySuggestedWithoutMatchingTaxNumber(): void
     {
         $logger = new NullLogger();
@@ -148,24 +121,6 @@ final class CooperativeSourcesTest extends TestCase
             'username' => 'member-b',
             'preferences' => ['tax_number' => 'reference-original'],
         ]));
-    }
-
-    public function testKimaiDependentsCannotBeUpdated(): void
-    {
-        $http = new MockHttpClient(static function (): MockResponse {
-            self::fail('Dependents must never reach the Kimai API.');
-        });
-        $this->expectException(\InvalidArgumentException::class);
-        $this->sources($http)->updateKimai(2, 'dependents', 3);
-    }
-
-    public function testUnsupportedKimaiFieldIsRejectedBeforeCallingApi(): void
-    {
-        $http = new MockHttpClient(static function (): MockResponse {
-            self::fail('Unexpected write attempt.');
-        });
-        $this->expectException(\InvalidArgumentException::class);
-        $this->sources($http)->updateKimai(2, 'hourly_rate', '500');
     }
 
 }

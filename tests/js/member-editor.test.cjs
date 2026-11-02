@@ -160,7 +160,7 @@ test('unchanged values do not invalidate review; optimistic conflict does not si
     globalThis.FormData=class {};
     try {
         const form={
-            action:'https://host.test/configuracao/cooperado/10/kimai',
+            action:'https://host.test/configuracao/cooperado/10/nextcloud',
             matches:()=>true,querySelector:()=>({disabled:false}),
         };
         await f.dialog.fire('submit',{target:form,preventDefault(){}});

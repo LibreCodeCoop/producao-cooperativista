@@ -172,7 +172,17 @@ class Users
     public function fromArray(array $array): User
     {
         $array = $this->updateFromUserPreferences($array);
-        $array = $this->profileFieldsClient->enrichUser($array);
+        // A monthly import trusts only the explicit administrative link and
+        // the fiscal reference in Nextcloud. An obsolete Kimai tax preference
+        // must not overwrite or contradict the master profile.
+        if ($this->requiredUserIds !== null) {
+            unset($array['tax_number']);
+        }
+        // Standalone legacy CLI lookups still support their old fallback.
+        $array = $this->profileFieldsClient->enrichUser(
+            $array,
+            $this->requiredUserIds !== null,
+        );
         // Dependents must come from Nextcloud Profile Fields; missing means invalid.
         $this->validate($array);
         $array = $this->updateWithAkauntingData($array);
@@ -228,6 +238,12 @@ class Users
             throw new \DomainException('Empresa do Akaunting não configurada para conciliar cooperados.');
         }
         $linkedId = (int) ($item['akaunting_contact_id'] ?? 0);
+        if ($linkedId <= 0 && $this->requiredUserIds !== null) {
+            throw new \DomainException(
+                'PROFILE_SOURCE: contato financeiro não vinculado no Nextcloud Profile Fields. '
+                . 'Solicite ao administrador o akaunting_contact_id antes de importar.'
+            );
+        }
         if ($linkedId > 0) {
             $contact = $this->entityManagerAkaunting->getConnection()->fetchAssociative(
                 "SELECT id, tax_number FROM contacts

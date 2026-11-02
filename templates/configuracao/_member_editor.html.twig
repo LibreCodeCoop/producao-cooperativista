@@ -1,73 +1,98 @@
 <section class="member-editor-panel" data-member-editor-panel>
     {% set link = links|default({}) %}
+    {% set can_manage = can_manage|default(false) %}
     <header class="member-editor-heading">
-        <p class="section-kicker">Cadastro e vínculos · {{ month }}</p>
+        <p class="section-kicker">Cadastro do cooperado · {{ month }}</p>
         <h2 id="member-editor-title">{{ member.alias }}</h2>
-        <p>Usuário de horas: {{ member.username }} · ID {{ member.id }}</p>
+        <p>Dados de referência no Nextcloud. Os lançamentos e as horas permanecem nas respectivas fontes.</p>
     </header>
-    <section class="member-link-panel" aria-label="Vincular sistemas">
+
+    <section class="member-link-panel" aria-label="Situação dos vínculos">
         <div class="member-link-title">
-            <h3>Vínculos entre sistemas</h3>
+            <h3>Situação das integrações</h3>
             <span class="member-editor-status{{ link.linked|default(false) ? ' is-ready' : ' is-warning' }}">
-                {{ link.linked|default(false) ? 'Vinculado'
-                    : (link.kimai_linked|default(false) ? 'Kimai vinculado · financeiro pendente' : 'A confirmar') }}
+                {{ link.linked|default(false) ? 'Vínculos confirmados'
+                    : (link.kimai_linked|default(false) ? 'Contato financeiro pendente' : 'Vínculo pendente') }}
             </span>
         </div>
-        <form method="post" class="member-link-form" action="/configuracao/cooperado/{{ member.id }}/vincular" autocomplete="off">
-            <input type="hidden" name="_token" value="{{ token }}">
-            <p class="member-link-origin">Kimai #{{ member.id }} · {{ member.username }}</p>
-            <div class="member-link-fields">
-                <div>
-                    <label for="member-uid-{{ member.id }}">Conta Nextcloud</label>
-                    <input id="member-uid-{{ member.id }}" type="search" name="nextcloud_uid"
-                        value="{{ link.uid|default('') }}" data-link-source="nextcloud"
-                        list="nc-users-{{ member.id }}" placeholder="Buscar usuário Nextcloud" required>
-                    <datalist id="nc-users-{{ member.id }}"></datalist>
-                </div>
-                <div>
-                    <label for="member-contact-{{ member.id }}">Contato Akaunting</label>
-                    <input id="member-contact-{{ member.id }}" type="search" name="akaunting_contact_id"
-                        value="{{ link.contact_id|default('') }}" data-link-source="akaunting"
-                        list="akaunting-contacts-{{ member.id }}" inputmode="numeric"
-                        pattern="[1-9][0-9]*" placeholder="Buscar nome ou ID" required>
-                    <datalist id="akaunting-contacts-{{ member.id }}"></datalist>
-                </div>
-            </div>
-            <div class="member-link-actions">
-                <button type="submit" class="button button-primary">Salvar vínculos</button>
-                {% if not link.linked|default(false) %}
-                    <button type="button" class="member-link-prepare button button-secondary" data-links-prepare>Preparar campos no Nextcloud</button>
-                {% endif %}
-            </div>
-        </form>
-        <p class="member-editor-description">Pesquise e selecione as contas; os vínculos são gravados no Profile Fields. O CPF/CNPJ permanece apenas como dado fiscal.</p>
+        {% if not link.linked|default(false) %}
+            <p class="member-editor-description">Um administrador precisa confirmar as contas vinculadas antes do fechamento. Não utilize CPF/CNPJ para associar automaticamente usuários.</p>
+        {% endif %}
     </section>
-    <section class="member-fields-main">
+
+    <section class="member-fields-main" aria-label="Dados cadastrais">
         <h3>Peso e dependentes</h3>
         {% if services.nextcloud.error %}
             <p class="member-editor-source-error" role="note">{{ services.nextcloud.error }}</p>
         {% endif %}
         {% for item in services.nextcloud.fields %}
             {% if item.field != 'tax_number' %}
-                {{ include('configuracao/_member_field.html.twig', {source:'nextcloud', item:item}) }}
+                {% if can_manage %}
+                    {{ include('configuracao/_member_field.html.twig', {source:'nextcloud', item:item}) }}
+                {% else %}
+                    <p class="member-editor-description"><strong>{{ item.label }}:</strong> {{ item.value is not empty ? item.value : 'Não informado' }}</p>
+                {% endif %}
             {% endif %}
         {% endfor %}
     </section>
-    <details class="member-editor-advanced">
-        <summary>Dados fiscais nas três fontes</summary>
-        <p class="member-editor-description">Edite apenas valores incorretos. Salve em cada origem e reimporte antes de publicar.</p>
-        <div class="member-editor-sources">
-            {% for source, service in services %}
-                <section class="member-editor-source">
-                    <h3>{{ service.title }}</h3>
-                    {% if service.error %}<p class="member-editor-source-error" role="note">{{ service.error }}</p>{% endif %}
-                    {% for item in service.fields %}
-                        {% if item.field == 'tax_number' %}
-                            {{ include('configuracao/_member_field.html.twig', {source:source, item:item}) }}
-                        {% endif %}
-                    {% endfor %}
-                </section>
+
+    <section class="member-fields-main" aria-label="Identificação fiscal">
+        <h3>CPF/CNPJ de referência</h3>
+        <p class="member-editor-description">O número de referência é cadastrado apenas aqui, no Nextcloud Profile Fields. O Akaunting mantém o dado fiscal próprio dos documentos financeiros.</p>
+        {% if can_manage %}
+            {% for item in services.nextcloud.fields %}
+                {% if item.field == 'tax_number' %}
+                    {{ include('configuracao/_member_field.html.twig', {source:'nextcloud', item:item}) }}
+                {% endif %}
             {% endfor %}
-        </div>
-    </details>
+        {% else %}
+            <p class="member-editor-description">Visualização e alteração do número fiscal restritas à administração.</p>
+        {% endif %}
+        <details class="member-editor-advanced">
+            <summary>Conferência fiscal entre as fontes</summary>
+            <p class="member-editor-description">Esta conferência compara as informações sem mostrar ou editar três cópias do mesmo número.</p>
+            <dl class="member-editor-fiscal-status">
+                <div><dt>Nextcloud (referência)</dt><dd>{{ fiscal.nextcloud|default('Não verificado') }}</dd></div>
+                <div><dt>Akaunting (registro financeiro)</dt><dd>{{ fiscal.akaunting|default('Não verificado') }}</dd></div>
+                <div><dt>Kimai (preferência legada)</dt><dd>{{ fiscal.kimai|default('Não verificado') }}</dd></div>
+            </dl>
+            <p class="member-editor-description">Se houver divergência, corrija o cadastro na origem correspondente. Os identificadores técnicos, e não o CPF/CNPJ, determinam os vínculos entre sistemas.</p>
+        </details>
+    </section>
+
+    {% if can_manage %}
+        <details class="member-editor-advanced member-editor-admin-links">
+            <summary>Administração dos vínculos técnicos</summary>
+            <div class="member-link-panel" aria-label="Manutenção administrativa dos vínculos">
+                <p class="member-editor-description">Acesso administrativo. Os IDs de Kimai e Akaunting são armazenados no Profile Fields com edição exclusiva por administradores e exposição oculta para usuários.</p>
+                <form method="post" class="member-link-form" action="/configuracao/cooperado/{{ member.id }}/vincular" autocomplete="off">
+                    <input type="hidden" name="_token" value="{{ token }}">
+                    <p class="member-link-origin">Registro de horas no Kimai: ID {{ member.id }}</p>
+                    <div class="member-link-fields">
+                        <div>
+                            <label for="member-uid-{{ member.id }}">Conta Nextcloud</label>
+                            <input id="member-uid-{{ member.id }}" type="search" name="nextcloud_uid"
+                                   value="{{ link.uid|default('') }}" data-link-source="nextcloud"
+                                   list="nc-users-{{ member.id }}" placeholder="Buscar usuário Nextcloud" required>
+                            <datalist id="nc-users-{{ member.id }}"></datalist>
+                        </div>
+                        <div>
+                            <label for="member-contact-{{ member.id }}">Contato financeiro no Akaunting</label>
+                            <input id="member-contact-{{ member.id }}" type="search" name="akaunting_contact_id"
+                                   value="{{ link.contact_id|default('') }}" data-link-source="akaunting"
+                                   list="akaunting-contacts-{{ member.id }}" inputmode="numeric"
+                                   pattern="[1-9][0-9]*" placeholder="Buscar contato" required>
+                            <datalist id="akaunting-contacts-{{ member.id }}"></datalist>
+                        </div>
+                    </div>
+                    <div class="member-link-actions">
+                        <button type="submit" class="button button-primary">Salvar vínculos</button>
+                        {% if not link.linked|default(false) %}
+                            <button type="button" class="member-link-prepare button button-secondary" data-links-prepare>Preparar campos no Nextcloud</button>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </details>
+    {% endif %}
 </section>
