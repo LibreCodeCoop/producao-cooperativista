@@ -176,6 +176,12 @@ class ProducaoCooperativista
                 ++$summary[$id]['pendencias'];
                 continue;
             }
+            // Uma retencao pode estar comprovada e ainda exigir auditoria de
+            // uma alteracao posterior na fatura. Conte a pendencia sem omitir
+            // o capital ja identificado.
+            if ($row['reason'] !== '') {
+                ++$summary[$id]['pendencias'];
+            }
             $cents = (int) round(((float) $row['amount']) * 100);
             if ($cents >= 0) {
                 $summary[$id]['integralizado'] += $cents;

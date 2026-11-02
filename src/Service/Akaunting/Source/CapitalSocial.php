@@ -61,9 +61,10 @@ final class CapitalSocial
             $dateFilterP = ' AND pt.paid_at <= :end_of_day';
         }
         $entries = $this->accounting->executeQuery(
-            "SELECT t.id, t.contact_id, c.name, c.tax_number, t.amount, t.description, t.document_id, t.currency_code, t.paid_at AS date, t.type, t.category_id
+            "SELECT t.id, t.contact_id, c.name, c.tax_number, t.amount, t.description, t.document_id, t.currency_code, t.paid_at AS date, t.type, t.category_id, cat.name AS category_name
              FROM transactions t
              JOIN contacts c ON c.id = t.contact_id AND c.company_id = t.company_id
+             LEFT JOIN categories cat ON cat.id = t.category_id AND cat.company_id = t.company_id
              WHERE (t.category_id = :category_id OR LOWER(t.description) LIKE '%capital social%'
                     OR REPLACE(LOWER(t.description), ' ', '') LIKE '%capitalsocial%')
                AND (t.document_id IS NULL OR NOT EXISTS (
@@ -98,7 +99,26 @@ final class CapitalSocial
                         WHERE pt.document_id = d.id AND pt.company_id = d.company_id
                           AND pt.deleted_at IS NULL
                                    AND pt.type = CASE WHEN d.type = 'bill' THEN 'expense' ELSE 'income' END
-                                   AND pt.currency_code = d.currency_code" . $dateFilterP . ") AS paid_at
+                                   AND pt.currency_code = d.currency_code" . $dateFilterP . ") AS paid_at,
+                       -- Adiantamentos ja pagos e simultaneamente deduzidos da fatura
+                       -- nao devem ser somados duas vezes no teste de quitacao.
+                       COALESCE((SELECT SUM(pt.amount) FROM transactions pt
+                                 WHERE pt.document_id = d.id AND pt.company_id = d.company_id
+                                   AND pt.deleted_at IS NULL AND pt.type = 'expense'
+                                   AND pt.currency_code = d.currency_code AND pt.category_id = 34" . $dateFilterP . "), 0) AS advance_paid,
+                       COALESCE((SELECT -SUM(di.total) FROM document_items di
+                                 WHERE di.document_id = d.id AND di.item_id = 31
+                                   AND di.deleted_at IS NULL AND di.total < 0), 0) AS advance_deducted,
+                       -- Diferenca oriunda exclusivamente de deducao nao-capital
+                       -- inserida depois da data do ultimo pagamento.
+                       COALESCE((SELECT -SUM(di.total) FROM document_items di
+                                 WHERE di.document_id = d.id AND di.item_id <> :item_id
+                                   AND di.deleted_at IS NULL AND di.total < 0
+                                   AND di.created_at > (SELECT MAX(pt.paid_at) FROM transactions pt
+                                     WHERE pt.document_id = d.id AND pt.company_id = d.company_id
+                                       AND pt.deleted_at IS NULL
+                                       AND pt.type = CASE WHEN d.type = 'bill' THEN 'expense' ELSE 'income' END
+                                       AND pt.currency_code = d.currency_code" . $dateFilterP . ")), 0) AS post_payment_deductions
                 FROM documents d
                 JOIN contacts co ON co.id = d.contact_id AND co.company_id = d.company_id
                 WHERE d.deleted_at IS NULL AND d.company_id = :company_id" . $dateFilterD . "
@@ -122,6 +142,16 @@ final class CapitalSocial
             // are not subscriptions by a LibreCode member.
             $description = mb_strtolower((string) $entry['description'], 'UTF-8');
             $looksLikeReturn = (bool) preg_match('/devolu|restitui|estorn|pag[oa] a maior/u', $description);
+            // Entrada que restitui um investimento externo ou um pagamento a
+            // maior nao e integralizacao de quota de cooperado.
+            if ($entry['type'] === 'income' && $looksLikeReturn) {
+                continue;
+            }
+            // A categoria "Conta Capital" representa participacao da LibreCode
+            // em outra cooperativa, nao capital de seus membros.
+            if ($entry['type'] === 'expense' && $entry['category_name'] === 'Conta Capital') {
+                continue;
+            }
             $income = $entry['type'] === 'income' && (int) $entry['category_id'] === $this->settings->categoryId
                 && $entry['currency_code'] === 'BRL' && self::cents($entry['amount']) > 0 && !$looksLikeReturn;
             // A documented refund without a linked bill is still a capital
@@ -158,8 +188,17 @@ final class CapitalSocial
                 ? self::cents($doc['capital_amount']) : self::cents($doc['document_amount']);
             $total = self::cents($doc['document_amount']);
             $paid = self::cents($doc['paid_amount']);
+            $advancePaid = self::cents($doc['advance_paid']);
+            $advanceDeducted = self::cents($doc['advance_deducted']);
+            $postPaymentDeductions = self::cents($doc['post_payment_deductions']);
             $isBill = $doc['type'] === 'bill';
             $isInvoice = $doc['type'] === 'invoice';
+            // Se o adiantamento foi pago e tambem abatido como item da mesma
+            // fatura, somente o pagamento liquido posterior liquida a fatura.
+            if ($isBill && $doc['status'] === 'paid' && $advancePaid > 0
+                && $advancePaid === $advanceDeducted && $paid - $advancePaid === $total) {
+                $paid -= $advancePaid;
+            }
             // A settled zero-net production bill can withhold capital in full.
             // Its zero-value payment record proves settlement without a bank outflow.
             $nettedCapital = $isBill && $doc['status'] === 'paid' && $total === 0
@@ -170,6 +209,7 @@ final class CapitalSocial
             $reason = '';
             $value = 0;
             $kind = 'revisao';
+            $verifiedLateDeduction = false;
 
             if ($doc['currency_code'] !== 'BRL') {
                 $reason = 'Moeda diferente de BRL: precisa de valor convertido e documentado.';
@@ -200,9 +240,22 @@ final class CapitalSocial
                 $reason = 'Sinal ou natureza do item de capital social requer conferência.';
             }
             if ($total > 0 && $paid > $total + 1) {
-                $kind = 'revisao';
-                $value = 0;
-                $reason = 'Pagamento associado supera o valor da fatura.';
+                $excess = $paid - $total;
+                // Reconhecer a retencao comprovada, sem esconder que a fatura
+                // foi alterada depois de um pagamento valido. Nao usar esta
+                // excecao para pagamentos em excesso sem causa verificavel.
+                $verifiedLateDeduction = $isBill && $doc['status'] === 'paid'
+                    && $kind === 'retencao' && $excess === $postPaymentDeductions;
+                if ($verifiedLateDeduction) {
+                    $reason = sprintf(
+                        'Pagamento supera a fatura em R$ %.2f: deducao nao-capital adicionada apos o pagamento; conferir a alteracao documental.',
+                        $excess / 100
+                    );
+                } else {
+                    $kind = 'revisao';
+                    $value = 0;
+                    $reason = 'Pagamento associado supera o valor da fatura.';
+                }
             }
             $rows[] = $this->movement(
                 'document',
@@ -214,7 +267,8 @@ final class CapitalSocial
                 $value,
                 $reason,
                 self::cents($doc['capital_amount']) !== 0 ? abs(self::cents($doc['capital_amount'])) : abs($capital),
-                (string) $doc['currency_code']
+                (string) $doc['currency_code'],
+                $verifiedLateDeduction
             );
         }
         if ($contactId !== null) {
@@ -261,7 +315,8 @@ final class CapitalSocial
         int $amountCents,
         string $reason,
         ?int $candidateCents = null,
-        string $currency = 'BRL'
+        string $currency = 'BRL',
+        bool $confirmedWithDocumentWarning = false
     ): array {
         return [
             'contact_id' => $contactId,
@@ -274,7 +329,7 @@ final class CapitalSocial
                 'devolucao' => 'Devolução',
                 default => 'Conferência necessária',
             },
-            'status' => $reason === '' ? 'confirmado' : 'revisar',
+            'status' => ($reason === '' || $confirmedWithDocumentWarning) ? 'confirmado' : 'revisar',
             'amount' => $amountCents / 100,
             'candidate_amount' => ($candidateCents ?? abs($amountCents)) / 100,
             'currency' => $currency,

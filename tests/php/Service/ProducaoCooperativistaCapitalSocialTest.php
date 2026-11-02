@@ -27,13 +27,15 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
         putenv('AKAUNTING_COMPANY_ID=1');
         self::bootKernel();
         $this->connection = static::getContainer()->get('doctrine.dbal.akaunting_connection');
-        foreach (['document_items', 'documents', 'transactions', 'contacts'] as $table) {
+        foreach (['document_items', 'documents', 'transactions', 'contacts', 'categories'] as $table) {
             $this->connection->executeStatement('DROP TABLE IF EXISTS ' . $table);
         }
+        $this->connection->executeStatement('CREATE TABLE categories (id INT PRIMARY KEY, company_id INT NOT NULL, name VARCHAR(191) NOT NULL)');
+        $this->connection->insert('categories', ['id' => 48, 'company_id' => 1, 'name' => 'Conta Capital']);
         $this->connection->executeStatement('CREATE TABLE contacts (id INT PRIMARY KEY, company_id INT NOT NULL, name VARCHAR(191) NOT NULL, tax_number VARCHAR(20) NULL)');
         $this->connection->executeStatement('CREATE TABLE transactions (id INT PRIMARY KEY, company_id INT NOT NULL, contact_id INT NOT NULL, category_id INT NOT NULL, amount DECIMAL(15,2) NOT NULL, currency_code VARCHAR(5) NOT NULL, description VARCHAR(191) NOT NULL DEFAULT \'\', paid_at DATETIME NOT NULL, type VARCHAR(30) NOT NULL, document_id INT NULL, deleted_at DATETIME NULL)');
         $this->connection->executeStatement('CREATE TABLE documents (id INT PRIMARY KEY, company_id INT NOT NULL, contact_id INT NOT NULL, contact_name VARCHAR(191) NOT NULL, type VARCHAR(30) NOT NULL, status VARCHAR(30) NOT NULL, currency_code VARCHAR(5) NOT NULL, issued_at DATETIME NOT NULL, category_id INT NOT NULL, amount DECIMAL(15,2) NOT NULL, due_at DATETIME NOT NULL, deleted_at DATETIME NULL)');
-        $this->connection->executeStatement('CREATE TABLE document_items (id INT PRIMARY KEY, document_id INT NOT NULL, item_id INT NOT NULL, total DECIMAL(15,2) NOT NULL, deleted_at DATETIME NULL)');
+        $this->connection->executeStatement('CREATE TABLE document_items (id INT PRIMARY KEY, document_id INT NOT NULL, item_id INT NOT NULL, total DECIMAL(15,2) NOT NULL, created_at DATETIME NULL, deleted_at DATETIME NULL)');
         foreach ([1,2] as $person) {
             $this->connection->insert('contacts', ['id' => $person, 'company_id' => 1, 'name' => 'Cooperado ' . $person, 'tax_number' => null]);
         }
@@ -41,7 +43,7 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
 
     protected function tearDown(): void
     {
-        foreach (['document_items', 'documents', 'transactions', 'contacts'] as $table) {
+        foreach (['document_items', 'documents', 'transactions', 'contacts', 'categories'] as $table) {
             $this->connection->executeStatement('DROP TABLE IF EXISTS ' . $table);
         }
         putenv('AKAUNTING_COMPANY_ID');
@@ -67,7 +69,7 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
         foreach ($items as $itemId => $value) {
             $this->connection->insert('document_items', [
                 'id' => $id * 10 + $itemId, 'document_id' => $id, 'item_id' => $itemId,
-                'total' => $value, 'deleted_at' => null,
+                'total' => $value, 'created_at' => '2025-04-28 12:00:00', 'deleted_at' => null,
             ]);
         }
     }
@@ -155,10 +157,7 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
             'document_id' => null, 'deleted_at' => null,
         ]);
         $rows = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows();
-        self::assertCount(1, $rows);
-        self::assertSame('revisar', $rows[0]['status']);
-        self::assertEqualsWithDelta(0.0, $rows[0]['amount'], 0.001);
-        self::assertStringContainsString('restituição', $rows[0]['reason']);
+        self::assertSame([], $rows);
     }
 
     public function testRefundDescriptionWithIncorrectLinkedItemIsFlaggedForAudit(): void
@@ -239,17 +238,116 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
         $this->connection->update('transactions', ['description' => 'Devolução de capital social'], ['id' => 103]);
 
         $rows = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows();
-        self::assertCount(4, $rows);
+        self::assertCount(3, $rows);
         $byId = array_column($rows, null, 'id');
         foreach ([100 => -300.00, 101 => -130.88] as $id => $amount) {
             self::assertSame('confirmado', $byId[$id]['status']);
             self::assertSame('devolucao', $byId[$id]['kind']);
             self::assertEqualsWithDelta($amount, $byId[$id]['amount'], 0.001);
         }
-        foreach ([102, 103] as $id) {
-            self::assertSame('revisar', $byId[$id]['status']);
-            self::assertEqualsWithDelta(0, $byId[$id]['amount'], 0.001);
-        }
+        self::assertArrayNotHasKey(102, $byId);
+        self::assertSame('revisar', $byId[103]['status']);
+        self::assertEqualsWithDelta(0, $byId[103]['amount'], 0.001);
+    }
+
+    public function testAdvancePaymentDeductedFromPaidBillDoesNotOverstateCapitalSettlement(): void
+    {
+        // 7,250.85 bank outflow: 2,000 earlier + 5,250.85 final.
+        // The bill's net total has ALREADY deducted the same advance.
+        $this->document(110, 1, 'bill', 11, '5250.85', [
+            26 => '7313.35', 31 => '-2000.00', 11 => '-62.50',
+        ]);
+        $this->transaction(111, 1, 'expense', 34, '2000.00', 110, '2025-03-05 08:00:00');
+        $this->transaction(112, 1, 'expense', 11, '5250.85', 110, '2025-05-03 12:00:00');
+
+        $rows = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows();
+        self::assertCount(1, $rows);
+        self::assertSame('confirmado', $rows[0]['status']);
+        self::assertSame('retencao', $rows[0]['kind']);
+        self::assertSame('', $rows[0]['reason']);
+        self::assertEqualsWithDelta(62.50, $rows[0]['amount'], 0.001);
+    }
+
+    public function testUnmatchedAdvanceDoesNotSilentlyExcuseRealOverpayment(): void
+    {
+        $this->document(111, 1, 'bill', 11, '5250.85', [
+            26 => '7313.35', 31 => '-2000.00', 11 => '-62.50',
+        ]);
+        $this->transaction(113, 1, 'expense', 34, '1800.00', 111);
+        $this->transaction(114, 1, 'expense', 11, '5250.85', 111);
+        $rows = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows();
+        self::assertCount(1, $rows);
+        self::assertSame('revisar', $rows[0]['status']);
+        self::assertEqualsWithDelta(0, $rows[0]['amount'], 0.001);
+    }
+
+    public function testLateNonCapitalDeductionRetainsCapitalAndAuditsDocumentDiscrepancy(): void
+    {
+        // A bill of 3,303.00 was paid. Later a -17.69 non-capital line
+        // changed the recorded total to 3,285.31, not the bank transfer.
+        $this->document(120, 1, 'bill', 11, '3285.31', [
+            26 => '3365.50', 11 => '-62.50', 8 => '-17.69',
+        ]);
+        $this->transaction(120, 1, 'expense', 11, '3303.00', 120);
+        $this->connection->update('document_items', [
+            'created_at' => '2025-06-03 12:00:00',
+        ], ['id' => 1208]);
+        $rows = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows();
+        self::assertCount(1, $rows);
+        self::assertSame('confirmado', $rows[0]['status']);
+        self::assertSame('retencao', $rows[0]['kind']);
+        self::assertEqualsWithDelta(62.50, $rows[0]['amount'], 0.001);
+        self::assertStringContainsString('17.69', $rows[0]['reason']);
+        $service = new ReflectionClass(ProducaoCooperativista::class)->newInstanceWithoutConstructor();
+        new ReflectionClass(ProducaoCooperativista::class)->getProperty('capitalSocialSource')->setValue(
+            $service,
+            new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))
+        );
+        $router = $this->createStub(UrlGeneratorInterface::class);
+        $router->method('generate')->willReturn('/relatorios/capital-social?contact_id=1');
+        new ReflectionClass(ProducaoCooperativista::class)->getProperty('urlGenerator')->setValue($service, $router);
+        $summary = array_values($service->getCapitalSocialSummarized());
+        self::assertCount(1, $summary);
+        self::assertEqualsWithDelta(62.50, $summary[0]['total'], 0.001);
+        self::assertSame(1, $summary[0]['pendencias']);
+        self::assertSame('Movimentações a conferir', $summary[0]['situacao']);
+    }
+
+    public function testUnexplainedOverpaymentCannotConfirmRetention(): void
+    {
+        $this->document(121, 1, 'bill', 11, '3285.31', [
+            26 => '3365.50', 11 => '-62.50', 8 => '-17.69',
+        ]);
+        $this->transaction(121, 1, 'expense', 11, '3303.00', 121);
+        // The disputed item existed BEFORE the transfer.
+        $rows = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows();
+        self::assertSame('revisar', $rows[0]['status']);
+        self::assertEqualsWithDelta(0, $rows[0]['amount'], 0.001);
+    }
+
+    public function testExternalCooperativeEquityAndOverpaymentRefundDoNotAppearAsMemberCapital(): void
+    {
+        $this->transaction(130, 1, 'income', 25, '101.81');
+        $this->connection->update('transactions', [
+            'description' => 'Restituição do Capital Social - SICREDI',
+        ], ['id' => 130]);
+        $this->transaction(131, 1, 'income', 25, '6.00');
+        $this->connection->update('transactions', [
+            'description' => 'Devolução valor pago a maior',
+        ], ['id' => 131]);
+        $this->transaction(132, 1, 'expense', 48, '20.00');
+        $this->connection->update('transactions', [
+            'description' => 'Integralização de Capital Social',
+        ], ['id' => 132]);
+        $this->transaction(133, 1, 'expense', 16, '300.00');
+        $this->connection->update('transactions', [
+            'description' => 'Devolução de Capital Social',
+        ], ['id' => 133]);
+        $rows = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11))->rows();
+        self::assertCount(1, $rows);
+        self::assertSame(133, $rows[0]['id']);
+        self::assertSame('confirmado', $rows[0]['status']);
+        self::assertEqualsWithDelta(-300.00, $rows[0]['amount'], 0.001);
     }
 
     public function testEmptyLedgerDoesNotProduceError500(): void
