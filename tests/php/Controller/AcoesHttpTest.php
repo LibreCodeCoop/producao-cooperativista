@@ -9,6 +9,16 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class AcoesHttpTest extends WebTestCase
 {
+    public function testImportAvailabilityIsReadOnlyAndRejectsInvalidCompetence(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/api/v1/producao/disponibilidade?ano-mes=not-a-month');
+        self::assertSame(Response::HTTP_BAD_REQUEST, $client->getResponse()->getStatusCode());
+
+        $client->request('POST', '/api/v1/producao/disponibilidade', ['ano-mes' => '2026-09']);
+        self::assertSame(Response::HTTP_METHOD_NOT_ALLOWED, $client->getResponse()->getStatusCode());
+    }
+
     public function testDestructiveExecutionRejectsGet(): void
     {
         $client = static::createClient();

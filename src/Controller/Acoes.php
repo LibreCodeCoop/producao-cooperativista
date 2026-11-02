@@ -20,6 +20,7 @@ use App\Service\Calculation\CalculationActionGuard;
 use App\Service\Calculation\CalculationExecutionLock;
 use App\Service\Import\StagingDatabaseResetter;
 use App\Service\Import\StagingSchema;
+use App\Service\Import\ImportedDataAvailability;
 use App\Service\Calculation\ExecutionOutcome;
 use App\Service\Calculation\CalculationCommandOptions;
 use Monolog\Logger;
@@ -47,6 +48,7 @@ class Acoes extends AbstractController
         private CalculationActionGuard $guard,
         private StagingDatabaseResetter $stagingDatabaseResetter,
         private CompetenceDefaults $competences,
+        private ImportedDataAvailability $importAvailability,
         private RuntimeConfig $runtimeConfig,
         #[Autowire(service: 'doctrine.dbal.main_connection')]
         private Connection $etlDb,
@@ -166,7 +168,21 @@ class Acoes extends AbstractController
             return new Response($error->getMessage(), Response::HTTP_BAD_REQUEST);
         }
 
+        $workMonth = $inicio->format('Y-m');
+        try {
+            $availability = $this->importAvailability->forCompetence(
+                Competencia::fromString($workMonth)
+            );
+        } catch (\Doctrine\DBAL\Exception $error) {
+            $this->logger->warning(
+                'Não foi possível consultar disponibilidade da base intermediária.',
+                ['exception' => $error],
+            );
+            $availability = null;
+        }
+
         return $this->render('acoes/make_producao.html.twig', [
+            'import_availability' => $availability,
             'inicio_ano' => $inicio->format('Y'),
             'inicio_mes' => $inicio->format('m'),
             'imported_competence' => $this->competences->importedMonth(),

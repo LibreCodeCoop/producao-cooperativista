@@ -72,6 +72,52 @@ final class OperationalUiTest extends TestCase
         }
     }
 
+    public function testClosingOnlyOffersReviewAndResetWhenStagingHasData(): void
+    {
+        $context = [
+            'inicio_ano' => '2026',
+            'inicio_mes' => '09',
+            'token' => 'test-token',
+            'url' => '/acoes/do-make-producao',
+            'imported_competence' => null,
+            'workflow_asset_version' => 'cafebabe1234',
+        ];
+        $empty = $this->twig()->render('acoes/make_producao.html.twig', $context + [
+            'import_availability' => [
+                'competence' => '2026-09', 'has_work_data' => false,
+                'has_staging_data' => false, 'work_entries' => 0, 'work_members' => 0,
+            ],
+        ]);
+        self::assertStringContainsString('Base importada vazia', $empty);
+        self::assertMatchesRegularExpression('~id="use-existing"[^>]*hidden disabled~s', $empty);
+        self::assertMatchesRegularExpression('~id="reset-staging-link"[^>]*hidden~s', $empty);
+        self::assertStringContainsString('data-imported-work="no"', $empty);
+        self::assertStringContainsString('data-staging-data="no"', $empty);
+        self::assertStringContainsString('data-availability-url="/api/v1/producao/disponibilidade"', $empty);
+        self::assertStringContainsString('Importar competência', $empty);
+
+        $partial = $this->twig()->render('acoes/make_producao.html.twig', $context + [
+            'import_availability' => [
+                'competence' => '2026-09', 'has_work_data' => false,
+                'has_staging_data' => true, 'work_entries' => 0, 'work_members' => 0,
+            ],
+        ]);
+        self::assertStringContainsString('Sem apontamentos desta competência', $partial);
+        self::assertMatchesRegularExpression('~id="use-existing"[^>]*hidden disabled~s', $partial);
+        self::assertDoesNotMatchRegularExpression('~id="reset-staging-link"[^>]*hidden~s', $partial);
+
+        $available = $this->twig()->render('acoes/make_producao.html.twig', $context + [
+            'import_availability' => [
+                'competence' => '2026-09', 'has_work_data' => true,
+                'has_staging_data' => true, 'work_entries' => 214, 'work_members' => 7,
+            ],
+        ]);
+        self::assertStringContainsString('214 apontamentos de 7 cooperados', $available);
+        self::assertDoesNotMatchRegularExpression('~id="use-existing"[^>]*hidden~s', $available);
+        self::assertDoesNotMatchRegularExpression('~id="reset-staging-link"[^>]*hidden~s', $available);
+        self::assertStringContainsString('data-imported-work="yes"', $available);
+    }
+
     public function testCapitalSummaryExplainsPreliminaryBalanceAndHidesLinkTargetColumn(): void
     {
         $html = $this->twig()->render('capitalSocialSummarized.index.html.twig', [

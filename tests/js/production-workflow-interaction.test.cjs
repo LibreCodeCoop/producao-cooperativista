@@ -24,10 +24,12 @@ function element() {
 
 function fixture({previewError = false, economicFailure = false, malformed = false, importSuccess = true,
     publishSuccess = true, gridSuccess = true, withdrawalGoal = null,
-    importError = 'Falha na importação'} = {}) {
+    importError = 'Falha na importação', initialWorkData = true,
+    initialStagingData = true} = {}) {
     const items = new Map();
     for (const id of ['production-wizard','form-gera-producao','messages',
-        'import-button','use-existing','review-competence',
+        'import-button','use-existing','import-availability-status',
+        'reset-staging-link','reset-staging-help','review-competence',
         'metric-members','metric-hours','metric-base','metric-net','withdrawal-goal',
         'selection-summary','publication-summary','publication-confirmation',
         'import-status','import-status-text','import-elapsed','import-profile-link',
@@ -39,6 +41,12 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
     items.get('year').value = '2026';
     items.get('month').value = '08';
     items.get('submit').disabled = true;
+    items.get('use-existing').hidden = !initialWorkData;
+    items.get('use-existing').disabled = !initialWorkData;
+    items.get('reset-staging-link').hidden = !initialStagingData;
+    items.get('reset-staging-help').hidden = !initialStagingData;
+    items.get('import-availability-status').dataset.state = initialWorkData
+        ? 'available' : initialStagingData ? 'other' : 'empty';
     const form = items.get('form-gera-producao');
     form.elements = {};
     for (const id of ['year','month','operation','baixar_dados',
@@ -63,6 +71,10 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
     });
     items.get('production-wizard').dataset.previewUrl = '/api/v1/producao';
     items.get('production-wizard').dataset.sourcesUrl = '/api/v1/producao/fontes';
+    items.get('production-wizard').dataset.availabilityUrl =
+        '/api/v1/producao/disponibilidade';
+    items.get('production-wizard').dataset.importedWork = initialWorkData ? 'yes' : 'no';
+    items.get('production-wizard').dataset.stagingData = initialStagingData ? 'yes' : 'no';
     items.get('production-wizard').querySelectorAll = selector => ({
         '[data-workflow-step]': sections,
         '[data-report-path]': links,
@@ -74,7 +86,25 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
         querySelectorAll: selector => selector === '[data-step-indicator]' ? indicators : [],
     };
 
-    const calls = {fetch: [],submit: [],notices: [],mount: [],sourceMount: [],destroy: 0,sourceDestroy: 0};
+    const calls = {
+        fetch: [],availability: [],submit: [],notices: [],
+        mount: [],sourceMount: [],destroy: 0,sourceDestroy: 0,
+    };
+    const availabilityByMonth = new Map([
+        ['2026-08', {
+            competence:'2026-08', has_work_data:initialWorkData,
+            has_staging_data:initialStagingData,
+            work_entries:initialWorkData ? 214 : 0,
+            work_members:initialWorkData ? 2 : 0,
+            latest_imported_competence:initialWorkData ? '2026-08' : null,
+        }],
+        ['2026-09', {
+            competence:'2026-09', has_work_data:false,
+            has_staging_data:initialStagingData,
+            work_entries:0, work_members:0,
+            latest_imported_competence:initialWorkData ? '2026-08' : null,
+        }],
+    ]);
     const rows = [
         {kimai_user_id: 5, name: 'Pessoa A', peso: 1.5,
             base_producao: 100.3200001, liquido: 75.23, hours_seconds: 7200},
@@ -92,9 +122,23 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
                 : {destroy() {calls.destroy++;}};
         },
     };
+    const windowListeners = new Map();
     const options = {
+        window: {addEventListener: (name, fn) => windowListeners.set(name, fn)},
         reportTable,
         fetch: async(url,settings) => {
+            if (url.startsWith('/api/v1/producao/disponibilidade?')) {
+                const month = new URL(url,'https://example.test').searchParams.get('ano-mes');
+                calls.availability.push(month);
+                const result = availabilityByMonth.get(month);
+                return {
+                    ok:true,
+                    async json(){return result || {
+                        competence:month,has_work_data:false,has_staging_data:false,
+                        work_entries:0,work_members:0,latest_imported_competence:null,
+                    };},
+                };
+            }
             calls.fetch.push({url,settings});
             if (url.startsWith('/api/v1/producao/fontes?')) {
                 return {ok:true,async json() {return {
@@ -131,6 +175,17 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
                     Object.entries(activeForm.elements).map(([k,v]) => [k,v.value])
                 ));
                 if (activeForm.elements.operation.value === 'import') {
+                    if (importSuccess) {
+                        availabilityByMonth.set(activeForm.elements.year.value + '-' +
+                            activeForm.elements.month.value, {
+                            competence:activeForm.elements.year.value + '-' +
+                                activeForm.elements.month.value,
+                            has_work_data:true,has_staging_data:true,
+                            work_entries:214,work_members:2,
+                            latest_imported_competence:activeForm.elements.year.value + '-' +
+                                activeForm.elements.month.value,
+                        });
+                    }
                     opts.onStatus?.({state:'running', message:'Etapa 2 de 8: Cooperados do Kimai.'});
                     opts.onStatus?.({state:importSuccess ? 'completed' : 'failed',
                         message:importSuccess ? 'Importação concluída.' : importError});
@@ -160,9 +215,92 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
         change('publication-confirmation');
     };
     return {items,calls,rows,revision,links,indicators,form,step,get,click,preview,change,decide,setConsent,
+        setAvailability: (month, state) => availabilityByMonth.set(month,{
+            competence:month,has_work_data:false,has_staging_data:false,
+            work_entries:0,work_members:0,latest_imported_competence:null,...state,
+        }),
         memberChanged: () => documentListeners.get('member-source-changed')?.(),
+        restorePage: () => windowListeners.get('pageshow')?.({persisted:true}),
+        focusPage: () => windowListeners.get('focus')?.(),
     };
 }
+
+test('empty staging hides review and reset actions while keeping import available', async () => {
+    const f=fixture({initialWorkData:false,initialStagingData:false});
+    assert.equal(f.step(),1);
+    assert.equal(f.get('use-existing').hidden,true);
+    assert.equal(f.get('use-existing').disabled,true);
+    assert.equal(f.get('reset-staging-link').hidden,true);
+    assert.equal(f.get('reset-staging-help').hidden,true);
+    assert.equal(f.get('import-button').disabled,false);
+    assert.equal(f.indicators[1].disabled,true);
+    await f.click('use-existing');
+    assert.equal(f.calls.fetch.length,0,'No source or financial API requested on empty base');
+    assert.equal(f.calls.submit.length,0);
+
+    await f.click('import-button');
+    assert.equal(f.step(),2,'Successful import unlocks review and opens the staged data');
+    assert.equal(f.get('use-existing').hidden,false);
+    assert.equal(f.get('reset-staging-link').hidden,false);
+    assert.equal(f.get('import-availability-status').dataset.state,'available');
+});
+
+test('month changes distinguish staged data from imported work in another competence', async () => {
+    const f=fixture();
+    f.get('month').value='09';
+    await f.change('month');
+    assert.equal(f.step(),1);
+    assert.deepEqual(f.calls.availability,['2026-09']);
+    assert.equal(f.get('use-existing').hidden,true);
+    assert.equal(f.get('use-existing').disabled,true);
+    assert.equal(f.get('reset-staging-link').hidden,false,
+        'Do not hide the global reset if another month still has imported data');
+    assert.match(f.get('import-availability-status').textContent,/2026-08/);
+    assert.equal(f.get('import-availability-status').dataset.state,'other');
+    assert.equal(f.get('reset-staging-link').href,
+        '/acoes/zerar-banco-local?retorno=2026-09');
+
+    f.get('month').value='08';
+    await f.change('month');
+    assert.equal(f.get('use-existing').hidden,false);
+    assert.equal(f.get('use-existing').disabled,false);
+    assert.match(f.get('import-availability-status').textContent,/214 apontamentos/);
+});
+
+test('restoring a cached page after reset hides stale actions without importing', async () => {
+    const f=fixture();
+    f.setAvailability('2026-08',{});
+    await f.restorePage();
+    assert.equal(f.get('import-availability-status').dataset.state,'empty');
+    assert.match(f.get('import-availability-status').textContent,/Base importada vazia/);
+    assert.equal(f.get('use-existing').hidden,true);
+    assert.equal(f.get('reset-staging-link').hidden,true);
+    assert.equal(f.indicators[1].disabled,true);
+    assert.equal(f.calls.submit.length,0);
+    assert.equal(f.calls.fetch.length,0);
+});
+
+test('availability is rechecked before reviewing a previously enabled button', async () => {
+    const f=fixture();
+    f.setAvailability('2026-08',{});
+    await f.click('use-existing');
+    assert.deepEqual(f.calls.availability,['2026-08']);
+    assert.equal(f.step(),1);
+    assert.equal(f.calls.fetch.length,0);
+    assert.equal(f.get('use-existing').hidden,true);
+    assert.equal(f.get('reset-staging-link').hidden,true);
+});
+
+test('partially populated staging is not mistaken for a reviewable month', async () => {
+    const f=fixture({initialWorkData:false,initialStagingData:true});
+    assert.equal(f.get('use-existing').hidden,true);
+    assert.equal(f.get('reset-staging-link').hidden,false);
+    f.setAvailability('2026-08',{has_staging_data:true});
+    await f.focusPage();
+    assert.equal(f.get('import-availability-status').dataset.state,'other');
+    assert.equal(f.get('use-existing').hidden,true);
+    assert.equal(f.get('reset-staging-link').hidden,false);
+});
 
 test('import and review are the only two stages, with a sortable shared grid', async () => {
     const f = fixture();

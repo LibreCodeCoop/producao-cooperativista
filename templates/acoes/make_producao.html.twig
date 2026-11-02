@@ -20,7 +20,12 @@
         <button type="button" data-step-indicator="2" disabled title="Disponível após consultar os dados importados"><b>2</b> Conferir e calcular</button>
     </nav>
 
-    <div class="production-wizard surface" id="production-wizard" data-preview-url="/api/v1/producao" data-sources-url="/api/v1/producao/fontes">
+    <div class="production-wizard surface" id="production-wizard"
+         data-preview-url="/api/v1/producao"
+         data-sources-url="/api/v1/producao/fontes"
+         data-availability-url="/api/v1/producao/disponibilidade"
+         data-imported-work="{{ import_availability.has_work_data|default(false) ? 'yes' : 'no' }}"
+         data-staging-data="{{ import_availability.has_staging_data|default(false) ? 'yes' : 'no' }}">
         {# Separate the publication form from the read-only review table. #}
         <form id="form-gera-producao" data-workflow="yes" method="post" action="{{ url }}">
             <input type="hidden" name="_token" value="{{ token }}">
@@ -63,12 +68,34 @@
                     </select>
                 </div>
             </div>
+            {% set work_imported = import_availability.has_work_data|default(false) %}
+            {% set staging_imported = import_availability.has_staging_data|default(false) %}
+            <div id="import-availability-status" class="production-import-state"
+                 data-state="{{ import_availability is null ? 'unavailable' : (work_imported ? 'available' : (staging_imported ? 'other' : 'empty')) }}"
+                 role="status" aria-live="polite">
+                {% if import_availability is null %}
+                    Não foi possível verificar a base importada. Confira a conexão e atualize esta página antes de continuar.
+                {% elseif work_imported %}
+                    <strong>Dados disponíveis para conferência.</strong>
+                    {{ import_availability.work_entries }} apontamentos de {{ import_availability.work_members }} cooperados
+                    na competência {{ inicio_ano }}-{{ inicio_mes }}.
+                {% elseif staging_imported %}
+                    <strong>Sem apontamentos desta competência.</strong>
+                    Existem dados intermediários importados, mas não há horas registradas em {{ inicio_ano }}-{{ inicio_mes }}.
+                    Confira o mês selecionado ou execute a importação.
+                {% else %}
+                    <strong>Base importada vazia.</strong>
+                    Para iniciar, selecione a competência e clique em Importar competência.
+                    A conferência ficará disponível após a importação.
+                {% endif %}
+            </div>
             <div class="production-wizard-actions">
                 <button type="button" id="import-button" class="button button-primary">Importar competência</button>
-                <button type="button" id="use-existing" class="button">Conferir dados já importados</button>
-                <a class="button button-secondary production-reset-link" href="/acoes/zerar-banco-local?retorno={{ (inicio_ano ~ '-' ~ inicio_mes)|url_encode }}">
-                    Limpar base importada
-                </a>
+                <button type="button" id="use-existing" class="button"
+                        {% if not work_imported %}hidden disabled{% endif %}>Conferir dados já importados</button>
+                <a id="reset-staging-link" class="button button-secondary production-reset-link"
+                   href="/acoes/zerar-banco-local?retorno={{ (inicio_ano ~ '-' ~ inicio_mes)|url_encode }}"
+                   {% if not staging_imported %}hidden{% endif %}>Limpar base importada</a>
             </div>
             <div class="production-job-status" id="import-status" role="status" aria-live="polite" hidden>
                 <span class="production-job-indicator" aria-hidden="true"></span>
@@ -78,7 +105,7 @@
                     Corrigir cadastro em Configuração → Cooperados e vínculos
                 </a>
             </div>
-            <p class="production-help">A limpeza remove todos os dados intermediários importados, não apenas esta competência, e exige confirmação na próxima página. Ela não modifica os sistemas de origem nem os documentos já emitidos.</p>
+            <p class="production-help" id="reset-staging-help" {% if not staging_imported %}hidden{% endif %}>A limpeza remove todos os dados intermediários importados, não apenas esta competência, e exige confirmação na próxima página. Ela não modifica os sistemas de origem nem os documentos já emitidos.</p>
         </section>
 
         <section data-workflow-step="2" hidden aria-labelledby="audit-title">

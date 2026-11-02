@@ -155,6 +155,11 @@
         let processing = false;
         let finished = false;
         let needsImport = false;
+        let availabilityRequest = 0;
+        let availability = {
+            has_work_data: wizard.dataset.importedWork === 'yes',
+            has_staging_data: wizard.dataset.stagingData === 'yes',
+        };
 
         const competence = () => el('year').value + '-' + el('month').value;
         const stepButtons = [...doc.querySelectorAll('[data-step-indicator]')];
@@ -167,6 +172,14 @@
                 button.classList.toggle('is-active', active);
                 if (active) button.setAttribute('aria-current', 'step');
                 else button.removeAttribute('aria-current');
+            }
+            const reviewButton = el('use-existing');
+            if (reviewButton) {
+                reviewButton.disabled = !availability?.has_work_data ||
+                    needsImport || loading || processing || finished;
+            }
+            for (const picker of [el('month'), el('year')]) {
+                if (picker) picker.disabled = processing || finished;
             }
         };
         const show = step => {
@@ -186,6 +199,83 @@
                 ? [...omitted].sort((a, b) => a - b).join(',') : '';
         };
         const notice = message => progress.addMessage(messages, 'warning', message, doc);
+        const setAvailability = state => {
+            availability = state;
+            const period = competence();
+            const reviewButton = el('use-existing');
+            const resetLink = el('reset-staging-link');
+            const resetHelp = el('reset-staging-help');
+            const summary = el('import-availability-status');
+            const hasWork = state?.has_work_data === true;
+            const hasAny = state?.has_staging_data === true;
+            if (reviewButton) reviewButton.hidden = !hasWork || needsImport;
+            if (resetLink) {
+                resetLink.hidden = !hasAny;
+                resetLink.href = '/acoes/zerar-banco-local?retorno=' + encodeURIComponent(period);
+            }
+            if (resetHelp) resetHelp.hidden = !hasAny;
+            if (!hasWork && (preview || sourceReview)) {
+                resetReview();
+                show(1);
+            }
+            if (summary) {
+                summary.dataset.state = !state ? 'unavailable' :
+                    hasWork ? 'available' : hasAny ? 'other' : 'empty';
+                summary.textContent = needsImport && hasWork
+                    ? 'O cadastro de cooperados foi alterado. Reimporte ' + period +
+                        ' antes de conferir ou publicar.'
+                    : !state
+                        ? 'Não foi possível verificar a base importada. Atualize a página antes de conferir.'
+                        : hasWork
+                            ? 'Dados disponíveis para conferência: ' + state.work_entries +
+                                ' apontamentos de ' + state.work_members + ' cooperados em ' + period + '.'
+                            : hasAny
+                                ? 'Ainda não há apontamentos importados para ' + period + '.' +
+                                    (state.latest_imported_competence &&
+                                    state.latest_imported_competence !== period
+                                        ? ' Última competência com horas: ' +
+                                            state.latest_imported_competence + '.'
+                                        : '') + ' Confira o mês ou importe novamente.'
+                                : 'Base importada vazia. Selecione a competência e clique em Importar competência.';
+            }
+            syncNavigation();
+        };
+        const refreshAvailability = async () => {
+            const selected = competence();
+            const token = ++availabilityRequest;
+            const reviewButton = el('use-existing');
+            if (reviewButton) {
+                reviewButton.hidden = true;
+                reviewButton.disabled = true;
+            }
+            const summary = el('import-availability-status');
+            if (summary) {
+                summary.dataset.state = 'checking';
+                summary.textContent = 'Verificando os dados importados para ' + selected + '…';
+            }
+            try {
+                const response = await request(wizard.dataset.availabilityUrl + '?ano-mes=' +
+                    encodeURIComponent(selected), {
+                    credentials: 'same-origin', headers: {Accept: 'application/json'}, cache: 'no-store',
+                });
+                if (!response.ok) throw new Error('Falha na consulta de disponibilidade.');
+                const state = await response.json();
+                if (state?.competence !== selected ||
+                    typeof state?.has_work_data !== 'boolean' ||
+                    typeof state?.has_staging_data !== 'boolean' ||
+                    !Number.isSafeInteger(state?.work_entries) ||
+                    !Number.isSafeInteger(state?.work_members)) {
+                    throw new Error('Estado da importação inválido.');
+                }
+                if (token !== availabilityRequest || selected !== competence()) return null;
+                setAvailability(state);
+                return state;
+            } catch {
+                if (token !== availabilityRequest || selected !== competence()) return null;
+                setAvailability(null);
+                return null;
+            }
+        };
         const goToImport = () => {
             if (loading || processing || finished) return;
             invalidateApproval();
@@ -242,7 +332,7 @@
         };
         const weightChanged = () => {
             needsImport = true;
-            el('use-existing').disabled = true;
+            setAvailability(availability);
             resetReview();
             show(1);
             notice('O cadastro foi alterado na origem. Reimporte esta competência antes de conferir e publicar.');
@@ -336,8 +426,12 @@
             return true;
         };
 
-        const reviewImportedData = async () => {
+        const reviewImportedData = async (verifyAvailability = true) => {
             if (loading || finished || needsImport) return false;
+            if (verifyAvailability) {
+                const current = await refreshAvailability();
+                if (!current?.has_work_data) return false;
+            }
             loading = true;
             resetReview();
             messages.replaceChildren();
@@ -493,19 +587,28 @@
                     onStatus: updateStatus,
                 });
                 if (success) {
-                    updateStatus({state: 'completed', message: 'Importação concluída. Carregando conferência…'});
+                    updateStatus({state: 'completed', message: 'Importação concluída. Verificando dados disponíveis…'});
                     needsImport = false;
-                    el('use-existing').disabled = false;
-                    const ready = await reviewImportedData();
-                    updateStatus({state: 'completed', message: ready
+                    const available = await refreshAvailability();
+                    const ready = available?.has_work_data === true
+                        ? await reviewImportedData(false) : false;
+                    updateStatus({state: ready ? 'completed' : 'failed', message: ready
                         ? 'Importação concluída. Dados de origem disponíveis para conferência.'
-                        : 'Importação concluída. Não foi possível abrir a conferência; veja a mensagem abaixo.'});
-                } else if (importStatus?.dataset.state === 'running') {
-                    updateStatus({state: 'failed', message: 'Importação interrompida. Confira o erro abaixo.'});
+                        : available
+                            ? 'A importação terminou sem apontamentos desta competência. Verifique as fontes e importe novamente.'
+                            : 'Importação encerrada, mas a base não pôde ser verificada. Atualize a página antes de conferir.'});
+                } else {
+                    needsImport = true;
+                    if (importStatus?.dataset.state === 'running') {
+                        updateStatus({state: 'failed', message: 'Importação interrompida. Confira o erro abaixo.'});
+                    }
+                    await refreshAvailability();
                 }
             } catch (error) {
                 const message = error instanceof Error ? error.message : 'Falha ao importar dados.';
                 updateStatus({state: 'failed', message});
+                needsImport = true;
+                await refreshAvailability();
                 notice(message);
             } finally {
                 clearInterval(timer);
@@ -515,7 +618,8 @@
             }
         });
         el('use-existing').addEventListener('click', () => {
-            if (!needsImport) return reviewImportedData();
+            if (!needsImport && !el('use-existing').disabled &&
+                !el('use-existing').hidden) return reviewImportedData();
         });
         el('calculate-financial-preview').addEventListener('click', () => {
             if (sourceReview && !processing && !needsImport) return loadPreview();
@@ -554,12 +658,22 @@
         });
         for (const input of [el('month'), el('year')]) {
             input.addEventListener('change', () => {
+                if (processing || finished) return;
                 resetReview();
                 updateLinks();
                 messages.replaceChildren();
                 show(1);
+                return refreshAvailability();
             });
         }
+        // Browser back/forward can restore the old page after another tab
+        // cleared the ETL: verify again instead of trusting cached controls.
+        win.addEventListener?.('pageshow', event => {
+            if (event.persisted && !processing && !finished) return refreshAvailability();
+        });
+        win.addEventListener?.('focus', () => {
+            if (!processing && !finished) return refreshAvailability();
+        });
         form.addEventListener('submit', event => event.preventDefault());
         updateLinks();
         show(1);

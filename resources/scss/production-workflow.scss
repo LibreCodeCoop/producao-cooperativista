@@ -47,6 +47,16 @@
 .production-period-fields select { width:100%; }
 .production-wizard-actions { display:flex; flex-wrap:wrap; gap:11px; margin-top:22px; align-items:center; }
 .production-wizard-actions .button { min-height:43px; }
+#use-existing[hidden], #reset-staging-link[hidden], #reset-staging-help[hidden] {
+    display:none;
+}
+.production-import-state {
+    margin-top:18px; padding:13px 16px; border:1px solid var(--line);
+    border-radius:9px; background:var(--surface);
+    line-height:1.6; font-size:13px; color:var(--text);
+}
+.production-import-state strong { font-weight:700; }
+.production-import-state[data-state="checking"] { color:var(--muted); }
 .button-primary {
     border-color:var(--brand); background:var(--brand); color:#fff;
 }
