@@ -292,7 +292,7 @@ test('source inspection opens directly without the financial error or a page jum
     assert.equal(f.get('pending-invoices-link').hidden,false);
     assert.equal(f.get('pending-invoices-link').href,
         '/relatorios/invoices?ano-mes=2026-08&pendentes=1');
-    assert.match(f.get('pending-invoices-link').textContent,/7 documento/);
+    assert.match(f.get('pending-invoices-link').textContent,/7 faturas/);
     assert.match(f.get('imported-data-summary').textContent,/214/);
     assert.match(f.get('imported-data-summary').textContent,/2\.007,63/);
     assert.match(f.get('imported-data-summary').textContent,/2329/);
@@ -309,8 +309,8 @@ test('source inspection opens directly without the financial error or a page jum
         'The decision survives an unavailable financial calculation');
     assert.equal(f.calls.mount.length,0,'Must not fabricate a calculated table');
     assert.equal(f.get('source-financial-status').hidden,false);
-    assert.match(f.get('source-financial-status').textContent,/O cálculo da retirada ainda não/);
-    assert.match(f.get('source-financial-status').textContent,/7 documentos/);
+    assert.match(f.get('source-financial-status').textContent,/A regra atual de cálculo não encontrou/);
+    assert.match(f.get('source-financial-status').textContent,/7 faturas/);
     assert.equal(f.calls.notices.length,0,'No repeated generic financial warning');
     f.setConsent(true);
     assert.equal(f.get('submit').disabled,true);

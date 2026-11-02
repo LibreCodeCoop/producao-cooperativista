@@ -213,13 +213,15 @@ final class OperationalUiTest extends TestCase
             'pendentes' => true,
             'workflow_asset_version' => 'a1b2c3d4e5f6',
         ]);
-        self::assertStringContainsString('Documentos para conciliação', $html);
+        self::assertStringContainsString('Faturas para conferência', $html);
         self::assertStringContainsString('data-pending-invoices="yes"', $html);
         self::assertStringContainsString('name="pendentes" value="1"', $html);
         self::assertStringContainsString('id="pending-invoice-summary"', $html);
         self::assertStringContainsString('src="/js/report-table.js?v=a1b2c3d4e5f6"', $html);
         self::assertStringContainsString('ano-mes=2026-09&amp;pendentes=1', $html);
-        self::assertStringContainsString('não significa necessariamente inadimplência', $html);
+        self::assertStringContainsString('Situação da fatura', $html);
+        self::assertStringContainsString('Recebimento registrado', $html);
+        self::assertStringContainsString('não consulta o extrato bancário em tempo real', $html);
     }
 
     public function testAuditPagesKeepTheSelectedPeriodAndReturnPath(): void

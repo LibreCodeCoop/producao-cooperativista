@@ -142,12 +142,14 @@ test('pending invoice report distinguishes drafts and sent documents with direct
     const sample = {
         data: [{
             id: 2329, numero_documento: 'INV-00652', cliente: 'Cliente A', valor: 29877.75,
-            status_documento: 'sent', recebimento: 'Sem baixa confirmada na importação',
+            status_documento: 'sent', recebimento: 'Não identificado nesta competência',
+            o_que_conferir: 'Verificar pagamento no Akaunting.',
             vencimento: '2026-10-20',
             URL: 'https://accounting.example.test/1/sales/invoices/2329',
         }, {
             id: 2363, numero_documento: 'NFSe_061', cliente: 'Cliente B', valor: 29877.75,
-            status_documento: 'draft', recebimento: 'Sem baixa confirmada na importação',
+            status_documento: 'draft', recebimento: 'Ainda não aplicável (rascunho)',
+            o_que_conferir: 'Conferir antes de emitir e enviar.',
             vencimento: '2026-10-20',
             URL: 'https://accounting.example.test/1/sales/invoices/2363',
         }],
@@ -159,19 +161,25 @@ test('pending invoice report distinguishes drafts and sent documents with direct
     assert.ok(dt);
     const columns=dt.settings.columns;
     const status=columns.find(col=>col.data==='status_documento');
-    assert.match(status.render('draft','display',sample.data[1]),/Rascunho/);
-    assert.match(status.render('sent','display',sample.data[0]),/Enviada/);
-    assert.equal(status.render('draft','filter',sample.data[1]),'Rascunho');
+    assert.equal(status.title,'Situação da fatura');
+    assert.equal(columns.find(col=>col.data==='recebimento').title,'Recebimento registrado');
+    assert.equal(columns.find(col=>col.data==='o_que_conferir').title,'O que fazer');
+    assert.equal(columns.find(col=>col.data==='URL').title,'Abrir no Akaunting');
+    assert.match(status.render('draft','display',sample.data[1]),/Em rascunho/);
+    assert.match(status.render('sent','display',sample.data[0]),/Marcada como enviada/);
+    assert.equal(status.render('draft','filter',sample.data[1]),'Em rascunho');
     const value=columns.find(col=>col.data==='valor');
     assert.ok(value.render(29877.75,'display').includes('29.877,75'));
     assert.ok(columns.find(col=>col.data==='URL')
         .render(sample.data[0].URL,'display',sample.data[0]).includes('/sales/invoices/2329'));
-    assert.match(f.pendingSummary.textContent,/2 documentos/);
+    assert.match(f.pendingSummary.textContent,/2 faturas/);
     assert.ok(f.pendingSummary.textContent.includes('59.755,50'));
-    assert.match(f.pendingSummary.textContent,/1 rascunho/);
-    assert.match(f.pendingSummary.textContent,/1 enviada/);
+    assert.match(f.pendingSummary.textContent,/1 em rascunho/);
+    assert.match(f.pendingSummary.textContent,/1 marcada como enviada/);
     assert.equal(renderCell('<img src=x>', 'display', 'status_documento',null,{pendingInvoices:true})
         .includes('<img'),false);
+    assert.match(status.render('paid','display',sample.data[1]),/Marcada como paga/);
+    assert.match(f.pendingSummary.textContent,/não representa necessariamente/);
 });
 
 test('source-only details preserve every financial label while avoiding made-up amounts', () => {

@@ -44,7 +44,7 @@ final class ImportedSourceReviewTest extends TestCase
             ]);
         }
         foreach ([
-            [1, 'income', 101, 100.00, '[]', 'Entradas', ''],
+            [1, 'income', 101, 100.00, '{"document_id":2364}', 'Entradas', ''],
             [2, 'income-transfer', 1, 30000.00, '[]', 'Transferência', ''],
             [3, 'expense', 201, 2007.63, '[]', 'Cliente', '1234'],
             [4, 'expense', 301, 500.00, '[]', 'Infraestrutura', ''],
@@ -113,7 +113,49 @@ final class ImportedSourceReviewTest extends TestCase
             self::assertSame('Cliente Teste', $pending['data'][0]['cliente']);
             self::assertSame('sent', $pending['data'][0]['status_documento']);
             self::assertSame('draft', $pending['data'][1]['status_documento']);
-            self::assertSame('Sem baixa confirmada na importação', $pending['data'][1]['recebimento']);
+            self::assertSame('Ainda não aplicável (rascunho)', $pending['data'][1]['recebimento']);
+            self::assertSame(
+                'Conferir se a fatura está pronta para emitir e enviar ao cliente.',
+                $pending['data'][1]['o_que_conferir'],
+            );
+            self::assertStringContainsString('registrar ou vincular', $pending['data'][0]['o_que_conferir']);
+
+            // A receipt associated with a sent invoice cannot remove it from
+            // reconciliation when the Akaunting invoice still says 'sent'.
+            $database->insert('invoices', [
+                'id' => 2365, 'document_number' => '2365', 'contact_name' => 'Cliente Teste',
+                'amount' => 120.0, 'due_at' => '2026-10-20', 'category_id' => 101,
+                'metadata' => '{"status":"sent"}', 'transaction_of_month' => '2026-10',
+                'type' => 'invoice', 'category_type' => 'income', 'archive' => 0,
+            ]);
+            $database->insert('transactions', [
+                'id' => 5, 'type' => 'income', 'category_id' => 101, 'category_name' => 'Entradas',
+                'customer_reference' => '', 'amount' => 35.0,
+                'metadata' => '{"document_id":2365}', 'transaction_of_month' => '2026-10',
+                'archive' => 0,
+            ]);
+            // An unrelated expense must not be mistaken for income received.
+            $database->insert('transactions', [
+                'id' => 6, 'type' => 'expense', 'category_id' => 201, 'category_name' => 'Cliente',
+                'customer_reference' => '', 'amount' => 75.0,
+                'metadata' => '{"document_id":2363}', 'transaction_of_month' => '2026-10',
+                'archive' => 0,
+            ]);
+            // Paid in Akaunting but without an imported customer receipt:
+            // retain it as a reconciliation inconsistency rather than hiding it.
+            $database->insert('invoices', [
+                'id' => 2366, 'document_number' => '2366', 'contact_name' => 'Cliente Teste',
+                'amount' => 90.0, 'due_at' => '2026-10-22', 'category_id' => 101,
+                'metadata' => '{"status":"paid"}', 'transaction_of_month' => '2026-10',
+                'type' => 'invoice', 'category_type' => 'income', 'archive' => 0,
+            ]);
+            $recheck = $review->pendingInvoiceReport(Competencia::fromString('2026-09'));
+            self::assertSame(4, $recheck['metadata']['total']);
+            self::assertSame('Ainda não aplicável (rascunho)', $recheck['data'][1]['recebimento']);
+            self::assertSame('R$ 35,00 registrado no período', $recheck['data'][2]['recebimento']);
+            self::assertStringContainsString('atualizar a situação', $recheck['data'][2]['o_que_conferir']);
+            self::assertSame('paid', $recheck['data'][3]['status_documento']);
+            self::assertStringContainsString('Conferir o registro do pagamento', $recheck['data'][3]['o_que_conferir']);
 
             $following = $review->read(Competencia::fromString('2026-10'));
             self::assertSame('2026-11', $following['financial_month']);

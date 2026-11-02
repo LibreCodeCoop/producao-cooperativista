@@ -119,7 +119,7 @@ final readonly class ImportedSourceReview
             ['month' => $financialMonth],
         );
 
-        $paidDocumentIds = [];
+        $receivedByDocumentId = [];
         $incomeTotal = 0.0;
         $incomeCount = 0;
         $clientCostTotal = 0.0;
@@ -128,14 +128,17 @@ final readonly class ImportedSourceReview
         $internalGroups = [];
         foreach ($movements as $movement) {
             $meta = json_decode((string) ($movement['metadata'] ?? ''), true);
-            if (is_array($meta) && is_numeric($meta['document_id'] ?? null)) {
-                $paidDocumentIds[(int) $meta['document_id']] = true;
-            }
             $id = (int) ($movement['category_id'] ?? 0);
             $amount = (float) $movement['amount'];
             if ($movement['type'] === 'income' && isset($income[$id])) {
                 $incomeTotal += $amount;
                 ++$incomeCount;
+                if (is_array($meta) && is_numeric($meta['document_id'] ?? null)) {
+                    $docId = (int) $meta['document_id'];
+                    if ($docId > 0) {
+                        $receivedByDocumentId[$docId] = ($receivedByDocumentId[$docId] ?? 0.0) + $amount;
+                    }
+                }
             } elseif ($movement['type'] === 'expense' && isset($clientCosts[$id])) {
                 $clientCostTotal += $amount;
                 $reference = trim((string) ($movement['customer_reference'] ?? '')) ?: '(sem referência)';
@@ -163,7 +166,11 @@ final readonly class ImportedSourceReview
             $id = (int) $document['id'];
             $metadata = json_decode((string) ($document['metadata'] ?? ''), true);
             $status = is_array($metadata) ? (string) ($metadata['status'] ?? 'unknown') : 'unknown';
-            if ($status === 'paid' || isset($paidDocumentIds[$id])) {
+            $receivedAmount = max(0.0, $receivedByDocumentId[$id] ?? 0.0);
+            // A 'paid' flag and an imported customer receipt must agree.
+            // Partial receipts, unrelated expenses and status-only payments
+            // remain visible for human reconciliation.
+            if ($status === 'paid' && $receivedAmount + 0.01 >= (float) $document['amount']) {
                 continue;
             }
             ++$unconfirmedCount;
@@ -175,6 +182,7 @@ final readonly class ImportedSourceReview
                     'customer' => trim((string) ($document['contact_name'] ?? '')),
                     'amount' => round((float) $document['amount'], 2),
                     'status' => $status,
+                    'received_amount' => round($receivedAmount, 2),
                     'due_date' => substr((string) ($document['due_at'] ?? ''), 0, 10),
                 ];
             }
@@ -224,13 +232,31 @@ final readonly class ImportedSourceReview
         $data = [];
         foreach ($pending['documents'] as $invoice) {
             $status = $invoice['status'];
+            $received = (float) ($invoice['received_amount'] ?? 0.0);
+            $receivedLabel = $received > 0
+                ? 'R$ ' . number_format($received, 2, ',', '.') . ' registrado no período'
+                : ($status === 'draft'
+                    ? 'Ainda não aplicável (rascunho)'
+                    : 'Não identificado nesta competência');
+            $nextStep = match ($status) {
+                'draft' => $received > 0
+                    ? 'Há recebimento registrado para um rascunho; conferir essa inconsistência.'
+                    : 'Conferir se a fatura está pronta para emitir e enviar ao cliente.',
+                'sent', 'overdue' => $received > 0
+                    ? 'Conferir o recebimento registrado e atualizar a situação da fatura.'
+                    : 'Verificar se o cliente pagou; registrar ou vincular o recebimento, se confirmado.',
+                'partial' => 'Conferir os recebimentos e o saldo pendente no Akaunting.',
+                'paid' => 'Conferir o registro do pagamento: a fatura consta como paga.',
+                default => 'Conferir a situação da fatura e os recebimentos no Akaunting.',
+            };
             $data[] = [
                 'id' => $invoice['id'],
                 'numero_documento' => $invoice['number'] !== '' ? $invoice['number'] : '#' . $invoice['id'],
                 'cliente' => $invoice['customer'] !== '' ? $invoice['customer'] : 'Cliente não identificado',
                 'valor' => $invoice['amount'],
                 'status_documento' => $status,
-                'recebimento' => 'Sem baixa confirmada na importação',
+                'recebimento' => $receivedLabel,
+                'o_que_conferir' => $nextStep,
                 'vencimento' => $invoice['due_date'],
             ];
         }

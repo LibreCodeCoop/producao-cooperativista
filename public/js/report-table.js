@@ -208,11 +208,12 @@
         // Source-only inspection must not render null as zero or export invented cents.
         if (options.pendingInvoices && column === 'status_documento') {
             const statusLabels = {
-                draft: 'Rascunho', sent: 'Enviada', partial: 'Parcialmente recebida',
-                overdue: 'Vencida', canceled: 'Cancelada', cancelled: 'Cancelada',
+                draft: 'Em rascunho', sent: 'Marcada como enviada', partial: 'Parcialmente recebida',
+                overdue: 'Vencida', paid: 'Marcada como paga',
+                canceled: 'Cancelada', cancelled: 'Cancelada',
             };
             const code = String(value ?? '');
-            const label = statusLabels[code] || 'Status não identificado';
+            const label = statusLabels[code] || 'Conferir no Akaunting';
             if (type !== 'display') return label;
             const style = ['draft', 'sent', 'partial', 'overdue'].includes(code) ? code : 'other';
             return '<span class="production-invoice-status production-invoice-status--' +
@@ -254,9 +255,16 @@
         const keys = [...new Set(rows.flatMap(row =>
             row && typeof row === 'object' && !Array.isArray(row) ? Object.keys(row) : []
         ))];
+        const pendingLabels = {
+            numero_documento: 'Fatura',
+            status_documento: 'Situação da fatura',
+            recebimento: 'Recebimento registrado',
+            o_que_conferir: 'O que fazer',
+            URL: 'Abrir no Akaunting',
+        };
         return keys.filter(key => !excluded.includes(key)).map(key => ({
             data: key,
-            title: columnTitle(key),
+            title: options.pendingInvoices ? pendingLabels[key] || columnTitle(key) : columnTitle(key),
             defaultContent: '',
             render: (value, type, row) => renderCell(value, type, key, row, options),
         }));
@@ -462,17 +470,18 @@
                     const drafts = payload.data.filter(row => row.status_documento === 'draft').length;
                     const sent = payload.data.filter(row => row.status_documento === 'sent').length;
                     const statuses = [];
-                    if (drafts) statuses.push(drafts + (drafts === 1 ? ' rascunho' : ' rascunhos'));
-                    if (sent) statuses.push(sent + (sent === 1 ? ' enviada' : ' enviadas'));
+                    if (drafts) statuses.push(drafts + ' em rascunho');
+                    if (sent) statuses.push(sent + (sent === 1 ? ' marcada como enviada' : ' marcadas como enviadas'));
                     const breakdown = !payload.metadata?.truncated && statuses.length
                         ? ' Situação: ' + statuses.join(', ') + '.' : '';
                     summary.textContent = Number.isSafeInteger(total) && Number.isFinite(amount)
-                        ? total + (total === 1 ? ' documento' : ' documentos') +
-                            ' sem baixa confirmada na importação, somando ' +
+                        ? total + (total === 1 ? ' fatura para conferir, valor nominal de ' :
+                            ' faturas para conferir, valor nominal de ') +
                             brl.format(amount) + '.' + breakdown + ' ' +
-                            (payload.metadata?.truncated ? 'Lista limitada aos primeiros 100. ' : '') +
-                            'Os status refletem a última importação do Akaunting, não o saldo bancário atual.'
-                        : 'Confira o status de cada documento na base importada.';
+                            (payload.metadata?.truncated ? 'Lista limitada às primeiras 100. ' : '') +
+                            'O total não representa necessariamente valores em atraso ou a receber. ' +
+                            'Os dados refletem a última importação, não a posição bancária atual.'
+                        : 'Confira a situação das faturas e o que fazer em cada caso.';
                 }
             }
             if (!payload.data.length) {

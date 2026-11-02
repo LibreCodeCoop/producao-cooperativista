@@ -77,9 +77,9 @@
                 money(source.income_transactions.amount) + ' (' + source.income_transactions.count + ' lançamentos)',
             'Custos de clientes em transações: ' + money(source.client_cost_transactions.amount),
             'Despesas internas em transações: ' + money(source.internal_expense_transactions.amount),
-            'Documentos importados sem baixa confirmada (inclui rascunhos): ' +
+            'Faturas para conferir (emissão ou recebimento, inclui rascunhos): ' +
                 source.unconfirmed_invoices.count + ' · valor nominal ' +
-                money(source.unconfirmed_invoices.amount),
+                money(source.unconfirmed_invoices.amount) + ' (não é saldo em atraso)',
         ];
         if (source.hours.by_member.length) {
             lines.push('', 'Horas por cooperado (Kimai):');
@@ -89,7 +89,7 @@
             }
         }
         if (source.unconfirmed_invoices.documents.length) {
-            lines.push('', 'Documentos a conferir no Akaunting:');
+            lines.push('', 'Faturas que precisam de conferência no Akaunting:');
             for (const invoice of source.unconfirmed_invoices.documents) {
                 const status = {draft: 'rascunho', sent: 'enviada', partial: 'parcial', overdue: 'vencida'};
                 lines.push('  #' + invoice.id + ' · ' + money(invoice.amount) + ' · ' +
@@ -292,8 +292,8 @@
                 pendingLink.href = '/relatorios/invoices?ano-mes=' +
                     encodeURIComponent(competence()) + '&pendentes=1';
                 pendingLink.textContent = 'Conferir ' + pending.count + ' ' +
-                    (pending.count === 1 ? 'documento' : 'documentos') +
-                    ' para conciliação no Akaunting (' + money(pending.amount) + ')';
+                    (pending.count === 1 ? 'fatura' : 'faturas') +
+                    ' no Akaunting (' + money(pending.amount) + ' em valores nominais)';
             }
             el('imported-data-summary').textContent = sourceReviewText(payload);
             el('review-competence').textContent = competence();
@@ -306,13 +306,15 @@
                 issue.hidden = !financialProblem;
                 issue.textContent = !financialProblem ? '' :
                     financialProblem.code === 'BASE_ECONOMICA'
-                        ? 'O cálculo da retirada ainda não tem receita suficiente confirmada para ' +
-                            payload.financial_month + '. Há ' + payload.unconfirmed_invoices.count +
-                            ' ' + (payload.unconfirmed_invoices.count === 1 ? 'documento' : 'documentos') +
-                            ' sem baixa confirmada na importação (incluindo rascunhos), ' +
-                            'com valor nominal de ' + money(payload.unconfirmed_invoices.amount) +
-                            '. Confira o status e os recebimentos no relatório de documentos abaixo. ' +
-                            'A tabela de horas e a seleção dos cooperados continuam disponíveis.'
+                        ? 'A regra atual de cálculo não encontrou recebimentos suficientes na ' +
+                            'competência financeira ' + payload.financial_month + '. Há ' +
+                            payload.unconfirmed_invoices.count + ' ' +
+                            (payload.unconfirmed_invoices.count === 1 ? 'fatura' : 'faturas') +
+                            ' que precisam de revisão de emissão ou recebimento no Akaunting. ' +
+                            'O valor nominal conjunto é ' + money(payload.unconfirmed_invoices.amount) +
+                            ', não necessariamente um saldo em atraso. ' +
+                            'Consulte a situação e o próximo passo no relatório de faturas. ' +
+                            'A conferência das horas continua disponível.'
                         : 'Não foi possível concluir o cálculo de retirada. Os dados importados ' +
                             'permanecem disponíveis para conferência. Consulte o relatório de ' +
                             'movimentações e os logs técnicos antes de tentar publicar.';
