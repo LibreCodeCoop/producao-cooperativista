@@ -112,6 +112,30 @@ final class ProfileFieldsLinkTest extends TestCase
         self::assertStringEndsWith('/users/lookup', $requests[1][1]);
     }
 
+    public function testExplicitKimaiLinkDoesNotSilentlyOverwriteConflictingFiscalIdentity(): void
+    {
+        $http = new MockHttpClient(static function (string $method, string $url): MockResponse {
+            if (str_ends_with($url, '/definitions')) {
+                return self::response([
+                    ['id' => 4, 'field_key' => 'kimai_user_id', 'type' => 'text', 'active' => true],
+                ]);
+            }
+            return self::response([
+                'user_uid' => 'nc-account',
+                'fields' => [
+                    'kimai_user_id' => ['value' => ['value' => '17']],
+                    'tax_number' => ['value' => ['value' => '52998224725']],
+                    'dependents' => ['value' => ['value' => '0']],
+                ],
+            ]);
+        });
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Identificador fiscal divergente');
+        new ProfileFieldsClient($http, new NullLogger())->enrichUser([
+            'id' => 17, 'username' => 'time-user', 'tax_number' => '11111111111',
+        ]);
+    }
+
     public function testAmbiguousLinkLookupDoesNotPickAnyUser(): void
     {
         $http = new MockHttpClient(static fn (): MockResponse => self::response(

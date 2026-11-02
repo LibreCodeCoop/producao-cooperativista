@@ -38,6 +38,10 @@ use App\Service\Import\MonthSnapshotReconciler;
 class Timesheets
 {
     use Kimai;
+
+    /** @var array<string, list<array<string, mixed>>> */
+    private array $monthlySnapshots = [];
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
@@ -60,6 +64,14 @@ class Timesheets
 
     public function getFromApi(DateTime $date, $user = 'all', $exported = 'all'): array
     {
+        // The user roster and timesheet import must use exactly the same
+        // source snapshot. Do not fetch a second, potentially changed set.
+        $month = $date->format('Y-m');
+        $fullSnapshot = $user === 'all' && $exported === 'all';
+        if ($fullSnapshot && isset($this->monthlySnapshots[$month])) {
+            return $this->monthlySnapshots[$month];
+        }
+
         $begin = (clone $date)
             ->modify('first day of this month')
             ->setTime(00, 00, 00);
@@ -79,6 +91,12 @@ class Timesheets
             $query['exported'] = $exported === 'all' ? null : $exported;
         }
         $list = $this->doRequestKimai('/timesheets', $query);
+        if (!array_is_list($list)) {
+            throw new \UnexpectedValueException('O Kimai não retornou uma lista de apontamentos da competência.');
+        }
+        if ($fullSnapshot) {
+            $this->monthlySnapshots[$month] = $list;
+        }
         return $list;
     }
 

@@ -297,6 +297,12 @@ class ProfileFieldsClient
         if ($id > 0 && isset($this->activeDefinitions()['kimai_user_id'])) {
             $linked = $this->findByKimaiId($id);
             if ($linked !== null) {
+                // An explicit Kimai link does not authorize silently replacing
+                // a conflicting fiscal identity with another person's CPF.
+                $sourceTax = trim((string) ($user['tax_number'] ?? ''));
+                if ($sourceTax !== '') {
+                    $this->assertMatchingTaxNumber($linked['values'], $sourceTax);
+                }
                 $financialId = filter_var(
                     $linked['values']['akaunting_contact_id'] ?? null,
                     FILTER_VALIDATE_INT,

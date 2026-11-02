@@ -4,7 +4,8 @@
 
 - Nextcloud `profile_fields`: CPF/CNPJ de referência, peso e número
   atual de dependentes. Zero dependentes deve ser explícito; ausência
-  ou valor inválido bloqueiam a importação LibreCode.
+  ou valor inválido bloqueiam a importação dos cooperados participantes
+  da competência, sem presumir zero para os demais usuários do Kimai.
 - Kimai: identificador local, apontamentos e projetos. A preferência
   `tax_number` é usada para confirmar a identidade no Nextcloud.
   Dependentes não são importados do Kimai.
@@ -15,7 +16,16 @@
 
 O painel de configuração permite editar dependentes exclusivamente na fonte
 Nextcloud. A importação exige que a quantidade esteja informada explicitamente
-e bloqueia registros com referência fiscal divergente entre sistemas.
+para todos os usuários referenciados pelos apontamentos do mês e bloqueia
+registros participantes com referência fiscal divergente entre sistemas.
+
+A lista de participantes é determinada pelos apontamentos **atuais da competência**
+consultados diretamente no Kimai, nunca por cadastros ativos ou por um snapshot
+antigo do ETL. A mesma fotografia completa de apontamentos é reutilizada na
+importação das horas para impedir divergências entre as duas etapas. Usuários
+sem apontamentos no mês não são reimportados nem recebem dependentes fictícios;
+se passarem a participar de uma competência futura, a validação voltará a ser
+obrigatória. As linhas históricas do ETL não são apagadas por essa seleção.
 
 ## Identificadores e credenciais
 

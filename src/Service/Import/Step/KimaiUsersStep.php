@@ -11,6 +11,7 @@ namespace App\Service\Import\Step;
 
 use App\Service\Import\SourceStep;
 use App\Service\Kimai\Source\Users;
+use App\Service\Kimai\Source\Timesheets;
 use DateTime;
 use Symfony\Component\DependencyInjection\Attribute\AsTaggedItem;
 
@@ -22,7 +23,7 @@ use Symfony\Component\DependencyInjection\Attribute\AsTaggedItem;
 #[AsTaggedItem(priority: 1000)]
 final readonly class KimaiUsersStep implements SourceStep
 {
-    public function __construct(private Users $source)
+    public function __construct(private Users $source, private Timesheets $timesheets)
     {
     }
 
@@ -35,6 +36,17 @@ final readonly class KimaiUsersStep implements SourceStep
     #[\Override]
     public function synchronize(DateTime $competence): void
     {
-        $this->source->saveList();
+        // Only cooperados with recorded work in this competence need
+        // fiscal parameters to calculate it. An unrelated Kimai account
+        // must not block the monthly closing or acquire assumed dependents.
+        $ids = [];
+        foreach ($this->timesheets->getFromApi($competence) as $row) {
+            $id = $row['user'] ?? null;
+            if (!is_int($id) || $id <= 0) {
+                throw new \DomainException('PROFILE_SOURCE: apontamento Kimai sem identificador de usuário válido.');
+            }
+            $ids[$id] = $id;
+        }
+        $this->source->setRequiredUserIds(array_values($ids))->saveList();
     }
 }

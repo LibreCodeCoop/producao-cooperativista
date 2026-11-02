@@ -47,6 +47,8 @@ class Users
     ];
     /** @var User[] */
     private array $list = [];
+    /** @var array<int, true>|null */
+    private ?array $requiredUserIds = null;
     private EntityManagerInterface $entityManagerAkaunting;
 
     public function __construct(
@@ -66,6 +68,26 @@ class Users
     }
 
     /**
+     * Restrict the monthly snapshot to Kimai users referenced by timesheets.
+     * Missing fiscal information must still block import for those users.
+     * Standalone, unscoped reads retain their existing behavior.
+     *
+     * @param list<int> $ids
+     */
+    public function setRequiredUserIds(array $ids): self
+    {
+        $this->requiredUserIds = [];
+        foreach ($ids as $id) {
+            if (!is_int($id) || $id <= 0) {
+                throw new InvalidArgumentException('A relação de cooperados contém um identificador Kimai inválido.');
+            }
+            $this->requiredUserIds[$id] = true;
+        }
+        $this->list = [];
+        return $this;
+    }
+
+    /**
      * Get users from Kimai API
      *
      * @param integer $visible 1=visible, 2=hidden, 3=all
@@ -73,6 +95,9 @@ class Users
      */
     public function getList(): array
     {
+        if ($this->requiredUserIds === []) {
+            return [];
+        }
         if (!empty($this->list)) {
             return $this->list;
         }
@@ -82,11 +107,29 @@ class Users
         $list = $this->doRequestKimai('/users', [
             'visible' => $this->visibility,
         ]);
+        if (!array_is_list($list)) {
+            throw new \UnexpectedValueException('Kimai não retornou uma lista de usuários.');
+        }
+        $seen = [];
         foreach ($list as $row) {
+            $id = (int) ($row['id'] ?? 0);
+            if ($this->requiredUserIds !== null && !isset($this->requiredUserIds[$id])) {
+                continue;
+            }
+            if ($this->requiredUserIds !== null && isset($seen[$id])) {
+                throw new \DomainException(sprintf('PROFILE_SOURCE: usuário Kimai #%d duplicado na origem.', $id));
+            }
+            $seen[$id] = true;
             try {
                 $user = $this->fromArray($row);
                 $this->list[] = $user;
-            } catch (InvalidArgumentException) {
+            } catch (InvalidArgumentException $error) {
+                if ($this->requiredUserIds !== null) {
+                    throw new \DomainException(sprintf(
+                        'PROFILE_SOURCE: usuário Kimai #%d participante sem cadastro fiscal válido.',
+                        $id,
+                    ), 0, $error);
+                }
             } catch (\DomainException $error) {
                 $this->logger->warning('Importação bloqueada por inconsistência cadastral entre fontes.', [
                     'error_class' => $error::class,
@@ -111,6 +154,15 @@ class Users
                     'error_class' => $error::class,
                 ]);
                 throw $error;
+            }
+        }
+        if ($this->requiredUserIds !== null) {
+            $missing = array_diff_key($this->requiredUserIds, $seen);
+            if ($missing !== []) {
+                throw new \DomainException(sprintf(
+                    'PROFILE_SOURCE: usuário Kimai #%d possui apontamentos, mas não foi localizado no cadastro de usuários.',
+                    (int) array_key_first($missing),
+                ));
             }
         }
         $this->logger->debug('Dados baixados: {json}', ['json' => json_encode($list)]);

@@ -305,6 +305,7 @@ final class ProfileFieldsClientTest extends TestCase
                         'user_uid' => 'nextcloud-uid',
                         'fields' => [
                             'kimai_user_id' => ['value' => ['value' => '21']],
+                            'tax_number' => ['value' => ['value' => '12345678901']],
                             'dependents' => ['value' => ['value' => 0]],
                         ],
                     ],
