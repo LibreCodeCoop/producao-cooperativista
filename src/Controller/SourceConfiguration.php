@@ -105,7 +105,6 @@ final class SourceConfiguration extends AbstractController
                     'linked' => $editor['links']['linked'],
                     'kimai_linked' => $editor['links']['kimai_linked'],
                 ],
-                'fiscal' => $editor['fiscal'],
                 'can_manage' => $canManage,
             ];
             $template = $request->isXmlHttpRequest()
@@ -295,15 +294,13 @@ final class SourceConfiguration extends AbstractController
 
     /**
      * @param array<string, mixed> $member
-     * @return array{services: array<string, array<string, mixed>>, links: array<string, mixed>, fiscal: array<string, string>}
+     * @return array{services: array<string, array<string, mixed>>, links: array<string, mixed>}
      */
     private function serviceFields(array $member): array
     {
         $id = (int) $member['id'];
         $services = [
             'nextcloud' => ['title' => 'Nextcloud', 'fields' => [], 'error' => '', 'configured' => false],
-            'kimai' => ['title' => 'Kimai', 'fields' => [], 'error' => '', 'configured' => true],
-            'akaunting' => ['title' => 'Akaunting', 'fields' => [], 'error' => '', 'configured' => false],
         ];
         $links = [
             'uid' => '',
@@ -311,26 +308,16 @@ final class SourceConfiguration extends AbstractController
             'linked' => false,
             'kimai_linked' => false,
         ];
-        $referenceTax = '';
-        $fiscal = [
-            'nextcloud' => 'Cadastro não verificado.',
-            'kimai' => 'Preferência legada não consultada.',
-            'akaunting' => 'Contato financeiro não verificado.',
-        ];
         try {
             $profile = $this->sources->nextcloudForMember($member);
             if ($profile['exists']) {
                 $links['uid'] = $profile['uid'];
                 $values = $profile['values'];
-                $referenceTax = trim((string) ($values[self::profileKey('tax_number')] ?? ''));
-                $fiscal['nextcloud'] = $referenceTax !== ''
-                    ? 'Referência cadastral disponível no Profile Fields.'
-                    : 'CPF/CNPJ não informado no Profile Fields.';
                 $links['contact_id'] = trim((string) ($values['akaunting_contact_id'] ?? ''));
                 $links['kimai_linked'] = trim((string) ($values['kimai_user_id'] ?? '')) === (string) $id;
                 $links['linked'] = $links['kimai_linked'] && $links['contact_id'] !== '';
                 if ($links['kimai_linked']) {
-                    foreach (['tax_number', 'weight', 'dependents'] as $field) {
+                    foreach (['weight', 'dependents', 'tax_number'] as $field) {
                         $value = (string) ($values[self::profileKey($field)] ?? '');
                         $services['nextcloud']['fields'][] = $this->field($id, 'nextcloud', $field, $value);
                     }
@@ -345,51 +332,7 @@ final class SourceConfiguration extends AbstractController
             $this->logger->warning('Falha ao consultar perfil para edição.', ['member_id' => $id, 'class' => $error::class]);
             $services['nextcloud']['error'] = 'Conta Nextcloud indisponível. Confira o vínculo e as permissões.';
         }
-
-        $legacyKimaiTax = trim((string) ($member['preferences']['tax_number'] ?? ''));
-        $fiscal['kimai'] = $legacyKimaiTax === ''
-            ? 'Preferência legada ausente; o vínculo usa o ID interno.'
-            : self::compareTaxNumber($referenceTax, $legacyKimaiTax);
-
-        $contactId = $links['linked'] ? (int) $links['contact_id'] : 0;
-        if ($contactId > 0) {
-            try {
-                $contact = $this->sources->contactOverview($contactId);
-                $fiscal['akaunting'] = self::compareTaxNumber(
-                    $referenceTax,
-                    (string) $contact['tax_number'],
-                );
-                $services['akaunting']['configured'] = $contact['editable'];
-                $services['akaunting']['error'] = $contact['reason'];
-            } catch (\Throwable) {
-                $services['akaunting']['error'] = 'Contato financeiro não encontrado na empresa configurada.';
-                $fiscal['akaunting'] = 'Não foi possível conferir o contato financeiro.';
-            }
-        } else {
-            $services['akaunting']['error'] = 'Selecione um contato financeiro para vincular.';
-            $fiscal['akaunting'] = 'Contato financeiro ainda não vinculado.';
-        }
-
-        $services['nextcloud']['description'] = 'Peso e dependentes.';
-        $services['kimai']['description'] = 'Registro de horas.';
-        $services['akaunting']['description'] = 'Dados financeiros.';
-        return ['services' => $services, 'links' => $links, 'fiscal' => $fiscal];
-    }
-
-    private static function compareTaxNumber(string $reference, string $candidate): string
-    {
-        $reference = strtoupper((string) preg_replace('/[^a-zA-Z0-9]/', '', $reference));
-        $candidate = strtoupper((string) preg_replace('/[^a-zA-Z0-9]/', '', $candidate));
-        if ($reference === '') {
-            return 'Não verificado: CPF/CNPJ ausente no cadastro de referência.';
-        }
-        if ($candidate === '') {
-            return 'CPF/CNPJ ausente nesta origem.';
-        }
-
-        return hash_equals($reference, $candidate)
-            ? 'CPF/CNPJ confere com o Profile Fields.'
-            : 'CPF/CNPJ divergente do Profile Fields; conferir cadastro na origem.';
+        return ['services' => $services, 'links' => $links];
     }
 
     /** @return array{field: string, label: string, value: string, expected: string, kind: string} */

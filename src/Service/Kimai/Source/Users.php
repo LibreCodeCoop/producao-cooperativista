@@ -27,7 +27,6 @@ declare(strict_types=1);
 namespace App\Service\Kimai\Source;
 
 use App\Entity\Producao\User;
-use Doctrine\DBAL\ArrayParameterType;
 use InvalidArgumentException;
 use App\Provider\Kimai;
 use App\Service\Nextcloud\ProfileFieldsClient;
@@ -165,20 +164,14 @@ class Users
                 ));
             }
         }
-        $this->logger->debug('Dados baixados: {json}', ['json' => json_encode($list)]);
+        $this->logger->debug('Usuários Kimai consultados.', ['count' => count($list)]);
         return $list;
     }
 
     public function fromArray(array $array): User
     {
-        $array = $this->updateFromUserPreferences($array);
-        // A monthly import trusts only the explicit administrative link and
-        // the fiscal reference in Nextcloud. An obsolete Kimai tax preference
-        // must not overwrite or contradict the master profile.
-        if ($this->requiredUserIds !== null) {
-            unset($array['tax_number']);
-        }
-        // Standalone legacy CLI lookups still support their old fallback.
+        $array = $this->updateFromKimaiUser($array);
+        // Match by the exact Kimai ID stored by an administrator in Nextcloud.
         $array = $this->profileFieldsClient->enrichUser(
             $array,
             $this->requiredUserIds !== null,
@@ -198,8 +191,8 @@ class Users
     private function validate(array $array): void
     {
         if (empty($array['tax_number'])) {
-            // Non-cooperative Kimai users are skipped before requiring a
-            // Nextcloud profile, as they were before dependent validation.
+            // Only Nextcloud supplies the fiscal reference. Unlinked
+            // accounts have no financial identity to import.
             throw new InvalidArgumentException('Cooperado sem CPF encontrado');
         }
         if (!isset($array['dependents']) || !is_int($array['dependents'])
@@ -211,70 +204,47 @@ class Users
         }
     }
 
-    private function updateFromUserPreferences(array $item): array
+    private function updateFromKimaiUser(array $item): array
     {
         $detailed = $this->doRequestKimai('/users/' . $item['id']);
-        $preferences = array_column($detailed['preferences'] ?? [], 'value', 'name');
         $item['kimai_username'] = $item['username'];
         if (!$item['alias']) {
             $item['alias'] = $item['username'];
         }
-        $item['email'] = $preferences['email'] ?? null;
-        // The imported user contract accepts dependents only from Nextcloud.
-        unset($item['dependents']);
-        if ($preferences['tax_number'] ?? '' !== '') {
-            $item['tax_number'] = $preferences['tax_number'];
-        }
+        // Kimai exposes email natively; no custom preference is needed.
+        $item['email'] = is_string($detailed['email'] ?? null) ? $detailed['email'] : null;
+        unset($item['dependents'], $item['tax_number'], $item['akaunting_contact_id']);
         return $item;
     }
 
     private function updateWithAkauntingData(array $item): array
     {
-        if (empty($item['tax_number'])) {
+        $linkedId = (int) ($item['akaunting_contact_id'] ?? 0);
+        if ($linkedId <= 0) {
+            if ($this->requiredUserIds !== null) {
+                throw new \DomainException(
+                    'PROFILE_SOURCE: contato financeiro não vinculado no Nextcloud Profile Fields. '
+                    . 'Solicite ao administrador o akaunting_contact_id antes de importar.'
+                );
+            }
             return $item;
         }
         $company = (int) getenv('AKAUNTING_COMPANY_ID');
         if ($company <= 0) {
             throw new \DomainException('Empresa do Akaunting não configurada para conciliar cooperados.');
         }
-        $linkedId = (int) ($item['akaunting_contact_id'] ?? 0);
-        if ($linkedId <= 0 && $this->requiredUserIds !== null) {
-            throw new \DomainException(
-                'PROFILE_SOURCE: contato financeiro não vinculado no Nextcloud Profile Fields. '
-                . 'Solicite ao administrador o akaunting_contact_id antes de importar.'
-            );
+        $contact = $this->entityManagerAkaunting->getConnection()->fetchAssociative(
+            "SELECT id, tax_number FROM contacts
+             WHERE id = :id AND company_id = :company
+               AND type IN ('vendor', 'employee') AND deleted_at IS NULL",
+            ['id' => $linkedId, 'company' => $company],
+        );
+        if (!is_array($contact) || (int) $contact['id'] !== $linkedId) {
+            throw new \DomainException('Contato financeiro vinculado inexistente ou de outra empresa no Akaunting.');
         }
-        if ($linkedId > 0) {
-            $contact = $this->entityManagerAkaunting->getConnection()->fetchAssociative(
-                "SELECT id, tax_number FROM contacts
-                 WHERE id = :id AND company_id = :company
-                   AND type IN ('vendor', 'employee') AND deleted_at IS NULL",
-                ['id' => $linkedId, 'company' => $company],
-            );
-            if (!is_array($contact) || (int) $contact['id'] !== $linkedId) {
-                throw new \DomainException('Contato financeiro vinculado inexistente ou de outra empresa no Akaunting.');
-            }
-            if (trim((string) $contact['tax_number']) !== (string) $item['tax_number']) {
-                throw new \DomainException('CPF/CNPJ diverge entre o Profile Fields e o contato financeiro selecionado.');
-            }
-            return $item;
+        if (trim((string) $contact['tax_number']) !== (string) ($item['tax_number'] ?? '')) {
+            throw new \DomainException('CPF/CNPJ diverge entre o Profile Fields e o contato financeiro selecionado.');
         }
-        $qb = $this->entityManagerAkaunting->getConnection()->createQueryBuilder();
-        $qb->select('c.id')
-            ->from('contacts', 'c')
-            ->where($qb->expr()->eq('c.tax_number', $qb->createNamedParameter($item['tax_number'])))
-            ->andWhere($qb->expr()->eq('c.company_id', $qb->createNamedParameter($company)))
-            ->andWhere('c.deleted_at IS NULL')
-            ->andWhere($qb->expr()->in('c.type', $qb->createNamedParameter(['vendor', 'employee'], ArrayParameterType::STRING)))
-            ->setMaxResults(2);
-        $matches = $qb->executeQuery()->fetchAllAssociative();
-        if (count($matches) > 1) {
-            throw new \DomainException(
-                'CPF/CNPJ vinculado a mais de um contato financeiro na empresa do Akaunting. '
-                . 'Resolva a duplicidade antes de importar.'
-            );
-        }
-        $item['akaunting_contact_id'] = $matches !== [] ? (int) $matches[0]['id'] : null;
         return $item;
     }
 

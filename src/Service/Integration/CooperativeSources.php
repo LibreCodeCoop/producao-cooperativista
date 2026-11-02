@@ -58,7 +58,7 @@ final class CooperativeSources
         return $result;
     }
 
-    /** @return array{id: int, username: string, alias: string, preferences: array<string, string>, enabled: bool, system: bool} */
+    /** @return array{id: int, username: string, alias: string, enabled: bool, system: bool} */
     public function user(int $id): array
     {
         if ($id <= 0) {
@@ -68,20 +68,10 @@ final class CooperativeSources
         if ((int) ($raw['id'] ?? 0) !== $id || trim((string) ($raw['username'] ?? '')) === '') {
             throw new RuntimeException('Usuário não encontrado no Kimai.');
         }
-        $preferences = [];
-        foreach ($raw['preferences'] ?? [] as $preference) {
-            if (is_array($preference)
-                && in_array($preference['name'] ?? null, ['tax_number'], true)
-                && is_scalar($preference['value'] ?? null)) {
-                $preferences[$preference['name']] = (string) $preference['value'];
-            }
-        }
-
         return [
             'id' => $id,
             'username' => (string) $raw['username'],
             'alias' => (string) (($raw['alias'] ?? '') ?: $raw['username']),
-            'preferences' => $preferences,
             'enabled' => (bool) ($raw['enabled'] ?? true),
             'system' => (bool) ($raw['systemAccount'] ?? false),
         ];
@@ -123,7 +113,7 @@ final class CooperativeSources
     }
 
     /**
-     * @param array{id: int, username: string, preferences: array<string, string>} $member
+     * @param array{id: int, username: string} $member
      * @return array{exists: bool, uid: string, values: array<string, mixed>}
      */
     public function nextcloudForMember(array $member): array
@@ -167,12 +157,6 @@ final class CooperativeSources
         $this->profileFields->ensureLinkDefinitions();
     }
 
-    /** @return array{id:int,company_id:int,type:string,name:string,tax_number:string,editable:bool,reason:string} */
-    public function contactOverview(int $id): array
-    {
-        return $this->akauntingContacts->overview($id);
-    }
-
     /** Validates both identities and uniqueness before any remote modification. */
     public function linkMember(int $kimaiId, string $uid, int $contactId): void
     {
@@ -205,10 +189,6 @@ final class CooperativeSources
         $contactTax = (string) preg_replace('/\\D/', '', (string) $financial['tax_number']);
         if (!in_array(strlen($profileTax), [11, 14], true) || $profileTax !== $contactTax) {
             throw new \DomainException('CPF/CNPJ divergente entre o Profile Fields e o contato do Akaunting.');
-        }
-        $kimaiTax = (string) preg_replace('/\\D/', '', (string) ($member['preferences']['tax_number'] ?? ''));
-        if ($kimaiTax !== '' && $kimaiTax !== $profileTax) {
-            throw new \DomainException('CPF/CNPJ divergente entre Kimai e Profile Fields.');
         }
         $otherKimai = $this->profileFields->findUserUidByLink('kimai_user_id', $kimaiId);
         if ($otherKimai !== null && $otherKimai !== $uid) {

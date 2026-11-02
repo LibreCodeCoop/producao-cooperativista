@@ -17,10 +17,6 @@ class ProfileFieldsClient
     /** @var array<string, array<string, mixed>> */
     private array $fieldsByUserUid = [];
 
-    /** @var array<string, array<string, mixed>> */
-    private array $fieldsByTaxNumber = [];
-
-    private bool $preferUserUidLookup = false;
     /** @var array<string, array{id:int,type:string}>|null */
     private ?array $cachedDefinitions = null;
     /** @var array<string,bool> */
@@ -201,7 +197,6 @@ class ProfileFieldsClient
             options: ['json' => ['value' => $value]],
         );
         unset($this->fieldsByUserUid[$userUid]);
-        $this->fieldsByTaxNumber = [];
     }
 
     /**
@@ -245,73 +240,25 @@ class ProfileFieldsClient
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    public function getFieldsForTaxNumber(string $taxNumber): array
-    {
-        $taxNumber = trim($taxNumber);
-        if (!$this->isConfigured() || $taxNumber === '') {
-            return [];
-        }
-
-        if (isset($this->fieldsByTaxNumber[$taxNumber])) {
-            return $this->fieldsByTaxNumber[$taxNumber];
-        }
-
-        $lookup = $this->requestOcs(
-            '/ocs/v2.php/apps/profile_fields/api/v1/users/lookup',
-            method: 'POST',
-            options: [
-                'json' => [
-                    'fieldKey' => $this->getTaxNumberFieldKey(),
-                    'fieldValue' => $taxNumber,
-                ],
-            ],
-            allowNotFound: true,
-        );
-
-        $fields = [];
-        $lookupFields = $lookup['fields'] ?? null;
-        if (is_array($lookupFields)) {
-            foreach ($lookupFields as $fieldKey => $field) {
-                if (!is_string($fieldKey) || !is_array($field)) {
-                    continue;
-                }
-
-                $fields[$fieldKey] = $this->normalizeValue($field['value'] ?? null);
-            }
-        }
-
-        $this->fieldsByTaxNumber[$taxNumber] = $fields;
-
-        return $fields;
-    }
-
-    /**
      * @param array<string, mixed> $user
      * @return array<string, mixed>
      */
     public function enrichUser(array $user, bool $requireExplicitLink = false): array
     {
+        // Fiscal identity and financial contact are NEVER taken from Kimai.
+        // The only authority for these fields is the exact Profile Fields link.
+        unset($user['tax_number'], $user['akaunting_contact_id']);
         $id = (int) ($user['id'] ?? 0);
         if ($id > 0 && isset($this->activeDefinitions()['kimai_user_id'])) {
             $linked = $this->findByKimaiId($id);
             if ($linked !== null) {
-                // An explicit Kimai link does not authorize silently replacing
-                // a conflicting fiscal identity with another person's CPF.
-                $sourceTax = trim((string) ($user['tax_number'] ?? ''));
-                if ($sourceTax !== '') {
-                    $this->assertMatchingTaxNumber($linked['values'], $sourceTax);
-                }
+                $user = $this->applyFieldsToUser($user, $linked['values']);
                 $financialId = filter_var(
                     $linked['values']['akaunting_contact_id'] ?? null,
                     FILTER_VALIDATE_INT,
                     ['options' => ['min_range' => 1]],
                 );
-                $user = $this->applyFieldsToUser($user, $linked['values']);
-                // The Kimai profile link must work independently of the
-                // financial contact. Dependents and weight belong to Nextcloud.
-                if ($financialId) {
+                if ($financialId !== false && $financialId !== null) {
                     $user['akaunting_contact_id'] = $financialId;
                 }
                 return $user;
@@ -323,64 +270,7 @@ class ProfileFieldsClient
                 . 'Solicite ao administrador que vincule as contas antes de importar.'
             );
         }
-
-        $taxNumber = trim((string) ($user['tax_number'] ?? ''));
-        if ($taxNumber === '') {
-            return $user;
-        }
-
-        $fields = $this->resolveFieldsForUser($user, $taxNumber);
-        if ($fields === []) {
-            return $user;
-        }
-
-        return $this->applyFieldsToUser($user, $fields);
-    }
-
-    /**
-     * @param array<string, mixed> $user
-     * @return array<string, mixed>
-     */
-    private function resolveFieldsForUser(array $user, string $taxNumber): array
-    {
-        $userUid = $this->getUserUid($user);
-
-        // In existing production logs, most CPF lookups returned 404 but the
-        // same users were found by UID. Prefer the successful route after a miss.
-        if ($this->preferUserUidLookup && $userUid !== '') {
-            $uidFields = $this->getFieldsForUser($userUid);
-            $profileTaxNumber = trim((string) ($uidFields[$this->getTaxNumberFieldKey()] ?? ''));
-            if ($profileTaxNumber !== '' && $profileTaxNumber === $taxNumber) {
-                return $uidFields;
-            }
-        }
-
-        $fields = $this->getFieldsForTaxNumber($taxNumber);
-        if ($fields !== []) {
-            $this->assertMatchingTaxNumber($fields, $taxNumber);
-            return $fields;
-        }
-
-        $this->preferUserUidLookup = true;
-        $uidFields = $this->getFieldsForUser($userUid);
-        if ($uidFields === []) {
-            return [];
-        }
-        $this->assertMatchingTaxNumber($uidFields, $taxNumber);
-        return $uidFields;
-    }
-
-    /**
-     * @param array<string, mixed> $fields
-     */
-    private function assertMatchingTaxNumber(array $fields, string $taxNumber): void
-    {
-        $profileTaxNumber = trim((string) ($fields[$this->getTaxNumberFieldKey()] ?? ''));
-        if ($profileTaxNumber === '' || $profileTaxNumber !== $taxNumber) {
-            throw new \DomainException(
-                'Identificador fiscal divergente ou ausente no Profile Fields. Confira o CPF/CNPJ do cooperado no Nextcloud e no Kimai antes do cálculo.'
-            );
-        }
+        return $user;
     }
 
     /**
@@ -433,14 +323,6 @@ class ProfileFieldsClient
         if (is_scalar($fieldValue) && is_numeric((string) $fieldValue)) {
             $user[$userKey] = $caster($fieldValue);
         }
-    }
-
-    /**
-     * @param array<string, mixed> $user
-     */
-    private function getUserUid(array $user): string
-    {
-        return trim((string) ($user['kimai_username'] ?? $user['username'] ?? ''));
     }
 
     private function getDefinitionFieldKey(int $definitionId): ?string

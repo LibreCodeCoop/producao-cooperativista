@@ -12,548 +12,147 @@ use Symfony\Component\HttpClient\Response\MockResponse;
 
 final class ProfileFieldsClientTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        putenv('PROFILE_FIELDS_API_BASE_URL=https://nextcloud.example.test');
+        putenv('PROFILE_FIELDS_AUTH_USER=service');
+        putenv('PROFILE_FIELDS_AUTH_TOKEN=test-only');
+    }
+
     protected function tearDown(): void
     {
-        putenv('PROFILE_FIELDS_API_BASE_URL');
-        putenv('PROFILE_FIELDS_AUTH_USER');
-        putenv('PROFILE_FIELDS_AUTH_TOKEN');
-        putenv('PROFILE_FIELDS_TAX_NUMBER_FIELD_KEY');
-        putenv('PROFILE_FIELDS_WEIGHT_FIELD_KEY');
-        putenv('PROFILE_FIELDS_DEPENDENTS_FIELD_KEY');
-    }
-
-    public function testGetFieldsForTaxNumberMapsValuesByFieldKey(): void
-    {
-        putenv('PROFILE_FIELDS_API_BASE_URL=https://nextcloud.example.com');
-        putenv('PROFILE_FIELDS_AUTH_USER=api-user');
-        putenv('PROFILE_FIELDS_AUTH_TOKEN=api-token');
-
-        $calls = [];
-        $httpClient = new MockHttpClient(function (string $method, string $url, array $options) use (&$calls): MockResponse {
-            $calls[] = compact('method', 'url', 'options');
-
-            if (str_ends_with($url, '/users/lookup')) {
-                self::assertSame('POST', $method);
-                self::assertLookupPayload($options, [
-                    'fieldKey' => 'tax_number',
-                    'fieldValue' => '11122233344',
-                ]);
-
-                return new MockResponse((string) json_encode([
-                    'ocs' => [
-                        'meta' => [
-                            'status' => 'ok',
-                            'statuscode' => 100,
-                        ],
-                        'data' => [
-                            'user_uid' => 'pessoa02',
-                            'lookup_field_key' => 'tax_number',
-                            'fields' => [
-                                'tax_number' => [
-                                    'definition' => [
-                                        'field_key' => 'tax_number',
-                                    ],
-                                    'value' => [
-                                        'field_definition_id' => 10,
-                                        'value' => [
-                                            'value' => '11122233344',
-                                        ],
-                                    ],
-                                ],
-                                'weight' => [
-                                    'definition' => [
-                                        'field_key' => 'weight',
-                                    ],
-                                    'value' => [
-                                        'field_definition_id' => 11,
-                                        'value' => [
-                                            'value' => '2.5',
-                                        ],
-                                    ],
-                                ],
-                            ],
-                        ],
-                    ],
-                ]));
-            }
-
-            return new MockResponse('not found', ['http_code' => 404]);
-        });
-
-        $client = new ProfileFieldsClient($httpClient, new NullLogger());
-        $fields = $client->getFieldsForTaxNumber('11122233344');
-
-        self::assertSame([
-            'tax_number' => '11122233344',
-            'weight' => '2.5',
-        ], $fields);
-        self::assertCount(1, $calls);
-    }
-
-    public function testGetFieldsForTaxNumberReturnsEmptyArrayWhenIntegrationIsNotConfigured(): void
-    {
-        $httpClient = new MockHttpClient(function (): MockResponse {
-            self::fail('The Profile Fields API should not be called when the integration is not configured.');
-        });
-
-        $client = new ProfileFieldsClient($httpClient, new NullLogger());
-
-        self::assertSame([], $client->getFieldsForTaxNumber('11122233344'));
-    }
-
-    public function testEnrichUserUsesTaxNumberLookupAndMapsPesoFromProfileFields(): void
-    {
-        putenv('PROFILE_FIELDS_API_BASE_URL=https://nextcloud.example.com');
-        putenv('PROFILE_FIELDS_AUTH_USER=api-user');
-        putenv('PROFILE_FIELDS_AUTH_TOKEN=api-token');
-
-        $httpClient = new MockHttpClient(function (string $method, string $url, array $options): MockResponse {
-            if (str_ends_with($url, '/definitions')) {
-                return new MockResponse((string) json_encode([
-                    'ocs' => ['meta' => ['statuscode' => 200], 'data' => [
-                        ['id' => 10, 'field_key' => 'tax_number', 'type' => 'text', 'active' => true],
-                        ['id' => 11, 'field_key' => 'weight', 'type' => 'number', 'active' => true],
-                    ]],
-                ]));
-            }
-            if (str_ends_with($url, '/users/lookup')) {
-                self::assertSame('POST', $method);
-                self::assertLookupPayload($options, [
-                    'fieldKey' => 'tax_number',
-                    'fieldValue' => '11122233344',
-                ]);
-
-                return new MockResponse((string) json_encode([
-                    'ocs' => [
-                        'meta' => [
-                            'status' => 'ok',
-                            'statuscode' => 100,
-                        ],
-                        'data' => [
-                            'user_uid' => 'pessoa02',
-                            'lookup_field_key' => 'tax_number',
-                            'fields' => [
-                                'tax_number' => [
-                                    'definition' => [
-                                        'field_key' => 'tax_number',
-                                    ],
-                                    'value' => [
-                                        'field_definition_id' => 10,
-                                        'value' => [
-                                            'value' => '11122233344',
-                                        ],
-                                    ],
-                                ],
-                                'weight' => [
-                                    'definition' => [
-                                        'field_key' => 'weight',
-                                    ],
-                                    'value' => [
-                                        'field_definition_id' => 11,
-                                        'value' => [
-                                            'value' => '1.75',
-                                        ],
-                                    ],
-                                ],
-                            ],
-                        ],
-                    ],
-                ]));
-            }
-
-            return new MockResponse('not found', ['http_code' => 404]);
-        });
-
-        $client = new ProfileFieldsClient($httpClient, new NullLogger());
-
-        self::assertSame([
-            'id' => 2,
-            'username' => 'vitor@librecode.coop',
-            'kimai_username' => 'vitor@librecode.coop',
-            'tax_number' => '11122233344',
-            'peso' => 1.75,
-        ], $client->enrichUser([
-            'id' => 2,
-            'username' => 'vitor@librecode.coop',
-            'kimai_username' => 'vitor@librecode.coop',
-            'tax_number' => '11122233344',
-        ]));
-    }
-
-    public function testFractionalDependentsAreRejectedInsteadOfTruncated(): void
-    {
-        $client = new ProfileFieldsClient(new MockHttpClient([]), new NullLogger());
-        $apply = new \ReflectionMethod(ProfileFieldsClient::class, 'applyFieldsToUser');
-        $this->expectException(\DomainException::class);
-        $this->expectExceptionMessage('dependentes inválido');
-        $apply->invoke($client, ['username' => 'synthetic'], ['dependents' => '2.5']);
-    }
-
-    public function testExplicitZeroFromNextcloudRemainsZero(): void
-    {
-        $client = new ProfileFieldsClient(new MockHttpClient([]), new NullLogger());
-        $apply = new \ReflectionMethod(ProfileFieldsClient::class, 'applyFieldsToUser');
-        $user = $apply->invoke($client, ['username' => 'synthetic'], ['dependents' => '0']);
-        self::assertSame(0, $user['dependents']);
-    }
-
-    public function testEnrichUserMapsDependentsFromProfileFields(): void
-    {
-        putenv('PROFILE_FIELDS_API_BASE_URL=https://nextcloud.example.com');
-        putenv('PROFILE_FIELDS_AUTH_USER=api-user');
-        putenv('PROFILE_FIELDS_AUTH_TOKEN=api-token');
-
-        $httpClient = new MockHttpClient(function (string $method, string $url, array $options): MockResponse {
-            if (str_ends_with($url, '/definitions')) {
-                return new MockResponse((string) json_encode([
-                    'ocs' => ['meta' => ['statuscode' => 200], 'data' => [
-                        ['id' => 10, 'field_key' => 'tax_number', 'type' => 'text', 'active' => true],
-                        ['id' => 11, 'field_key' => 'weight', 'type' => 'number', 'active' => true],
-                    ]],
-                ]));
-            }
-            if (str_ends_with($url, '/users/lookup')) {
-                self::assertSame('POST', $method);
-                self::assertLookupPayload($options, [
-                    'fieldKey' => 'tax_number',
-                    'fieldValue' => '11122233344',
-                ]);
-
-                return new MockResponse((string) json_encode([
-                    'ocs' => [
-                        'meta' => [
-                            'status' => 'ok',
-                            'statuscode' => 100,
-                        ],
-                        'data' => [
-                            'user_uid' => 'pessoa02',
-                            'lookup_field_key' => 'tax_number',
-                            'fields' => [
-                                'tax_number' => [
-                                    'definition' => [
-                                        'field_key' => 'tax_number',
-                                    ],
-                                    'value' => [
-                                        'field_definition_id' => 10,
-                                        'value' => [
-                                            'value' => '11122233344',
-                                        ],
-                                    ],
-                                ],
-                                'dependents' => [
-                                    'definition' => [
-                                        'field_key' => 'dependents',
-                                    ],
-                                    'value' => [
-                                        'field_definition_id' => 11,
-                                        'value' => [
-                                            'value' => '3',
-                                        ],
-                                    ],
-                                ],
-                            ],
-                        ],
-                    ],
-                ]));
-            }
-
-            return new MockResponse('not found', ['http_code' => 404]);
-        });
-
-        $client = new ProfileFieldsClient($httpClient, new NullLogger());
-
-        self::assertSame([
-            'id' => 2,
-            'username' => 'vitor@librecode.coop',
-            'kimai_username' => 'vitor@librecode.coop',
-            'tax_number' => '11122233344',
-            'dependents' => 3,
-        ], $client->enrichUser([
-            'id' => 2,
-            'username' => 'vitor@librecode.coop',
-            'kimai_username' => 'vitor@librecode.coop',
-            'tax_number' => '11122233344',
-        ]));
-    }
-
-    public function testLinkedKimaiProfileProvidesZeroDependentsWithoutRequiringFinancialContact(): void
-    {
-        putenv('PROFILE_FIELDS_API_BASE_URL=https://nextcloud.example.com');
-        putenv('PROFILE_FIELDS_AUTH_USER=api-user');
-        putenv('PROFILE_FIELDS_AUTH_TOKEN=api-token');
-
-        $calls = [];
-        $http = new MockHttpClient(static function (string $method, string $url, array $options) use (&$calls): MockResponse {
-            $calls[] = $url;
-            if (str_ends_with($url, '/definitions')) {
-                return new MockResponse((string) json_encode(['ocs' => [
-                    'meta' => ['statuscode' => 100],
-                    'data' => [
-                        ['id' => 10, 'field_key' => 'kimai_user_id', 'type' => 'text', 'active' => true],
-                        ['id' => 11, 'field_key' => 'dependents', 'type' => 'number', 'active' => true],
-                    ],
-                ]]));
-            }
-            if (str_ends_with($url, '/users/lookup')) {
-                self::assertSame('POST', $method);
-                self::assertLookupPayload($options, [
-                    'fieldKey' => 'kimai_user_id', 'fieldValue' => '21',
-                ]);
-                return new MockResponse((string) json_encode(['ocs' => [
-                    'meta' => ['statuscode' => 100],
-                    'data' => [
-                        'user_uid' => 'nextcloud-uid',
-                        'fields' => [
-                            'kimai_user_id' => ['value' => ['value' => '21']],
-                            'tax_number' => ['value' => ['value' => '12345678901']],
-                            'dependents' => ['value' => ['value' => 0]],
-                        ],
-                    ],
-                ]]));
-            }
-            self::fail('Unexpected API request: ' . $url);
-        });
-
-        $row = ['id' => 21, 'username' => 'different-kimai-username', 'tax_number' => '12345678901'];
-        $enriched = new ProfileFieldsClient($http, new NullLogger())->enrichUser($row);
-
-        self::assertSame(0, $enriched['dependents']);
-        self::assertSame('12345678901', $enriched['tax_number']);
-        self::assertArrayNotHasKey('akaunting_contact_id', $enriched);
-        self::assertCount(2, $calls);
-    }
-
-    public function testEnrichUserFallsBackToUserUidWhenTaxNumberLookupReturnsNoResult(): void
-    {
-        putenv('PROFILE_FIELDS_API_BASE_URL=https://nextcloud.example.com');
-        putenv('PROFILE_FIELDS_AUTH_USER=api-user');
-        putenv('PROFILE_FIELDS_AUTH_TOKEN=api-token');
-
-        $httpClient = new MockHttpClient(function (string $method, string $url, array $options): MockResponse {
-            if (str_ends_with($url, '/users/lookup')) {
-                self::assertSame('POST', $method);
-                self::assertLookupPayload($options, [
-                    'fieldKey' => 'tax_number',
-                    'fieldValue' => '11122233344',
-                ]);
-
-                return new MockResponse((string) json_encode([
-                    'ocs' => [
-                        'meta' => [
-                            'status' => 'failure',
-                            'statuscode' => 404,
-                            'message' => 'not found',
-                        ],
-                        'data' => [
-                            'message' => 'not found',
-                        ],
-                    ],
-                ]), ['http_code' => 404]);
-            }
-
-            if (str_ends_with($url, '/users/vitor%40librecode.coop/values')) {
-                self::assertSame('GET', $method);
-
-                return new MockResponse((string) json_encode([
-                    'ocs' => [
-                        'meta' => [
-                            'status' => 'ok',
-                            'statuscode' => 100,
-                        ],
-                        'data' => [
-                            [
-                                'field_definition_id' => 10,
-                                'value' => [
-                                    'value' => '11122233344',
-                                ],
-                            ],
-                            [
-                                'field_definition_id' => 11,
-                                'value' => [
-                                    'value' => '1.5',
-                                ],
-                            ],
-                            [
-                                'field_definition_id' => 12,
-                                'value' => [
-                                    'value' => '2',
-                                ],
-                            ],
-                        ],
-                    ],
-                ]));
-            }
-
-            if (str_ends_with($url, '/definitions')) {
-                self::assertSame('GET', $method);
-
-                return new MockResponse((string) json_encode([
-                    'ocs' => [
-                        'meta' => [
-                            'status' => 'ok',
-                            'statuscode' => 100,
-                        ],
-                        'data' => [
-                            [
-                                'id' => 10,
-                                'field_key' => 'tax_number',
-                            ],
-                            [
-                                'id' => 11,
-                                'field_key' => 'weight',
-                            ],
-                            [
-                                'id' => 12,
-                                'field_key' => 'dependents',
-                            ],
-                        ],
-                    ],
-                ]));
-            }
-
-            return new MockResponse('not found', ['http_code' => 404]);
-        });
-
-        $client = new ProfileFieldsClient($httpClient, new NullLogger());
-
-        self::assertSame([
-            'id' => 2,
-            'username' => 'vitor@librecode.coop',
-            'kimai_username' => 'vitor@librecode.coop',
-            'tax_number' => '11122233344',
-            'peso' => 1.5,
-            'dependents' => 2,
-        ], $client->enrichUser([
-            'id' => 2,
-            'username' => 'vitor@librecode.coop',
-            'kimai_username' => 'vitor@librecode.coop',
-            'tax_number' => '11122233344',
-        ]));
-    }
-
-    public function testEnrichUserDoesNotFallbackToKimaiUsernameWhenTaxNumberIsMissing(): void
-    {
-        putenv('PROFILE_FIELDS_API_BASE_URL=https://nextcloud.example.com');
-        putenv('PROFILE_FIELDS_AUTH_USER=api-user');
-        putenv('PROFILE_FIELDS_AUTH_TOKEN=api-token');
-
-        $httpClient = new MockHttpClient(static function (string $method, string $url): MockResponse {
-            self::assertSame('GET', $method);
-            self::assertStringEndsWith('/definitions', $url);
-            return new MockResponse((string) json_encode([
-                'ocs' => ['meta' => ['statuscode' => 200], 'data' => []],
-            ]));
-        });
-
-        $client = new ProfileFieldsClient($httpClient, new NullLogger());
-
-        self::assertSame([
-            'id' => 2,
-            'username' => 'pessoa02',
-            'kimai_username' => 'pessoa02',
-        ], $client->enrichUser([
-            'id' => 2,
-            'username' => 'pessoa02',
-            'kimai_username' => 'pessoa02',
-        ]));
-    }
-
-    public function testPrefersMatchingUidAfterLookupMissAcrossUsers(): void
-    {
-        putenv('PROFILE_FIELDS_API_BASE_URL=https://nextcloud.example.com');
-        putenv('PROFILE_FIELDS_AUTH_USER=api-user');
-        putenv('PROFILE_FIELDS_AUTH_TOKEN=api-token');
-
-        $calls = ['lookup' => 0, 'uid' => 0];
-        $http = new MockHttpClient(function (string $method, string $url) use (&$calls): MockResponse {
-            if (str_ends_with($url, '/users/lookup')) {
-                ++$calls['lookup'];
-                return new MockResponse('not found', ['http_code' => 404]);
-            }
-            if (str_ends_with($url, '/definitions')) {
-                return new MockResponse((string) json_encode(['ocs' => [
-                    'meta' => ['statuscode' => 100],
-                    'data' => [
-                        ['id' => 10, 'field_key' => 'tax_number'],
-                        ['id' => 11, 'field_key' => 'weight'],
-                    ],
-                ]]));
-            }
-            if (str_contains($url, '/users/') && str_ends_with($url, '/values')) {
-                ++$calls['uid'];
-                $isFirst = str_contains($url, '/users/a/values');
-                return new MockResponse((string) json_encode(['ocs' => [
-                    'meta' => ['statuscode' => 100],
-                    'data' => [
-                        ['field_definition_id' => 10, 'value' => ['value' => $isFirst ? '11122233344' : '22233344455']],
-                        ['field_definition_id' => 11, 'value' => ['value' => $isFirst ? '1.5' : '2.5']],
-                    ],
-                ]]));
-            }
-            self::fail('Unexpected Profile Fields request: ' . $url);
-        });
-
-        $client = new ProfileFieldsClient($http, new NullLogger());
-        self::assertSame(1.5, $client->enrichUser([
-            'tax_number' => '11122233344', 'kimai_username' => 'a',
-        ])['peso']);
-        self::assertSame(2.5, $client->enrichUser([
-            'tax_number' => '22233344455', 'kimai_username' => 'b',
-        ])['peso']);
-        self::assertSame(['lookup' => 1, 'uid' => 2], $calls);
-    }
-
-    public function testUidFallbackRejectsMismatchedTaxNumberBeforeApplyingWeights(): void
-    {
-        putenv('PROFILE_FIELDS_API_BASE_URL=https://nextcloud.example.com');
-        putenv('PROFILE_FIELDS_AUTH_USER=api-user');
-        putenv('PROFILE_FIELDS_AUTH_TOKEN=api-token');
-
-        $http = new MockHttpClient(static function (string $method, string $url): MockResponse {
-            if (str_ends_with($url, '/users/lookup')) {
-                return new MockResponse('not found', ['http_code' => 404]);
-            }
-            if (str_ends_with($url, '/definitions')) {
-                return new MockResponse((string) json_encode(['ocs' => [
-                    'meta' => ['statuscode' => 100],
-                    'data' => [
-                        ['id' => 10, 'field_key' => 'tax_number'],
-                        ['id' => 11, 'field_key' => 'weight'],
-                    ],
-                ]]));
-            }
-            if (str_ends_with($url, '/users/cooperado-a/values')) {
-                return new MockResponse((string) json_encode(['ocs' => [
-                    'meta' => ['statuscode' => 100],
-                    'data' => [
-                        ['field_definition_id' => 10, 'value' => ['value' => '99988877766']],
-                        ['field_definition_id' => 11, 'value' => ['value' => '3.0']],
-                    ],
-                ]]));
-            }
-            self::fail('Unexpected URL: ' . $url);
-        });
-
-        $this->expectException(\DomainException::class);
-        $this->expectExceptionMessage('Identificador fiscal divergente');
-        new ProfileFieldsClient($http, new NullLogger())->enrichUser([
-            'tax_number' => '11122233344',
-            'kimai_username' => 'cooperado-a',
-        ]);
-    }
-
-    /**
-     * @param array<string, mixed> $options
-     * @param array<string, string> $expectedPayload
-     */
-    private static function assertLookupPayload(array $options, array $expectedPayload): void
-    {
-        $payload = $options['json'] ?? $options['body'] ?? null;
-
-        if (is_string($payload)) {
-            $payload = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+        foreach (['PROFILE_FIELDS_API_BASE_URL', 'PROFILE_FIELDS_AUTH_USER', 'PROFILE_FIELDS_AUTH_TOKEN'] as $name) {
+            putenv($name);
         }
+    }
 
-        self::assertSame($expectedPayload, $payload);
+    private static function response(array $data, int $http = 200): MockResponse
+    {
+        return new MockResponse((string) json_encode([
+            'ocs' => ['meta' => ['statuscode' => $http], 'data' => $data],
+        ]), ['http_code' => $http]);
+    }
+
+    public function testReadsProfileFieldsByExactNextcloudUid(): void
+    {
+        $requests = [];
+        $http = new MockHttpClient(static function (string $method, string $url) use (&$requests): MockResponse {
+            $requests[] = $url;
+            if (str_ends_with($url, '/definitions')) {
+                return self::response([
+                    ['id' => 5, 'field_key' => 'tax_number', 'active' => true, 'type' => 'text'],
+                    ['id' => 6, 'field_key' => 'weight', 'active' => true, 'type' => 'number'],
+                ]);
+            }
+            self::assertSame('GET', $method);
+            self::assertStringEndsWith('/users/known-uid/values', $url);
+            return self::response([
+                ['field_definition_id' => 5, 'value' => ['value' => 'SYNTHETIC']],
+                ['field_definition_id' => 6, 'value' => ['value' => '1.25']],
+            ]);
+        });
+        $client = new ProfileFieldsClient($http, new NullLogger());
+        self::assertSame([
+            'tax_number' => 'SYNTHETIC', 'weight' => '1.25',
+        ], $client->getFieldsForUser('known-uid'));
+        self::assertCount(2, $requests);
+        self::assertSame($client->getFieldsForUser('known-uid'), $client->getFieldsForUser('known-uid'));
+        self::assertCount(2, $requests);
+    }
+
+    public function testNoCpfDiscoveryWhenKimaiIdHasNoExplicitLink(): void
+    {
+        $paths = [];
+        $http = new MockHttpClient(static function (string $method, string $url, array $options) use (&$paths): MockResponse {
+            $paths[] = $url;
+            if (str_ends_with($url, '/definitions')) {
+                return self::response([
+                    ['id' => 4, 'field_key' => 'kimai_user_id', 'active' => true, 'type' => 'text'],
+                ]);
+            }
+            self::assertSame('POST', $method);
+            self::assertSame('kimai_user_id', json_decode($options['body'], true)['fieldKey']);
+            return self::response([]);
+        });
+        $client = new ProfileFieldsClient($http, new NullLogger());
+        self::assertSame([
+            'id' => 17, 'username' => 'unlinked', 'email' => 'native@example.test',
+        ], $client->enrichUser([
+            'id' => 17, 'username' => 'unlinked', 'email' => 'native@example.test',
+            'tax_number' => 'legacy-ignored', 'akaunting_contact_id' => 99,
+        ]));
+        self::assertCount(2, $paths);
+        self::assertStringEndsWith('/users/lookup', $paths[1]);
+    }
+
+    public function testMonthlyUserWithoutLinkCannotBeImportedByCpfOrUsername(): void
+    {
+        $http = new MockHttpClient(static function (string $method, string $url): MockResponse {
+            if (str_ends_with($url, '/definitions')) {
+                return self::response([
+                    ['id' => 4, 'field_key' => 'kimai_user_id', 'active' => true, 'type' => 'text'],
+                ]);
+            }
+            self::assertSame('POST', $method);
+            self::assertStringEndsWith('/users/lookup', $url);
+            return self::response([]);
+        });
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('kimai_user_id explícito');
+        new ProfileFieldsClient($http, new NullLogger())->enrichUser([
+            'id' => 17, 'username' => 'same-username', 'tax_number' => 'synthetic',
+        ], true);
+    }
+
+    public function testLinkedKimaiUserGetsFiscalIdentityOnlyFromNextcloud(): void
+    {
+        $http = new MockHttpClient(static function (string $method, string $url, array $options): MockResponse {
+            if (str_ends_with($url, '/definitions')) {
+                return self::response([
+                    ['id' => 4, 'field_key' => 'kimai_user_id', 'active' => true, 'type' => 'text'],
+                ]);
+            }
+            self::assertSame('kimai_user_id', json_decode($options['body'], true)['fieldKey']);
+            return self::response([
+                'user_uid' => 'nextcloud-account',
+                'fields' => [
+                    'kimai_user_id' => ['value' => ['value' => '17']],
+                    'akaunting_contact_id' => ['value' => ['value' => '35']],
+                    'tax_number' => ['value' => ['value' => 'reference-id']],
+                    'weight' => ['value' => ['value' => '2.5']],
+                    'dependents' => ['value' => ['value' => '0']],
+                ],
+            ]);
+        });
+        $user = new ProfileFieldsClient($http, new NullLogger())->enrichUser([
+            'id' => 17, 'username' => 'kimai-native', 'email' => 'native@example.test',
+            'tax_number' => 'obsolete-kimai-value', 'akaunting_contact_id' => 999,
+        ], true);
+        self::assertSame('reference-id', $user['tax_number']);
+        self::assertSame(35, $user['akaunting_contact_id']);
+        self::assertSame(0, $user['dependents']);
+        self::assertSame(2.5, $user['peso']);
+        self::assertSame('native@example.test', $user['email']);
+    }
+
+    public function testDependentCountMustBeExplicitIntegerIncludingZero(): void
+    {
+        $client = new ProfileFieldsClient(new MockHttpClient([]), new NullLogger());
+        $apply = new \ReflectionMethod(ProfileFieldsClient::class, 'applyFieldsToUser');
+        self::assertSame(0, $apply->invoke($client, [], ['dependents' => '0'])['dependents']);
+        $this->expectException(\DomainException::class);
+        $apply->invoke($client, [], ['dependents' => '2.5']);
+    }
+
+    public function testNoConfiguredProfileFieldsNeverLeaksKimaiFiscalValues(): void
+    {
+        putenv('PROFILE_FIELDS_API_BASE_URL');
+        $http = new MockHttpClient(static function (): MockResponse {
+            self::fail('No request should occur without configuration.');
+        });
+        $client = new ProfileFieldsClient($http, new NullLogger());
+        self::assertSame(['id' => 1], $client->enrichUser([
+            'id' => 1, 'tax_number' => 'obsolete-1',
+        ]));
     }
 }

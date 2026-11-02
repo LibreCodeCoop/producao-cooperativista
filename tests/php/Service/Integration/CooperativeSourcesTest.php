@@ -55,6 +55,23 @@ final class CooperativeSourcesTest extends TestCase
         self::assertArrayNotHasKey('apiToken', $roster[0]);
     }
 
+    public function testUserReaderNeverExposesCustomKimaiPreferences(): void
+    {
+        $http = new MockHttpClient(static fn (): MockResponse => new MockResponse((string) json_encode([
+            'id' => 2, 'username' => 'member-b', 'alias' => 'Pessoa',
+            'preferences' => [
+                ['name' => 'tax_number', 'value' => 'legacy'],
+                ['name' => 'dependents', 'value' => '7'],
+                ['name' => 'email', 'value' => 'legacy-email'],
+            ],
+        ])));
+        $user = $this->sources($http)->user(2);
+        self::assertSame(2, $user['id']);
+        self::assertArrayNotHasKey('preferences', $user);
+        self::assertArrayNotHasKey('tax_number', $user);
+        self::assertArrayNotHasKey('email', $user);
+    }
+
     public function testIndividualKimaiLookupPreservesServiceAccountFlag(): void
     {
         $http = new MockHttpClient(static fn (): MockResponse => new MockResponse((string) json_encode([
@@ -119,7 +136,6 @@ final class CooperativeSourcesTest extends TestCase
         ], $sources->nextcloudForMember([
             'id' => 2,
             'username' => 'member-b',
-            'preferences' => ['tax_number' => 'reference-original'],
         ]));
     }
 

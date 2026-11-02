@@ -43,79 +43,60 @@ final class UsersAkauntingMatchTest extends TestCase
         $this->database->close();
     }
 
-    private function contact(int $id, int $company, string $taxNumber, string $email, string $type = 'vendor'): void
+    private function contact(int $id, int $company, string $taxNumber, string $type = 'vendor'): void
     {
         $this->database->insert('contacts', [
-            'id' => $id,
-            'company_id' => $company,
-            'tax_number' => $taxNumber,
-            'email' => $email,
-            'type' => $type,
+            'id' => $id, 'company_id' => $company, 'tax_number' => $taxNumber,
+            'email' => 'matching@example.test', 'type' => $type,
         ]);
     }
 
-    private function matchedId(string $taxNumber, string $email = 'shared@example.test'): ?int
+    private function enrich(array $row): array
     {
-        $match = new ReflectionMethod(Users::class, 'updateWithAkauntingData');
-        $row = $match->invoke($this->source, [
-            'tax_number' => $taxNumber,
-            'email' => $email,
-            'kimai_username' => $email,
-        ]);
-
-        return $row['akaunting_contact_id'] ?? null;
+        return new ReflectionMethod(Users::class, 'updateWithAkauntingData')->invoke($this->source, $row);
     }
 
-    public function testMonthlyImportRequiresExplicitFinancialContactWithoutTaxLookup(): void
+    public function testExplicitFinancialIdSelectsExactContactEvenIfCpfIsShared(): void
     {
         $this->source->setRequiredUserIds([22]);
-        $this->contact(17, 1, 'reference', 'one@example.test');
-        $reflection = new ReflectionMethod(Users::class, 'updateWithAkauntingData');
+        $this->contact(17, 1, 'reference');
+        $this->contact(19, 1, 'reference', 'employee');
+        self::assertSame(17, $this->enrich([
+            'tax_number' => 'reference', 'akaunting_contact_id' => 17,
+        ])['akaunting_contact_id']);
+    }
+
+    public function testNoCpfBasedContactDiscoveryEvenWhenOnlyOneMatchExists(): void
+    {
+        $this->contact(17, 1, 'reference');
+        $result = $this->enrich(['tax_number' => 'reference', 'email' => 'matching@example.test']);
+        self::assertArrayNotHasKey('akaunting_contact_id', $result);
+    }
+
+    public function testMonthlyParticipantWithoutFinancialLinkIsRejected(): void
+    {
+        $this->source->setRequiredUserIds([22]);
+        $this->contact(17, 1, 'reference');
         $this->expectException(DomainException::class);
         $this->expectExceptionMessage('akaunting_contact_id');
-        $reflection->invoke($this->source, [
-            'tax_number' => 'reference',
-            'kimai_username' => 'participant',
-        ]);
+        $this->enrich(['tax_number' => 'reference']);
     }
 
-    public function testExplicitFinancialIdWinsOverDuplicateFiscalNumbers(): void
+    public function testLinkedContactFromWrongCompanyIsRejected(): void
     {
         $this->source->setRequiredUserIds([22]);
-        $this->contact(17, 1, 'reference', 'one@example.test');
-        $this->contact(19, 1, 'reference', 'two@example.test');
-        $reflection = new ReflectionMethod(Users::class, 'updateWithAkauntingData');
-        $row = $reflection->invoke($this->source, [
-            'tax_number' => 'reference',
-            'akaunting_contact_id' => 17,
-        ]);
-        self::assertSame(17, $row['akaunting_contact_id']);
-    }
-
-    public function testMatchUsesExactTaxNumberAndCompanyNotEmail(): void
-    {
-        $this->contact(10, 1, 'different', 'shared@example.test');
-        $this->contact(11, 2, 'correct', 'shared@example.test');
-        $this->contact(12, 1, 'correct', 'other@example.test', 'employee');
-
-        self::assertSame(12, $this->matchedId('correct'));
-    }
-
-    public function testAnotherCompanyOrMatchingEmailIsNotEnough(): void
-    {
-        $this->contact(11, 2, 'correct', 'shared@example.test');
-        $this->contact(12, 1, 'different', 'shared@example.test');
-
-        self::assertNull($this->matchedId('correct'));
-    }
-
-    public function testAmbiguousTaxNumberNeverSelectsArbitraryContact(): void
-    {
-        $this->contact(10, 1, 'duplicate', 'one@example.test');
-        $this->contact(12, 1, 'duplicate', 'two@example.test', 'employee');
-
+        $this->contact(17, 2, 'reference');
         $this->expectException(DomainException::class);
-        $this->expectExceptionMessage('mais de um contato financeiro');
-        $this->matchedId('duplicate');
+        $this->expectExceptionMessage('outra empresa');
+        $this->enrich(['tax_number' => 'reference', 'akaunting_contact_id' => 17]);
+    }
+
+    public function testLinkedContactFiscalDivergenceIsRejected(): void
+    {
+        $this->source->setRequiredUserIds([22]);
+        $this->contact(17, 1, 'different');
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('CPF/CNPJ diverge');
+        $this->enrich(['tax_number' => 'reference', 'akaunting_contact_id' => 17]);
     }
 }
