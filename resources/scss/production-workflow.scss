@@ -241,3 +241,24 @@
 #calculated-review[hidden],
 #production-publication-controls[hidden],
 #calculated-review-intro[hidden] { display:none; }
+
+#pending-invoices-link { font-weight:700; }
+.production-invoice-status {
+    display:inline-flex; padding:2px 9px; border:1px solid var(--line);
+    border-radius:7px; background:var(--surface); font-size:12px;
+    font-weight:700; white-space:nowrap;
+}
+.production-invoice-status--draft {
+    background:var(--warning-bg); border-color:var(--warning-border);
+}
+.production-invoice-status--sent,
+.production-invoice-status--partial {
+    background:var(--brand-soft); border-color:var(--line);
+}
+.production-invoice-status--overdue {
+    background:var(--danger-soft); border-color:var(--danger);
+}
+#pending-invoice-summary {
+    padding:12px 16px; border:1px solid var(--line);
+    border-radius:9px; background:var(--surface); font-size:13px;
+}

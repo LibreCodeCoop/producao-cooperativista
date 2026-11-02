@@ -77,8 +77,9 @@
                 money(source.income_transactions.amount) + ' (' + source.income_transactions.count + ' lançamentos)',
             'Custos de clientes em transações: ' + money(source.client_cost_transactions.amount),
             'Despesas internas em transações: ' + money(source.internal_expense_transactions.amount),
-            'Faturas sem pagamento confirmado no período: ' + source.unconfirmed_invoices.count +
-                ' · ' + money(source.unconfirmed_invoices.amount),
+            'Documentos importados sem baixa confirmada (inclui rascunhos): ' +
+                source.unconfirmed_invoices.count + ' · valor nominal ' +
+                money(source.unconfirmed_invoices.amount),
         ];
         if (source.hours.by_member.length) {
             lines.push('', 'Horas por cooperado (Kimai):');
@@ -216,10 +217,19 @@
             el('publication-confirmation').checked = false;
             publishButton.disabled = true;
         };
-        const resetReview = () => {
+        const updateSourceSelection = () => {
+            if (!sourceReview) return;
+            const members = sourceReview.data.map(row => row.kimai_user_id);
+            const excluded = members.filter(id => omitted.has(id)).length;
+            el('selection-summary').textContent = excluded + ' cooperado(s) marcados para ' +
+                'não publicar agora. Essa escolha será mantida ao calcular a prévia, ' +
+                'mas nenhum documento será criado sem revisão financeira e autorização. ' +
+                'A seleção não é salva entre recarregamentos da página.';
+        };
+        const resetReview = (preserveSelection = false) => {
             preview = null;
             sourceReview = null;
-            omitted.clear();
+            if (!preserveSelection) omitted.clear();
             invalidateApproval();
             if (el('source-financial-status')) el('source-financial-status').hidden = true;
             if (sourceReviewPanel) sourceReviewPanel.hidden = true;
@@ -253,7 +263,14 @@
                     reportTable.dataset.competencia = competence();
                 }
                 const mounted = await grid.initializeReportTable(doc, {
-                    ...options, payload, omitted, sourceOnly: true, financialReview: false,
+                    ...options, payload, omitted, sourceOnly: true, financialReview: true,
+                    onDecisionChange: (id, checked) => {
+                        if (!payload.data.some(row => row.kimai_user_id === id)) return;
+                        if (checked) omitted.add(id);
+                        else omitted.delete(id);
+                        invalidateApproval();
+                        updateSourceSelection();
+                    },
                 });
                 if (!mounted) throw new Error('Não foi possível montar a tabela de cooperados.');
                 table = mounted;
@@ -263,10 +280,21 @@
             if (sourceReviewPanel) sourceReviewPanel.hidden = false;
             if (calculatedReview) calculatedReview.hidden = false;
             if (publicationControls) publicationControls.hidden = true;
-            if (el('selection-summary')) el('selection-summary').hidden = true;
+            if (el('selection-summary')) el('selection-summary').hidden = false;
+            updateSourceSelection();
             if (el('calculated-review-intro')) el('calculated-review-intro').hidden = true;
             if (el('withdrawal-goal')) el('withdrawal-goal').hidden = true;
             if (el('audit-title')) el('audit-title').textContent = 'Conferir produção por cooperado';
+            const pendingLink = el('pending-invoices-link');
+            if (pendingLink) {
+                const pending = payload.unconfirmed_invoices;
+                pendingLink.hidden = pending.count === 0;
+                pendingLink.href = '/relatorios/invoices?ano-mes=' +
+                    encodeURIComponent(competence()) + '&pendentes=1';
+                pendingLink.textContent = 'Conferir ' + pending.count + ' ' +
+                    (pending.count === 1 ? 'documento' : 'documentos') +
+                    ' para conciliação no Akaunting (' + money(pending.amount) + ')';
+            }
             el('imported-data-summary').textContent = sourceReviewText(payload);
             el('review-competence').textContent = competence();
             el('metric-members').textContent = String(payload.hours.members);
@@ -280,11 +308,11 @@
                     financialProblem.code === 'BASE_ECONOMICA'
                         ? 'O cálculo da retirada ainda não tem receita suficiente confirmada para ' +
                             payload.financial_month + '. Há ' + payload.unconfirmed_invoices.count +
-                            ' fatura(s) sem pagamento confirmado (' +
-                            money(payload.unconfirmed_invoices.amount) + '). ' +
-                            'Se o cliente já pagou, o financeiro deve conferir a baixa no Akaunting. ' +
-                            'Se ainda não pagou, a conferência das horas permanece disponível. ' +
-                            'Consulte os detalhes em "Verificar faturamento, despesas e documentos importados".'
+                            ' ' + (payload.unconfirmed_invoices.count === 1 ? 'documento' : 'documentos') +
+                            ' sem baixa confirmada na importação (incluindo rascunhos), ' +
+                            'com valor nominal de ' + money(payload.unconfirmed_invoices.amount) +
+                            '. Confira o status e os recebimentos no relatório de documentos abaixo. ' +
+                            'A tabela de horas e a seleção dos cooperados continuam disponíveis.'
                         : 'Não foi possível concluir o cálculo de retirada. Os dados importados ' +
                             'permanecem disponíveis para conferência. Consulte o relatório de ' +
                             'movimentações e os logs técnicos antes de tentar publicar.';
@@ -329,7 +357,7 @@
             if (loading || finished || needsImport) return false;
             const previouslyImported = sourceReview;
             loading = true;
-            resetReview();
+            resetReview(Boolean(previouslyImported));
             messages.replaceChildren();
             updateLinks();
             try {
@@ -352,6 +380,10 @@
                 }
                 const payload = await response.json();
                 const valid = validatePreview(payload, competence());
+                const currentMemberIds = new Set(valid.rows.map(row => row.id));
+                for (const id of omitted) {
+                    if (!currentMemberIds.has(id)) omitted.delete(id);
+                }
                 if (sourceReviewPanel) sourceReviewPanel.hidden = true;
                 if (calculatedReview) calculatedReview.hidden = false;
                 if (publicationControls) publicationControls.hidden = false;
@@ -412,7 +444,7 @@
                 updateSummary();
                 return true;
             } catch (error) {
-                resetReview();
+                resetReview(Boolean(previouslyImported));
                 if (previouslyImported?.competence === competence()) {
                     await showSourceReview(previouslyImported, {code: 'PREVIEW_FAILED'},
                         tableMode === 'source' && !!table);

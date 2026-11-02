@@ -33,6 +33,7 @@ function fixture(payload = { data: [{ id: 1, name: 'Teste', metadata: '{}' }] },
         tFoot: { rows: [footer] },
     };
     const errors = element('div');
+    const pendingSummary = element('p');
     const location = new URL(opts.href || 'https://librecode.test/relatorios/producao?ano-mes=2026-05');
     const history = { calls: [], replaceState(_state, _title, url) {
         this.calls.push(url);
@@ -41,7 +42,9 @@ function fixture(payload = { data: [{ id: 1, name: 'Teste', metadata: '{}' }] },
     } };
     const doc = {
         createElement: element,
-        getElementById(name) { return { example: table, erros: errors }[name] || null; },
+        getElementById(name) {
+            return { example: table, erros: errors, 'pending-invoice-summary': pendingSummary }[name] || null;
+        },
         querySelector() { return null; },
     };
     const calls = { fetch: 0, DataTable: 0 };
@@ -105,7 +108,7 @@ function fixture(payload = { data: [{ id: 1, name: 'Teste', metadata: '{}' }] },
             };
         },
     };
-    return { table, footer, errors, doc, calls, options, history, location };
+    return { table, footer, errors, pendingSummary, doc, calls, options, history, location };
 }
 
 test('the familiar production columns can display source data without inventing monetary values', () => {
@@ -133,6 +136,57 @@ test('the familiar production columns can display source data without inventing 
         assert.match(dt.settings.columns[1].render(3600,'display'),/1:00:00/);
         assert.match(dt.settings.columns[2].render(1.5,'display'),/1,5/);
     });
+});
+
+test('pending invoice report distinguishes drafts and sent documents with direct Akaunting links', async () => {
+    const sample = {
+        data: [{
+            id: 2329, numero_documento: 'INV-00652', cliente: 'Cliente A', valor: 29877.75,
+            status_documento: 'sent', recebimento: 'Sem baixa confirmada na importação',
+            vencimento: '2026-10-20',
+            URL: 'https://accounting.example.test/1/sales/invoices/2329',
+        }, {
+            id: 2363, numero_documento: 'NFSe_061', cliente: 'Cliente B', valor: 29877.75,
+            status_documento: 'draft', recebimento: 'Sem baixa confirmada na importação',
+            vencimento: '2026-10-20',
+            URL: 'https://accounting.example.test/1/sales/invoices/2363',
+        }],
+        metadata: {total:2, amount:59755.5, truncated:false},
+    };
+    const f=fixture(sample);
+    f.table.dataset.pendingInvoices='yes';
+    const dt=await initializeReportTable(f.doc,f.options);
+    assert.ok(dt);
+    const columns=dt.settings.columns;
+    const status=columns.find(col=>col.data==='status_documento');
+    assert.match(status.render('draft','display',sample.data[1]),/Rascunho/);
+    assert.match(status.render('sent','display',sample.data[0]),/Enviada/);
+    assert.equal(status.render('draft','filter',sample.data[1]),'Rascunho');
+    const value=columns.find(col=>col.data==='valor');
+    assert.ok(value.render(29877.75,'display').includes('29.877,75'));
+    assert.ok(columns.find(col=>col.data==='URL')
+        .render(sample.data[0].URL,'display',sample.data[0]).includes('/sales/invoices/2329'));
+    assert.match(f.pendingSummary.textContent,/2 documentos/);
+    assert.ok(f.pendingSummary.textContent.includes('59.755,50'));
+    assert.match(f.pendingSummary.textContent,/1 rascunho/);
+    assert.match(f.pendingSummary.textContent,/1 enviada/);
+    assert.equal(renderCell('<img src=x>', 'display', 'status_documento',null,{pendingInvoices:true})
+        .includes('<img'),false);
+});
+
+test('source-only details preserve every financial label while avoiding made-up amounts', () => {
+    const html = require('../../public/js/report-table.js').productionDetails({
+        trabalhado: JSON.stringify([{nome:'Cliente A',trabalhado:'1:00',
+            percentual_trabalhado:33.33,total_cliente:3}]),
+        base_producao:null,bruto:null,liquido:null,
+    },{sourceOnly:true});
+    for (const label of ['Base da produção','Auxílio','FRRA','Bruto','INSS','Base IRPF',
+        'IRPF','Desconto líquido','Adiantamentos','Líquido']) {
+        assert.match(html,new RegExp(label));
+    }
+    assert.equal((html.match(/A apurar/g)||[]).length,10);
+    assert.match(html,/Participação nas horas/);
+    assert.match(html,/Valores a apurar não são zero/);
 });
 
 test('HTML escaping protects financial values, quotes and empty cells', () => {

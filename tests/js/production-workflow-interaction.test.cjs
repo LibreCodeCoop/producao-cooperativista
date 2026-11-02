@@ -32,7 +32,7 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
         'selection-summary','publication-summary','publication-confirmation',
         'import-status','import-status-text','import-elapsed','import-profile-link',
         'imported-data-review','imported-data-summary','source-financial-status',
-        'calculate-financial-preview','calculated-review',
+        'calculate-financial-preview','pending-invoices-link','calculated-review',
         'production-publication-controls','calculated-review-intro','audit-title',
         'submit','year','month']) items.set(id, element());
 
@@ -152,7 +152,7 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
     };
     const change = id => get(id).trigger('change');
     const decide = (id, excluded) => {
-        const config = calls.mount.at(-1);
+        const config = calls.mount.at(-1) || calls.sourceMount.at(-1);
         config.onDecisionChange(id, excluded);
     };
     const setConsent = value => {
@@ -286,22 +286,31 @@ test('source inspection opens directly without the financial error or a page jum
     assert.equal(f.get('calculated-review').hidden,false,'The same member table remains visible');
     assert.equal(f.calls.sourceMount.length,1);
     assert.equal(f.calls.sourceMount[0].sourceOnly,true);
-    assert.equal(f.calls.sourceMount[0].financialReview,false);
+    assert.equal(f.calls.sourceMount[0].financialReview,true,'Omission control is available before settlement');
     assert.ok(f.calls.sourceMount[0].payload.data.every(row => row.liquido === null));
     assert.equal(f.get('production-publication-controls').hidden,true);
+    assert.equal(f.get('pending-invoices-link').hidden,false);
+    assert.equal(f.get('pending-invoices-link').href,
+        '/relatorios/invoices?ano-mes=2026-08&pendentes=1');
+    assert.match(f.get('pending-invoices-link').textContent,/7 documento/);
     assert.match(f.get('imported-data-summary').textContent,/214/);
     assert.match(f.get('imported-data-summary').textContent,/2\.007,63/);
     assert.match(f.get('imported-data-summary').textContent,/2329/);
     assert.equal(f.indicators[1].disabled,false);
+    f.decide(8,true);
+    assert.deepEqual([...f.calls.sourceMount[0].omitted],[8]);
+    assert.match(f.get('selection-summary').textContent,/1 cooperado/);
 
     await f.click('calculate-financial-preview');
     assert.equal(f.step(),2,'Economic deficits may not hide the imported evidence');
     assert.equal(f.calls.fetch.length,2,'The staged data can be reused for a financial error');
     assert.equal(f.calls.sourceMount.length,1,'Do not reset the source table');
+    assert.deepEqual([...f.calls.sourceMount[0].omitted],[8],
+        'The decision survives an unavailable financial calculation');
     assert.equal(f.calls.mount.length,0,'Must not fabricate a calculated table');
     assert.equal(f.get('source-financial-status').hidden,false);
     assert.match(f.get('source-financial-status').textContent,/O cálculo da retirada ainda não/);
-    assert.match(f.get('source-financial-status').textContent,/7 fatura/);
+    assert.match(f.get('source-financial-status').textContent,/7 documentos/);
     assert.equal(f.calls.notices.length,0,'No repeated generic financial warning');
     f.setConsent(true);
     assert.equal(f.get('submit').disabled,true);
@@ -310,6 +319,24 @@ test('source inspection opens directly without the financial error or a page jum
     f.indicators[0].trigger('click');
     f.indicators[1].trigger('click');
     assert.equal(f.step(),2,'Read-only audit remains navigable');
+});
+
+test('source omission selections carry to calculated preview without authorizing publication', async () => {
+    const f=fixture();
+    await f.click('use-existing');
+    f.decide(8,true);
+    assert.equal(f.calls.mount.length,0);
+    assert.equal(f.get('submit').disabled,true);
+    await f.click('calculate-financial-preview');
+    assert.equal(f.calls.mount.length,1);
+    assert.equal(f.calls.mount[0].omitted.has(8),true,
+        'Manual omissions must survive moving from source review to calculated preview');
+    assert.match(f.get('selection-summary').textContent,/1 não publicados agora/);
+    assert.equal(f.get('publication-confirmation').checked,false);
+    assert.equal(f.get('submit').disabled,true);
+    f.setConsent(true);
+    await f.click('submit');
+    assert.equal(f.calls.submit[0].omit_user_ids,'8');
 });
 
 test('successful source import shows audit state when finance cannot be calculated', async () => {

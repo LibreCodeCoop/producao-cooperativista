@@ -84,7 +84,8 @@
             String(whole % 60).padStart(2, '0');
     }
 
-    function productionDetails(record) {
+    function productionDetails(record, options = {}) {
+        const sourceOnly = options.sourceOnly === true;
         let rows = [];
         try {
             const parsed = JSON.parse(record.trabalhado || '[]');
@@ -109,8 +110,11 @@
             ['Desconto líquido', 'liquid_discount'],
             ['Adiantamentos', 'adiantamento'], ['Líquido', 'liquido'],
         ];
-        const facts = moneyFields.filter(([,key]) => record[key] !== undefined &&
-            record[key] !== null && record[key] !== '').map(([label,key]) => {
+        const facts = moneyFields.filter(([,key]) => sourceOnly || (record[key] !== undefined &&
+            record[key] !== null && record[key] !== '')).map(([label,key]) => {
+            if (sourceOnly) {
+                return '<div><dt>' + escapeHtml(label) + '</dt><dd>A apurar</dd></div>';
+            }
             const explanation = record.explanations?.[key];
             let amount = Number(record[key]);
             if (key === 'adiantamento') {
@@ -137,9 +141,12 @@
         return '<div class="production-row-details"><div><h4>Horas por cliente</h4>' +
             (work ? '<div class="production-detail-scroll"><table><thead><tr><th>Cliente</th>' +
             '<th>Horas do cooperado</th><th>Tempo total do cliente</th>' +
-            '<th>Participação no cliente</th></tr></thead>' +
+            '<th>' + (sourceOnly ? 'Participação nas horas' : 'Participação no cliente') +
+            '</th></tr></thead>' +
             '<tbody>' + work + '</tbody></table></div>' : '<p>Sem horas de clientes detalhadas.</p>') +
-            '</div><div><h4>Composição financeira</h4><dl>' + facts + '</dl></div></div>';
+            '</div><div><h4>Composição financeira</h4>' +
+            (sourceOnly ? '<p class="production-help">Ainda não calculada. Valores a apurar não são zero.</p>' : '') +
+            '<dl>' + facts + '</dl></div></div>';
     }
 
     function buildProductionColumns(options = {}) {
@@ -199,6 +206,23 @@
     function renderCell(value, type, column, row = null, options = {}) {
         // Monetary allocations do not exist until a financial preview succeeds.
         // Source-only inspection must not render null as zero or export invented cents.
+        if (options.pendingInvoices && column === 'status_documento') {
+            const statusLabels = {
+                draft: 'Rascunho', sent: 'Enviada', partial: 'Parcialmente recebida',
+                overdue: 'Vencida', canceled: 'Cancelada', cancelled: 'Cancelada',
+            };
+            const code = String(value ?? '');
+            const label = statusLabels[code] || 'Status não identificado';
+            if (type !== 'display') return label;
+            const style = ['draft', 'sent', 'partial', 'overdue'].includes(code) ? code : 'other';
+            return '<span class="production-invoice-status production-invoice-status--' +
+                style + '">' + escapeHtml(label) + '</span>';
+        }
+        if (options.pendingInvoices && column === 'valor') {
+            const amount = Number(value);
+            return Number.isFinite(amount) && value !== '' && value !== null
+                ? type === 'display' ? escapeHtml(brl.format(amount)) : amount : '';
+        }
         if (options.sourceOnly && options.productionMode && MONEY_COLUMNS.has(column)) {
             return type === 'display'
                 ? '<span class="money-cell" title="Ainda não calculado">A apurar</span>'
@@ -430,6 +454,27 @@
             if (!Array.isArray(payload?.data)) {
                 throw new Error('A API retornou um formato de relatório inválido.');
             }
+            if (table.dataset.pendingInvoices === 'yes') {
+                const summary = doc.getElementById('pending-invoice-summary');
+                if (summary) {
+                    const total = Number(payload.metadata?.total ?? payload.data.length);
+                    const amount = Number(payload.metadata?.amount);
+                    const drafts = payload.data.filter(row => row.status_documento === 'draft').length;
+                    const sent = payload.data.filter(row => row.status_documento === 'sent').length;
+                    const statuses = [];
+                    if (drafts) statuses.push(drafts + (drafts === 1 ? ' rascunho' : ' rascunhos'));
+                    if (sent) statuses.push(sent + (sent === 1 ? ' enviada' : ' enviadas'));
+                    const breakdown = !payload.metadata?.truncated && statuses.length
+                        ? ' Situação: ' + statuses.join(', ') + '.' : '';
+                    summary.textContent = Number.isSafeInteger(total) && Number.isFinite(amount)
+                        ? total + (total === 1 ? ' documento' : ' documentos') +
+                            ' sem baixa confirmada na importação, somando ' +
+                            brl.format(amount) + '.' + breakdown + ' ' +
+                            (payload.metadata?.truncated ? 'Lista limitada aos primeiros 100. ' : '') +
+                            'Os status refletem a última importação do Akaunting, não o saldo bancário atual.'
+                        : 'Confira o status de cada documento na base importada.';
+                }
+            }
             if (!payload.data.length) {
                 showError(errors, 'Nenhum registro encontrado para os filtros informados.');
                 return null;
@@ -440,6 +485,7 @@
                 financialReview: typeof options.financialReview === 'boolean'
                     ? options.financialReview : table.dataset.financialReview === 'yes',
                 sourceOnly: options.sourceOnly === true,
+                pendingInvoices: table.dataset.pendingInvoices === 'yes',
                 omitted: options.omitted,
             };
             const productionMode = table.dataset.productionMode === 'yes';
@@ -507,7 +553,7 @@
                         button.setAttribute('aria-expanded', 'false');
                         button.textContent = 'Abrir';
                     } else {
-                        row.child(productionDetails(row.data())).show();
+                        row.child(productionDetails(row.data(), reportOptions)).show();
                         button.setAttribute('aria-expanded', 'true');
                         button.textContent = 'Fechar';
                     }

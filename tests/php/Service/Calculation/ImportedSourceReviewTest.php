@@ -25,7 +25,7 @@ final class ImportedSourceReviewTest extends TestCase
         $database->insert('projects', ['id' => 80, 'customer_id' => 18]);
         $database->insert('users', ['id' => 5, 'alias' => 'Cooperada A', 'peso' => 1.5]);
         $database->insert('users', ['id' => 19, 'alias' => 'Cooperado B', 'peso' => 2.0]);
-        $database->executeStatement('CREATE TABLE invoices (id INT, document_number TEXT, amount REAL, due_at TEXT, category_id INT, metadata TEXT, transaction_of_month TEXT, type TEXT, category_type TEXT, archive INT)');
+        $database->executeStatement('CREATE TABLE invoices (id INT, document_number TEXT, contact_name TEXT, amount REAL, due_at TEXT, category_id INT, metadata TEXT, transaction_of_month TEXT, type TEXT, category_type TEXT, archive INT)');
         $database->executeStatement('CREATE TABLE transactions (id INT, type TEXT, category_id INT, category_name TEXT, customer_reference TEXT, amount REAL, metadata TEXT, transaction_of_month TEXT, archive INT)');
         $database->insert('timesheet', ['id' => 1, 'user_id' => 5, 'project_id' => 70, 'begin' => '2026-09-04', 'duration' => 3600]);
         $database->insert('timesheet', ['id' => 2, 'user_id' => 19, 'project_id' => 70, 'begin' => '2026-09-05', 'duration' => 7200]);
@@ -37,7 +37,7 @@ final class ImportedSourceReviewTest extends TestCase
             [2364, 'paid', 100.00],
         ] as [$id, $status, $amount]) {
             $database->insert('invoices', [
-                'id' => $id, 'document_number' => (string) $id, 'amount' => $amount,
+                'id' => $id, 'document_number' => (string) $id, 'contact_name' => 'Cliente Teste', 'amount' => $amount,
                 'due_at' => '2026-10-20', 'category_id' => 101,
                 'metadata' => json_encode(['status' => $status], JSON_THROW_ON_ERROR),
                 'transaction_of_month' => '2026-10', 'type' => 'invoice', 'category_type' => 'income', 'archive' => 0,
@@ -103,6 +103,17 @@ final class ImportedSourceReviewTest extends TestCase
             self::assertSame(2, $result['unconfirmed_invoices']['count']);
             self::assertSame(59755.5, $result['unconfirmed_invoices']['amount']);
             self::assertSame([2329, 2363], array_column($result['unconfirmed_invoices']['documents'], 'id'));
+            self::assertSame(['sent', 'draft'], array_column($result['unconfirmed_invoices']['documents'], 'status'));
+            self::assertSame(['Cliente Teste', 'Cliente Teste'], array_column($result['unconfirmed_invoices']['documents'], 'customer'));
+            $pending = $review->pendingInvoiceReport(Competencia::fromString('2026-09'));
+            self::assertSame(2, $pending['metadata']['total']);
+            self::assertSame('2026-10', $pending['metadata']['financial_month']);
+            self::assertFalse($pending['metadata']['truncated']);
+            self::assertCount(2, $pending['data']);
+            self::assertSame('Cliente Teste', $pending['data'][0]['cliente']);
+            self::assertSame('sent', $pending['data'][0]['status_documento']);
+            self::assertSame('draft', $pending['data'][1]['status_documento']);
+            self::assertSame('Sem baixa confirmada na importação', $pending['data'][1]['recebimento']);
 
             $following = $review->read(Competencia::fromString('2026-10'));
             self::assertSame('2026-11', $following['financial_month']);

@@ -1,28 +1,36 @@
 {% extends "layout/index.html.twig" %}
-{% block title %}Entradas e saídas{% endblock %}
+{% block title %}{% if pendentes|default(false) %}Documentos para conciliação{% else %}Entradas e saídas{% endif %}{% endblock %}
 {% block head %}
-    <link rel="stylesheet" href="/css/production-workflow.css">
+    <link rel="stylesheet" href="/css/production-workflow.css{% if workflow_asset_version is defined %}?v={{ workflow_asset_version }}{% endif %}">
 {% endblock %}
 {% block body %}
     <nav class="breadcrumbs" aria-label="Localização">
-        <a href="/acoes/make-producao">Fechamento</a><span aria-hidden="true">/</span><span aria-current="page">Entradas e saídas</span>
+        <a href="/acoes/make-producao?ano-mes={{ competencia }}">Fechamento</a><span aria-hidden="true">/</span><span aria-current="page">{% if pendentes|default(false) %}Documentos para conciliação{% else %}Entradas e saídas{% endif %}</span>
     </nav>
     <header class="page-heading page-heading-compact">
-        <p class="eyebrow">Conferência financeira · Competência</p>
-        <h1>Entradas e saídas</h1>
-        <p class="page-lead">Confira os lançamentos e volte à memória de cálculo para verificar sua participação na apuração.</p>
+        <p class="eyebrow">Conferência financeira · Competência {{ competencia }}</p>
+        <h1>{% if pendentes|default(false) %}Documentos para conciliação{% else %}Entradas e saídas{% endif %}</h1>
+        <p class="page-lead">{% if pendentes|default(false) %}Produção de {{ competencia }}, documentos financeiros de {{ financial_month|default('mês seguinte') }}. Documentos importados sem baixa confirmada, incluindo rascunhos. O status reflete a última importação e não significa necessariamente inadimplência. Abra cada documento no Akaunting para conferir a emissão e o recebimento. Após corrigir a origem, reimporte a competência para atualizar este relatório; não é necessário limpar o banco.{% else %}Confira os lançamentos e volte à memória de cálculo para verificar sua participação na apuração.{% endif %}</p>
     </header>
     <div class="production-report-tools">
         <form method="get" action="/relatorios/invoices" class="production-month-picker">
             <label for="invoices-competence">Competência do trabalho</label>
             <input type="month" id="invoices-competence" name="ano-mes" value="{{ competencia }}" required>
+            {% if pendentes|default(false) %}<input type="hidden" name="pendentes" value="1">{% endif %}
             <button type="submit" class="button button-primary">Consultar</button>
         </form>
         <nav aria-label="Outras conferências" class="production-report-nav">
+            {% if pendentes|default(false) %}
+                <a href="/relatorios/invoices?ano-mes={{ competencia }}">Todas as entradas e saídas</a>
+            {% else %}
+                <a href="/relatorios/invoices?ano-mes={{ competencia }}&amp;pendentes=1">Documentos sem baixa confirmada</a>
+            {% endif %}
             <a href="/relatorios/calculos?ano-mes={{ competencia }}">Memória de cálculo</a>
-            <a href="/relatorios/producao?ano-mes={{ competencia }}">Produção por cooperado</a>
             <a href="/acoes/make-producao?ano-mes={{ competencia }}">Voltar ao processamento</a>
         </nav>
     </div>
-    {{ include('layout/components/datatable.html.twig') }}
+    {% if pendentes|default(false) %}
+        <p id="pending-invoice-summary" class="production-help" role="status" aria-live="polite">Carregando documentos da base importada…</p>
+    {% endif %}
+    {{ include('layout/components/datatable.html.twig', {pendingInvoices: pendentes|default(false)}) }}
 {% endblock %}

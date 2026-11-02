@@ -148,7 +148,7 @@ final readonly class ImportedSourceReview
         }
 
         $documents = $this->database->fetchAllAssociative(
-            "SELECT id, document_number, amount, due_at, category_id, metadata "
+            "SELECT id, document_number, contact_name, amount, due_at, category_id, metadata "
             . "FROM invoices WHERE transaction_of_month = :month AND type = 'invoice' "
             . "AND category_type = 'income' AND archive = 0 ORDER BY id",
             ['month' => $financialMonth],
@@ -172,6 +172,7 @@ final readonly class ImportedSourceReview
                 $unconfirmed[] = [
                     'id' => $id,
                     'number' => (string) ($document['document_number'] ?? ''),
+                    'customer' => trim((string) ($document['contact_name'] ?? '')),
                     'amount' => round((float) $document['amount'], 2),
                     'status' => $status,
                     'due_date' => substr((string) ($document['due_at'] ?? ''), 0, 10),
@@ -206,6 +207,42 @@ final readonly class ImportedSourceReview
                 'amount' => round($unconfirmedAmount, 2),
                 'documents' => $unconfirmed,
                 'truncated' => $unconfirmedCount > count($unconfirmed),
+            ],
+        ];
+    }
+
+    /**
+     * The report uses the same imported snapshot as the monthly review. It is
+     * not a live bank statement or proof that a customer has not paid.
+     *
+     * @return array<string, mixed>
+     */
+    public function pendingInvoiceReport(Competencia $competence): array
+    {
+        $review = $this->read($competence);
+        $pending = $review['unconfirmed_invoices'];
+        $data = [];
+        foreach ($pending['documents'] as $invoice) {
+            $status = $invoice['status'];
+            $data[] = [
+                'id' => $invoice['id'],
+                'numero_documento' => $invoice['number'] !== '' ? $invoice['number'] : '#' . $invoice['id'],
+                'cliente' => $invoice['customer'] !== '' ? $invoice['customer'] : 'Cliente não identificado',
+                'valor' => $invoice['amount'],
+                'status_documento' => $status,
+                'recebimento' => 'Sem baixa confirmada na importação',
+                'vencimento' => $invoice['due_date'],
+            ];
+        }
+
+        return [
+            'data' => $data,
+            'metadata' => [
+                'competence' => (string) $competence,
+                'financial_month' => $review['financial_month'],
+                'total' => $pending['count'],
+                'amount' => $pending['amount'],
+                'truncated' => $pending['truncated'],
             ],
         ];
     }

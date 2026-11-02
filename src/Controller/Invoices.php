@@ -70,14 +70,23 @@ class Invoices extends AbstractController
             return new Response($error->getMessage(), Response::HTTP_BAD_REQUEST);
         }
 
+        $pendingOnly = $this->request->query->getString('pendentes') === '1';
+        $params = ['ano-mes' => $inicio->format('Y-m')];
+        if ($pendingOnly) {
+            $params['pendentes'] = '1';
+        }
+
         return $this->render('invoices.index.html.twig', [
-            'url' => $this->urlGenerator->generate(
-                'app_api_invoices_index',
-                [
-                    'ano-mes' => $inicio->format('Y-m')
-                ],
-            ),
+            'url' => $this->urlGenerator->generate('app_api_invoices_index', $params),
             'competencia' => $inicio->format('Y-m'),
+            'financial_month' => Competencia::fromString($requested)->financialMonth(),
+            'pendentes' => $pendingOnly,
+            'workflow_asset_version' => substr(
+                (string) hash_file('sha256', $this->getParameter('kernel.project_dir')
+                    . '/public/js/report-table.js'),
+                0,
+                12,
+            ),
         ]);
     }
 }

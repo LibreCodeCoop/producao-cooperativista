@@ -26,7 +26,9 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
+use App\Domain\Competencia;
 use App\Service\Akaunting\Source\Categories;
+use App\Service\Calculation\ImportedSourceReview;
 use App\Service\Movimentacao;
 use DateTime;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -43,6 +45,7 @@ class Invoices extends AbstractController
         RequestStack $requestStack,
         private Categories $categories,
         private Movimentacao $movimentacao,
+        private ImportedSourceReview $sourceReview,
         private ApiProblemResponder $apiErrors,
     ) {
         $this->request = $requestStack->getCurrentRequest();
@@ -51,6 +54,25 @@ class Invoices extends AbstractController
     #[Route('/api/v1/invoices', methods: ['GET'])]
     public function index(): JsonResponse
     {
+        // This filter must use staged invoices directly: the ordinary movement
+        // report intentionally excludes unconfirmed customer receipts.
+        if ($this->request->query->getString('pendentes') === '1') {
+            try {
+                $competence = Competencia::fromString($this->request->query->getString('ano-mes'));
+                $report = $this->sourceReview->pendingInvoiceReport($competence);
+                $base = rtrim((string) getenv('AKAUNTING_API_BASE_URL'), '/');
+                $company = (string) getenv('AKAUNTING_COMPANY_ID');
+                foreach ($report['data'] as &$row) {
+                    $row['URL'] = $base . '/' . $company . '/sales/invoices/' . $row['id'];
+                }
+                unset($row);
+
+                return new JsonResponse($report);
+            } catch (\Throwable $error) {
+                return $this->apiErrors->fromThrowable($error, 'InvoicesPendingReview');
+            }
+        }
+
         $this->movimentacao->dates->setDiaUtilPagamento(
             $this->request->query->getInt('dia-util-pagamento', (int) getenv('DIA_UTIL_PAGAMENTO'))
         );

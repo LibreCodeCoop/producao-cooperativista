@@ -204,6 +204,24 @@ final class OperationalUiTest extends TestCase
         self::assertStringContainsString('data-sources-url="/api/v1/producao/fontes"', $html);
     }
 
+    public function testPendingInvoicesReportProvidesStatusAndDirectLinksWithoutFinancialCalculation(): void
+    {
+        $html = $this->twig()->render('invoices.index.html.twig', [
+            'competencia' => '2026-09',
+            'financial_month' => '2026-10',
+            'url' => '/api/v1/invoices?ano-mes=2026-09&pendentes=1',
+            'pendentes' => true,
+            'workflow_asset_version' => 'a1b2c3d4e5f6',
+        ]);
+        self::assertStringContainsString('Documentos para conciliação', $html);
+        self::assertStringContainsString('data-pending-invoices="yes"', $html);
+        self::assertStringContainsString('name="pendentes" value="1"', $html);
+        self::assertStringContainsString('id="pending-invoice-summary"', $html);
+        self::assertStringContainsString('src="/js/report-table.js?v=a1b2c3d4e5f6"', $html);
+        self::assertStringContainsString('ano-mes=2026-09&amp;pendentes=1', $html);
+        self::assertStringContainsString('não significa necessariamente inadimplência', $html);
+    }
+
     public function testAuditPagesKeepTheSelectedPeriodAndReturnPath(): void
     {
         foreach (['producao.index.html.twig', 'invoices.index.html.twig'] as $view) {
