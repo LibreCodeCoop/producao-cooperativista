@@ -84,6 +84,12 @@ class Producao extends AbstractController
             ),
             'competencia' => $inicio->format('Y-m'),
             'productionMode' => true,
+            'workflow_asset_version' => substr(
+                (string) hash_file('sha256', $this->getParameter('kernel.project_dir')
+                    . '/public/js/report-table.js'),
+                0,
+                12,
+            ),
             'filterColumns' => ['metadata', 'kimai_user_id', 'hours_seconds'],
         ]);
     }

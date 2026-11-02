@@ -76,6 +76,12 @@ class TrabalhadoSummarized extends AbstractController
                 ],
             ),
             'competencia' => $inicio->format('Y-m'),
+            'workflow_asset_version' => substr(
+                (string) hash_file('sha256', $this->getParameter('kernel.project_dir')
+                    . '/public/js/report-table.js'),
+                0,
+                12,
+            ),
         ]);
     }
 }

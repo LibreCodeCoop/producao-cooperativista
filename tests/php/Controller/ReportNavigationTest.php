@@ -78,6 +78,27 @@ final class ReportNavigationTest extends WebTestCase
         }
     }
 
+    public function testAuditableTablesVersionTheirJavaScriptToAvoidOldBrowserCaches(): void
+    {
+        $client = static::createClient();
+        foreach ([
+            '/relatorios/producao?ano-mes=2026-09',
+            '/relatorios/categorias',
+            '/relatorios/trabalhado-summarized?ano-mes=2026-09',
+        ] as $path) {
+            $client->request('GET', $path);
+            self::assertSame(Response::HTTP_OK, $client->getResponse()->getStatusCode(), $path);
+            self::assertSame(
+                1,
+                preg_match(
+                    '~/js/report-table\\.js\\?v=[a-f0-9]{12}~',
+                    (string) $client->getResponse()->getContent()
+                ),
+                $path,
+            );
+        }
+    }
+
     public function testCanonicalReportsAreRoutedAndAvailableInDedicatedCatalog(): void
     {
         $client = static::createClient();
