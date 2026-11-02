@@ -29,7 +29,6 @@ namespace App\Controller;
 use App\Domain\Competencia;
 use App\Service\Config\CompetenceDefaults;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
@@ -52,16 +51,9 @@ class Invoices extends AbstractController
     {
         $requested = $this->request->query->getString('ano-mes');
         if ($requested === '') {
-            $inicio = \DateTime::createFromFormat('!Y-m', $this->competences->reportMonth());
-            return new RedirectResponse(
-                $this->urlGenerator->generate(
-                    'app_invoices_index',
-                    [
-                        'ano-mes' => $inicio->format('Y-m')
-                    ],
-                    $this->urlGenerator::ABSOLUTE_URL
-                )
-            );
+            // The reports catalog links here without a month. Render the
+            // latest imported period directly instead of depending on redirect.
+            $requested = $this->competences->reportMonth();
         }
 
         try {

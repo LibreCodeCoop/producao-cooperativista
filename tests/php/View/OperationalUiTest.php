@@ -145,6 +145,17 @@ final class OperationalUiTest extends TestCase
         self::assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt;', $html);
     }
 
+    public function testProductionStepsAreNormalFlowNotSticky(): void
+    {
+        $source = (string) file_get_contents(
+            dirname(__DIR__, 3) . '/resources/scss/production-workflow.scss',
+        );
+        self::assertSame(1, preg_match('/\.production-steps\s*\{([^}]*)\}/s', $source, $matches));
+        self::assertStringNotContainsString('position:sticky', $matches[1]);
+        self::assertStringNotContainsString('position:fixed', $matches[1]);
+        self::assertStringNotContainsString('top:0', $matches[1]);
+    }
+
     public function testProductionWizardCombinesFinancialReviewAndPublicationInOneStep(): void
     {
         $html = $this->twig()->render('acoes/make_producao.html.twig', [

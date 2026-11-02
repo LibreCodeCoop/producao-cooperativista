@@ -35,6 +35,27 @@ final class ReportNavigationTest extends WebTestCase
         self::assertSame('Ana', $params['dtname']);
     }
 
+    public function testInvoicesCanBeOpenedFromCatalogWithoutChoosingMonthFirst(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/relatorios/invoices');
+        self::assertSame(Response::HTTP_OK, $client->getResponse()->getStatusCode());
+        $html = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Entradas e saídas', $html);
+        self::assertStringContainsString('id="invoices-competence"', $html);
+        self::assertStringContainsString('/api/v1/invoices?ano-mes=', $html);
+
+        $client->request('GET', '/relatorios/invoices?pendentes=1');
+        self::assertSame(Response::HTTP_OK, $client->getResponse()->getStatusCode());
+        $html = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Faturas para conferência', $html);
+        self::assertStringContainsString('data-pending-invoices="yes"', $html);
+        self::assertStringContainsString('name="pendentes" value="1"', $html);
+
+        $client->request('GET', '/relatorios/invoices?ano-mes=invalid');
+        self::assertSame(Response::HTTP_BAD_REQUEST, $client->getResponse()->getStatusCode());
+    }
+
     public function testCanonicalReportsAreRoutedAndAvailableInDedicatedCatalog(): void
     {
         $client = static::createClient();

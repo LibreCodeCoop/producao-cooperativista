@@ -17,7 +17,6 @@
 .production-steps {
     display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
     width:min(100%,690px); gap:9px; margin-bottom:18px;
-    position:sticky; top:0; z-index:6; background:var(--canvas); padding:8px 0;
 }
 .production-steps > button {
     display:flex; align-items:center; justify-content:center; gap:10px;

@@ -92,11 +92,14 @@ class Invoices extends AbstractController
 
         $type = $this->request->query->getString('type', 'all');
         try {
+            // A financial movements report is not a distribution simulation.
+            // Avoid blocking inspection when the settlement base is insufficient.
+            $movimentacao = $this->movimentacao->getMovimentacaoParaRelatorio();
             $movimentacao = match ($type) {
-                'income' => $this->movimentacao->getEntradas(),
-                'expense' => $this->movimentacao->getSaidas(),
-                'all' => $this->movimentacao->getMovimentacaoFinanceira(),
-                default => throw new \Exception('Tipo de movimentação invpalido: ' . print_r($type, true)),
+                'income' => array_filter($movimentacao, static fn (array $row): bool => $row['category_type'] === 'income'),
+                'expense' => array_filter($movimentacao, static fn (array $row): bool => $row['category_type'] === 'expense'),
+                'all' => $movimentacao,
+                default => throw new \InvalidArgumentException('Tipo de movimentação inválido.'),
             };
         } catch (\Throwable $th) {
             return $this->apiErrors->fromThrowable($th, 'Invoices');

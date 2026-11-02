@@ -61,7 +61,21 @@ class Movimentacao
 
     public function getMovimentacaoFinanceira(): array
     {
-        if (!empty($this->movimentacao)) {
+        return $this->loadMovimentacao(true);
+    }
+
+    /**
+     * Read-only financial movements for the report. A failed distribution
+     * calculation must never prevent the finance team from viewing records.
+     */
+    public function getMovimentacaoParaRelatorio(): array
+    {
+        return $this->loadMovimentacao(false);
+    }
+
+    private function loadMovimentacao(bool $calcularProducao): array
+    {
+        if ($calcularProducao && !empty($this->movimentacao)) {
             return $this->movimentacao;
         }
         $sql = <<<SQL
@@ -178,6 +192,7 @@ class Movimentacao
             'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m')
         ]);
         $movimentacao = [];
+        $sourceKeys = [];
         $errors = [];
         $ignoredUnpaidInvoices = [];
         while ($row = $stmt->fetchAssociative()) {
@@ -210,7 +225,7 @@ class Movimentacao
             // Transaction and invoice IDs come from independent sequences.
             // Index both instead of silently replacing a movement with the same ID.
             $sourceKey = (string) $row['table'] . ':' . (string) $row['id'];
-            if (array_key_exists($sourceKey, $this->movementKeysBySource)) {
+            if (array_key_exists($sourceKey, $sourceKeys)) {
                 throw new Exception(sprintf(
                     'Movimentação repetida na competência %s: origem %s, ID %s. Verifique parcelas e lançamentos duplicados no Akaunting.',
                     $this->dates->getInicioProximoMes()->format('Y-m'),
@@ -224,7 +239,7 @@ class Movimentacao
             }
 
             $movimentacao[$key] = $row;
-            $this->movementKeysBySource[$sourceKey] = $key;
+            $sourceKeys[$sourceKey] = $key;
         }
         if ($ignoredUnpaidInvoices !== []) {
             $this->logger->warning(
@@ -235,6 +250,16 @@ class Movimentacao
                     'document_ids' => array_slice($ignoredUnpaidInvoices, 0, 30),
                 ]
             );
+        }
+        if (!$calcularProducao) {
+            // Source amounts are available, but the member distribution base
+            // has not been calculated. Do not report the SQL placeholder zero.
+            foreach ($movimentacao as &$row) {
+                $row['base_producao'] = null;
+            }
+            unset($row);
+
+            return $movimentacao;
         }
         if (empty($movimentacao)) {
             throw new Exception(sprintf(
@@ -254,6 +279,7 @@ class Movimentacao
             ));
         }
 
+        $this->movementKeysBySource = $sourceKeys;
         $this->movimentacao = $movimentacao;
         $this->calculaBaseProducao();
         $this->logger->debug('Movimentação', [$this->movimentacao]);

@@ -101,9 +101,52 @@ final class MovimentacaoTest extends TestCase
             contactName: 'Fornecedor Cliente',
         );
 
+        $review = $this->movimentacao->getMovimentacaoParaRelatorio();
+        self::assertCount(1, $review);
+        self::assertNull(current($review)['base_producao']);
+        self::assertNull(current($review)['customer_reference']);
+
+        // A reporting exception must not weaken validation for publication.
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('Código de cliente inválido na movimentação do Akaunting');
 
+        $this->movimentacao->getMovimentacaoFinanceira();
+    }
+
+    public function testEmptyMonthReturnsAnEmptyReadOnlyReportInsteadOfAFinancialError(): void
+    {
+        $this->persistClientHierarchyRoots();
+        $this->dates->setInicio(new DateTime('2031-06-01'));
+        self::assertSame([], $this->movimentacao->getMovimentacaoParaRelatorio());
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Sem movimentações financeiras elegíveis');
+        $this->movimentacao->getMovimentacaoFinanceira();
+    }
+
+    public function testFinancialDeficitCannotPreventReadOnlyMovementInspection(): void
+    {
+        $root = (int) getenv('AKAUNTING_PARENT_DISPENDIOS_INTERNOS_CATEGORY_ID');
+        $this->persistClientHierarchyRoots();
+        $this->persistCategory($root, 'Dispêndios internos', null);
+        $this->persistCategory(self::COOPERATIVE_EXPENSE_CATEGORY_ID, 'Infraestrutura', $root);
+        $this->persistBill(
+            id: 1055,
+            categoryId: self::COOPERATIVE_EXPENSE_CATEGORY_ID,
+            categoryName: 'Infraestrutura',
+            customerReference: null,
+            contactName: 'Fornecedor externo',
+        );
+
+        $report = $this->movimentacao->getMovimentacaoParaRelatorio();
+        self::assertCount(1, $report);
+        self::assertSame('expense', current($report)['category_type']);
+        self::assertNull(current($report)['base_producao']);
+        self::assertSame(56.78, (float) current($report)['amount']);
+
+        $this->movimentacao->setPercentualMaximo(25);
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Base administrativa indisponível');
         $this->movimentacao->getMovimentacaoFinanceira();
     }
 
