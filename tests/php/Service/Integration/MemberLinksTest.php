@@ -55,7 +55,41 @@ final class MemberLinksTest extends TestCase
         }
     }
 
-    private function profileClient(array &$values, ?string $linkedUid = null): ProfileFieldsClient
+    public function testLinkIsAllowedWhenAkauntingContactCannotBeEdited(): void
+    {
+        $values = [];
+        $source = $this->source($this->profileClient($values), currency: null);
+        $source->linkMember(17, 'nc-account', 31);
+        self::assertSame('31', $values['akaunting_contact_id']);
+    }
+
+    public function testDifferentFinancialTaxNumberRejectsLinkBeforeAnyWrite(): void
+    {
+        $values = [];
+        $source = $this->source($this->profileClient($values), contactTax: '12345678901');
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('CPF/CNPJ divergente');
+        try {
+            $source->linkMember(17, 'nc-account', 31);
+        } finally {
+            self::assertSame([], $values);
+        }
+    }
+
+    public function testMissingAuthoritativeProfileTaxNumberRejectsLink(): void
+    {
+        $values = [];
+        $profile = $this->profileClient($values, profileTax: '');
+        $source = $this->source($profile);
+        $this->expectException(\DomainException::class);
+        try {
+            $source->linkMember(17, 'nc-account', 31);
+        } finally {
+            self::assertSame([], $values);
+        }
+    }
+
+    private function profileClient(array &$values, ?string $linkedUid = null, string $profileTax = '00000000000'): ProfileFieldsClient
     {
         $client = $this->createMock(ProfileFieldsClient::class);
         $client->expects(self::once())->method('userExists')->with('nc-account')->willReturn(true);
@@ -64,8 +98,8 @@ final class MemberLinksTest extends TestCase
             'akaunting_contact_id' => ['id' => 5, 'type' => 'text'],
         ]);
         $client->method('getFieldsForUser')->willReturnCallback(
-            static function () use (&$values): array {
-                return $values;
+            static function () use (&$values, $profileTax): array {
+                return ['tax_number' => $profileTax, ...$values];
             }
         );
         $client->method('findUserUidByLink')->willReturnCallback(
@@ -82,7 +116,7 @@ final class MemberLinksTest extends TestCase
         return $client;
     }
 
-    private function source(ProfileFieldsClient $profile): CooperativeSources
+    private function source(ProfileFieldsClient $profile, string $contactTax = '00000000000', ?string $currency = 'BRL'): CooperativeSources
     {
         $logger = new NullLogger();
         $http = new MockHttpClient(static fn (): MockResponse => new MockResponse((string) json_encode([
@@ -91,7 +125,7 @@ final class MemberLinksTest extends TestCase
         $db = $this->createStub(Connection::class);
         $db->method('fetchAssociative')->willReturn([
             'id' => 31, 'company_id' => 1, 'type' => 'vendor', 'name' => 'Example',
-            'tax_number' => '00000000000', 'currency_code' => 'BRL',
+            'tax_number' => $contactTax, 'currency_code' => $currency,
         ]);
         return new CooperativeSources(
             $http,

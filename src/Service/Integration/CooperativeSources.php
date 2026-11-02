@@ -194,8 +194,21 @@ final class CooperativeSources
         }
         $currentFinancial = trim((string) ($existing['akaunting_contact_id'] ?? ''));
         $financial = $this->akauntingContacts->overview($contactId);
-        if ($financial['id'] !== $contactId || !$financial['editable']) {
-            throw new \DomainException('Contato Akaunting inválido ou com cadastro incompleto.');
+        // A financial link identifies an existing contact; it does not edit
+        // that contact. Missing fields required by Akaunting's PUT API must
+        // not prevent associating an otherwise valid record.
+        if ($financial['id'] !== $contactId) {
+            throw new \DomainException('Contato financeiro inválido ou de outra empresa no Akaunting.');
+        }
+        $taxFieldKey = trim((string) getenv('PROFILE_FIELDS_TAX_NUMBER_FIELD_KEY')) ?: 'tax_number';
+        $profileTax = (string) preg_replace('/\\D/', '', (string) ($existing[$taxFieldKey] ?? ''));
+        $contactTax = (string) preg_replace('/\\D/', '', (string) $financial['tax_number']);
+        if (!in_array(strlen($profileTax), [11, 14], true) || $profileTax !== $contactTax) {
+            throw new \DomainException('CPF/CNPJ divergente entre o Profile Fields e o contato do Akaunting.');
+        }
+        $kimaiTax = (string) preg_replace('/\\D/', '', (string) ($member['preferences']['tax_number'] ?? ''));
+        if ($kimaiTax !== '' && $kimaiTax !== $profileTax) {
+            throw new \DomainException('CPF/CNPJ divergente entre Kimai e Profile Fields.');
         }
         $otherKimai = $this->profileFields->findUserUidByLink('kimai_user_id', $kimaiId);
         if ($otherKimai !== null && $otherKimai !== $uid) {
