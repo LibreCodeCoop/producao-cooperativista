@@ -203,6 +203,24 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
         self::assertStringContainsString('Histórico incompleto', $rows[0]['situacao']);
     }
 
+    public function testNoAutomaticAlertsDoesNotClaimDocumentaryReconciliation(): void
+    {
+        $this->transaction(5, 1, 'income', 25, '125.40');
+        $service = new ReflectionClass(ProducaoCooperativista::class)->newInstanceWithoutConstructor();
+        $source = new CapitalSocial($this->connection, new CapitalSocialSettings(25, 11));
+        new ReflectionClass(ProducaoCooperativista::class)->getProperty('capitalSocialSource')->setValue($service, $source);
+        $router = $this->createStub(UrlGeneratorInterface::class);
+        $router->method('generate')->willReturn('/relatorios/capital-social?contact_id=1');
+        new ReflectionClass(ProducaoCooperativista::class)->getProperty('urlGenerator')->setValue($service, $router);
+
+        $rows = array_values($service->getCapitalSocialSummarized());
+        self::assertCount(1, $rows);
+        self::assertSame('Sem alertas automáticos; saldo não conciliado', $rows[0]['situacao']);
+        self::assertSame(0, $rows[0]['pendencias']);
+        self::assertEqualsWithDelta(125.40, $rows[0]['total'], 0.001);
+        self::assertSame('/relatorios/capital-social?contact_id=1', $rows[0]['nome_url']);
+    }
+
     public function testZeroNetBillConfirmsCapitalRetentionOnlyWhenSettledByMatchingZeroPayment(): void
     {
         $this->document(80, 1, 'bill', 11, '0.00', [11 => '-39.90', 12 => '39.90']);

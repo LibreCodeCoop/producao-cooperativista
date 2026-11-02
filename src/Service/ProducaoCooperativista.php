@@ -170,7 +170,7 @@ class ProducaoCooperativista
                     'devolvido' => 0,
                     'total' => 0,
                     'pendencias' => 0,
-                    'situacao' => 'Aguardando conciliação documental',
+                    'situacao' => 'Sem alertas automáticos; saldo não conciliado',
             ];
             if ($row['status'] !== 'confirmado') {
                 ++$summary[$id]['pendencias'];
@@ -203,7 +203,10 @@ class ProducaoCooperativista
             } elseif ($entry['pendencias'] > 0) {
                 $entry['situacao'] = 'Movimentações a conferir';
             } else {
-                $entry['situacao'] = 'Aguardando conciliação documental';
+                // The automated triage only reviews imported classifications and
+                // payment evidence. It cannot attest that the historic member
+                // capital ledger matches assembly minutes and accounting books.
+                $entry['situacao'] = 'Sem alertas automáticos; saldo não conciliado';
             }
             $summary[$id] = $entry;
         }

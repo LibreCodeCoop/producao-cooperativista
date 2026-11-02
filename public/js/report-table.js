@@ -237,6 +237,15 @@
             return Number.isFinite(amount) && value !== '' && value !== null
                 ? type === 'display' ? escapeHtml(brl.format(amount)) : amount : '';
         }
+        if (options.capitalSocialSummary && ['integralizado', 'devolvido', 'total'].includes(column)) {
+            const amount = Number(value);
+            if (value === null || value === '' || !Number.isFinite(amount)) return '';
+            const rounded = Math.round(amount * 100) / 100;
+            if (type === 'display') {
+                return '<span class="money-cell">' + escapeHtml(brl.format(rounded)) + '</span>';
+            }
+            return type === 'export' ? decimalExport.format(rounded) : rounded;
+        }
         // Invoices and movements are distinct reports, but both use links
         // instead of a redundant URL column in their read-only tables.
         if (type === 'display' && options.pendingInvoices && column === 'numero_documento') {
@@ -287,9 +296,16 @@
     }
 
     function buildColumns(rows, excluded = ['metadata', 'nome_url'], options = {}) {
+        // nome_url is a link target, never a standalone report column, even
+        // when a page supplies its own list of excluded fields.
+        const hiddenColumns = new Set([...excluded, 'nome_url']);
         const keys = [...new Set(rows.flatMap(row =>
             row && typeof row === 'object' && !Array.isArray(row) ? Object.keys(row) : []
         ))];
+        const capitalLabels = {
+            pendencias: 'Alertas identificados',
+            situacao: 'Verificação automática',
+        };
         const pendingLabels = {
             numero_documento: 'Fatura',
             status_documento: 'Situação da fatura',
@@ -297,9 +313,11 @@
             o_que_conferir: 'O que fazer',
             URL: 'Abrir no Akaunting',
         };
-        return keys.filter(key => !excluded.includes(key)).map(key => ({
+        return keys.filter(key => !hiddenColumns.has(key)).map(key => ({
             data: key,
-            title: options.pendingInvoices ? pendingLabels[key] || columnTitle(key) : columnTitle(key),
+            title: options.pendingInvoices ? pendingLabels[key] || columnTitle(key)
+                : options.capitalSocialSummary ? capitalLabels[key] || columnTitle(key)
+                    : columnTitle(key),
             defaultContent: '',
             render: (value, type, row) => renderCell(value, type, key, row, options),
         }));
@@ -571,6 +589,7 @@
                 sourceOnly,
                 pendingInvoices: table.dataset.pendingInvoices === 'yes',
                 financialMovements: table.dataset.financialMovements === 'yes',
+                capitalSocialSummary: table.dataset.capitalSocialSummary === 'yes',
                 omitted: options.omitted,
             };
             const productionMode = table.dataset.productionMode === 'yes';

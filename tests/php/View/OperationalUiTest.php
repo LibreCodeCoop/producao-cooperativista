@@ -72,6 +72,22 @@ final class OperationalUiTest extends TestCase
         }
     }
 
+    public function testCapitalSummaryExplainsPreliminaryBalanceAndHidesLinkTargetColumn(): void
+    {
+        $html = $this->twig()->render('capitalSocialSummarized.index.html.twig', [
+            'url' => '/api/v1/capital-social-summarized',
+            'workflow_asset_version' => 'cafe1234beef',
+        ]);
+        self::assertStringContainsString('data-capital-social-summary="yes"', $html);
+        self::assertStringContainsString('nome_url', $html);
+        self::assertStringContainsString('Saldo identificado no Akaunting', $html);
+        self::assertStringContainsString('saldo não conciliado', $html);
+        self::assertStringContainsString('não registra nem concede uma aprovação', $html);
+        self::assertStringContainsString('livro ou ficha de capital', $html);
+        self::assertStringContainsString('Razão contábil e balancete', $html);
+        self::assertStringContainsString('/js/report-table.js?v=cafe1234beef', $html);
+    }
+
     public function testReportsCatalogExposesTheFinancialReports(): void
     {
         $html = $this->twig()->render('index.relatorios.html.twig', [

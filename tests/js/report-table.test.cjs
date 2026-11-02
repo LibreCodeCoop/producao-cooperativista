@@ -338,6 +338,34 @@ test('capital-social names and targets are separate, untrusted data fields', () 
     assert.deepEqual(buildColumns([row]).map(c=>c.data),['nome']);
 });
 
+test('capital summary hides the name URL helper and clearly labels provisional balances', () => {
+    const row = {
+        nome: 'Cooperado A',
+        nome_url: '/relatorios/capital-social?contact_id=4',
+        integralizado: 28487.169999999995,
+        devolvido: 4699.63,
+        total: 23787.54,
+        pendencias: 0,
+        situacao: 'Sem alertas automáticos; saldo não conciliado',
+    };
+    const options = {capitalSocialSummary: true};
+    const columns = buildColumns([row], ['metadata'], options);
+    assert.deepEqual(columns.map(column => column.data), [
+        'nome', 'integralizado', 'devolvido', 'total', 'pendencias', 'situacao',
+    ]);
+    assert.equal(columns[5].title, 'Verificação automática');
+    assert.equal(columns[4].title, 'Alertas identificados');
+    assert.ok(columns[0].render(row.nome, 'display', row).includes('/relatorios/capital-social?contact_id=4'));
+    assert.ok(columns[1].render(row.integralizado, 'display', row).includes('28.487,17'));
+    assert.equal(columns[1].render(row.integralizado, 'export', row), '28487.17');
+    assert.equal(columns[1].render(row.integralizado, 'sort', row), 28487.17);
+    assert.ok(columns[3].render(row.total, 'display', row).includes('23.787,54'));
+    assert.equal(columns[5].render(row.situacao, 'display', row),
+        'Sem alertas automáticos; saldo não conciliado');
+    assert.deepEqual(buildColumns([row], ['metadata'], {}).map(c => c.data),
+        ['nome', 'integralizado', 'devolvido', 'total', 'pendencias', 'situacao']);
+});
+
 test('column creation includes keys from later rows while excluding metadata', () => {
     const columns = buildColumns([{ metadata: '{}', nome: 'Pessoa' }, { id: 11, nome: 'Outra' }]);
     assert.deepEqual(columns.map(column => column.data), ['nome', 'id']);

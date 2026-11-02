@@ -47,7 +47,13 @@ class CapitalSocialSummarized extends AbstractController
                 'app_api_capitalsocialsummarized_index',
                 ['ate' => $request->query->get('ate')]
             ),
-            'ate' => $request->query->get('ate')
+            'ate' => $request->query->get('ate'),
+            'workflow_asset_version' => substr(
+                (string) hash_file('sha256', $this->getParameter('kernel.project_dir')
+                    . '/public/js/report-table.js'),
+                0,
+                12,
+            ),
         ]);
     }
 }
