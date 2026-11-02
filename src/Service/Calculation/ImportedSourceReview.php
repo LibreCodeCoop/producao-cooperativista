@@ -40,6 +40,23 @@ final readonly class ImportedSourceReview
             . 'WHERE begin >= :start AND begin < :end',
             ['start' => $start->format('Y-m-d'), 'end' => $competence->endExclusive()->format('Y-m-d')],
         ) ?: [];
+        $memberRows = $this->database->fetchAllAssociative(
+            'SELECT t.user_id AS id, u.alias AS name, COUNT(*) AS entries, COALESCE(SUM(t.duration), 0) AS seconds '
+            . 'FROM timesheet t LEFT JOIN users u ON u.id = t.user_id '
+            . 'WHERE t.begin >= :start AND t.begin < :end '
+            . 'GROUP BY t.user_id, u.alias ORDER BY t.user_id',
+            ['start' => $start->format('Y-m-d'), 'end' => $competence->endExclusive()->format('Y-m-d')],
+        );
+        $members = [];
+        foreach ($memberRows as $member) {
+            $id = (int) $member['id'];
+            $members[] = [
+                'id' => $id,
+                'name' => trim((string) ($member['name'] ?? '')) ?: 'Kimai #' . $id,
+                'entries' => (int) $member['entries'],
+                'seconds' => (int) $member['seconds'],
+            ];
+        }
 
         $income = $this->categoryIds('AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID');
         $clientCosts = $this->categoryIds('AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID');
@@ -121,6 +138,7 @@ final readonly class ImportedSourceReview
                 'entries' => (int) ($work['entries'] ?? 0),
                 'members' => (int) ($work['members'] ?? 0),
                 'seconds' => (int) ($work['seconds'] ?? 0),
+                'by_member' => $members,
             ],
             'income_transactions' => ['count' => $incomeCount, 'amount' => round($incomeTotal, 2)],
             'client_cost_transactions' => [

@@ -48,6 +48,7 @@
             !Number.isSafeInteger(Number(payload?.hours?.entries)) || Number(payload.hours.entries) <= 0 ||
             !Number.isSafeInteger(Number(payload?.hours?.members)) || Number(payload.hours.members) <= 0 ||
             !Number.isFinite(Number(payload?.hours?.seconds)) ||
+            !Array.isArray(payload?.hours?.by_member) ||
             !Number.isFinite(Number(payload?.income_transactions?.amount)) ||
             !Number.isFinite(Number(payload?.client_cost_transactions?.amount)) ||
             !Number.isFinite(Number(payload?.internal_expense_transactions?.amount)) ||
@@ -74,6 +75,13 @@
             'Faturas sem pagamento confirmado no período: ' + source.unconfirmed_invoices.count +
                 ' · ' + money(source.unconfirmed_invoices.amount),
         ];
+        if (source.hours.by_member.length) {
+            lines.push('', 'Horas por cooperado (Kimai):');
+            for (const member of source.hours.by_member) {
+                lines.push('  #' + member.id + ' · ' + member.name + ' · ' +
+                    hours(member.seconds) + ' · ' + member.entries + ' apontamentos');
+            }
+        }
         if (source.unconfirmed_invoices.documents.length) {
             lines.push('', 'Documentos a conferir no Akaunting:');
             for (const invoice of source.unconfirmed_invoices.documents) {

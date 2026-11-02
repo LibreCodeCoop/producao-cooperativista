@@ -93,7 +93,9 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
             if (url.startsWith('/api/v1/producao/fontes?')) {
                 return {ok:true,async json() {return {
                     competence:'2026-08', financial_month:'2026-09', publication_allowed:false,
-                    hours:{entries:214,members:7,seconds:80000},
+                    hours:{entries:214,members:7,seconds:80000,by_member:[
+                        {id:1,name:'Pessoa A',entries:50,seconds:80000},
+                    ]},
                     income_transactions:{amount:0,count:0},
                     client_cost_transactions:{amount:2007.63,by_customer:[{label:'cliente A',amount:2007.63}]},
                     internal_expense_transactions:{amount:11818.04,by_category:[{label:'infra',amount:11818.04}]},

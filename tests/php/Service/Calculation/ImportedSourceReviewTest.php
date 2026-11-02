@@ -16,6 +16,9 @@ final class ImportedSourceReviewTest extends TestCase
     {
         $database = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]);
         $database->executeStatement('CREATE TABLE timesheet (id INT, user_id INT, begin TEXT, duration INT)');
+        $database->executeStatement('CREATE TABLE users (id INT, alias TEXT)');
+        $database->insert('users', ['id' => 5, 'alias' => 'Cooperada A']);
+        $database->insert('users', ['id' => 19, 'alias' => 'Cooperado B']);
         $database->executeStatement('CREATE TABLE invoices (id INT, document_number TEXT, amount REAL, due_at TEXT, category_id INT, metadata TEXT, transaction_of_month TEXT, type TEXT, category_type TEXT, archive INT)');
         $database->executeStatement('CREATE TABLE transactions (id INT, type TEXT, category_id INT, category_name TEXT, customer_reference TEXT, amount REAL, metadata TEXT, transaction_of_month TEXT, archive INT)');
         $database->insert('timesheet', ['id' => 1, 'user_id' => 5, 'begin' => '2026-09-04', 'duration' => 3600]);
@@ -68,7 +71,10 @@ final class ImportedSourceReviewTest extends TestCase
             self::assertSame('2026-10', $result['financial_month']);
             self::assertFalse($result['publication_allowed']);
             self::assertArrayNotHasKey('revision', $result);
-            self::assertSame(['entries' => 2, 'members' => 2, 'seconds' => 10800], $result['hours']);
+            self::assertSame(['entries' => 2, 'members' => 2, 'seconds' => 10800, 'by_member' => [
+                ['id' => 5, 'name' => 'Cooperada A', 'entries' => 1, 'seconds' => 3600],
+                ['id' => 19, 'name' => 'Cooperado B', 'entries' => 1, 'seconds' => 7200],
+            ]], $result['hours']);
             self::assertSame(['count' => 1, 'amount' => 100.0], $result['income_transactions']);
             self::assertSame(2007.63, $result['client_cost_transactions']['amount']);
             self::assertSame([['label' => '1234', 'amount' => 2007.63]], $result['client_cost_transactions']['by_customer']);
