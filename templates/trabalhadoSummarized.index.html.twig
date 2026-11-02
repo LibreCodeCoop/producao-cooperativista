@@ -3,6 +3,26 @@
 {% block title %}Trabalhado por cooperado{% endblock title %}
 
 {% block body %}
-
+    <nav class="breadcrumbs" aria-label="Localização">
+        <a href="/relatorios">Relatórios</a><span aria-hidden="true">/</span>
+        <span aria-current="page">Horas por cooperado</span>
+    </nav>
+    <header class="page-heading page-heading-compact">
+        <p class="eyebrow">Conferência de apontamentos · {{ competencia|default('') }}</p>
+        <h1>Horas por cooperado</h1>
+        <p class="page-lead">Apontamentos importados do Kimai, antes de qualquer distribuição financeira. O nome do cooperado pode ser filtrado diretamente na tabela.</p>
+    </header>
+    <div class="production-report-tools">
+        <form method="get" action="/relatorios/trabalhado-summarized" class="production-month-picker">
+            <label for="hours-competence">Competência do trabalho</label>
+            <input type="month" id="hours-competence" name="ano-mes" value="{{ competencia|default('') }}" required>
+            <button type="submit" class="button button-primary">Consultar</button>
+        </form>
+        <nav aria-label="Relatórios relacionados" class="production-report-nav">
+            <a href="/relatorios/producao?ano-mes={{ competencia|default('') }}">Produção por cooperado</a>
+            <a href="/relatorios/calculos?ano-mes={{ competencia|default('') }}">Memória de cálculo</a>
+            <a href="/acoes/make-producao?ano-mes={{ competencia|default('') }}">Voltar ao fechamento</a>
+        </nav>
+    </div>
     {{ include('layout/components/datatable.html.twig') }}
 {% endblock %}

@@ -3,5 +3,18 @@
 {% block title %}Categorias{% endblock title %}
 
 {% block body %}
+    <nav class="breadcrumbs" aria-label="Localização">
+        <a href="/relatorios">Relatórios</a><span aria-hidden="true">/</span>
+        <span aria-current="page">Categorias</span>
+    </nav>
+    <header class="page-heading page-heading-compact">
+        <p class="eyebrow">Auditoria · Classificações financeiras</p>
+        <h1>Categorias do Akaunting</h1>
+        <p class="page-lead">Consulte as classificações importadas. Ao abrir a partir de uma movimentação, o relatório já filtra pelo ID da categoria; o filtro pode ser alterado na própria tabela.</p>
+    </header>
+    <nav class="production-report-nav" aria-label="Relatórios relacionados">
+        <a href="/relatorios/invoices">Entradas e saídas</a>
+        <a href="/relatorios/faturas-conferencia">Faturas para conferência</a>
+    </nav>
     {{ include('layout/components/datatable.html.twig') }}
 {% endblock %}

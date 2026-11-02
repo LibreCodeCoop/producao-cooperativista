@@ -34,6 +34,8 @@ function fixture(payload = { data: [{ id: 1, name: 'Teste', metadata: '{}' }] },
     };
     const errors = element('div');
     const pendingSummary = element('p');
+    const productionStatus = element('p');
+    productionStatus.hidden = true;
     const location = new URL(opts.href || 'https://librecode.test/relatorios/producao?ano-mes=2026-05');
     const history = { calls: [], replaceState(_state, _title, url) {
         this.calls.push(url);
@@ -43,7 +45,11 @@ function fixture(payload = { data: [{ id: 1, name: 'Teste', metadata: '{}' }] },
     const doc = {
         createElement: element,
         getElementById(name) {
-            return { example: table, erros: errors, 'pending-invoice-summary': pendingSummary }[name] || null;
+            return {
+                example: table, erros: errors,
+                'pending-invoice-summary': pendingSummary,
+                'production-report-status': productionStatus,
+            }[name] || null;
         },
         querySelector() { return null; },
     };
@@ -108,7 +114,7 @@ function fixture(payload = { data: [{ id: 1, name: 'Teste', metadata: '{}' }] },
             };
         },
     };
-    return { table, footer, errors, pendingSummary, doc, calls, options, history, location };
+    return { table, footer, errors, pendingSummary, productionStatus, doc, calls, options, history, location };
 }
 
 test('the familiar production columns can display source data without inventing monetary values', () => {
@@ -195,6 +201,81 @@ test('source-only details preserve every financial label while avoiding made-up 
     assert.equal((html.match(/A apurar/g)||[]).length,10);
     assert.match(html,/Participação nas horas/);
     assert.match(html,/Valores a apurar não são zero/);
+});
+
+test('movement gross displays cents, exports a rounded decimal, and links audited source IDs', () => {
+    const opts = {financialMovements:true};
+    const row = {
+        id:2345,type:'bill',table:'invoice_transaction',contact_name:'VoxLink',
+        category_name:'Cooperativa > Dispêndio',
+        URL:'https://akaunting.example/1/purchases/bills/2345',
+        contact_url:'https://akaunting.example/1/purchases/vendors/27',
+        category_url:'/relatorios/categorias?id=16',
+    };
+    assert.match(renderCell(26.659999999999997,'display','bruto',row,opts),/26,66/);
+    assert.doesNotMatch(renderCell(26.659999999999997,'display','bruto',row,opts),/999999/);
+    assert.equal(renderCell(26.659999999999997,'export','bruto',row,opts),'26.66');
+    assert.equal(renderCell(26.659999999999997,'sort','bruto',row,opts),26.66);
+    assert.ok(renderCell(26.66,'display','amount',row,opts).includes('26,66'));
+    assert.ok(renderCell(2345,'display','id',row,opts).includes('/purchases/bills/2345'));
+    assert.ok(renderCell('VoxLink','display','contact_name',row,opts)
+        .includes('/purchases/vendors/27'));
+    assert.ok(renderCell('Cooperativa > Dispêndio','display','category_name',row,opts)
+        .includes('/relatorios/categorias?id=16'));
+    assert.equal(renderCell('VoxLink','export','contact_name',row,opts),'VoxLink');
+    assert.equal(renderCell(2345,'export','id',row,opts),2345);
+    const columns=buildColumns([row],['URL','contact_url','category_url'],opts);
+    assert.ok(columns.some(col=>col.data==='id'));
+    assert.ok(!columns.some(col=>['URL','contact_url','category_url'].includes(col.data)));
+    assert.ok(!renderCell(16,'display','id',{URL:'javascript:alert(1)'},opts).includes('<a'));
+});
+
+test('pending invoices link their document number, without a redundant URL column', () => {
+    const row={numero_documento:'FAT-123',URL:'https://akaunting.example/1/sales/invoices/2329'};
+    assert.ok(renderCell(row.numero_documento,'display','numero_documento',row,
+        {pendingInvoices:true}).includes('/sales/invoices/2329'));
+    assert.equal(renderCell(row.numero_documento,'export','numero_documento',row,
+        {pendingInvoices:true}), 'FAT-123');
+});
+
+test('standalone production report uses imported hours if economic settlement fails', async () => {
+    const staged = {
+        competence:'2026-09', financial_month:'2026-10',
+        publication_allowed:false,
+        hours:{entries:214,members:1,seconds:3600},
+        data:[{
+            kimai_user_id:5,name:'Cooperada A',hours_seconds:3600,peso:1.5,
+            base_producao:null,bruto:null,liquido:null,trabalhado:'[]',
+        }],
+    };
+    const f=fixture();
+    f.table.dataset.productionMode='yes';
+    f.table.dataset.competencia='2026-09';
+    f.table.dataset.sourceUrl='/api/v1/producao/fontes?ano-mes=2026-09';
+    const urls=[];
+    f.options.fetch=async url => {
+        urls.push(url);
+        return url===f.table.dataset.url
+            ? {ok:false,status:422,async json(){return {code:'BASE_ECONOMICA'};}}
+            : {ok:true,status:200,async json(){return staged;}};
+    };
+    const table=await initializeReportTable(f.doc,f.options);
+    assert.ok(table);
+    assert.deepEqual(urls,[f.table.dataset.url,f.table.dataset.sourceUrl]);
+    assert.match(table.settings.columns[3].render(null,'display',staged.data[0]),/A apurar/);
+    assert.match(f.productionStatus.textContent,/2026-09/);
+    assert.match(f.productionStatus.textContent,/2026-10/);
+    assert.equal(f.productionStatus.hidden,false);
+    assert.equal(f.errors.textContent,'');
+});
+
+test('category ID drill-down uses exact matching', async () => {
+    const f=fixture({data:[{id:16,name:'Cooperativa'},{id:160,name:'Outra'}]},
+        {href:'https://librecode.test/relatorios/categorias?id=16'});
+    const table=await initializeReportTable(f.doc,f.options);
+    assert.ok(table);
+    assert.equal(table.cols[0].value,'^16$');
+    assert.equal(f.footer.children[0].children[0].value,'16');
 });
 
 test('HTML escaping protects financial values, quotes and empty cells', () => {

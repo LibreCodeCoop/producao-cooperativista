@@ -65,6 +65,7 @@
         <p class="eyebrow">Apuração econômica · Rastreabilidade</p>
         <h1>Memória de cálculo da produção</h1>
         <p class="page-lead">Cada indicador apresenta o valor, sua composição matemática e, quando disponível, um caminho para verificar os documentos de origem.</p>
+        <p class="production-help"><strong>Competência do trabalho: {{ competencia }}</strong> · Mês financeiro das movimentações: <strong>{{ financial_month|default('') }}</strong>. A competência financeira posterior não substitui a do trabalho.</p>
     </header>
 
     <div class="calc-toolbar">
@@ -76,6 +77,9 @@
         <a class="calc-help-link" href="/relatorios/calculos/ajuda">Entenda as regras e as referências</a>
         <a class="calc-help-link" href="/configuracao/cooperados">Corrigir dados nas fontes</a>
         <a class="calc-help-link" href="/relatorios/producao?ano-mes={{ competencia }}">Produção por cooperado</a>
+        <a class="calc-help-link" href="/relatorios/invoices?ano-mes={{ competencia }}">Entradas e saídas</a>
+        <a class="calc-help-link" href="/relatorios/faturas-conferencia?ano-mes={{ competencia }}">Faturas para conferir</a>
+        <a class="calc-help-link" href="/relatorios/trabalhado-summarized?ano-mes={{ competencia }}">Horas por cooperado</a>
         <a class="calc-help-link" href="/acoes/make-producao?ano-mes={{ competencia }}">Voltar ao processamento</a>
     </div>
 
@@ -93,6 +97,31 @@
         <section id="erros" class="calc-notice calc-notice-error" role="alert" aria-live="polite">
             <h2>Não foi possível concluir a apuração</h2>
             <ul>{% for erro in erros %}<li>{{ erro }}</li>{% endfor %}</ul>
+        </section>
+    {% endif %}
+
+    {% if source_review is not empty and data is empty %}
+        <section class="calc-section" id="source-review" aria-labelledby="source-review-title">
+            <div class="calc-section-heading">
+                <h2 id="source-review-title">Fontes importadas disponíveis para conferência</h2>
+                <p>A apuração completa não está disponível. Os valores abaixo são registros da importação, não resultados de distribuição, retiradas ou sobras calculadas.</p>
+            </div>
+            <div class="calc-table-scroll" tabindex="0" role="region" aria-label="Dados importados da competência">
+                <table class="calc-report">
+                    <thead><tr><th scope="col">Dado da origem</th><th scope="col">Quantidade ou valor</th><th scope="col">Conferir</th></tr></thead>
+                    <tbody>
+                        <tr><th scope="row">Competência do trabalho</th><td>{{ source_review.competence }}</td><td><a href="/relatorios/producao?ano-mes={{ competencia }}">Produção por cooperado</a></td></tr>
+                        <tr><th scope="row">Mês financeiro</th><td>{{ source_review.financial_month }}</td><td><a href="/relatorios/invoices?ano-mes={{ competencia }}">Movimentações financeiras</a></td></tr>
+                        <tr><th scope="row">Cooperados com horas</th><td>{{ source_review.hours.members }}</td><td><a href="/relatorios/trabalhado-summarized?ano-mes={{ competencia }}">Horas por cooperado</a></td></tr>
+                        <tr><th scope="row">Apontamentos do trabalho</th><td>{{ source_review.hours.entries }}</td><td><a href="/relatorios/producao?ano-mes={{ competencia }}">Detalhes da produção</a></td></tr>
+                        <tr><th scope="row">Recebimentos classificados como elegíveis</th><td>R$ {{ source_review.income_transactions.amount|number_format(2, ',', '.') }}</td><td><a href="/relatorios/invoices?ano-mes={{ competencia }}&amp;category_type=income">Conferir entradas</a></td></tr>
+                        <tr><th scope="row">Custos de clientes identificados</th><td>R$ {{ source_review.client_cost_transactions.amount|number_format(2, ',', '.') }}</td><td><a href="/relatorios/invoices?ano-mes={{ competencia }}&amp;custos_clientes=sim">Conferir custos</a></td></tr>
+                        <tr><th scope="row">Despesas internas identificadas</th><td>R$ {{ source_review.internal_expense_transactions.amount|number_format(2, ',', '.') }}</td><td><a href="/relatorios/invoices?ano-mes={{ competencia }}&amp;dispendio_interno=sim">Conferir despesas</a></td></tr>
+                        <tr><th scope="row">Faturas que exigem revisão (inclui rascunhos)</th><td>{{ source_review.unconfirmed_invoices.count }} (valor nominal R$ {{ source_review.unconfirmed_invoices.amount|number_format(2, ',', '.') }})</td><td><a href="/relatorios/faturas-conferencia?ano-mes={{ competencia }}">Conferir faturas</a></td></tr>
+                        <tr><th scope="row">Base de produção e distribuição</th><td><strong>A apurar</strong></td><td>Depende de conciliação financeira</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </section>
     {% endif %}
 
@@ -132,7 +161,7 @@
                             {% if nome in group.keys %}
                             <tr id="{{ nome }}" data-calc-row="{{ nome }}">
                                 <th scope="row" class="label_{{ nome }}" data-highlight-key="{{ nome }}" tabindex="0">
-                                    <span>{{ item.label }}</span>
+                                    <span>{% if nome == 'transacao_do_mes' %}Mês financeiro das movimentações{% elseif nome == 'ano_mes_trabalhado' %}Competência do trabalho{% else %}{{ item.label }}{% endif %}</span>
                                     <a class="calc-definition" href="/relatorios/calculos/ajuda#{{ nome }}" data-help="{{ glossary[nome]|default(item.label) }}" aria-label="Ajuda sobre {{ item.label }}: {{ glossary[nome]|default(item.label) }}">?</a>
                                 </th>
                                 <td class="calc-value">

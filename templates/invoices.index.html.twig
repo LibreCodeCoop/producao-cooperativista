@@ -36,6 +36,9 @@
     {% endif %}
     {{ include('layout/components/datatable.html.twig', {
         pendingInvoices: pendentes|default(false),
-        filterColumns: pendentes|default(false) ? ['metadata', 'id'] : ['metadata']
+        financialMovements: not pendentes|default(false),
+        filterColumns: pendentes|default(false)
+            ? ['metadata', 'id', 'URL']
+            : ['metadata', 'URL', 'contact_id', 'contact_url', 'category_url']
     }) }}
 {% endblock %}

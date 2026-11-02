@@ -28,6 +28,8 @@ namespace App\Controller;
 
 use App\Domain\Competencia;
 use App\Service\Movimentacao;
+use App\Service\Calculation\ImportedSourceReview;
+use App\Service\Calculation\FailureGuide;
 use App\Service\ProducaoCooperativista;
 use App\Service\Config\CompetenceDefaults;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -47,6 +49,7 @@ class Calculos extends AbstractController
         private CompetenceDefaults $competences,
         private ProducaoCooperativista $producao,
         private Movimentacao $movimentacao,
+        private ImportedSourceReview $sourceReview,
     ) {
         $this->request = $requestStack->getCurrentRequest();
     }
@@ -86,7 +89,17 @@ class Calculos extends AbstractController
             );
             $data = $this->producao->exportData();
         } catch (\Throwable $th) {
-            $erros = [$th->getMessage()];
+            $guide = FailureGuide::diagnose($th->getMessage());
+            $erros = [$guide->summary . ' ' . $guide->instructions];
+            if ($guide->code === 'BASE_ECONOMICA') {
+                try {
+                    // Read the staged inputs without calculating a payable
+                    // distribution or altering the finance database.
+                    $sourceReview = $this->sourceReview->read(Competencia::fromString($requested));
+                } catch (\Throwable) {
+                    // Keep the diagnostic visible if the sources are unavailable.
+                }
+            }
         }
 
         return $this->render('calculos.index.html.twig', [
@@ -98,6 +111,8 @@ class Calculos extends AbstractController
             ),
             'data' => $data ?? [],
             'competencia' => $inicio->format('Y-m'),
+            'financial_month' => Competencia::fromString($requested)->financialMonth(),
+            'source_review' => $sourceReview ?? null,
             'simulation' => $simulation,
             'erros' => $erros ?? [],
         ]);

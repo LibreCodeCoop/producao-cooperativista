@@ -138,7 +138,12 @@
             return '<div><dt>' + escapeHtml(label) + help + '</dt><dd>' +
                 value + '</dd></div>';
         }).join('');
+        const workLink = options.competence && record.name
+            ? safeLink('/relatorios/trabalhado-summarized?ano-mes=' +
+                encodeURIComponent(options.competence) + '&nome=' +
+                encodeURIComponent(String(record.name)), 'Conferir horas por cooperado', true) : null;
         return '<div class="production-row-details"><div><h4>Horas por cliente</h4>' +
+            (workLink ? '<p>' + workLink + '</p>' : '') +
             (work ? '<div class="production-detail-scroll"><table><thead><tr><th>Cliente</th>' +
             '<th>Horas do cooperado</th><th>Tempo total do cliente</th>' +
             '<th>' + (sourceOnly ? 'Participação nas horas' : 'Participação no cliente') +
@@ -169,8 +174,16 @@
             cell('name', 'Cooperado'),
             {
                 data: 'hours_seconds', title: 'Horas', name: 'hours_seconds', defaultContent: '',
-                render: (value, type) => type === 'display' || type === 'export'
-                    ? escapeHtml(duration(value)) : Number(value || 0),
+                render: (value, type, row) => {
+                    if (type !== 'display' && type !== 'export') return Number(value || 0);
+                    const label = duration(value);
+                    if (type !== 'display' || !options.competence || !row?.name) {
+                        return escapeHtml(label);
+                    }
+                    return safeLink('/relatorios/trabalhado-summarized?ano-mes=' +
+                        encodeURIComponent(options.competence) + '&nome=' +
+                        encodeURIComponent(String(row.name)), label, true) || escapeHtml(label);
+                },
             },
             cell('peso', 'Peso'),
             cell('base_producao', 'Base de produção'),
@@ -223,6 +236,28 @@
             const amount = Number(value);
             return Number.isFinite(amount) && value !== '' && value !== null
                 ? type === 'display' ? escapeHtml(brl.format(amount)) : amount : '';
+        }
+        // Invoices and movements are distinct reports, but both use links
+        // instead of a redundant URL column in their read-only tables.
+        if (type === 'display' && options.pendingInvoices && column === 'numero_documento') {
+            return safeLink(row?.URL, String(value ?? '')) || escapeHtml(value);
+        }
+        if (options.financialMovements) {
+            if ((column === 'bruto' || column === 'amount') &&
+                value !== null && value !== '' && Number.isFinite(Number(value))) {
+                const cents = Math.round(Number(value) * 100);
+                const amount = cents / 100;
+                if (type === 'display') return '<span class="money-cell">' +
+                    escapeHtml(brl.format(amount)) + '</span>';
+                return type === 'export' ? decimalExport.format(amount) : amount;
+            }
+            if (type === 'display') {
+                const href = column === 'id' ? safeLink(row?.URL, String(value ?? '')) :
+                    column === 'contact_name' ? safeLink(row?.contact_url, String(value ?? '')) :
+                        column === 'category_name'
+                            ? safeLink(row?.category_url, String(value ?? ''), true) : null;
+                if (href !== null) return href;
+            }
         }
         if (options.sourceOnly && options.productionMode && MONEY_COLUMNS.has(column)) {
             return type === 'display'
@@ -320,6 +355,11 @@
             }
         };
 
+        // An ID link is an exact drill-down, not a substring search (16
+        // must not accidentally match category 160).
+        const matchFilter = (key, value) => key === 'id' && /^\d+$/.test(value)
+            ? {term: '^' + value + '$', regex: true}
+            : {term: value, regex: false};
         api.columns().every(function (index) {
             const column = this;
             const footer = column.footer();
@@ -333,11 +373,13 @@
             footer.replaceChildren(input);
             inputs.set(input.name, input);
             if (input.value) {
-                column.search(input.value, false, false);
+                const match = matchFilter(input.name, input.value);
+                column.search(match.term, match.regex, false);
             }
             input.addEventListener('keyup', () => {
-                if (column.search() !== input.value) {
-                    column.search(input.value, false, false).draw();
+                const match = matchFilter(input.name, input.value);
+                if (column.search() !== match.term) {
+                    column.search(match.term, match.regex, false).draw();
                 }
                 save();
             });
@@ -384,8 +426,9 @@
                 return;
             }
             const column = api.column(index);
-            if (column.search() !== target.value) {
-                column.search(target.value, false, false).draw();
+            const match = matchFilter(target.name, target.value);
+            if (column.search() !== match.term) {
+                column.search(match.term, match.regex, false).draw();
             }
             save();
         };
@@ -439,22 +482,54 @@
             if (!table.dataset.url || typeof request !== 'function') {
                 throw new Error('A URL da API do relatório não está disponível.');
             }
-            const response = options.payload ? null : await request(table.dataset.url, {
+            const requestOptions = {
                 credentials: 'same-origin',
                 headers: { Accept: 'application/json' },
                 cache: 'no-store',
-            });
+            };
+            const response = options.payload ? null : await request(table.dataset.url, requestOptions);
+            let payload = options.payload;
+            let sourceOnly = options.sourceOnly === true;
             if (response && !response.ok) {
-                let details = '';
+                let failure = null;
                 try {
-                    details = apiErrorDetails(await response.json());
+                    failure = await response.json();
                 } catch {
-                    // Non-JSON proxy errors still need an actionable HTTP status.
+                    // A non-JSON proxy failure has no recoverable source code.
                 }
-                throw new Error('Não foi possível carregar o relatório (HTTP ' + response.status + ').' +
-                    (details ? '\n' + details : ''));
+                if (failure?.code === 'BASE_ECONOMICA' &&
+                    table.dataset.productionMode === 'yes' && table.dataset.sourceUrl) {
+                    // A payable preview requires a valid financial base; looking
+                    // at already imported work does not. Never invent amounts.
+                    const source = await request(table.dataset.sourceUrl, requestOptions);
+                    if (!source.ok) {
+                        throw new Error('Não foi possível consultar os dados importados (HTTP ' +
+                            source.status + ').');
+                    }
+                    payload = await source.json();
+                    if (payload?.publication_allowed !== false ||
+                        payload?.competence !== table.dataset.competencia) {
+                        throw new Error('A origem retornou uma competência diferente da consultada.');
+                    }
+                    sourceOnly = true;
+                    const status = doc.getElementById('production-report-status');
+                    if (status) {
+                        status.hidden = false;
+                        status.textContent = 'Competência do trabalho: ' + payload.competence +
+                            '. Mês financeiro: ' + payload.financial_month + '. ' +
+                            payload.hours.entries + ' apontamentos de ' +
+                            payload.hours.members + ' cooperados disponíveis. ' +
+                            'O cálculo da distribuição está pendente de conciliação; ' +
+                            'os valores financeiros aparecem como A apurar. ' +
+                            'A conferência das horas permanece disponível.';
+                    }
+                } else {
+                    const details = apiErrorDetails(failure);
+                    throw new Error('Não foi possível carregar o relatório (HTTP ' + response.status +
+                        ').' + (details ? '\n' + details : ''));
+                }
             }
-            const payload = options.payload || await response.json();
+            if (!payload) payload = await response.json();
             const details = apiErrorDetails(payload);
             if (details) {
                 throw new Error(details);
@@ -493,8 +568,9 @@
                 competence: table.dataset.competencia || '',
                 financialReview: typeof options.financialReview === 'boolean'
                     ? options.financialReview : table.dataset.financialReview === 'yes',
-                sourceOnly: options.sourceOnly === true,
+                sourceOnly,
                 pendingInvoices: table.dataset.pendingInvoices === 'yes',
+                financialMovements: table.dataset.financialMovements === 'yes',
                 omitted: options.omitted,
             };
             const productionMode = table.dataset.productionMode === 'yes';

@@ -75,6 +75,7 @@ class TrabalhadoSummarized extends AbstractController
                     'ano-mes' => $inicio->format('Y-m')
                 ],
             ),
+            'competencia' => $inicio->format('Y-m'),
         ]);
     }
 }

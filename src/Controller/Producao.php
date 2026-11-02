@@ -70,7 +70,12 @@ class Producao extends AbstractController
             return new Response($error->getMessage(), Response::HTTP_BAD_REQUEST);
         }
 
+        $kimaiApi = rtrim((string) getenv('KIMAI_API_BASE_URL'), '/');
+        $kimaiTimesheet = preg_match('~^https://[a-z0-9.-]+(?::[0-9]+)?/api$~iD', $kimaiApi)
+            ? substr($kimaiApi, 0, -4) . '/en/timesheet/' : null;
+
         return $this->render('producao.index.html.twig', [
+            'kimai_timesheet_url' => $kimaiTimesheet,
             'url' => $this->urlGenerator->generate(
                 'app_api_producao_index',
                 [

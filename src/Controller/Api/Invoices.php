@@ -29,6 +29,7 @@ namespace App\Controller\Api;
 use App\Domain\Competencia;
 use App\Service\Akaunting\Source\Categories;
 use App\Service\Calculation\ImportedSourceReview;
+use App\Service\Calculation\DecimalAllocation;
 use App\Service\Movimentacao;
 use DateTime;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -143,6 +144,9 @@ class Invoices extends AbstractController
     private function addUrlToAccount(array $movimentacao): array
     {
         $movimentacao = array_map(function ($row) {
+            // Present amounts at BRL precision. Do not modify the calculation
+            // or persist the rounded value back into the imported ledger.
+            $row['bruto'] = DecimalAllocation::amount(DecimalAllocation::cents((string) $row['bruto']));
             if ($row['table'] === 'transaction') {
                 $path = '/banking/transactions/';
             } elseif ($row['type'] === 'bill') {
@@ -150,9 +154,20 @@ class Invoices extends AbstractController
             } else {
                 $path = '/sales/invoices/';
             }
-            $row['URL'] = rtrim((string) getenv('AKAUNTING_API_BASE_URL'), '/') .
-                '/' . getenv('AKAUNTING_COMPANY_ID') .
-                $path . $row['id'];
+            $base = rtrim((string) getenv('AKAUNTING_API_BASE_URL'), '/')
+                . '/' . getenv('AKAUNTING_COMPANY_ID');
+            $row['URL'] = $base . $path . $row['id'];
+            $contactId = (int) ($row['contact_id'] ?? 0);
+            $contactPath = match ($row['contact_type'] ?? null) {
+                'customer' => '/sales/customers/',
+                'vendor' => '/purchases/vendors/',
+                default => null,
+            };
+            $row['contact_url'] = $contactId > 0 && $contactPath !== null
+                ? $base . $contactPath . $contactId : null;
+            $categoryId = (int) ($row['category_id'] ?? 0);
+            $row['category_url'] = $categoryId > 0
+                ? $this->generateUrl('app_categorias_index', ['id' => $categoryId]) : null;
             return $row;
         }, $movimentacao);
         return $movimentacao;

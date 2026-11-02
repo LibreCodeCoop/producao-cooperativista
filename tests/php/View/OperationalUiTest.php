@@ -237,6 +237,57 @@ final class OperationalUiTest extends TestCase
         self::assertStringContainsString('não consulta o extrato bancário em tempo real', $html);
     }
 
+    public function testReportsExposeSourceReconciliationWithoutPretendingToCalculatePayouts(): void
+    {
+        $source = [
+            'competence' => '2026-09',
+            'financial_month' => '2026-10',
+            'hours' => ['members' => 7, 'entries' => 214],
+            'income_transactions' => ['amount' => 0.0],
+            'client_cost_transactions' => ['amount' => 2007.63],
+            'internal_expense_transactions' => ['amount' => 11818.04],
+            'unconfirmed_invoices' => ['count' => 7, 'amount' => 78279.48],
+        ];
+        $html = $this->twig()->render('calculos.index.html.twig', [
+            'competencia' => '2026-09',
+            'financial_month' => '2026-10',
+            'source_review' => $source,
+            'simulation' => false,
+            'data' => [],
+            'erros' => ['A base econômica calculada não permite a distribuição.'],
+        ]);
+        self::assertStringContainsString('name="ano-mes" value="2026-09"', $html);
+        self::assertStringContainsString('Competência do trabalho: 2026-09', $html);
+        self::assertStringContainsString('Mês financeiro das movimentações:', $html);
+        self::assertStringContainsString('2026-10', $html);
+        self::assertStringContainsString('Fontes importadas disponíveis para conferência', $html);
+        self::assertStringContainsString('214', $html);
+        self::assertStringContainsString('78.279,48', $html);
+        self::assertStringContainsString('A apurar', $html);
+        self::assertStringContainsString('/relatorios/faturas-conferencia?ano-mes=2026-09', $html);
+
+        $production = $this->twig()->render('producao.index.html.twig', [
+            'competencia' => '2026-09',
+            'url' => '/api/v1/producao?ano-mes=2026-09',
+            'sourceReviewUrl' => '/api/v1/producao/fontes?ano-mes=2026-09',
+            'productionMode' => true,
+            'kimai_timesheet_url' => 'https://kimai.librecode.coop/en/timesheet/',
+        ]);
+        self::assertStringContainsString('data-source-url="/api/v1/producao/fontes?ano-mes=2026-09"', $production);
+        self::assertStringContainsString('id="production-report-status"', $production);
+        self::assertStringContainsString('href="https://kimai.librecode.coop/en/timesheet/"', $production);
+        self::assertStringContainsString('/relatorios/trabalhado-summarized?ano-mes=2026-09', $production);
+
+        $invoices = $this->twig()->render('invoices.index.html.twig', [
+            'competencia' => '2026-09',
+            'url' => '/api/v1/invoices?ano-mes=2026-09',
+            'pendentes' => false,
+        ]);
+        self::assertStringContainsString('data-financial-movements="yes"', $invoices);
+        self::assertStringContainsString('contact_url', $invoices);
+        self::assertStringContainsString('category_url', $invoices);
+    }
+
     public function testAuditPagesKeepTheSelectedPeriodAndReturnPath(): void
     {
         foreach (['producao.index.html.twig', 'invoices.index.html.twig'] as $view) {
