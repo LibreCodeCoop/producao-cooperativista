@@ -42,6 +42,64 @@
         return {rows, revision: payload.metadata.revision};
     }
 
+    function validateSourceReview(payload, competence) {
+        if (payload?.competence !== competence || payload?.publication_allowed !== false ||
+            !/^\d{4}-(0[1-9]|1[0-2])$/.test(payload?.financial_month || '') ||
+            !Number.isSafeInteger(Number(payload?.hours?.entries)) || Number(payload.hours.entries) <= 0 ||
+            !Number.isSafeInteger(Number(payload?.hours?.members)) || Number(payload.hours.members) <= 0 ||
+            !Number.isFinite(Number(payload?.hours?.seconds)) ||
+            !Number.isFinite(Number(payload?.income_transactions?.amount)) ||
+            !Number.isFinite(Number(payload?.client_cost_transactions?.amount)) ||
+            !Number.isFinite(Number(payload?.internal_expense_transactions?.amount)) ||
+            !Array.isArray(payload?.client_cost_transactions?.by_customer) ||
+            !Array.isArray(payload?.internal_expense_transactions?.by_category) ||
+            !Array.isArray(payload?.unconfirmed_invoices?.documents) ||
+            !Number.isSafeInteger(Number(payload?.unconfirmed_invoices?.count)) ||
+            !Number.isFinite(Number(payload?.unconfirmed_invoices?.amount))) {
+            throw new Error('Não foi possível verificar as fontes importadas desta competência.');
+        }
+        return payload;
+    }
+
+    function sourceReviewText(source) {
+        const lines = [
+            'Horas trabalhadas: ' + source.competence,
+            'Apontamentos: ' + source.hours.entries + ' · Cooperados: ' + source.hours.members +
+                ' · Horas: ' + hours(source.hours.seconds),
+            'Movimentações financeiras: ' + source.financial_month + ' (mês seguinte ao trabalho)',
+            'Recebimentos de clientes identificados nas transações: ' +
+                money(source.income_transactions.amount) + ' (' + source.income_transactions.count + ' lançamentos)',
+            'Custos de clientes em transações: ' + money(source.client_cost_transactions.amount),
+            'Despesas internas em transações: ' + money(source.internal_expense_transactions.amount),
+            'Faturas sem pagamento confirmado no período: ' + source.unconfirmed_invoices.count +
+                ' · ' + money(source.unconfirmed_invoices.amount),
+        ];
+        if (source.unconfirmed_invoices.documents.length) {
+            lines.push('', 'Documentos a conferir no Akaunting:');
+            for (const invoice of source.unconfirmed_invoices.documents) {
+                const status = {draft: 'rascunho', sent: 'enviada', partial: 'parcial', overdue: 'vencida'};
+                lines.push('  #' + invoice.id + ' · ' + money(invoice.amount) + ' · ' +
+                    (status[invoice.status] || invoice.status) +
+                    (invoice.due_date ? ' · vencimento ' + invoice.due_date : ''));
+            }
+        }
+        if (source.unconfirmed_invoices.truncated) lines.push('Lista limitada aos 100 primeiros documentos.');
+        if (source.client_cost_transactions.by_customer.length) {
+            lines.push('', 'Custos por cliente (transações importadas):');
+            for (const item of source.client_cost_transactions.by_customer) {
+                lines.push('  ' + item.label + ' · ' + money(item.amount));
+            }
+        }
+        if (source.internal_expense_transactions.by_category.length) {
+            lines.push('', 'Despesas internas por categoria (transações importadas):');
+            for (const item of source.internal_expense_transactions.by_category) {
+                lines.push('  ' + item.label + ' · ' + money(item.amount));
+            }
+        }
+        lines.push('', 'Conferência de fontes, sem base de produção calculada. A publicação permanece bloqueada.');
+        return lines.join('\n');
+    }
+
     function selectedMembers(rows, omitted) {
         const excluded = new Set(omitted);
         return {
@@ -71,8 +129,12 @@
         const importElapsed = el('import-elapsed');
         const importProfileLink = el('import-profile-link');
         const publishButton = el('submit');
+        const sourceReviewPanel = el('imported-data-review');
+        const calculatedReview = el('calculated-review');
+        const publicationControls = el('production-publication-controls');
         const omitted = new Set();
         let preview = null;
+        let sourceReview = null;
         let table = null;
         let loading = false;
         let processing = false;
@@ -85,7 +147,7 @@
         const syncNavigation = () => {
             for (const button of stepButtons) {
                 const step = Number(button.dataset.stepIndicator);
-                button.disabled = loading || processing || finished || (step === 2 && (!preview || needsImport));
+                button.disabled = loading || processing || finished || (step === 2 && ((!preview && !sourceReview) || needsImport));
                 const active = step === activeStep();
                 button.classList.toggle('is-active', active);
                 if (active) button.setAttribute('aria-current', 'step');
@@ -142,8 +204,15 @@
         };
         const resetReview = () => {
             preview = null;
+            sourceReview = null;
             omitted.clear();
             invalidateApproval();
+            if (sourceReviewPanel) sourceReviewPanel.hidden = true;
+            if (calculatedReview) calculatedReview.hidden = false;
+            if (publicationControls) publicationControls.hidden = false;
+            if (el('calculated-review-intro')) el('calculated-review-intro').hidden = false;
+            if (el('audit-title')) el('audit-title').textContent =
+                'Conferir a apuração e selecionar exceções';
         };
         const weightChanged = () => {
             needsImport = true;
@@ -153,6 +222,29 @@
             notice('O cadastro foi alterado na origem. Reimporte esta competência antes de conferir e publicar.');
         };
         doc.addEventListener?.('member-source-changed', weightChanged);
+
+        const loadSourceReview = async financialProblem => {
+            const url = wizard.dataset.sourcesUrl + '?ano-mes=' + encodeURIComponent(competence());
+            const response = await request(url, {
+                credentials: 'same-origin', headers: {Accept: 'application/json'}, cache: 'no-store',
+            });
+            if (!response.ok) throw new Error('Não foi possível consultar os lançamentos importados.');
+            const payload = validateSourceReview(await response.json(), competence());
+            sourceReview = payload;
+            if (sourceReviewPanel) sourceReviewPanel.hidden = false;
+            if (calculatedReview) calculatedReview.hidden = true;
+            if (publicationControls) publicationControls.hidden = true;
+            if (el('calculated-review-intro')) el('calculated-review-intro').hidden = true;
+            if (el('audit-title')) el('audit-title').textContent =
+                'Conferir fontes importadas — cálculo financeiro pendente';
+            el('imported-data-summary').textContent = sourceReviewText(payload);
+            el('review-competence').textContent = competence();
+            show(2);
+            invalidateApproval();
+            notice('A prévia financeira está bloqueada: ' +
+                (financialProblem?.resolution || 'concilie as receitas e despesas antes de publicar.'));
+            return true;
+        };
 
         const loadPreview = async () => {
             if (loading || finished || needsImport) return false;
@@ -167,11 +259,18 @@
                 });
                 if (!response.ok) {
                     const payload = await response.json().catch(() => ({}));
-                    throw new Error(payload?.error?.message || payload?.resolution ||
-                        'Não foi possível carregar a prévia. Confira as fontes.');
+                    if (payload?.code === 'BASE_ECONOMICA') {
+                        return await loadSourceReview(payload);
+                    }
+                    throw new Error(payload?.error?.message ||
+                        (typeof payload?.error === 'string' ? payload.error : '') ||
+                        payload?.resolution || 'Não foi possível carregar a prévia. Confira as fontes.');
                 }
                 const payload = await response.json();
                 const valid = validatePreview(payload, competence());
+                if (sourceReviewPanel) sourceReviewPanel.hidden = true;
+                if (calculatedReview) calculatedReview.hidden = false;
+                if (publicationControls) publicationControls.hidden = false;
                 if (!grid || typeof grid.initializeReportTable !== 'function') {
                     throw new Error('O DataTables não carregou. Recarregue a página antes de publicar.');
                 }
@@ -269,7 +368,12 @@
                     updateStatus({state: 'completed', message: 'Importação concluída. Carregando conferência…'});
                     needsImport = false;
                     el('use-existing').disabled = false;
-                    await loadPreview();
+                    const ready = await loadPreview();
+                    updateStatus({state: 'completed', message: ready
+                        ? sourceReview
+                            ? 'Importação concluída. Fontes disponíveis para conferência; cálculo financeiro bloqueado.'
+                            : 'Importação concluída. Prévia financeira disponível para conferência.'
+                        : 'Importação concluída. A conferência apresentou uma pendência, veja a mensagem abaixo.'});
                 } else if (importStatus?.dataset.state === 'running') {
                     updateStatus({state: 'failed', message: 'Importação interrompida. Confira o erro abaixo.'});
                 }
@@ -291,7 +395,7 @@
             button.addEventListener('click', () => {
                 if (button.disabled || loading || processing || finished) return;
                 if (button.dataset.stepIndicator === '1') goToImport();
-                else if (preview && !needsImport) show(2);
+                else if ((preview || sourceReview) && !needsImport) show(2);
                 wizard.scrollIntoView?.({block: 'start'});
             });
         }

@@ -20,7 +20,7 @@
         <button type="button" data-step-indicator="2" disabled title="Disponível após consultar os dados importados"><b>2</b> Conferir e publicar</button>
     </nav>
 
-    <div class="production-wizard surface" id="production-wizard" data-preview-url="/api/v1/producao">
+    <div class="production-wizard surface" id="production-wizard" data-preview-url="/api/v1/producao" data-sources-url="/api/v1/producao/fontes">
         {# Separate the publication form from the read-only review table. #}
         <form id="form-gera-producao" data-workflow="yes" method="post" action="{{ url }}">
             <input type="hidden" name="_token" value="{{ token }}">
@@ -84,7 +84,14 @@
         <section data-workflow-step="2" hidden aria-labelledby="audit-title">
             <p class="section-kicker">Etapa 2 de 2 · <span id="review-competence"></span></p>
             <h2 id="audit-title">Conferir a apuração e selecionar exceções</h2>
-            <p>Ordene e filtre a produção por cooperado. Abra os detalhes para conferir cada cliente. Clique no nome para editar o cadastro nas fontes; qualquer alteração exige nova importação. O peso exibido é o da importação. Todos serão publicados, exceto quem tiver a opção <strong>Não publicar agora</strong> marcada.</p>
+            <p id="calculated-review-intro">Ordene e filtre a produção por cooperado. Abra os detalhes para conferir cada cliente. Clique no nome para editar o cadastro nas fontes; qualquer alteração exige nova importação. O peso exibido é o da importação. Todos serão publicados, exceto quem tiver a opção <strong>Não publicar agora</strong> marcada.</p>
+            <div id="imported-data-review" class="information-note" hidden>
+                <h3>Conferência das fontes importadas — cálculo financeiro bloqueado</h3>
+                <p>A importação foi concluída, mas a apuração não possui base econômica válida para publicação. Os valores abaixo são lançamentos de origem para conciliação, <strong>não uma simulação de pagamentos</strong>.</p>
+                <pre id="imported-data-summary" class="production-source-summary" aria-live="polite"></pre>
+                <p>Verifique os documentos e respectivos recebimentos no Akaunting. Nenhum pagamento será publicado enquanto a prévia financeira permanecer indisponível.</p>
+            </div>
+            <div id="calculated-review">
             <div class="production-metrics" role="status" aria-live="polite">
                 <div><span>Cooperados</span><strong id="metric-members">—</strong></div>
                 <div><span>Horas</span><strong id="metric-hours">—</strong></div>
@@ -108,6 +115,7 @@
             }) }}
             <div class="production-selection-summary" id="selection-summary" aria-live="polite"></div>
             <p class="production-help">Não publicar agora não redistribui valores, não transfere horas para outro mês e não cancela documentos já existentes no Akaunting.</p>
+            </div>
 
             <nav class="production-review-links" aria-label="Conferência complementar">
                 <a data-report-path="/relatorios/calculos" href="/relatorios/calculos?ano-mes={{ inicio_ano }}-{{ inicio_mes }}" target="_blank" rel="noopener">
@@ -124,7 +132,7 @@
                 </a>
             </nav>
 
-            <div class="production-final">
+            <div class="production-final" id="production-publication-controls">
                 <strong>Publicação no Akaunting</strong>
                 <p id="publication-summary">Nenhuma publicação executada. Confira os valores e a seleção.</p>
                 <label class="production-confirm-label">

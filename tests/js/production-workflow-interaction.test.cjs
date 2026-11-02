@@ -21,7 +21,7 @@ function element() {
     };
 }
 
-function fixture({previewError = false, malformed = false, importSuccess = true,
+function fixture({previewError = false, economicFailure = false, malformed = false, importSuccess = true,
     publishSuccess = true, gridSuccess = true, withdrawalGoal = null,
     importError = 'Falha na importação'} = {}) {
     const items = new Map();
@@ -30,6 +30,8 @@ function fixture({previewError = false, malformed = false, importSuccess = true,
         'metric-members','metric-hours','metric-base','metric-net','withdrawal-goal',
         'selection-summary','publication-summary','publication-confirmation',
         'import-status','import-status-text','import-elapsed','import-profile-link',
+        'imported-data-review','imported-data-summary','calculated-review',
+        'production-publication-controls','calculated-review-intro','audit-title',
         'submit','year','month']) items.set(id, element());
 
     items.get('year').value = '2026';
@@ -58,6 +60,7 @@ function fixture({previewError = false, malformed = false, importSuccess = true,
         return node;
     });
     items.get('production-wizard').dataset.previewUrl = '/api/v1/producao';
+    items.get('production-wizard').dataset.sourcesUrl = '/api/v1/producao/fontes';
     items.get('production-wizard').querySelectorAll = selector => ({
         '[data-workflow-step]': sections,
         '[data-report-path]': links,
@@ -87,10 +90,24 @@ function fixture({previewError = false, malformed = false, importSuccess = true,
         reportTable,
         fetch: async(url,settings) => {
             calls.fetch.push({url,settings});
+            if (url.startsWith('/api/v1/producao/fontes?')) {
+                return {ok:true,async json() {return {
+                    competence:'2026-08', financial_month:'2026-09', publication_allowed:false,
+                    hours:{entries:214,members:7,seconds:80000},
+                    income_transactions:{amount:0,count:0},
+                    client_cost_transactions:{amount:2007.63,by_customer:[{label:'cliente A',amount:2007.63}]},
+                    internal_expense_transactions:{amount:11818.04,by_category:[{label:'infra',amount:11818.04}]},
+                    unconfirmed_invoices:{count:7,amount:78279.48,documents:[
+                        {id:2329,amount:29877.75,status:'sent',due_date:'2026-09-20'},
+                    ],truncated:false},
+                };}};
+            }
             return {
                 ok: !previewError,
                 async json() {
-                    return previewError ? {error:{message:'Erro da fonte fiscal'}} :
+                    return previewError ? economicFailure ?
+                        {code:'BASE_ECONOMICA',resolution:'Confira receitas elegíveis.'} :
+                        {error:{message:'Erro da fonte fiscal'}} :
                         malformed ? {metadata:{competence:'2026-07'},data:rows} :
                             {metadata:{competence:'2026-08',revision,withdrawal_goal:withdrawalGoal},data:rows};
                 },
@@ -238,6 +255,40 @@ test('import never publishes and requires the same preview to complete', async (
     assert.equal(bad.get('import-status').dataset.state,'failed');
     assert.equal(bad.get('import-profile-link').hidden,false);
     assert.match(bad.get('import-status-text').textContent,/Kimai #17/);
+});
+
+test('economic block opens source-only audit without authorizing a financial publication', async () => {
+    const f=fixture({previewError:true,economicFailure:true});
+    await f.click('use-existing');
+    assert.equal(f.step(),2);
+    assert.equal(f.calls.fetch.length,2);
+    assert.equal(f.calls.fetch[1].url,'/api/v1/producao/fontes?ano-mes=2026-08');
+    assert.equal(f.calls.mount.length,0,'Must not fabricate a calculated table');
+    assert.equal(f.get('imported-data-review').hidden,false);
+    assert.equal(f.get('calculated-review').hidden,true);
+    assert.equal(f.get('production-publication-controls').hidden,true);
+    assert.match(f.get('imported-data-summary').textContent,/214/);
+    assert.match(f.get('imported-data-summary').textContent,/2\.007,63/);
+    assert.match(f.get('imported-data-summary').textContent,/2329/);
+    assert.equal(f.indicators[1].disabled,false);
+    f.setConsent(true);
+    assert.equal(f.get('submit').disabled,true);
+    await f.click('submit');
+    assert.equal(f.calls.submit.length,0);
+    f.indicators[0].trigger('click');
+    f.indicators[1].trigger('click');
+    assert.equal(f.step(),2,'Read-only audit remains navigable');
+});
+
+test('successful source import shows audit state when finance cannot be calculated', async () => {
+    const f=fixture({previewError:true,economicFailure:true,importSuccess:true});
+    await f.click('import-button');
+    assert.equal(f.calls.submit.length,1);
+    assert.equal(f.calls.submit[0].operation,'import');
+    assert.equal(f.step(),2);
+    assert.equal(f.get('import-status').dataset.state,'completed');
+    assert.match(f.get('import-status-text').textContent,/cálculo financeiro bloqueado/);
+    assert.equal(f.get('submit').disabled,true);
 });
 
 test('freshness failures, missing grid and invalid data fail closed', async () => {
