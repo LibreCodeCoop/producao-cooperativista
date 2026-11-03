@@ -45,6 +45,14 @@ final class FailureGuideTest extends TestCase
         yield ['Table report_test.publication_write_attempts does not exist', 'REGISTRO_PUBLICACAO_AUSENTE'];
     }
 
+    public function testCustomerCodeGuideDoesNotAssumePatronageIsClientProduction(): void
+    {
+        $guide = FailureGuide::diagnose('Código de cliente inválido na movimentação do Akaunting.');
+        self::assertSame('CLIENTE_SEM_CODIGO', $guide->code);
+        self::assertStringContainsString('patrocínio', $guide->instructions);
+        self::assertStringContainsString('Não invente CPF/CNPJ', $guide->instructions);
+    }
+
     public function testNextcloudConnectionGuideExplainsTheRealUnavailableService(): void
     {
         $guide = FailureGuide::diagnose(

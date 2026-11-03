@@ -99,7 +99,7 @@ final readonly class FailureGuide
             str_contains($message, 'customer_reference') => new self(
                 'CLIENTE_SEM_CODIGO',
                 'Movimentação com código de cliente ausente ou inválido.',
-                'No Akaunting, abra o lançamento indicado no log, ajuste o CNPJ/CPF e o setor no campo de referência do cliente, importe novamente e confira o relatório de movimentações.'
+                'Localize o lançamento indicado no Akaunting e confirme a natureza da receita. Se for serviço prestado a um cliente, corrija a referência fiscal verdadeira. Se for patrocínio ou outra receita sem cliente identificável, peça à contabilidade que revise sua classificação antes de recalcular. Não invente CPF/CNPJ nem reclassifique automaticamente.'
             ),
             str_contains($message, 'must contain valid json'),
             str_contains($message, 'itemsids'),

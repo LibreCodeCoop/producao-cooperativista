@@ -75,6 +75,35 @@ final class ExecutionOutcomeTest extends TestCase
         self::assertStringNotContainsString('99999999999', $outcome->message());
     }
 
+    public function testMissingCustomerCodeNamesSafeFinancialRecordWithoutLeakingMetadata(): void
+    {
+        $details = 'Falha na etapa "cálculo da produção": Código de cliente inválido na movimentação do Akaunting.'
+            . "\nDados:\n[ {\n  \"origem\": \"transaction\",\n  \"id\": 3290,\n"
+            . '  "categoria": "Cliente > Externo > Recorrência", "tax_number": "12345678900",'
+            . ' "authorization": "private-test-token", "codigo_cliente": "" } ]';
+        $outcome = new ExecutionOutcome(Command::FAILURE, 'run-april', $details);
+        $message = $outcome->message();
+        self::assertSame('failed', $outcome->event());
+        self::assertStringContainsString('erro CLIENTE_SEM_CODIGO', $message);
+        self::assertStringContainsString('transação #3290 no Akaunting', $message);
+        self::assertStringContainsString('patrocínio', $message);
+        self::assertStringNotContainsString('12345678900', $message);
+        self::assertStringNotContainsString('private-test-token', $message);
+        self::assertStringNotContainsString('categoria', $message);
+    }
+
+    public function testUntrustedIdCannotBeSentAsFinancialRecord(): void
+    {
+        $outcome = new ExecutionOutcome(
+            Command::FAILURE,
+            'run-invalid',
+            'Código de cliente inválido na movimentação do Akaunting. '
+            . '{"origem":"transaction","id":"<script>alert(1)</script>"}',
+        );
+        self::assertStringNotContainsString('<script>', $outcome->message());
+        self::assertStringNotContainsString('Registro financeiro:', $outcome->message());
+    }
+
     public function testLongTraceDoesNotFloodBrowserMessage(): void
     {
         $outcome = new ExecutionOutcome(Command::FAILURE, 'run-001', str_repeat('X', 2000));

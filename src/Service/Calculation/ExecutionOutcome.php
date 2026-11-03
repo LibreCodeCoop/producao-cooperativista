@@ -74,6 +74,18 @@ final readonly class ExecutionOutcome
                 : sprintf(' Cooperado: Kimai #%s (nome não disponível).', $matches[1]);
         }
 
+        // The calculator's own validated movement audit contains a source
+        // type and numeric record ID. Surface only those safe identifiers so
+        // the administrator can locate the exact record in Akaunting.
+        if ($guide->code === 'CLIENTE_SEM_CODIGO' && preg_match(
+            '/"origem"\s*:\s*"(transaction|invoice_transaction|invoice)"\s*,\s*"id"\s*:\s*([1-9][0-9]{0,9})/',
+            $this->details,
+            $recordMatch,
+        ) === 1) {
+            $kind = $recordMatch[1] === 'invoice' ? 'fatura' : 'transação';
+            $member = sprintf(' Registro financeiro: %s #%s no Akaunting.', $kind, $recordMatch[2]);
+        }
+
         return sprintf(
             'Execução %s: erro %s.%s %s%s Como resolver: %s Consulte os detalhes privados no log do servidor.',
             $this->executionId,
