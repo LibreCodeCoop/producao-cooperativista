@@ -187,7 +187,10 @@ final class CooperativeSources
         $taxKey = trim((string) getenv('PROFILE_FIELDS_TAX_NUMBER_FIELD_KEY')) ?: 'tax_number';
         $tax = (string) preg_replace('/\D/', '', (string) ($values[$taxKey] ?? ''));
         if (!in_array(strlen($tax), [11, 14], true)) {
-            throw new \DomainException('CPF/CNPJ não cadastrado ou inválido no Nextcloud. Corrija o perfil antes de criar o contato.');
+            $instructions = $currentKimaiId === ''
+                ? 'Confirme o vínculo Kimai-Nextcloud acima, depois preencha CPF/CNPJ em Dados do cooperado.'
+                : 'Preencha CPF/CNPJ em Dados do cooperado antes de criar o contato.';
+            throw new \DomainException('CPF/CNPJ não cadastrado ou inválido no Nextcloud. ' . $instructions);
         }
         $contacts = $this->akauntingContacts->findByTaxNumber($tax);
         return [
@@ -233,6 +236,52 @@ final class CooperativeSources
         $tax = (string) preg_replace('/\D/', '', (string) ($values[$taxKey] ?? ''));
         $id = $this->akauntingContacts->createMissingContact($name, $tax);
         return ['id' => $id, 'name' => $name];
+    }
+
+    /** Whether both administrator-only technical references already exist. */
+    public function linkFieldsReady(): bool
+    {
+        $definitions = $this->profileFields->activeDefinitions();
+        foreach (['kimai_user_id', 'akaunting_contact_id'] as $key) {
+            $field = $definitions[$key] ?? null;
+            if ($field === null || $field['type'] !== 'text'
+                || ($field['edit_policy'] ?? null) !== 'admins'
+                || ($field['exposure_policy'] ?? null) !== 'hidden') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Explicitly confirm the Kimai-to-Nextcloud identity independently of
+     * fiscal data and financial contacts. This never creates or links a contact.
+     */
+    public function confirmKimaiLink(int $kimaiId, string $uid): void
+    {
+        $member = $this->user($kimaiId);
+        if ($member['system'] || !$member['enabled'] || trim($uid) === ''
+            || !$this->profileFields->userExists($uid)) {
+            throw new \DomainException('Selecione uma conta Nextcloud existente para um cooperado ativo.');
+        }
+        $definition = $this->profileFields->activeDefinitions()['kimai_user_id'] ?? null;
+        if ($definition === null || $definition['type'] !== 'text'
+            || ($definition['edit_policy'] ?? null) !== 'admins'
+            || ($definition['exposure_policy'] ?? null) !== 'hidden') {
+            throw new \DomainException('Campo de vínculo Kimai indisponível ou sem proteção administrativa. Prepare os campos antes de confirmar.');
+        }
+        $values = $this->profileFields->getFieldsForUser($uid);
+        $current = trim((string) ($values['kimai_user_id'] ?? ''));
+        if ($current !== '' && $current !== (string) $kimaiId) {
+            throw new \DomainException('Esta conta Nextcloud já pertence a outro usuário Kimai.');
+        }
+        $otherUid = $this->profileFields->findUserUidByLink('kimai_user_id', $kimaiId);
+        if ($otherUid !== null && $otherUid !== $uid) {
+            throw new \DomainException('O usuário Kimai já está vinculado a outra conta Nextcloud.');
+        }
+        if ($current !== (string) $kimaiId) {
+            $this->updateNextcloud($uid, 'kimai_user_id', (string) $kimaiId);
+        }
     }
 
     public function prepareLinkFields(): void

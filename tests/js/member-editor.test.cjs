@@ -4,7 +4,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {editorUrl, contactEndpoint, initialize, bindFieldControls} = require('../../public/js/member-editor.js');
+const {editorUrl, contactEndpoint, kimaiLinkEndpoint, initialize, bindFieldControls} = require('../../public/js/member-editor.js');
 
 function node() {
     const handlers = new Map();
@@ -20,6 +20,7 @@ function node() {
 
 function fixture({failGet=false, failPost=false, changed=true,
     contactStatus='available', contactCreateFails=false, contactUid='luis.souza', contacts=[],
+    kimaiConfirmFails=false,
     standalone=false, location='https://host.test/relatorios/producao?ano-mes=2026-08'} = {}) {
     const dialog=node();
     dialog.open=false;
@@ -59,6 +60,12 @@ function fixture({failGet=false, failPost=false, changed=true,
                 return {ok:!contactCreateFails, status:contactCreateFails?409:201,
                     json:async()=>contactCreateFails ? {error:'Contato já existente no Akaunting.'} :
                         {id:91,message:'Contato criado. Salve os vínculos.'}};
+            }
+            if(url.includes('/vincular-kimai')) {
+                return {ok:!kimaiConfirmFails, status:kimaiConfirmFails?409:200,
+                    json:async()=>kimaiConfirmFails ?
+                        {error:'Conta Nextcloud já vinculada a outro usuário Kimai.'} :
+                        {message:'Vínculo Kimai-Nextcloud confirmado. Edite os dados cadastrais.'}};
             }
             if(config.method==='POST'){
                 return {
@@ -378,6 +385,99 @@ test('profile identity mismatch and denied contact creation fail closed', async 
         assert.match(v.status.textContent,/Atualize a consulta antes de tentar outra vez/);
         assert.equal(denied.calls.length,3);
     } finally {globalThis.FormData=originalFormData;}
+});
+
+test('technical link endpoint is limited to the selected same-origin cooperado', () => {
+    const base='https://host.test/configuracao/cooperados';
+    assert.equal(kimaiLinkEndpoint({action:'/configuracao/cooperado/39/vincular'}, base),
+        'https://host.test/configuracao/cooperado/39/vincular-kimai');
+    assert.equal(kimaiLinkEndpoint({action:'https://bad.test/configuracao/cooperado/39/vincular'}, base), null);
+    assert.equal(kimaiLinkEndpoint({action:'/configuracao/cooperado/0/vincular'}, base), null);
+});
+
+function kimaiConfirmationButton(form) {
+    const button={disabled:false};
+    button.closest=selector=>selector.includes('[data-kimai-confirm]') ? button :
+        selector==='.member-link-form'?form:null;
+    return button;
+}
+
+test('new cooperado can confirm Kimai-Nextcloud without financial contact or fiscal data', async () => {
+    const f=fixture({standalone:true});
+    const input={value:'39'}, uid={value:'renata'};
+    const form={
+        action:'https://host.test/configuracao/cooperado/39/vincular',
+        querySelector:sel=>({
+            '[name="kimai_user_id"]':input, '[name="nextcloud_uid"]':uid,
+        })[sel] || null,
+        closest:sel=>sel==='[data-member-editor-standalone]'?f.standaloneElement:null,
+    };
+    const button=kimaiConfirmationButton(form);
+    const previous=globalThis.FormData;
+    globalThis.FormData=class {constructor(form){this.form=form;}};
+    try {
+        f.standaloneElement.fire('click',{target:button});
+        await new Promise(resolve=>setImmediate(resolve));
+        assert.equal(f.calls.length,1);
+        assert.equal(f.calls[0].config.method,'POST');
+        assert.equal(f.calls[0].url,'https://host.test/configuracao/cooperado/39/vincular-kimai');
+        assert.equal(f.calls[0].config.body.form,form);
+        assert.equal(f.reloadCount(),1,'The editor reloads so the fiscal fields become available');
+        assert.equal(button.disabled,false);
+        assert.equal(f.dialog.open,false);
+        assert.equal(f.dispatched.at(-1).detail.source,'nextcloud');
+        assert.equal(f.calls.filter(c=>c.url.includes('contato')).length,0);
+    } finally {globalThis.FormData=previous;}
+});
+
+test('technical link conflict is shown without modifying financial records', async () => {
+    const f=fixture({standalone:true, kimaiConfirmFails:true});
+    const form={
+        action:'https://host.test/configuracao/cooperado/39/vincular',
+        querySelector:sel=>sel==='[name="nextcloud_uid"]'?{value:'renata'}:
+            sel==='[name="kimai_user_id"]'?{value:'39'}:null,
+        closest:sel=>sel==='[data-member-editor-standalone]'?f.standaloneElement:null,
+    };
+    const button=kimaiConfirmationButton(form);
+    const previous=globalThis.FormData;
+    globalThis.FormData=class {constructor(form){this.form=form;}};
+    try {
+        f.standaloneElement.fire('click',{target:button});
+        await new Promise(resolve=>setImmediate(resolve));
+        assert.equal(f.reloadCount(),0);
+        assert.match(f.standaloneFeedback.textContent,/outro usuário Kimai/);
+        assert.equal(button.disabled,false);
+        assert.equal(f.calls.length,1);
+    } finally {globalThis.FormData=previous;}
+});
+
+test('standalone administration page can edit fiscal data after confirmation', async () => {
+    const f=fixture({standalone:true});
+    const button={disabled:false};
+    const input={value:'12345678901', defaultValue:''};
+    const expected={value:'old-revision'};
+    const form={
+        action:'https://host.test/configuracao/cooperado/39/nextcloud',
+        matches:sel=>sel==='.member-editor-field',
+        classList:{contains:()=>false},
+        querySelector:sel=>({
+            '[type="submit"]':button, '[name="value"]':input,
+            '[name="expected"]':expected,
+        })[sel]||null,
+        closest:sel=>sel==='[data-member-editor-standalone]'?f.standaloneElement:null,
+    };
+    const previous=globalThis.FormData;
+    globalThis.FormData=class {constructor(form){this.form=form;}};
+    try {
+        let prevented=false;
+        f.standaloneElement.fire('submit',{target:form,preventDefault(){prevented=true;}});
+        await new Promise(resolve=>setImmediate(resolve));
+        assert.equal(prevented,true);
+        assert.equal(f.calls.length,1);
+        assert.equal(f.calls[0].config.method,'POST');
+        assert.equal(input.disabled,false);
+        assert.match(f.standaloneFeedback.textContent,/Salvo na origem/);
+    } finally {globalThis.FormData=previous;}
 });
 
 test('standalone administration page saves links without opening the modal', async () => {

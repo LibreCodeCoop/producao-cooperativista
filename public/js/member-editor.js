@@ -31,6 +31,11 @@
         }
     }
 
+    function kimaiLinkEndpoint(form, page) {
+        const proposal = contactEndpoint(form, page, 'proposta');
+        return proposal ? proposal.replace(/\/contato\/proposta$/, '/vincular-kimai') : null;
+    }
+
     function bindFieldControls(root) {
         for (const form of root?.querySelectorAll?.('.member-editor-field') || []) {
             const input = form.querySelector('[name="value"]');
@@ -305,9 +310,53 @@
             }
             return false;
         };
+        const confirmKimai = async (form, button) => {
+            const resultFeedback = form?.closest?.('[data-member-editor-standalone]')
+                ?.querySelector?.('[data-standalone-feedback]') || feedback;
+            const endpoint = kimaiLinkEndpoint(form || {}, location.href);
+            if (!endpoint) {
+                resultFeedback.textContent = 'Cadastro inválido. Reabra o cooperado antes de confirmar.';
+                return;
+            }
+            const uid = form.querySelector('[name="nextcloud_uid"]')?.value.trim();
+            const kimaiId = form.querySelector('[name="kimai_user_id"]')?.value.trim();
+            if (!uid || !/^[1-9]\d*$/.test(kimaiId || '')) {
+                resultFeedback.textContent = 'Confirme o ID Kimai e selecione a conta Nextcloud correta.';
+                return;
+            }
+            button.disabled = true;
+            resultFeedback.textContent = 'Confirmando vínculo Kimai–Nextcloud…';
+            try {
+                const response = await request(endpoint, {
+                    method:'POST', body:new FormData(form), credentials:'same-origin',
+                    cache:'no-store', redirect:'error',
+                    headers:{Accept:'application/json', 'X-Requested-With':'XMLHttpRequest'},
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'O Nextcloud não confirmou o vínculo.');
+                resultFeedback.textContent = result.message || 'Vínculo confirmado. Confira os dados cadastrais.';
+                if (win.CustomEvent) doc.dispatchEvent?.(new win.CustomEvent('member-source-changed', {
+                    detail:{source:'nextcloud'},
+                }));
+                options.onSaved?.();
+                if (activeUrl) await load(activeUrl, null, true);
+                else if (standalone) win.location?.reload?.();
+            } catch (error) {
+                resultFeedback.textContent = error.message || 'Não foi possível confirmar o vínculo.';
+            } finally {
+                button.disabled = false;
+            }
+        };
+
         const handleEditorClick = event => {
             if (event.target?.closest?.('[data-contact-provision-open], [data-contact-pick], [data-contact-provision-create]')) {
                 void contactAction(event);
+                return;
+            }
+            const confirm = event.target?.closest?.('[data-kimai-confirm]');
+            if (confirm) {
+                const form = confirm.closest?.('.member-link-form');
+                if (form) void confirmKimai(form, confirm);
                 return;
             }
             if (event.target?.closest?.('[data-links-prepare]')) {
@@ -340,7 +389,7 @@
                 if (activeUrl || standalone) void submitLinks(form, form.action);
                 return;
             }
-            if (!form?.matches?.('.member-editor-field') || !activeUrl) return;
+            if (!form?.matches?.('.member-editor-field') || (!activeUrl && !standalone)) return;
             event.preventDefault();
             const action = new URL(form.action, location.href);
             if (action.origin !== new URL(location.href).origin ||
@@ -400,7 +449,7 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = {editorUrl, contactEndpoint, initialize, bindFieldControls};
+        module.exports = {editorUrl, contactEndpoint, kimaiLinkEndpoint, initialize, bindFieldControls};
     } else {
         scope.addEventListener('DOMContentLoaded', () => initialize());
     }

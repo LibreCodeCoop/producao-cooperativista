@@ -30,7 +30,7 @@
                 <section class="member-link-panel member-link-identity" aria-labelledby="member-links-title-{{ member.id }}">
                     <div class="member-link-section-heading">
                         <h3 id="member-links-title-{{ member.id }}">Vínculos entre sistemas</h3>
-                        {% if not link.linked|default(false) %}
+                        {% if link.needs_fields|default(false) %}
                             <button type="button" class="button member-link-prepare" data-links-prepare>Preparar campos</button>
                         {% endif %}
                     </div>
@@ -51,6 +51,14 @@
                             <datalist id="nc-users-{{ member.id }}"></datalist>
                         </div>
                     </div>
+                    {% if not link.kimai_linked|default(false) %}
+                        <div class="member-kimai-confirm">
+                            <p>Confira se esta conta Nextcloud pertence ao cooperado do Kimai. A confirmação libera a edição dos dados cadastrais, sem exigir contato financeiro.</p>
+                            <button type="button" class="button button-secondary" data-kimai-confirm>
+                                Confirmar vínculo Kimai–Nextcloud
+                            </button>
+                        </div>
+                    {% endif %}
                 </section>
 
                 <section class="member-link-panel member-link-accounting" aria-labelledby="member-accounting-title-{{ member.id }}">
@@ -96,7 +104,7 @@
                 </section>
             </div>
             <div class="member-link-actions">
-                <p>Registra as referências no Nextcloud. Não cria contatos financeiros.</p>
+                <p>Registra os vínculos no Nextcloud. Não cria contatos no Akaunting.</p>
                 <button type="submit" class="button button-primary">Salvar vínculos</button>
             </div>
         </form>

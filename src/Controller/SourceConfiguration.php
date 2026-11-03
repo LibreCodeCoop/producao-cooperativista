@@ -226,6 +226,39 @@ final class SourceConfiguration extends AbstractController
         }
     }
 
+    #[Route('/configuracao/cooperado/{id}/vincular-kimai', requirements: ['id' => '\\d+'], methods: ['POST'])]
+    public function confirmKimaiLink(Request $request, int $id): Response
+    {
+        $this->assertAdmin($request);
+        $this->guard->assertAuthorized($request);
+        $uid = trim($request->request->getString('nextcloud_uid'));
+        $kimaiId = trim($request->request->getString('kimai_user_id'));
+        if ($id <= 0 || $uid === '' || mb_strlen($uid) > 128
+            || !ctype_digit($kimaiId) || filter_var($kimaiId, FILTER_VALIDATE_INT) !== $id) {
+            return $this->linkResponse([
+                'error' => 'Confira a conta Nextcloud e o ID Kimai do cooperado aberto antes de confirmar.',
+            ], Response::HTTP_BAD_REQUEST);
+        }
+        try {
+            $this->sources->confirmKimaiLink($id, $uid);
+            $this->logger->notice('Vínculo técnico Kimai-Nextcloud confirmado pelo administrador.', [
+                'member_id' => $id,
+            ]);
+            return $this->linkResponse([
+                'message' => 'Vínculo Kimai-Nextcloud confirmado. Agora confira CPF/CNPJ e demais dados cadastrais.',
+            ]);
+        } catch (\DomainException | \InvalidArgumentException $error) {
+            return $this->linkResponse(['error' => $error->getMessage()], Response::HTTP_CONFLICT);
+        } catch (\Throwable $error) {
+            $this->logger->error('Vínculo técnico Kimai-Nextcloud não confirmado.', [
+                'member_id' => $id, 'class' => $error::class,
+            ]);
+            return $this->linkResponse([
+                'error' => 'O Nextcloud não confirmou o vínculo. Reabra o cadastro para verificar antes de repetir.',
+            ], Response::HTTP_BAD_GATEWAY);
+        }
+    }
+
     #[Route('/configuracao/cooperado/{id}/vincular', requirements: ['id' => '\\d+'], methods: ['POST'])]
     public function saveLinks(Request $request, int $id): Response
     {
@@ -374,9 +407,11 @@ final class SourceConfiguration extends AbstractController
             'kimai_id' => (string) $id,
             'linked' => false,
             'kimai_linked' => false,
+            'needs_fields' => false,
         ];
         try {
             $profile = $this->sources->nextcloudForMember($member);
+            $links['needs_fields'] = !$this->sources->linkFieldsReady();
             if ($profile['exists']) {
                 $links['uid'] = $profile['uid'];
                 $values = $profile['values'];
@@ -391,7 +426,7 @@ final class SourceConfiguration extends AbstractController
                     }
                     $services['nextcloud']['configured'] = true;
                 } else {
-                    $services['nextcloud']['error'] = 'Confirme o vínculo com o Kimai antes de alterar o cadastro.';
+                    $services['nextcloud']['error'] = 'Vínculo Kimai-Nextcloud pendente. Confirme as contas na seção Vínculos entre sistemas para editar CPF/CNPJ, peso e dependentes.';
                 }
             } else {
                 $services['nextcloud']['error'] = 'Escolha a conta Nextcloud para continuar.';

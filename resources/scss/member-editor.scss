@@ -139,6 +139,16 @@
     color:var(--text); background:var(--surface); padding:8px 11px; font:inherit;
 }
 .member-contact-pending {display:block; margin-top:5px; color:var(--muted); font-size:11px; line-height:1.5;}
+.member-kimai-confirm {
+    margin-top:16px; padding-top:14px; border-top:1px solid var(--line);
+}
+.member-kimai-confirm p {
+    margin:0 0 10px; color:var(--muted); font-size:12px; line-height:1.55;
+}
+.member-kimai-confirm .button {
+    width:auto; max-width:100%; min-height:38px; white-space:normal;
+}
+.member-kimai-confirm .button:disabled {opacity:.55; cursor:wait;}
 .member-link-actions {
     display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between;
     gap:12px; margin-top:14px; padding:13px 17px;

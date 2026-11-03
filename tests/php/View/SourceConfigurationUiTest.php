@@ -122,6 +122,7 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('Pessoa teste', $html);
         self::assertStringContainsString('Vínculos registrados', $html);
         self::assertStringContainsString('Vínculos entre sistemas', $html);
+        self::assertStringNotContainsString('data-kimai-confirm', $html);
         self::assertStringContainsString('Contato financeiro', $html);
         self::assertStringContainsString('Selecionar contato existente', $html);
         self::assertStringNotContainsString('<summary>Vínculos entre sistemas</summary>', $html);
@@ -169,13 +170,16 @@ final class SourceConfigurationUiTest extends TestCase
                 'kimai_id' => '40', 'linked' => false, 'kimai_linked' => false],
         ]);
         self::assertStringContainsString('Obtido do Kimai', $html);
+        self::assertStringContainsString('data-kimai-confirm', $html);
+        self::assertStringContainsString('Confirmar vínculo Kimai', $html);
+        self::assertStringNotContainsString('data-links-prepare', $html);
         self::assertStringContainsString('Criar novo contato', $html);
         self::assertStringContainsString('data-contact-provision-open', $html);
         self::assertStringContainsString('Verificar antes de criar', $html);
         self::assertStringContainsString('data-contact-provision-panel', $html);
         self::assertStringNotContainsString('data-contact-provision-panel hidden', $html);
         self::assertStringContainsString('data-contact-provision-confirm', $html);
-        self::assertStringContainsString('Registra as referências no Nextcloud. Não cria contatos financeiros.', $html);
+        self::assertStringContainsString('Registra os vínculos no Nextcloud. Não cria contatos no Akaunting.', $html);
         self::assertSame(1, substr_count($html, 'name="akaunting_contact_id"'));
         self::assertStringNotContainsString('member-editor-advanced', $html);
     }
@@ -187,10 +191,11 @@ final class SourceConfigurationUiTest extends TestCase
             'can_manage' => true,
             'member' => ['id' => 18, 'alias' => 'Pessoa pendente'],
             'services' => ['nextcloud' => ['fields' => [], 'error' => 'Confirme vínculo']],
-            'links' => ['linked' => false, 'kimai_linked' => false],
+            'links' => ['linked' => false, 'kimai_linked' => false, 'needs_fields' => true],
         ]);
         self::assertStringContainsString('Vínculo pendente', $html);
         self::assertStringContainsString('data-links-prepare', $html);
+        self::assertStringContainsString('data-kimai-confirm', $html);
         self::assertStringContainsString('data-link-source="nextcloud"', $html);
         self::assertStringContainsString('data-link-source="akaunting"', $html);
     }

@@ -33,6 +33,10 @@ final class MemberLinksHttpTest extends WebTestCase
     public function testNonAdministratorsCannotInspectOrCreateFinancialContacts(): void
     {
         $client = static::createClient();
+        $client->request('POST', '/configuracao/cooperado/39/vincular-kimai', [
+            'kimai_user_id' => '39', 'nextcloud_uid' => 'renata',
+        ]);
+        self::assertSame(Response::HTTP_FORBIDDEN, $client->getResponse()->getStatusCode());
         $client->request('GET', '/configuracao/cooperado/40/contato/proposta');
         self::assertSame(Response::HTTP_FORBIDDEN, $client->getResponse()->getStatusCode());
         $client->request('POST', '/configuracao/cooperado/40/contato/criar', [
@@ -64,6 +68,11 @@ final class MemberLinksHttpTest extends WebTestCase
     {
         $client = static::createClient();
         $client->request('POST', '/configuracao/vinculos/preparar', server: ['REMOTE_USER' => 'librecode']);
+        self::assertSame(Response::HTTP_FORBIDDEN, $client->getResponse()->getStatusCode());
+
+        $client->request('POST', '/configuracao/cooperado/39/vincular-kimai', [
+            'kimai_user_id' => '39', 'nextcloud_uid' => 'renata',
+        ], server: ['REMOTE_USER' => 'librecode']);
         self::assertSame(Response::HTTP_FORBIDDEN, $client->getResponse()->getStatusCode());
 
         $client->request('POST', '/configuracao/cooperado/17/vincular', [
