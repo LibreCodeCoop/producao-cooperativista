@@ -31,6 +31,19 @@
         }
     }
 
+    function identityEndpoint(form, page, source, identifier, uid = '') {
+        if (!['nextcloud', 'kimai', 'akaunting'].includes(source)) return null;
+        const validForm = contactEndpoint(form, page, 'proposta');
+        if (!validForm || !identifier || identifier.length > 128 || uid.length > 128) return null;
+        if (source !== 'nextcloud' && (!/^[1-9]\d*$/.test(identifier)
+            || !Number.isSafeInteger(Number(identifier)))) return null;
+        const url = new URL('/configuracao/vinculos/conferir', validForm);
+        url.searchParams.set('source', source);
+        url.searchParams.set('id', identifier);
+        if (source === 'akaunting' && uid) url.searchParams.set('uid', uid);
+        return url.href;
+    }
+
     function kimaiLinkEndpoint(form, page) {
         const proposal = contactEndpoint(form, page, 'proposta');
         return proposal ? proposal.replace(/\/contato\/proposta$/, '/vincular-kimai') : null;
@@ -113,10 +126,142 @@
                 void load(openerLink.href, openerLink);
             }
         });
+        // Identity inspection is read-only. Every result is bound to its exact
+        // identifier; stale responses must never describe a different account.
+        const inspectionTickets = new WeakMap();
+        const fieldNames = {
+            nextcloud:'nextcloud_uid', kimai:'kimai_user_id', akaunting:'akaunting_contact_id',
+        };
+        const identityRows = (source, identity, selectedUid, kimaiId) => {
+            const rows = [];
+            const add = (label, value) => {
+                if (value !== null && value !== undefined && String(value).trim() !== '') {
+                    rows.push([label, String(value)]);
+                }
+            };
+            add('Nome', identity.name || 'Não informado');
+            if (source !== 'akaunting') add('Login', identity.username);
+            add('E-mail', identity.email);
+            if (identity.enabled !== null && identity.enabled !== undefined) {
+                add('Situação', identity.enabled ? 'Ativa' : 'Inativa');
+            }
+            if (source === 'akaunting') {
+                add('Tipo', identity.kind);
+                add('Documento', identity.tax_hint || 'CPF/CNPJ não informado');
+                if (identity.tax_match === 'match') add('CPF/CNPJ', 'Coincide com o cadastro Nextcloud selecionado');
+                if (identity.tax_match === 'different') add('CPF/CNPJ', 'Divergente do cadastro Nextcloud selecionado');
+                if (identity.tax_match === 'missing') add('CPF/CNPJ', 'Sem dados suficientes para comparar');
+            }
+            const link = String(identity.linked_account || '');
+            if (source === 'nextcloud') add('Vínculo existente', link || 'Nenhum Kimai registrado');
+            if (source === 'kimai' || source === 'akaunting') {
+                add('Nextcloud vinculado', link || 'Nenhuma conta vinculada');
+            }
+            const warning = source === 'nextcloud' && link && link !== 'Kimai #' + kimaiId
+                ? 'Atenção: esta conta Nextcloud já está ligada a outro ID Kimai.'
+                : (source === 'kimai' || source === 'akaunting') && link && link !== selectedUid
+                    ? 'Atenção: este registro já está vinculado a outra conta Nextcloud.'
+                    : source === 'akaunting' && identity.tax_match === 'different'
+                        ? 'Identificação fiscal divergente. Não salve o vínculo sem corrigir as origens.'
+                        : '';
+            return {rows, warning};
+        };
+        const clearIdentity = (form, source, message) => {
+            const preview = form?.querySelector?.('[data-identity-preview="' + source + '"]');
+            const output = preview?.querySelector?.('[data-identity-result="' + source + '"]');
+            if (!output) return;
+            inspectionTickets.set(output, (inspectionTickets.get(output) || 0) + 1);
+            output.replaceChildren();
+            output.textContent = message;
+        };
+        const inspectIdentity = async (form, source) => {
+            const preview = form?.querySelector?.('[data-identity-preview="' + source + '"]');
+            const output = preview?.querySelector?.('[data-identity-result="' + source + '"]');
+            const input = form?.querySelector?.('[name="' + fieldNames[source] + '"]');
+            const uid = form?.querySelector?.('[name="nextcloud_uid"]')?.value.trim() || '';
+            const kimaiId = form?.querySelector?.('[name="kimai_user_id"]')?.value.trim() || '';
+            if (!output || !input) return false;
+            const identifier = input.value.trim();
+            const ticket = (inspectionTickets.get(output) || 0) + 1;
+            inspectionTickets.set(output, ticket);
+            output.replaceChildren();
+            const url = identityEndpoint(form, location.href, source, identifier, uid);
+            if (!url) {
+                output.textContent = 'Informe um identificador válido para consultar a origem.';
+                return false;
+            }
+            preview.classList?.add?.('is-busy');
+            output.textContent = 'Consultando a identidade na origem…';
+            try {
+                const response = await request(url, {
+                    credentials:'same-origin', cache:'no-store',
+                    headers:{Accept:'application/json'},
+                });
+                const data = await response.json();
+                const stale = inspectionTickets.get(output) !== ticket || input.value.trim() !== identifier
+                    || (source === 'akaunting' && uid !== (form.querySelector('[name="nextcloud_uid"]')?.value.trim() || ''));
+                if (stale) return false;
+                if (!response.ok || data.identity?.source !== source || data.identity?.id !== identifier) {
+                    throw new Error(data.error || 'A origem não confirmou esse identificador.');
+                }
+                output.replaceChildren();
+                const details = doc.createElement('dl');
+                details.className = 'member-identity-facts';
+                const {rows, warning} = identityRows(source, data.identity, uid, kimaiId);
+                for (const [label, value] of rows) {
+                    const row = doc.createElement('div');
+                    const term = doc.createElement('dt');
+                    const description = doc.createElement('dd');
+                    term.textContent = label;
+                    description.textContent = value;
+                    row.appendChild(term);
+                    row.appendChild(description);
+                    details.appendChild(row);
+                }
+                output.appendChild(details);
+                const note = doc.createElement('p');
+                note.className = 'member-identity-note' + (warning ? ' is-warning' : '');
+                note.textContent = warning || 'Registro localizado na origem. Confira a identidade antes de vincular.';
+                output.appendChild(note);
+                return true;
+            } catch (error) {
+                if (inspectionTickets.get(output) === ticket) {
+                    output.replaceChildren();
+                    output.textContent = error.message || 'Não foi possível conferir a conta.';
+                }
+                return false;
+            } finally {
+                if (inspectionTickets.get(output) === ticket) preview.classList?.remove?.('is-busy');
+            }
+        };
+        const bindIdentityPreviews = root => {
+            const form = root?.querySelector?.('.member-link-form');
+            if (!form) return;
+            for (const source of ['nextcloud', 'kimai', 'akaunting']) {
+                if (form.querySelector('[data-identity-preview="' + source + '"]')) {
+                    void inspectIdentity(form, source);
+                }
+            }
+        };
+        bindIdentityPreviews(standalone);
+
         let searchTicket = 0;
         let searchTimer = null;
         const handleEditorInput = event => {
             const input = event.target;
+            const name = input?.name;
+            const source = name === 'nextcloud_uid' ? 'nextcloud'
+                : name === 'kimai_user_id' ? 'kimai'
+                    : name === 'akaunting_contact_id' ? 'akaunting' : null;
+            if (source) {
+                const form = input.closest?.('.member-link-form');
+                if (form) {
+                    clearIdentity(form, source, 'Identificador alterado. Confira os novos dados na origem.');
+                    if (source === 'nextcloud') {
+                        clearIdentity(form, 'akaunting', 'Conta Nextcloud alterada. Confira novamente a identificação fiscal.');
+                    }
+                }
+            }
             if (!input?.matches?.('[data-link-source]')) return;
             const ticket = ++searchTicket;
             if (searchTimer !== null) clearTimeout(searchTimer);
@@ -152,6 +297,20 @@
         };
         dialog.addEventListener('input', handleEditorInput);
         standalone?.addEventListener('input', handleEditorInput);
+        const handleIdentityChange = event => {
+            const field = event.target?.name;
+            const source = field === 'nextcloud_uid' ? 'nextcloud'
+                : field === 'kimai_user_id' ? 'kimai'
+                    : field === 'akaunting_contact_id' ? 'akaunting' : null;
+            const form = event.target?.closest?.('.member-link-form');
+            if (!source || !form) return;
+            void inspectIdentity(form, source);
+            if (source === 'nextcloud') {
+                void inspectIdentity(form, 'akaunting');
+            }
+        };
+        dialog.addEventListener('change', handleIdentityChange);
+        standalone?.addEventListener('change', handleIdentityChange);
         const submitLinks = async (form, url) => {
             const resultFeedback = form?.closest?.('[data-member-editor-standalone]')
                 ?.querySelector?.('[data-standalone-feedback]') || feedback;
@@ -219,6 +378,7 @@
                 if (createButton) createButton.disabled = true;
                 output.textContent = 'Contato #' + id + ' selecionado. Salve os vínculos para associá-lo.';
                 resultFeedback.textContent = 'Contato #' + id + ' selecionado. Clique em Salvar vínculos para associá-lo.';
+                void inspectIdentity(form, 'akaunting');
                 return true;
             }
             if (trigger) {
@@ -297,6 +457,7 @@
                     if (newContact) newContact.hidden = true;
                     output.textContent = 'Contato #' + id + ' criado. Salve os vínculos para associá-lo.';
                     resultFeedback.textContent = result.message || 'Contato criado. Salve o vínculo para associá-lo.';
+                    void inspectIdentity(form, 'akaunting');
                     if (win.CustomEvent) doc.dispatchEvent?.(new win.CustomEvent('member-source-changed', {
                         detail:{source:'akaunting'},
                     }));
@@ -349,6 +510,13 @@
         };
 
         const handleEditorClick = event => {
+            const identityRefresh = event.target?.closest?.('[data-identity-verify]');
+            if (identityRefresh) {
+                const source = identityRefresh.dataset.identityVerify;
+                const form = identityRefresh.closest?.('.member-link-form');
+                if (form && fieldNames[source]) void inspectIdentity(form, source);
+                return;
+            }
             if (event.target?.closest?.('[data-contact-provision-open], [data-contact-pick], [data-contact-provision-create]')) {
                 void contactAction(event);
                 return;
@@ -449,7 +617,7 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = {editorUrl, contactEndpoint, kimaiLinkEndpoint, initialize, bindFieldControls};
+        module.exports = {editorUrl, contactEndpoint, kimaiLinkEndpoint, identityEndpoint, initialize, bindFieldControls};
     } else {
         scope.addEventListener('DOMContentLoaded', () => initialize());
     }

@@ -131,6 +131,14 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('Cadastro central do cooperado.', $html);
         self::assertStringContainsString('Kimai</h4>', $html);
         self::assertStringContainsString('Akaunting</h4>', $html);
+        foreach (['nextcloud', 'kimai', 'akaunting'] as $source) {
+            self::assertStringContainsString('data-identity-preview="' . $source . '"', $html);
+            self::assertStringContainsString('data-identity-verify="' . $source . '"', $html);
+        }
+        self::assertSame(3, substr_count($html, 'Dados ainda não consultados.'));
+        self::assertStringContainsString('Identidade no Nextcloud', $html);
+        self::assertStringContainsString('Identidade no Kimai', $html);
+        self::assertStringContainsString('Identidade no Akaunting', $html);
         self::assertStringContainsString('Vinculado', $html);
         self::assertStringContainsString('Dados cadastrais no Nextcloud', $html);
         self::assertLessThan(strpos($html, 'member-link-layout'), strpos($html, 'member-nextcloud-hub'));
@@ -161,7 +169,9 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('Dependentes:', $reader);
         foreach (['SYNTHETIC', 'fake-user', 'value="35"', 'ID 12',
             'name="_token"', 'name="akaunting_contact_id"',
-            'name="field" value="tax_number"', 'Vínculos desta conta'] as $private) {
+            'name="field" value="tax_number"', 'Vínculos desta conta',
+            'data-identity-preview', 'Identidade no Kimai', 'Identidade no Nextcloud',
+            'Identidade no Akaunting'] as $private) {
             self::assertStringNotContainsString($private, $reader);
         }
 

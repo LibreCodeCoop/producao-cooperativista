@@ -131,6 +131,77 @@ final class CooperativeSources
         return ['exists' => false, 'uid' => '', 'values' => []];
     }
 
+    /**
+     * Identity summaries support administrative visual inspection only.
+     * Reading a record does not establish that the profiles belong to the
+     * same person, nor does it change the stored links.
+     *
+     * @return array{source:string,id:string,name:string,username:string,email:string,enabled:bool|null,kind:string,tax_hint:string,tax_match:string,linked_account:string}
+     */
+    public function inspectIdentity(string $source, string $identifier, string $nextcloudUid = ''): array
+    {
+        $identifier = trim($identifier);
+        if ($identifier === '' || mb_strlen($identifier) > 128) {
+            throw new \InvalidArgumentException('Selecione um identificador válido para conferir.');
+        }
+        $identity = [
+            'source' => $source, 'id' => $identifier, 'name' => '', 'username' => '',
+            'email' => '', 'enabled' => null, 'kind' => '', 'tax_hint' => '',
+            'tax_match' => '', 'linked_account' => '',
+        ];
+        if ($source === 'nextcloud') {
+            $record = $this->profileFields->userSummary($identifier);
+            $fields = $this->profileFields->getFieldsForUser($identifier);
+            $identity['name'] = $record['display_name'];
+            $identity['username'] = $record['uid'];
+            $identity['email'] = $record['email'];
+            $identity['enabled'] = $record['enabled'];
+            $kimai = trim((string) ($fields['kimai_user_id'] ?? ''));
+            $identity['linked_account'] = $kimai !== '' ? 'Kimai #' . $kimai : '';
+            return $identity;
+        }
+        if (!preg_match('/^[1-9][0-9]*$/D', $identifier)
+            || filter_var($identifier, FILTER_VALIDATE_INT) === false) {
+            throw new \InvalidArgumentException('Identificador numérico inválido para a origem.');
+        }
+        $id = (int) $identifier;
+        if ($source === 'kimai') {
+            $raw = $this->doRequestKimai('/users/' . $id);
+            if ((int) ($raw['id'] ?? 0) !== $id || trim((string) ($raw['username'] ?? '')) === '') {
+                throw new \DomainException('Usuário não encontrado no Kimai.');
+            }
+            $identity['name'] = trim((string) (($raw['alias'] ?? '') ?: $raw['username']));
+            $identity['username'] = (string) $raw['username'];
+            $identity['email'] = trim((string) ($raw['email'] ?? ''));
+            $identity['enabled'] = (bool) ($raw['enabled'] ?? true);
+            $identity['kind'] = !empty($raw['systemAccount']) ? 'Conta de serviço' : 'Usuário';
+            $identity['linked_account'] = $this->profileFields->findUserUidByLink('kimai_user_id', $id) ?? '';
+            return $identity;
+        }
+        if ($source === 'akaunting') {
+            $record = $this->akauntingContacts->overview($id);
+            $identity['name'] = $record['name'];
+            $identity['kind'] = $record['type'] === 'employee' ? 'Funcionário' : 'Fornecedor';
+            $tax = (string) preg_replace('/\D/', '', $record['tax_number']);
+            if (in_array(strlen($tax), [11, 14], true)) {
+                $identity['tax_hint'] = (strlen($tax) === 11 ? 'CPF' : 'CNPJ') . ' final ' . substr($tax, -3);
+            }
+            $identity['linked_account'] = $this->profileFields->findUserUidByLink('akaunting_contact_id', $id) ?? '';
+            $nextcloudUid = trim($nextcloudUid);
+            if ($nextcloudUid !== '' && mb_strlen($nextcloudUid) <= 128
+                && $this->profileFields->userExists($nextcloudUid)) {
+                $fields = $this->profileFields->getFieldsForUser($nextcloudUid);
+                $key = trim((string) getenv('PROFILE_FIELDS_TAX_NUMBER_FIELD_KEY')) ?: 'tax_number';
+                $profileTax = (string) preg_replace('/\D/', '', (string) ($fields[$key] ?? ''));
+                $identity['tax_match'] = !in_array(strlen($tax), [11, 14], true)
+                    || !in_array(strlen($profileTax), [11, 14], true)
+                    ? 'missing' : ($tax === $profileTax ? 'match' : 'different');
+            }
+            return $identity;
+        }
+        throw new \InvalidArgumentException('Origem de identidade não permitida.');
+    }
+
     /** @return list<string> */
     public function searchNextcloudUsers(string $query): array
     {

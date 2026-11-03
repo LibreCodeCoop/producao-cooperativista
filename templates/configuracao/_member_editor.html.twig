@@ -32,6 +32,7 @@
                         {% endif %}
                     </div>
                 </div>
+                {{ include('configuracao/_identity_inspection.html.twig', {source: 'nextcloud', title: 'Identidade no Nextcloud'}) }}
             </section>
             <h3 class="member-link-overview">Vínculos desta conta</h3>
             <div class="member-link-layout">
@@ -57,6 +58,7 @@
                             {% endif %}
                         </div>
                     </div>
+                    {{ include('configuracao/_identity_inspection.html.twig', {source: 'kimai', title: 'Identidade no Kimai'}) }}
                     {% if not link.kimai_linked|default(false) %}
                         <div class="member-kimai-confirm">
                             <p>Confira se esta conta Nextcloud pertence ao cooperado do Kimai. A confirmação libera a edição dos dados cadastrais, sem exigir contato financeiro.</p>
@@ -85,6 +87,7 @@
                             <datalist id="akaunting-contacts-{{ member.id }}"></datalist>
                         </div>
                     </div>
+                    {{ include('configuracao/_identity_inspection.html.twig', {source: 'akaunting', title: 'Identidade no Akaunting'}) }}
                     {% if link.contact_id|default('') is empty %}
                         <div class="member-contact-provision" data-contact-provision>
                             <h4>Criar novo contato</h4>

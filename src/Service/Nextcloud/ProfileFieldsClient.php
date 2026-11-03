@@ -56,6 +56,31 @@ class ProfileFieldsClient
     }
 
     /**
+     * Minimal user identity fetched from Nextcloud OCS, never the editable
+     * Profile Fields values or the raw OCS response.
+     *
+     * @return array{uid:string,display_name:string,email:string,enabled:bool}
+     */
+    public function userSummary(string $uid): array
+    {
+        $uid = trim($uid);
+        if ($uid === '' || mb_strlen($uid) > 128 || !$this->isConfigured()) {
+            throw new \DomainException('Conta Nextcloud não disponível para conferência.');
+        }
+        $record = $this->requestOcs('/ocs/v2.php/cloud/users/' . rawurlencode($uid), allowNotFound: true);
+        if (($record['id'] ?? null) !== $uid) {
+            throw new \DomainException('Conta não localizada no Nextcloud.');
+        }
+
+        return [
+            'uid' => $uid,
+            'display_name' => trim((string) ($record['displayname'] ?? $record['display-name'] ?? '')),
+            'email' => trim((string) ($record['email'] ?? '')),
+            'enabled' => (bool) ($record['enabled'] ?? false),
+        ];
+    }
+
+    /**
      * @return array<string, array<string, mixed>>
      */
     public function activeDefinitions(): array

@@ -33,6 +33,38 @@ final class ProfileFieldsClientTest extends TestCase
         ]), ['http_code' => $http]);
     }
 
+    public function testUserSummaryReturnsOnlyAllowedNextcloudIdentityMetadata(): void
+    {
+        $http = new MockHttpClient(static function (string $method, string $url): MockResponse {
+            self::assertSame('GET', $method);
+            self::assertStringEndsWith('/ocs/v2.php/cloud/users/renata.demetrio', $url);
+            return self::response([
+                'id' => 'renata.demetrio', 'displayname' => 'Renata Demétrio',
+                'email' => 'renata@example.test', 'enabled' => true,
+                'storageLocation' => '/private/storage',
+                'groups' => ['finance'], 'phone' => 'private-number',
+            ]);
+        });
+        $summary = new ProfileFieldsClient($http, new NullLogger())->userSummary('renata.demetrio');
+        self::assertSame([
+            'uid' => 'renata.demetrio', 'display_name' => 'Renata Demétrio',
+            'email' => 'renata@example.test', 'enabled' => true,
+        ], $summary);
+        self::assertArrayNotHasKey('storageLocation', $summary);
+        self::assertArrayNotHasKey('groups', $summary);
+        self::assertArrayNotHasKey('phone', $summary);
+    }
+
+    public function testNextcloudSummaryRejectsMissingOrDifferentUid(): void
+    {
+        $http = new MockHttpClient(static fn (): MockResponse => self::response([
+            'id' => 'other-user', 'displayname' => 'Outra pessoa',
+        ]));
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('não localizada');
+        new ProfileFieldsClient($http, new NullLogger())->userSummary('renata.demetrio');
+    }
+
     public function testReadsProfileFieldsByExactNextcloudUid(): void
     {
         $requests = [];

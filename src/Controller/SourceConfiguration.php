@@ -149,6 +149,33 @@ final class SourceConfiguration extends AbstractController
         }
     }
 
+    #[Route('/configuracao/vinculos/conferir', methods: ['GET'])]
+    public function inspectLinkIdentity(Request $request): Response
+    {
+        $this->assertAdmin($request);
+        $source = $request->query->getString('source');
+        $identifier = trim($request->query->getString('id'));
+        $uid = trim($request->query->getString('uid'));
+        if (!in_array($source, ['nextcloud', 'kimai', 'akaunting'], true)
+            || $identifier === '' || mb_strlen($identifier) > 128 || mb_strlen($uid) > 128) {
+            return $this->linkResponse(['error' => 'Identificador ou origem inválida.'], Response::HTTP_BAD_REQUEST);
+        }
+        try {
+            return $this->linkResponse([
+                'identity' => $this->sources->inspectIdentity($source, $identifier, $uid),
+            ]);
+        } catch (\DomainException | \InvalidArgumentException $error) {
+            return $this->linkResponse(['error' => $error->getMessage()], Response::HTTP_CONFLICT);
+        } catch (\Throwable $error) {
+            $this->logger->warning('Falha ao consultar identidade da origem.', [
+                'source' => $source, 'class' => $error::class,
+            ]);
+            return $this->linkResponse([
+                'error' => 'A origem não pôde confirmar os dados desta conta. Tente consultar novamente.',
+            ], Response::HTTP_BAD_GATEWAY);
+        }
+    }
+
     #[Route('/configuracao/vinculos/preparar', methods: ['POST'])]
     public function prepareLinks(Request $request): Response
     {

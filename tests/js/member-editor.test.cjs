@@ -4,7 +4,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {editorUrl, contactEndpoint, kimaiLinkEndpoint, initialize, bindFieldControls} = require('../../public/js/member-editor.js');
+const {editorUrl, contactEndpoint, kimaiLinkEndpoint, identityEndpoint, initialize, bindFieldControls} = require('../../public/js/member-editor.js');
 
 function node() {
     const handlers = new Map();
@@ -20,7 +20,7 @@ function node() {
 
 function fixture({failGet=false, failPost=false, changed=true,
     contactStatus='available', contactCreateFails=false, contactUid='luis.souza', contacts=[],
-    kimaiConfirmFails=false,
+    kimaiConfirmFails=false, identityResponder=null,
     standalone=false, location='https://host.test/relatorios/producao?ano-mes=2026-08'} = {}) {
     const dialog=node();
     dialog.open=false;
@@ -52,6 +52,16 @@ function fixture({failGet=false, failPost=false, changed=true,
         window:{location:loc,CustomEvent:class {constructor(name,params){this.type=name;this.detail=params?.detail;}}},
         fetch:async(url,config)=>{
             calls.push({url,config});
+            if(url.includes('/vinculos/conferir')) {
+                if (identityResponder) return identityResponder(url, config);
+                const search=new URL(url).searchParams;
+                const source=search.get('source'), id=search.get('id');
+                return {ok:true, status:200, json:async()=>({identity:{
+                    source,id,name:'Renata Demétrio',username:source==='nextcloud'?'renata.demetrio':'renata',
+                    email:'renata@example.test',enabled:true,kind:'Fornecedor',
+                    tax_hint:'CPF final 725',tax_match:'match',linked_account:'renata.demetrio',
+                }})};
+            }
             if(url.includes('/contato/proposta')) {
                 return {ok:true, status:200, json:async()=>({status:contactStatus,
                     uid:contactUid,name:'Luis Souza',tax_hint:'CPF final 725',contacts})};
@@ -99,6 +109,113 @@ test('editor URL only accepts the same-origin, positive Kimai ID and known path'
     ]) {
         assert.equal(editorUrl(value,base),null);
     }
+});
+
+test('identity preview uses only the admin same-origin URL and known source', () => {
+    const base='https://host.test/configuracao/cooperados';
+    const form={action:'/configuracao/cooperado/39/vincular'};
+    const parsed=new URL(identityEndpoint(form,base,'akaunting','35','renata.demetrio'));
+    assert.equal(parsed.pathname,'/configuracao/vinculos/conferir');
+    assert.equal(parsed.searchParams.get('source'),'akaunting');
+    assert.equal(parsed.searchParams.get('id'),'35');
+    assert.equal(parsed.searchParams.get('uid'),'renata.demetrio');
+    assert.equal(identityEndpoint(form,base,'kimai','../../secret'),null);
+    assert.equal(identityEndpoint(form,base,'anything','39'),null);
+    assert.equal(identityEndpoint({action:'https://bad.test/configuracao/cooperado/39/vincular'},base,'kimai','39'),null);
+});
+
+function makeIdentityWidget(f, source='kimai') {
+    const output={...node(),children:[],
+        replaceChildren(){this.children=[];this.textContent='';},
+        appendChild(child){this.children.push(child);},
+    };
+    const preview={
+        querySelector:sel=>sel==='[data-identity-result="'+source+'"]'?output:null,
+        classList:{add(){},remove(){}},
+    };
+    const inputs={
+        nextcloud_uid:{value:'renata.demetrio',name:'nextcloud_uid'},
+        kimai_user_id:{value:'39',name:'kimai_user_id'},
+        akaunting_contact_id:{value:'35',name:'akaunting_contact_id'},
+    };
+    const form={
+        action:'https://host.test/configuracao/cooperado/39/vincular',
+        querySelector:sel=>{
+            if(sel==='[data-identity-preview="'+source+'"]') return preview;
+            const match=/^\[name="([a-z_]+)"\]$/.exec(sel);
+            return match?inputs[match[1]]||null:null;
+        },
+    };
+    const target={dataset:{identityVerify:source},
+        closest:sel=>sel==='[data-identity-verify]'?target:
+            sel==='.member-link-form'?form:null,
+    };
+    return {output,preview,inputs,form,target};
+}
+
+function identityRenderedText(node) {
+    return [node.textContent || '',...(node.children || []).map(identityRenderedText)].join(' ');
+}
+
+test('linked Kimai identity displays the actual account name, login, email and linked Nextcloud', async () => {
+    const f=fixture({standalone:true});
+    const view=makeIdentityWidget(f,'kimai');
+    f.standaloneElement.fire('click',{target:view.target});
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(f.calls.length,1);
+    assert.equal(new URL(f.calls[0].url).searchParams.get('id'),'39');
+    const text=identityRenderedText(view.output);
+    assert.match(text,/Renata Demétrio/);
+    assert.match(text,/renata@example.test/);
+    assert.match(text,/renata.demetrio/);
+    assert.match(text,/Registro localizado na origem/);
+    assert.doesNotMatch(text,/Cadastro confirmado automaticamente/);
+});
+
+test('Akaunting contact shows fiscal agreement without exposing the full CPF', async () => {
+    const f=fixture({standalone:true});
+    const view=makeIdentityWidget(f,'akaunting');
+    f.standaloneElement.fire('click',{target:view.target});
+    await new Promise(resolve=>setImmediate(resolve));
+    const text=identityRenderedText(view.output);
+    assert.match(text,/Fornecedor/);
+    assert.match(text,/CPF final 725/);
+    assert.match(text,/Coincide com o cadastro Nextcloud/);
+    assert.doesNotMatch(text,/52998224725/);
+});
+
+test('identity conflict warns without claiming that two accounts are the same person', async () => {
+    const f=fixture({standalone:true,identityResponder:async url=>({ok:true,status:200,
+        json:async()=>({identity:{source:'kimai',id:new URL(url).searchParams.get('id'),
+            name:'Pessoa',username:'conta',email:'',enabled:true,
+            kind:'Usuário',tax_hint:'',tax_match:'',linked_account:'outro.usuario'}}),
+    })});
+    const view=makeIdentityWidget(f,'kimai');
+    f.standaloneElement.fire('click',{target:view.target});
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.match(identityRenderedText(view.output),/Atenção: este registro já está vinculado a outra conta Nextcloud/);
+});
+
+test('stale lookup cannot replace the identity for a newly selected account', async () => {
+    let finishOld;
+    const pending=new Promise(resolve=>{finishOld=resolve;});
+    const f=fixture({standalone:true,identityResponder:async url=>{
+        const id=new URL(url).searchParams.get('id');
+        if (id==='35') await pending;
+        return {ok:true,status:200,json:async()=>({identity:{source:'akaunting',id,
+            name:id==='35'?'Conta errada':'Conta certa',username:'',email:'',
+            enabled:null,kind:'Fornecedor',tax_hint:'CPF final 725',tax_match:'match',linked_account:''}})};
+    }});
+    const view=makeIdentityWidget(f,'akaunting');
+    f.standaloneElement.fire('click',{target:view.target});
+    view.inputs.akaunting_contact_id.value='36';
+    f.standaloneElement.fire('click',{target:view.target});
+    await new Promise(resolve=>setImmediate(resolve));
+    finishOld();
+    await new Promise(resolve=>setImmediate(resolve));
+    const text=identityRenderedText(view.output);
+    assert.match(text,/Conta certa/);
+    assert.doesNotMatch(text,/Conta errada/);
 });
 
 test('missing modal is ignored; invalid editor path never opens it', async () => {
