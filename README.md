@@ -247,6 +247,8 @@ npm run css:check          # compila em memória e compara sem alterar arquivos
 
 O workflow **Styles** executa dois checks independentes em todo pull request: `SCSS formatting and lint` (Prettier + Stylelint) e `Generated CSS matches SCSS` (inclui testes para alterações manuais e CSS ausente/obsoleto). Se o segundo falhar, rode `npm run css:build` e inclua os CSS atualizados no commit. Não edite `public/css/` manualmente; o verificador sempre recompila o SCSS em memória e compara byte a byte com o CSS versionado.
 
+Nos SCSS, agrupe as regras de um componente sob seu seletor pai (por exemplo, `.production-period-fields { .form-field { ... } label { ... } }`) em vez de repetir o prefixo em cada regra. Para estados, use `&:hover` e `&[data-state="..."]`. Mantenha seletores compartilhados entre componentes fora desses blocos quando o agrupamento mudaria o escopo; evite hierarquias profundas que aumentem a especificidade. Formatação e compilação idêntica são verificadas pela CI, mas a decisão de aninhar deve preservar a semântica do CSS.
+
 ### Configuração administrativa
 
 Para editar integrações e regras, configure `CONFIG_ADMIN_USERS` no `.env` com os nomes autorizados na autenticação HTTP Basic. Credenciais são exibidas somente sob demanda e alterações são gravadas em `var/admin-config/settings.json` (privado, não versionado). O arquivo sobrepõe os parâmetros na próxima requisição ou execução CLI; proteja-o nos backups. Valores incorretos podem impedir a apuração ou a conexão com serviços externos.

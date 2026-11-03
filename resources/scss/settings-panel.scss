@@ -303,15 +303,17 @@
     padding: 14px;
     border: 1px solid var(--line);
     border-radius: 9px;
-}
-.settings-requirement h3 {
-    font-size: 15px;
-    margin: 0 0 3px;
-}
-.settings-requirement p {
-    margin: 0;
-    font-size: 13px;
-    color: var(--muted);
+
+    h3 {
+        font-size: 15px;
+        margin: 0 0 3px;
+    }
+
+    p {
+        margin: 0;
+        font-size: 13px;
+        color: var(--muted);
+    }
 }
 .settings-config-state {
     display: flex;
@@ -319,10 +321,11 @@
     gap: 8px;
     font-size: 12px;
     font-weight: 650;
-}
-.settings-config-state small {
-    color: var(--muted);
-    font-variant-numeric: tabular-nums;
+
+    small {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+    }
 }
 .settings-config-state.is-configured {
     color: var(--brand);

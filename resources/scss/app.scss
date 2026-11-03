@@ -80,14 +80,16 @@ pre {
 .page-content {
     width: calc(100% - 48px);
     max-width: none;
-}
-.page-content .dt-container {
-    width: 100%;
-    max-width: 100%;
-    overflow-x: auto;
-}
-.page-content table.dataTable {
-    width: 100% !important;
+
+    .dt-container {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    table.dataTable {
+        width: 100% !important;
+    }
 }
 .skip-link {
     position: absolute;
@@ -97,9 +99,10 @@ pre {
     padding: 10px 16px;
     background: #fff;
     border-radius: 8px;
-}
-.skip-link:focus {
-    top: 12px;
+
+    &:focus {
+        top: 12px;
+    }
 }
 .app-header {
     background: #fff;
@@ -118,9 +121,10 @@ pre {
     gap: 12px;
     color: var(--text);
     text-decoration: none;
-}
-.brand:hover {
-    color: var(--text);
+
+    &:hover {
+        color: var(--text);
+    }
 }
 .brand-mark {
     display: grid;
@@ -163,18 +167,21 @@ pre {
     font-size: 13px;
     font-weight: 700;
     text-decoration: none;
-}
-.header-nav-link:hover {
-    background: #d6eeea;
-}
-.header-nav-link[aria-current="page"] {
-    background: var(--brand);
-    color: #fff;
-    box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.16);
-}
-.header-nav-link[aria-current="page"]:hover {
-    background: var(--brand-deep);
-    color: #fff;
+
+    &:hover {
+        background: #d6eeea;
+    }
+
+    &[aria-current="page"] {
+        background: var(--brand);
+        color: #fff;
+        box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.16);
+    }
+
+    &[aria-current="page"]:hover {
+        background: var(--brand-deep);
+        color: #fff;
+    }
 }
 .page-content {
     flex: 1;
@@ -187,11 +194,12 @@ pre {
     background: #fff;
     color: var(--muted);
     font-size: 12px;
-}
-.app-footer .container {
-    display: flex;
-    justify-content: space-between;
-    gap: 14px;
+
+    .container {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+    }
 }
 .page-heading {
     max-width: 770px;
@@ -271,15 +279,17 @@ pre {
         border-color 0.15s,
         background 0.15s,
         transform 0.15s;
-}
-.report-link:hover {
-    transform: translateY(-2px);
-    border-color: #a4c6c1;
-    background: #f8fcfb;
-    color: var(--text);
-}
-.report-link:last-child:nth-child(odd) {
-    grid-column: 1 / -1;
+
+    &:hover {
+        transform: translateY(-2px);
+        border-color: #a4c6c1;
+        background: #f8fcfb;
+        color: var(--text);
+    }
+
+    &:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+    }
 }
 .report-number {
     display: grid;
@@ -323,14 +333,16 @@ pre {
     margin-bottom: 24px;
     color: var(--muted);
     font-size: 13px;
-}
-.breadcrumbs a {
-    color: var(--muted);
-    text-decoration: none;
-}
-.breadcrumbs a:hover {
-    color: var(--brand);
-    text-decoration: underline;
+
+    a {
+        color: var(--muted);
+        text-decoration: none;
+    }
+
+    a:hover {
+        color: var(--brand);
+        text-decoration: underline;
+    }
 }
 .reset-layout {
     display: grid;
@@ -341,35 +353,40 @@ pre {
 .reset-environment {
     padding: 18px 24px;
     margin-bottom: 18px;
-}
-.reset-environment h2 {
-    margin: 0 0 8px;
-    font-size: 17px;
-}
-.reset-environment p {
-    margin: 7px 0 0;
-    font-size: 13px;
-    line-height: 1.6;
-    color: var(--muted);
-}
-.reset-environment form {
-    margin-top: 12px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 9px;
-    align-items: center;
-}
-.reset-environment label {
-    font-size: 12px;
-    font-weight: 650;
-}
-.reset-environment select {
-    min-height: 38px;
-    padding: 6px 10px;
-    background: var(--surface);
-    color: var(--text);
-    border: 1px solid var(--line);
-    border-radius: 8px;
+
+    h2 {
+        margin: 0 0 8px;
+        font-size: 17px;
+    }
+
+    p {
+        margin: 7px 0 0;
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--muted);
+    }
+
+    form {
+        margin-top: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+        align-items: center;
+    }
+
+    label {
+        font-size: 12px;
+        font-weight: 650;
+    }
+
+    select {
+        min-height: 38px;
+        padding: 6px 10px;
+        background: var(--surface);
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+    }
 }
 .reset-explainer,
 .reset-operation {
@@ -444,9 +461,10 @@ pre {
     align-items: center;
     gap: 14px;
     flex-wrap: wrap;
-}
-.operation-heading h2 {
-    margin-bottom: 20px;
+
+    h2 {
+        margin-bottom: 20px;
+    }
 }
 .operation-tag {
     margin-bottom: 20px;
@@ -462,13 +480,15 @@ pre {
     border-radius: 10px;
     margin-bottom: 22px;
     font-size: 13px;
-}
-.status-note strong {
-    display: block;
-    margin-bottom: 3px;
-}
-.status-note p {
-    margin: 0;
+
+    strong {
+        display: block;
+        margin-bottom: 3px;
+    }
+
+    p {
+        margin: 0;
+    }
 }
 .status-note-warning {
     background: var(--warning-bg);
@@ -542,24 +562,27 @@ pre {
 .button-danger {
     background: var(--danger);
     color: #fff;
-}
-.button-danger:hover:not(:disabled) {
-    background: #882e2c;
-    color: #fff;
-}
-.button-danger:disabled {
-    background: #dbdfe1;
-    color: #7a858b;
-    cursor: not-allowed;
+
+    &:hover:not(:disabled) {
+        background: #882e2c;
+        color: #fff;
+    }
+
+    &:disabled {
+        background: #dbdfe1;
+        color: #7a858b;
+        cursor: not-allowed;
+    }
 }
 .button-secondary {
     background: #fff;
     color: var(--text);
     border-color: var(--line);
-}
-.button-secondary:hover {
-    background: #f5f7f9;
-    color: var(--text);
+
+    &:hover {
+        background: #f5f7f9;
+        color: var(--text);
+    }
 }
 .result-message {
     margin-top: 23px;
@@ -582,14 +605,16 @@ pre {
     padding-top: 17px;
     font-size: 12px;
     color: var(--muted);
-}
-.technical-details summary {
-    cursor: pointer;
-    color: #425a66;
-    font-weight: 650;
-}
-.technical-details p {
-    margin: 12px 0 0;
+
+    summary {
+        cursor: pointer;
+        color: #425a66;
+        font-weight: 650;
+    }
+
+    p {
+        margin: 12px 0 0;
+    }
 }
 .page-content fieldset {
     max-width: 100%;
@@ -720,10 +745,11 @@ pre {
     color: #fff;
     border-color: var(--brand);
     font-weight: 700;
-}
-.dashboard-primary-action:hover {
-    background: var(--brand-deep);
-    color: #fff;
+
+    &:hover {
+        background: var(--brand-deep);
+        color: #fff;
+    }
 }
 @media (max-width: 620px) {
     .home-closing {

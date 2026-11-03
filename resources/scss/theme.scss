@@ -36,12 +36,13 @@ table.dataTable > tbody > tr:nth-child(even):not(.selected) {
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: 12px;
-}
-.header-actions nav {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 6px;
+
+    nav {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
 }
 .theme-toggle {
     display: inline-flex;
@@ -56,14 +57,16 @@ table.dataTable > tbody > tr:nth-child(even):not(.selected) {
     background: var(--surface);
     color: var(--text);
     cursor: pointer;
-}
-.theme-toggle:hover {
-    background: var(--brand-soft);
-    border-color: var(--brand);
-}
-.theme-toggle:focus-visible {
-    outline: 3px solid var(--brand);
-    outline-offset: 2px;
+
+    &:hover {
+        background: var(--brand-soft);
+        border-color: var(--brand);
+    }
+
+    &:focus-visible {
+        outline: 3px solid var(--brand);
+        outline-offset: 2px;
+    }
 }
 .theme-toggle-icon {
     display: inline-block;

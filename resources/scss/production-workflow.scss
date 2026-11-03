@@ -16,10 +16,11 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 10px;
-}
-.production-month-picker label {
-    font-size: 13px;
-    font-weight: 700;
+
+    label {
+        font-size: 13px;
+        font-weight: 700;
+    }
 }
 .production-month-picker input,
 .production-period-fields select {
@@ -112,19 +113,22 @@
     display: flex;
     flex-wrap: wrap;
     gap: 15px;
-}
-.production-period-fields .form-field {
-    flex: 1 1 145px;
-    max-width: 240px;
-}
-.production-period-fields label {
-    display: block;
-    margin-bottom: 5px;
-    font-size: 13px;
-    font-weight: 700;
-}
-.production-period-fields select {
-    width: 100%;
+
+    .form-field {
+        flex: 1 1 145px;
+        max-width: 240px;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    select {
+        width: 100%;
+    }
 }
 .production-wizard-actions {
     display: flex;
@@ -132,9 +136,10 @@
     gap: 11px;
     margin-top: 22px;
     align-items: center;
-}
-.production-wizard-actions .button {
-    min-height: 43px;
+
+    .button {
+        min-height: 43px;
+    }
 }
 #use-existing[hidden],
 #reset-staging-link[hidden],
@@ -150,25 +155,29 @@
     line-height: 1.6;
     font-size: 13px;
     color: var(--text);
-}
-.production-import-state strong {
-    font-weight: 700;
-}
-.production-import-state[data-state="checking"] {
-    color: var(--muted);
+
+    strong {
+        font-weight: 700;
+    }
+
+    &[data-state="checking"] {
+        color: var(--muted);
+    }
 }
 .button-primary {
     border-color: var(--brand);
     background: var(--brand);
     color: #fff;
-}
-.button-primary:hover:not(:disabled) {
-    background: var(--brand-deep);
-    color: #fff;
-}
-.button-primary:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
+
+    &:hover:not(:disabled) {
+        background: var(--brand-deep);
+        color: #fff;
+    }
+
+    &:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+    }
 }
 .production-help {
     font-size: 12px;
@@ -185,23 +194,26 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 11px;
     margin: 20px 0 26px;
-}
-.production-metrics > div {
-    display: grid;
-    gap: 6px;
-    padding: 17px 19px;
-    background: var(--brand-soft);
-    border: 1px solid var(--line);
-    border-radius: 11px;
-}
-.production-metrics span {
-    font-size: 12px;
-    color: var(--muted);
-    font-weight: 650;
-}
-.production-metrics strong {
-    font-size: clamp(16px, 2vw, 21px);
-    font-variant-numeric: tabular-nums;
+
+    > div {
+        display: grid;
+        gap: 6px;
+        padding: 17px 19px;
+        background: var(--brand-soft);
+        border: 1px solid var(--line);
+        border-radius: 11px;
+    }
+
+    span {
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: 650;
+    }
+
+    strong {
+        font-size: clamp(16px, 2vw, 21px);
+        font-variant-numeric: tabular-nums;
+    }
 }
 .production-table-intro {
     display: flex;
@@ -210,17 +222,20 @@
     gap: 15px;
     flex-wrap: wrap;
     margin: 18px 0 12px;
-}
-.production-table-intro > div {
-    display: grid;
-    gap: 4px;
-}
-.production-table-intro strong {
-    font-size: 17px;
-}
-.production-table-intro small {
-    font-size: 12px;
-    color: var(--muted);
+
+    > div {
+        display: grid;
+        gap: 4px;
+    }
+
+    strong {
+        font-size: 17px;
+    }
+
+    small {
+        font-size: 12px;
+        color: var(--muted);
+    }
 }
 .production-selection-summary {
     padding: 15px 17px;
@@ -266,16 +281,18 @@
     border-top: 3px solid var(--brand);
     border-radius: 10px;
     background: var(--brand-soft);
-}
-.production-final > strong {
-    display: block;
-    font-size: 18px;
-    margin-bottom: 6px;
-}
-.production-final > p {
-    margin-bottom: 13px;
-    font-size: 13px;
-    line-height: 1.6;
+
+    > strong {
+        display: block;
+        font-size: 18px;
+        margin-bottom: 6px;
+    }
+
+    > p {
+        margin-bottom: 13px;
+        font-size: 13px;
+        line-height: 1.6;
+    }
 }
 .production-confirm-label {
     display: flex;
@@ -320,16 +337,19 @@
     background: var(--brand-soft);
     font-size: 13px;
     line-height: 1.5;
-}
-.production-job-status[hidden] {
-    display: none;
-}
-.production-job-status[data-state="failed"] {
-    background: var(--danger-soft);
-    border-color: var(--danger);
-}
-.production-job-status[data-state="completed"] {
-    border-color: var(--brand);
+
+    &[hidden] {
+        display: none;
+    }
+
+    &[data-state="failed"] {
+        background: var(--danger-soft);
+        border-color: var(--danger);
+    }
+
+    &[data-state="completed"] {
+        border-color: var(--brand);
+    }
 }
 .production-job-indicator {
     flex: 0 0 10px;
@@ -427,18 +447,21 @@
     border: 1px solid var(--line);
     border-radius: 10px;
     max-width: 100%;
-}
-.production-row-details h4 {
-    margin: 0 0 11px;
-    font-size: 14px;
-}
-.production-row-details .production-detail-scroll {
-    overflow-x: auto;
-}
-.production-row-details table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
+
+    h4 {
+        margin: 0 0 11px;
+        font-size: 14px;
+    }
+
+    .production-detail-scroll {
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+    }
 }
 .production-row-details :is(th, td) {
     padding: 8px;
@@ -562,24 +585,26 @@
     line-height: 1.5;
     font-weight: 400;
     color: var(--text);
-}
-.finance-help summary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    cursor: pointer;
-    border: 1px solid var(--line);
-    background: var(--surface);
-    color: var(--brand);
-    font-size: 11px;
-    font-weight: 750;
-    list-style: none;
-}
-.finance-help summary::-webkit-details-marker {
-    display: none;
+
+    summary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        cursor: pointer;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--brand);
+        font-size: 11px;
+        font-weight: 750;
+        list-style: none;
+    }
+
+    summary::-webkit-details-marker {
+        display: none;
+    }
 }
 .finance-help summary:hover,
 .finance-help[open] summary {
