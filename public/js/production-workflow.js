@@ -8,6 +8,27 @@
     });
     const hoursFormat = new Intl.NumberFormat('pt-BR', {maximumFractionDigits: 2});
 
+    // Keep links local and built exclusively from validated numeric IDs and
+    // the selected month. Never interpret a server message as HTML or a URL.
+    function diagnosticLink(message, selectedMonth) {
+        if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(selectedMonth) ||
+            !/\bPROFILE_(SOURCE|DEPENDENTS|KIMAI_LINK|ACCOUNTING_LINK|ACCOUNTING_INVALID|TAX_MISSING|TAX_MISMATCH)\b/.test(message)) {
+            return null;
+        }
+        const id = /\bKimai #([1-9][0-9]*)\b/.exec(message)?.[1];
+        const month = encodeURIComponent(selectedMonth);
+        if (id && Number.isSafeInteger(Number(id))) {
+            return {
+                href: '/configuracao/cooperado/' + id + '/editar?competencia=' + month,
+                label: 'Abrir cadastro do cooperado (Kimai #' + id + ')',
+            };
+        }
+        return {
+            href: '/configuracao/cooperados?competencia=' + month,
+            label: 'Abrir a configuração de cooperados',
+        };
+    }
+
     function money(value) {
         return Number.isFinite(Number(value)) ? brl.format(Number(value)) : '—';
     }
@@ -573,8 +594,14 @@
                 importStatus.hidden = false;
                 importStatus.dataset.state = state;
                 if (importStatusText) importStatusText.textContent = message;
-                if (importProfileLink) importProfileLink.hidden =
-                    state !== 'failed' || !/PROFILE_DEPENDENTS|PROFILE_SOURCE/.test(message);
+                if (importProfileLink) {
+                    const link = state === 'failed' ? diagnosticLink(message, competence()) : null;
+                    importProfileLink.hidden = link === null;
+                    if (link !== null) {
+                        importProfileLink.href = link.href;
+                        importProfileLink.textContent = link.label;
+                    }
+                }
                 renderElapsed();
             };
             importButton.textContent = 'Importando…';
@@ -681,7 +708,7 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = {money, hours, validatePreview, selectedMembers, initialize};
+        module.exports = {money, hours, validatePreview, selectedMembers, diagnosticLink, initialize};
     } else {
         scope.addEventListener('DOMContentLoaded', () => initialize());
     }

@@ -411,6 +411,24 @@ test('import never publishes and requires the same preview to complete', async (
     assert.match(bad.get('import-status-text').textContent,/Kimai #17/);
 });
 
+test('failed import offers an exact, readable correction link and hides it for network failures', async () => {
+    const error = 'Execução run-001: erro PROFILE_KIMAI_LINK. ' +
+        'Etapa: Cooperados do Kimai e perfis Nextcloud. ' +
+        'Cooperado: Luis Souza (Kimai #40). Como resolver: conferir vínculo.';
+    const failure = fixture({importSuccess:false, importError:error});
+    failure.get('month').value = '10';
+    await failure.click('import-button');
+    const link = failure.get('import-profile-link');
+    assert.equal(link.hidden, false);
+    assert.equal(link.href, '/configuracao/cooperado/40/editar?competencia=2026-10');
+    assert.equal(link.textContent, 'Abrir cadastro do cooperado (Kimai #40)');
+    assert.match(failure.get('import-status-text').textContent, /Luis Souza/);
+    const connectivity = fixture({importSuccess:false, importError:'Execução X: erro SERVICO_INACESSIVEL. Kimai #40'});
+    await connectivity.click('import-button');
+    assert.equal(connectivity.get('import-profile-link').hidden, true,
+        'Do not send operators to edit a profile for an unrelated network failure.');
+});
+
 test('source inspection opens directly without the financial error or a page jump', async () => {
     const f=fixture({previewError:true,economicFailure:true});
     await f.click('use-existing');

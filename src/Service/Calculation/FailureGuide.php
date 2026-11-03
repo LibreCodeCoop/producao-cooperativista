@@ -31,10 +31,35 @@ final readonly class FailureGuide
                 'A conexão com uma integração expirou ou foi interrompida durante a importação.',
                 'Verifique a disponibilidade e a latência da integração informada na etapa. Nenhum dado fiscal deve ser corrigido por causa de uma falha de rede.'
             ),
+            str_contains($message, 'profile_kimai_link') => new self(
+                'PROFILE_KIMAI_LINK',
+                'Cooperado com horas registradas no Kimai, mas sem vínculo explícito com uma conta Nextcloud.',
+                'Confira se a pessoa identificada no Kimai é a mesma do Nextcloud. No cadastro do cooperado, informe o ID Kimai e associe o contato financeiro correto do Akaunting. Não vincule pessoas somente pelo nome; depois reimporte a competência.'
+            ),
+            str_contains($message, 'profile_accounting_link') => new self(
+                'PROFILE_ACCOUNTING_LINK',
+                'Cooperado associado ao Nextcloud, mas sem contato financeiro vinculado no Akaunting.',
+                'Localize ou cadastre o contato correto no Akaunting, confirme a identidade fiscal e selecione-o em Configuração → Cooperados e vínculos. Reimporte somente após conferir o vínculo.'
+            ),
+            str_contains($message, 'profile_accounting_invalid') => new self(
+                'PROFILE_ACCOUNTING_INVALID',
+                'Contato financeiro vinculado não foi encontrado ou não é elegível para esta empresa.',
+                'Confira se o contato existe, pertence à empresa correta e está ativo no Akaunting; ajuste o vínculo pelo painel e reimporte.'
+            ),
+            str_contains($message, 'profile_tax_mismatch') => new self(
+                'PROFILE_TAX_MISMATCH',
+                'Identificação fiscal divergente entre o perfil Nextcloud e o contato financeiro.',
+                'Confira os dois cadastros na origem, sem alterar CPF/CNPJ para apenas fazer a importação passar. Após confirmar a identidade, corrija o dado incorreto e reimporte.'
+            ),
+            str_contains($message, 'profile_tax_missing') => new self(
+                'PROFILE_TAX_MISSING',
+                'Cooperado com horas registradas, mas sem identificação fiscal válida no Nextcloud.',
+                'Abra o cadastro do cooperado, confira e preencha a identificação fiscal no Nextcloud Profile Fields, confirme o contato no Akaunting e reimporte.'
+            ),
             str_contains($message, 'profile_source') => new self(
                 'PROFILE_SOURCE',
                 'Há um cadastro ou vínculo inconsistente entre Kimai, Nextcloud e Akaunting.',
-                'Em Configuração → Cooperados e vínculos, abra o usuário Kimai indicado, confira os vínculos e dados fiscais, salve a correção na origem e reimporte a competência.'
+                'Abra o cadastro do cooperado indicado, confira a identidade entre Kimai, Nextcloud e Akaunting, corrija apenas o dado comprovadamente incorreto e reimporte. Não associe contas automaticamente pelo nome.'
             ),
             str_contains($message, 'profile_dependents') => new self(
                 'PROFILE_DEPENDENTS',

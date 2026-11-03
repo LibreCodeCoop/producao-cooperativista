@@ -121,7 +121,37 @@ final class SourcePipelineTest extends TestCase
         } catch (RuntimeException $error) {
             self::assertStringContainsString('kimai.users', $error->getMessage());
             self::assertStringContainsString('Kimai #12', $error->getMessage());
+            self::assertStringNotContainsString('never-stream-this', $error->getMessage());
             self::assertSame(['kimai.users'], $events->getArrayCopy());
+        }
+    }
+
+    public function testProfileHintPreservesOnlyWhitelistedIdentityAndCause(): void
+    {
+        $pipeline = new SourcePipeline([
+            new class () implements SourceStep {
+                public function name(): string
+                {
+                    return 'kimai.users';
+                }
+                public function synchronize(DateTime $competence): void
+                {
+                    throw new \DomainException('PROFILE_KIMAI_LINK: usuário Kimai #40 (Luis Souza) ' .
+                        'CPF 99999999999 e token private-test-token nunca devem chegar à tela');
+                }
+            },
+        ], new NullLogger(), new Dates(now: new DateTime('2026-11-01')));
+        try {
+            $pipeline->run(new DateTime('2026-10-01'));
+            self::fail('Unlinked participant must block import.');
+        } catch (RuntimeException $error) {
+            self::assertStringContainsString(
+                'PROFILE_KIMAI_LINK: usuário Kimai #40 (Luis Souza)',
+                $error->getMessage()
+            );
+            self::assertStringNotContainsString('99999999999', $error->getMessage());
+            self::assertStringNotContainsString('private-test-token', $error->getMessage());
+            self::assertStringContainsString('private-test-token', $error->getPrevious()?->getMessage());
         }
     }
 

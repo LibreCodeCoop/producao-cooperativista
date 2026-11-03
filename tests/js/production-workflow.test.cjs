@@ -4,7 +4,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {money, hours, validatePreview, selectedMembers, initialize} =
+const {money, hours, validatePreview, selectedMembers, diagnosticLink, initialize} =
     require('../../public/js/production-workflow.js');
 
 const revision = 'a'.repeat(64);
@@ -58,6 +58,38 @@ test('all cooperados included by default, exclusion does not redistribute amount
     assert.deepEqual(selected.excluded.map(row => row.id), [8]);
     assert.equal(selected.included[0].net, 73.25);
     assert.equal(rows.reduce((sum, row) => sum + row.net, 0), 107.37);
+});
+
+test('profile errors link directly to the exact cooperado and selected month', () => {
+    const message = 'Execução run-001: erro PROFILE_KIMAI_LINK. Etapa: importação. ' +
+        'Cooperado: Luis Souza (Kimai #40).';
+    assert.deepEqual(diagnosticLink(message, '2026-10'), {
+        href: '/configuracao/cooperado/40/editar?competencia=2026-10',
+        label: 'Abrir cadastro do cooperado (Kimai #40)',
+    });
+    for (const code of [
+        'PROFILE_SOURCE', 'PROFILE_DEPENDENTS', 'PROFILE_ACCOUNTING_LINK',
+        'PROFILE_ACCOUNTING_INVALID', 'PROFILE_TAX_MISSING', 'PROFILE_TAX_MISMATCH',
+    ]) {
+        assert.equal(diagnosticLink('Execução X: erro ' + code + '. Cooperado: Kimai #10.',
+            '2026-09').href, '/configuracao/cooperado/10/editar?competencia=2026-09');
+    }
+    assert.deepEqual(diagnosticLink('Execução X: erro PROFILE_SOURCE.', '2026-10'), {
+        href: '/configuracao/cooperados?competencia=2026-10',
+        label: 'Abrir a configuração de cooperados',
+    });
+});
+
+test('diagnostic links reject unrelated errors and untrusted identifiers', () => {
+    assert.equal(diagnosticLink('erro SERVICO_INACESSIVEL. Kimai #40', '2026-10'), null);
+    assert.equal(diagnosticLink('erro PROFILE_KIMAI_LINK. Kimai #40', '2026-13'), null);
+    assert.equal(diagnosticLink('erro PROFILE_SOURCE. Kimai #0', '2026-10').href,
+        '/configuracao/cooperados?competencia=2026-10');
+    assert.equal(diagnosticLink('erro PROFILE_SOURCE. Kimai #123abc', '2026-10').href,
+        '/configuracao/cooperados?competencia=2026-10');
+    assert.equal(diagnosticLink('erro PROFILE_SOURCE. Kimai #99999999999999999999999', '2026-10').href,
+        '/configuracao/cooperados?competencia=2026-10');
+    assert.equal(diagnosticLink('erro PROFILE_SOURCE. Kimai #40 <script>', 'javascript:evil'), null);
 });
 
 test('pages without wizard are left unchanged', () => {

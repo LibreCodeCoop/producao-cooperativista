@@ -46,6 +46,35 @@ final class ExecutionOutcomeTest extends TestCase
         self::assertStringNotContainsString('[PRIVATE]', $outcome->message());
     }
 
+    public function testProfileFailureNamesSafeSourceAliasAndStageWithoutSensitiveDetails(): void
+    {
+        $outcome = new ExecutionOutcome(
+            Command::FAILURE,
+            'run-404',
+            'Falha na importação de 2026-10, etapa kimai.users. PROFILE_KIMAI_LINK: ' .
+            'usuário Kimai #40 (Luis Souza). CPF 99999999999 token private-test-token'
+        );
+        $text = $outcome->message();
+        self::assertStringContainsString('erro PROFILE_KIMAI_LINK', $text);
+        self::assertStringContainsString('Cooperado: Luis Souza (Kimai #40)', $text);
+        self::assertStringContainsString('perfis Nextcloud', $text);
+        self::assertStringContainsString('vínculo explícito', $text);
+        self::assertStringNotContainsString('99999999999', $text);
+        self::assertStringNotContainsString('private-test-token', $text);
+    }
+
+    public function testBadSourceLabelCannotExposeEmailOrNumericIdentifier(): void
+    {
+        $outcome = new ExecutionOutcome(
+            Command::FAILURE,
+            'run-001',
+            'PROFILE_TAX_MISSING: usuário Kimai #47 (person@example.test) CPF 99999999999'
+        );
+        self::assertStringContainsString('Kimai #47 (nome não disponível)', $outcome->message());
+        self::assertStringNotContainsString('person@example.test', $outcome->message());
+        self::assertStringNotContainsString('99999999999', $outcome->message());
+    }
+
     public function testLongTraceDoesNotFloodBrowserMessage(): void
     {
         $outcome = new ExecutionOutcome(Command::FAILURE, 'run-001', str_repeat('X', 2000));

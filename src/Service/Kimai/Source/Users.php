@@ -116,7 +116,7 @@ class Users
                 continue;
             }
             if ($this->requiredUserIds !== null && isset($seen[$id])) {
-                throw new \DomainException(sprintf('PROFILE_SOURCE: usuário Kimai #%d duplicado na origem.', $id));
+                throw new \DomainException(sprintf('PROFILE_SOURCE: %s duplicado na origem.', self::memberReference($row)));
             }
             $seen[$id] = true;
             try {
@@ -124,9 +124,12 @@ class Users
                 $this->list[] = $user;
             } catch (InvalidArgumentException $error) {
                 if ($this->requiredUserIds !== null) {
+                    $code = str_contains(mb_strtolower($error->getMessage()), 'sem cpf')
+                        ? 'PROFILE_TAX_MISSING' : 'PROFILE_SOURCE';
                     throw new \DomainException(sprintf(
-                        'PROFILE_SOURCE: usuário Kimai #%d participante sem cadastro fiscal válido.',
-                        $id,
+                        '%s: %s sem identificação fiscal válida no Nextcloud Profile Fields.',
+                        $code,
+                        self::memberReference($row),
                     ), 0, $error);
                 }
             } catch (\DomainException $error) {
@@ -135,19 +138,32 @@ class Users
                     'kimai_user_id' => (int) ($row['id'] ?? 0),
                 ]);
                 $message = mb_strtolower($error->getMessage());
+                $reference = self::memberReference($row);
                 if (str_contains($message, 'dependentes ausentes')
                     || str_contains($message, 'dependentes inválido')) {
-                    // A Kimai ID is safe to show to the authenticated finance
-                    // team; never stream names, CPF or remote API responses.
                     throw new \DomainException(sprintf(
-                        'PROFILE_DEPENDENTS: usuário Kimai #%d sem quantidade válida de dependentes no Nextcloud Profile Fields.',
-                        (int) ($row['id'] ?? 0),
+                        'PROFILE_DEPENDENTS: %s sem quantidade válida de dependentes no Nextcloud.',
+                        $reference,
                     ), 0, $error);
                 }
-                throw new \DomainException(sprintf(
-                    'PROFILE_SOURCE: usuário Kimai #%d com cadastro ou vínculo inconsistente entre fontes.',
-                    (int) ($row['id'] ?? 0),
-                ), 0, $error);
+                // These are deliberately fixed, non-sensitive reasons. Never
+                // forward tax numbers, emails, API payloads or exception text.
+                [$code, $reason] = match (true) {
+                    str_contains($message, 'kimai_user_id explícito') => [
+                        'PROFILE_KIMAI_LINK', 'sem vínculo Kimai-Nextcloud no Profile Fields.',
+                    ],
+                    str_contains($message, 'contato financeiro não vinculado') => [
+                        'PROFILE_ACCOUNTING_LINK', 'sem vínculo com contato no Akaunting.',
+                    ],
+                    str_contains($message, 'contato financeiro vinculado inexistente') => [
+                        'PROFILE_ACCOUNTING_INVALID', 'com contato financeiro inexistente ou inelegível.',
+                    ],
+                    str_contains($message, 'cpf/cnpj diverge') => [
+                        'PROFILE_TAX_MISMATCH', 'com identificação fiscal divergente entre Nextcloud e Akaunting.',
+                    ],
+                    default => ['PROFILE_SOURCE', 'com cadastro ou vínculo inconsistente entre as fontes.'],
+                };
+                throw new \DomainException(sprintf('%s: %s %s', $code, $reference, $reason), 0, $error);
             } catch (\Throwable $error) {
                 $this->logger->error('Falha ao importar perfil do cooperado.', [
                     'error_class' => $error::class,
@@ -166,6 +182,24 @@ class Users
         }
         $this->logger->debug('Usuários Kimai consultados.', ['count' => count($list)]);
         return $list;
+    }
+
+    /**
+     * Public diagnostic identity from the current Kimai roster. A name is
+     * included only when it is a short human-readable label: not an email,
+     * identifier, token or an arbitrary remote response.
+     *
+     * @param array<string,mixed> $row
+     */
+    private static function memberReference(array $row): string
+    {
+        $id = (int) ($row['id'] ?? 0);
+        $alias = trim((string) ($row['alias'] ?? ''));
+        if ($alias !== '' && mb_strlen($alias) <= 60
+            && preg_match("/^[\p{L}\p{M}][\p{L}\p{M} .'-]*$/uD", $alias) === 1) {
+            return sprintf('usuário Kimai #%d (%s)', $id, $alias);
+        }
+        return sprintf('usuário Kimai #%d', $id);
     }
 
     public function fromArray(array $array): User

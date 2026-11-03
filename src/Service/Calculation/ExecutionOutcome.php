@@ -32,26 +32,56 @@ final readonly class ExecutionOutcome
         }
 
         $guide = FailureGuide::diagnose($this->details);
+        $lower = mb_strtolower($this->details);
         $stage = '';
-        foreach (['importação', 'configuração', 'cálculo', 'gravação', 'exportação'] as $phase) {
-            if (str_contains(mb_strtolower($this->details), $phase)) {
-                $stage = ' Etapa: ' . $phase . '.';
+        // Stage identifiers come from our source adapters, not from external
+        // service responses. Convert them into names useful to operators.
+        foreach ([
+            'kimai.users' => 'Cooperados do Kimai e perfis Nextcloud',
+            'kimai.customers' => 'Clientes do Kimai',
+            'kimai.projects' => 'Projetos do Kimai',
+            'akaunting.documents' => 'Documentos financeiros do Akaunting',
+            'kimai.timesheets' => 'Apontamentos do Kimai',
+            'akaunting.transactions' => 'Transações financeiras do Akaunting',
+            'akaunting.categories' => 'Categorias do Akaunting',
+            'akaunting.taxes' => 'Tributos do Akaunting',
+        ] as $id => $description) {
+            if (str_contains($lower, 'etapa ' . $id)) {
+                $stage = ' Etapa: ' . $description . '.';
                 break;
             }
         }
-        $userId = '';
-        if (in_array($guide->code, ['PROFILE_DEPENDENTS', 'PROFILE_SOURCE'], true)
-            && preg_match('/usuário Kimai #([1-9][0-9]*)/u', $this->details, $matches)) {
-            $userId = sprintf(' Cadastro Kimai #%s.', $matches[1]);
+        if ($stage === '') {
+            foreach (['importação', 'configuração', 'cálculo', 'gravação', 'exportação'] as $phase) {
+                if (str_contains($lower, $phase)) {
+                    $stage = ' Etapa: ' . $phase . '.';
+                    break;
+                }
+            }
         }
+
+
+        $member = '';
+        if (str_starts_with($guide->code, 'PROFILE_')
+            && preg_match(
+                '/usuário Kimai #([1-9][0-9]*)(?: \(([\p{L}\p{M} .\'-]{1,60})\))?/u',
+                $this->details,
+                $matches
+            ) === 1) {
+            $label = trim((string) ($matches[2] ?? ''));
+            $member = $label !== ''
+                ? sprintf(' Cooperado: %s (Kimai #%s).', $label, $matches[1])
+                : sprintf(' Cooperado: Kimai #%s (nome não disponível).', $matches[1]);
+        }
+
         return sprintf(
             'Execução %s: erro %s.%s %s%s Como resolver: %s Consulte os detalhes privados no log do servidor.',
             $this->executionId,
             $guide->code,
             $stage,
             $guide->summary,
-            $userId,
-            $guide->instructions
+            $member,
+            $guide->instructions,
         );
     }
 }

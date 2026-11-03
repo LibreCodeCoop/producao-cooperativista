@@ -24,6 +24,11 @@ final class FailureGuideTest extends TestCase
     {
         yield ['SOURCE_CONNECTION_FAILED: integração temporariamente indisponível', 'SERVICO_INACESSIVEL'];
         yield ['PROFILE_SOURCE: usuário Kimai #28 sem vínculo válido', 'PROFILE_SOURCE'];
+        yield ['PROFILE_KIMAI_LINK: usuário Kimai #40', 'PROFILE_KIMAI_LINK'];
+        yield ['PROFILE_ACCOUNTING_LINK: usuário Kimai #40', 'PROFILE_ACCOUNTING_LINK'];
+        yield ['PROFILE_ACCOUNTING_INVALID: usuário Kimai #40', 'PROFILE_ACCOUNTING_INVALID'];
+        yield ['PROFILE_TAX_MISSING: usuário Kimai #40', 'PROFILE_TAX_MISSING'];
+        yield ['PROFILE_TAX_MISMATCH: usuário Kimai #40', 'PROFILE_TAX_MISMATCH'];
         yield ['PROFILE_DEPENDENTS: usuário Kimai #15 com campo ausente', 'PROFILE_DEPENDENTS'];
         yield ['Código de cliente inválido na movimentação do Akaunting', 'CLIENTE_SEM_CODIGO'];
         yield ['Environment variable AKAUNTING_PRODUCAO_COOPERATIVISTA_ITEM_IDS must contain valid JSON.', 'CONFIG_JSON'];

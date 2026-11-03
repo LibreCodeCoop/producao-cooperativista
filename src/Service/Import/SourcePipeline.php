@@ -112,13 +112,28 @@ final class SourcePipeline
             try {
                 $step->synchronize(clone $normalized);
             } catch (Throwable $error) {
-                // The only exception detail forwarded to the operator is a
-                // constructed, non-PII marker with a Kimai numeric ID.
-                $profileHint = $error instanceof \DomainException
-                    && (str_starts_with($error->getMessage(), 'PROFILE_DEPENDENTS:')
-                        || str_starts_with($error->getMessage(), 'PROFILE_SOURCE:'))
-                    ? ' ' . $error->getMessage()
-                    : '';
+                // Only a whitelisted error code and safe member identity can
+                // leave the ETL process. The exception and private details
+                // remain available in server logs, not in the SSE stream.
+                $profileHint = '';
+                if ($error instanceof \DomainException && preg_match(
+                    '/^(PROFILE_(?:SOURCE|DEPENDENTS|KIMAI_LINK|ACCOUNTING_LINK|ACCOUNTING_INVALID|TAX_MISMATCH|TAX_MISSING)):/D',
+                    $error->getMessage(),
+                    $codeMatch,
+                ) === 1) {
+                    $profileHint = ' ' . $codeMatch[1] . ':';
+                    if (preg_match(
+                        "/usuário Kimai #([1-9][0-9]*)(?: \(([\p{L}\p{M} .'-]{1,60})\))?/u",
+                        $error->getMessage(),
+                        $memberMatch,
+                    ) === 1) {
+                        $profileHint .= ' usuário Kimai #' . $memberMatch[1];
+                        if (isset($memberMatch[2]) && trim($memberMatch[2]) !== '') {
+                            $profileHint .= ' (' . trim($memberMatch[2]) . ')';
+                        }
+                        $profileHint .= '.';
+                    }
+                }
                 throw new RuntimeException(sprintf(
                     'Falha na importação de %s, etapa %s.%s Verifique a origem e os logs antes de reexecutar.',
                     $normalized->format('Y-m'),
