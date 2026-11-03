@@ -134,17 +134,27 @@ final class SourcePipeline
                         $profileHint .= '.';
                     }
                 }
+                // A fixed, allowlisted API status explains permission/scope
+                // failures without exposing Akaunting responses or credentials.
+                $apiAccessHint = '';
+                if (str_starts_with($step->name(), 'akaunting.') && preg_match(
+                    '/^Akaunting recusou a autenticação ou as permissões da API \(HTTP (401|403)\)\./D',
+                    $error->getMessage(),
+                    $statusMatch,
+                ) === 1) {
+                    $apiAccessHint = ' SOURCE_API_ACCESS: Akaunting recusou a consulta (HTTP ' . $statusMatch[1] . ').';
+                }
+                $sourceHint = $profileHint !== '' ? $profileHint : $apiAccessHint;
+                if ($sourceHint === '' && $error instanceof TransportExceptionInterface) {
+                    $sourceHint = $error->getMessage() === 'NEXTCLOUD_PROFILE_FIELDS_LOOKUP_UNAVAILABLE'
+                        ? ' SOURCE_CONNECTION_FAILED: Nextcloud Profile Fields não respondeu à consulta dos vínculos.'
+                        : ' SOURCE_CONNECTION_FAILED: serviço de origem não respondeu.';
+                }
                 throw new RuntimeException(sprintf(
                     'Falha na importação de %s, etapa %s.%s Verifique a origem e os logs antes de reexecutar.',
                     $normalized->format('Y-m'),
                     $step->name(),
-                    $profileHint !== '' ? $profileHint
-                        : ($error instanceof TransportExceptionInterface
-                            && $error->getMessage() === 'NEXTCLOUD_PROFILE_FIELDS_LOOKUP_UNAVAILABLE'
-                            ? ' SOURCE_CONNECTION_FAILED: Nextcloud Profile Fields não respondeu à consulta dos vínculos.'
-                            : ($error instanceof TransportExceptionInterface
-                                ? ' SOURCE_CONNECTION_FAILED: serviço de origem não respondeu.'
-                                : '')),
+                    $sourceHint,
                 ), 0, $error);
             }
         }

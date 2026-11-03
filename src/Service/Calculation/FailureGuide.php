@@ -36,6 +36,11 @@ final readonly class FailureGuide
                 'A conexão com uma integração expirou ou foi interrompida durante a importação.',
                 'Verifique a disponibilidade e a latência da integração informada na etapa. Nenhum dado fiscal deve ser corrigido por causa de uma falha de rede.'
             ),
+            str_contains($message, 'source_api_access') => new self(
+                'API_ACESSO',
+                'O Akaunting recusou o acesso a uma consulta da integração.',
+                'Confira a empresa selecionada, os filtros mantidos na paginação e as permissões da conta de integração no Akaunting. Não altere credenciais nem documentos financeiros sem identificar a requisição recusada nos logs.'
+            ),
             str_contains($message, 'profile_kimai_link') => new self(
                 'PROFILE_KIMAI_LINK',
                 'Cooperado com horas registradas no Kimai, mas sem vínculo explícito com uma conta Nextcloud.',

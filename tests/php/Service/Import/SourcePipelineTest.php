@@ -184,6 +184,31 @@ final class SourcePipelineTest extends TestCase
         }
     }
 
+    public function testAkauntingHttp403IsIdentifiedWithoutLeakingUpstreamDetails(): void
+    {
+        $pipeline = new SourcePipeline([
+            new class () implements SourceStep {
+                public function name(): string
+                {
+                    return 'akaunting.documents';
+                }
+                public function synchronize(DateTime $competence): void
+                {
+                    throw new RuntimeException('Akaunting recusou a autenticação ou as permissões da API (HTTP 403).');
+                }
+            },
+        ], new NullLogger(), new Dates(now: new DateTime('2026-11-02')));
+        try {
+            $pipeline->run(new DateTime('2026-04-01'));
+            self::fail('Denied API request must abort the import.');
+        } catch (RuntimeException $error) {
+            self::assertStringContainsString('etapa akaunting.documents', $error->getMessage());
+            self::assertStringContainsString('SOURCE_API_ACCESS', $error->getMessage());
+            self::assertStringContainsString('HTTP 403', $error->getMessage());
+            self::assertStringNotContainsString('authorization', mb_strtolower($error->getMessage()));
+        }
+    }
+
     public function testDuplicatedStageNamesAreRejected(): void
     {
         $events = new ArrayObject();

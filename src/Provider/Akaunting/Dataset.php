@@ -24,6 +24,10 @@ class Dataset
     {
         $all = [];
         $visited = [];
+        // Akaunting may return links.next containing only ?page=N, dropping
+        // the company scope and date/type filters. Keep these fixed across
+        // the complete read without overriding the API's pagination cursor.
+        $scope = array_diff_key($query, ['page' => true]);
         $page = 0;
         while ($endpoint !== '') {
             if (++$page > 1000 || isset($visited[$endpoint])) {
@@ -48,9 +52,21 @@ class Dataset
                 throw new RuntimeException('Resposta da API do Akaunting possui link de próxima página inválido.');
             }
             $endpoint = $next;
-            // Follow pagination URLs as supplied by the API without accumulating
-            // the first page's search filters a second time.
+            $nextParams = [];
+            $nextQuery = parse_url($next, PHP_URL_QUERY);
+            if (is_string($nextQuery)) {
+                parse_str($nextQuery, $nextParams);
+            }
             $query = [];
+            foreach ($scope as $key => $value) {
+                if (array_key_exists($key, $nextParams)) {
+                    if ($nextParams[$key] != $value) {
+                        throw new RuntimeException('A paginação do Akaunting alterou os filtros ou a empresa da consulta.');
+                    }
+                    continue;
+                }
+                $query[$key] = $value;
+            }
         }
         return $all;
     }

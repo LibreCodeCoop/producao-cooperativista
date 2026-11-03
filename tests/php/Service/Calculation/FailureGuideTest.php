@@ -23,6 +23,7 @@ final class FailureGuideTest extends TestCase
     public static function pastProductionErrors(): iterable
     {
         yield ['SOURCE_CONNECTION_FAILED: integração temporariamente indisponível', 'SERVICO_INACESSIVEL'];
+        yield ['Falha na importação de 2026-04, etapa akaunting.documents. SOURCE_API_ACCESS: Akaunting recusou a consulta (HTTP 403).', 'API_ACESSO'];
         yield ['SOURCE_CONNECTION_FAILED: Nextcloud Profile Fields não respondeu à consulta dos vínculos.', 'SERVICO_INACESSIVEL'];
         yield ['PROFILE_SOURCE: usuário Kimai #28 sem vínculo válido', 'PROFILE_SOURCE'];
         yield ['PROFILE_KIMAI_LINK: usuário Kimai #40', 'PROFILE_KIMAI_LINK'];
