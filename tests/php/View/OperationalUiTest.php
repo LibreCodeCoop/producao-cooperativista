@@ -269,6 +269,10 @@ final class OperationalUiTest extends TestCase
             $html
         );
         self::assertStringContainsString(
+            'src="/js/production-progress.js?v=a1b2c3d4e5f6"',
+            $html
+        );
+        self::assertStringContainsString(
             'href="/css/production-workflow.css?v=a1b2c3d4e5f6"',
             $html
         );

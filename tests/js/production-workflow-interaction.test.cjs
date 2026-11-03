@@ -25,7 +25,7 @@ function element() {
 function fixture({previewError = false, economicFailure = false, malformed = false, importSuccess = true,
     publishSuccess = true, gridSuccess = true, withdrawalGoal = null,
     importError = 'Falha na importação', initialWorkData = true,
-    initialStagingData = true} = {}) {
+    initialStagingData = true, pendingWrite = null} = {}) {
     const items = new Map();
     for (const id of ['production-wizard','form-gera-producao','messages',
         'import-button','use-existing','import-availability-status',
@@ -191,6 +191,7 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
                         message:importSuccess ? 'Importação concluída.' : importError});
                     return importSuccess;
                 }
+                if (pendingWrite) await pendingWrite;
                 return publishSuccess;
             },
             addMessage(_target, severity, message) {calls.notices.push({severity,message});},
@@ -583,6 +584,23 @@ test('returning to import and reviewing again resets decisions and approval', as
     f.change('month');
     assert.ok(f.links.every(link=>link.href.endsWith('ano-mes=2026-09')));
     assert.equal(f.get('submit').disabled,true);
+});
+
+test('concurrent clicks cannot send a second financial write while one is pending', async () => {
+    let release;
+    const pendingWrite = new Promise(resolve => {release = resolve;});
+    const f=fixture({pendingWrite});
+    await f.preview();
+    f.setConsent(true);
+    const first=f.click('submit');
+    assert.equal(f.calls.submit.length,1);
+    assert.equal(f.get('submit').disabled,true);
+    await f.click('submit');
+    assert.equal(f.calls.submit.length,1,'The locked controller must not issue another request');
+    release();
+    await first;
+    assert.equal(f.calls.submit.length,1);
+    assert.equal(f.get('submit').disabled,true,'Completed write remains closed to repeated clicks');
 });
 
 test('failed publication requires explicit reconfirmation and warns about uncertain writes', async () => {

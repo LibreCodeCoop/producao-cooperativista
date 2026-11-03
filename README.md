@@ -171,6 +171,7 @@ Logs, relatórios CSV e snapshots podem conter dados pessoais ou financeiros. Nu
 - **Dependências:** `composer update -W` no backend, com ferramentas de desenvolvimento isoladas em `vendor-bin`. O Dependabot acompanha Composer, GitHub Actions e Docker Compose; o Renovate acompanha o Dockerfile, `.nvmrc` e a imagem MySQL usada pelo CI. As atualizações exigem revisão e CI aprovada.
 - **Modernização de PHP:** `composer run rector:check` verifica as refatorações, e `composer run rector:fix` aplica as alterações.
 - **Verificação:** `composer run test:unit`, `composer run cs:check` e `composer run psalm`. Os testes de JavaScript usam `node --test tests/js/*.test.cjs`. A CI executa esses testes em um workflow separado, com limites mínimos de cobertura (90% de linhas, 80% de ramos e 75% de funções).
+- **Testabilidade do frontend:** regras de domínio JavaScript (competência e conciliação de fontes, seleção e arredondamento de cooperados, elegibilidade de vínculos, interpretação de documentos financeiros, validação de IDs e processamento SSE) são funções puras ou adaptadores independentes de DOM/HTTP. Use casos parametrizados (`for` com `test()` nomeado) em `tests/js/*-rules.test.cjs` para valores nulos, zero legítimo, identificadores inválidos, competência incorreta e operações concorrentes; mantenha testes de integração com DOM/HTTP simulados para validar efeitos e autorizações. O `node:test` nativo é suficiente; não introduza bibliotecas de UI quando uma regra puder ser testada sem navegador.
 
 ### Arquitetura do ETL e apuração por competência
 

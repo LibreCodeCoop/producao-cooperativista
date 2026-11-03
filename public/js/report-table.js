@@ -75,6 +75,77 @@
         maximumFractionDigits: 2,
     });
 
+    // A missing financial value is not zero: Number(null), Number('') and
+    // Number(false) otherwise silently fabricate R$ 0,00 in the UI.
+    function numericValue(value) {
+        if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+        if (typeof value !== 'string' ||
+            !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value.trim())) return null;
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+    }
+
+    function advanceTotal(raw) {
+        let entries = raw;
+        if (typeof raw === 'string') {
+            try {
+                entries = JSON.parse(raw);
+            } catch {
+                return null;
+            }
+        }
+        if (!Array.isArray(entries)) return null;
+        let sum = 0;
+        for (const entry of entries) {
+            const amount = numericValue(entry?.amount);
+            if (amount === null) return null;
+            sum += amount;
+        }
+        return Number.isFinite(sum) ? sum : null;
+    }
+
+    const FINANCIAL_FACT_FIELDS = [
+        ['Base da produção', 'base_producao'], ['Auxílio', 'auxilio'],
+        ['FRRA', 'frra'], ['Bruto', 'bruto'], ['INSS', 'inss'],
+        ['Base IRPF', 'base_irpf'], ['IRPF', 'irpf'],
+        ['Desconto líquido', 'liquid_discount'],
+        ['Adiantamentos', 'adiantamento'], ['Líquido', 'liquido'],
+    ];
+
+    function financialFacts(record, sourceOnly = false) {
+        return FINANCIAL_FACT_FIELDS.filter(([,key]) => sourceOnly ||
+            (record[key] !== undefined && record[key] !== null && record[key] !== ''))
+            .map(([label, key]) => ({
+                key, label,
+                value: sourceOnly ? null : key === 'adiantamento'
+                    ? advanceTotal(record[key]) : numericValue(record[key]),
+                explanation: sourceOnly ? null : record.explanations?.[key] || null,
+            }));
+    }
+
+    function workEntries(raw) {
+        let rows = raw;
+        if (typeof raw === 'string') {
+            try {
+                rows = JSON.parse(raw);
+            } catch {
+                return [];
+            }
+        }
+        if (!Array.isArray(rows)) return [];
+        return rows.filter(item => item && typeof item === 'object' && !Array.isArray(item))
+            .map(item => {
+                const percent = numericValue(item.percentual_trabalhado);
+                const clientHours = numericValue(item.total_cliente);
+                return {
+                    name: String(item.nome || '—'),
+                    worked: String(item.trabalhado || '—'),
+                    clientDuration: clientHours === null ? '—' : duration(clientHours * 3600),
+                    participation: percent === null ? '—' : percentFormat.format(percent) + '%',
+                };
+            });
+    }
+
     function duration(seconds) {
         const n = Number(seconds);
         if (!Number.isFinite(n) || n < 0) return '—';
@@ -86,57 +157,24 @@
 
     function productionDetails(record, options = {}) {
         const sourceOnly = options.sourceOnly === true;
-        let rows = [];
-        try {
-            const parsed = JSON.parse(record.trabalhado || '[]');
-            if (Array.isArray(parsed)) rows = parsed;
-        } catch {
-            // A damaged detail field must not expose HTML or break the report.
-        }
-        const work = rows.filter(item => item && typeof item === 'object').map(item => {
-            const percent = Number(item.percentual_trabalhado);
-            const share = item.percentual_trabalhado !== null &&
-                item.percentual_trabalhado !== undefined && Number.isFinite(percent)
-                ? percentFormat.format(percent) + '%' : '—';
-            return '<tr><td>' + escapeHtml(item.nome || '—') + '</td>' +
-                '<td>' + escapeHtml(item.trabalhado || '—') + '</td>' +
-                '<td>' + escapeHtml(duration(Number(item.total_cliente) * 3600)) + '</td>' +
-                '<td>' + escapeHtml(share) + '</td></tr>';
-        }).join('');
-        const moneyFields = [
-            ['Base da produção', 'base_producao'], ['Auxílio', 'auxilio'],
-            ['FRRA', 'frra'], ['Bruto', 'bruto'], ['INSS', 'inss'],
-            ['Base IRPF', 'base_irpf'], ['IRPF', 'irpf'],
-            ['Desconto líquido', 'liquid_discount'],
-            ['Adiantamentos', 'adiantamento'], ['Líquido', 'liquido'],
-        ];
-        const facts = moneyFields.filter(([,key]) => sourceOnly || (record[key] !== undefined &&
-            record[key] !== null && record[key] !== '')).map(([label,key]) => {
+        const work = workEntries(record.trabalhado || '[]').map(item =>
+            '<tr><td>' + escapeHtml(item.name) + '</td>' +
+            '<td>' + escapeHtml(item.worked) + '</td>' +
+            '<td>' + escapeHtml(item.clientDuration) + '</td>' +
+            '<td>' + escapeHtml(item.participation) + '</td></tr>'
+        ).join('');
+        const facts = financialFacts(record, sourceOnly).map(({label, value, explanation}) => {
             if (sourceOnly) {
                 return '<div><dt>' + escapeHtml(label) + '</dt><dd>A apurar</dd></div>';
             }
-            const explanation = record.explanations?.[key];
-            let amount = Number(record[key]);
-            if (key === 'adiantamento') {
-                try {
-                    const values = typeof record[key] === 'string'
-                        ? JSON.parse(record[key]) : record[key];
-                    amount = Array.isArray(values)
-                        ? values.reduce((sum, value) => sum + Number(value.amount || 0), 0) : 0;
-                } catch {
-                    amount = NaN;
-                }
-            }
-            const value = Number.isFinite(amount)
-                ? escapeHtml(brl.format(Number(amount))) : '—';
+            const amount = value === null ? '—' : escapeHtml(brl.format(value));
             const help = explanation && typeof explanation.detail === 'string'
                 ? '<details class="finance-help' + (explanation.attention ? ' is-warning' : '') +
                     '"><summary aria-label="Como é calculado ' + escapeHtml(label) +
                     '" title="Entender ' + escapeHtml(label) + '">?</summary><div>' +
                     '<strong>' + escapeHtml(explanation.summary || label) + '</strong><p>' +
                     escapeHtml(explanation.detail) + '</p></div></details>' : '';
-            return '<div><dt>' + escapeHtml(label) + help + '</dt><dd>' +
-                value + '</dd></div>';
+            return '<div><dt>' + escapeHtml(label) + help + '</dt><dd>' + amount + '</dd></div>';
         }).join('');
         const workLink = options.competence && Number.isSafeInteger(Number(record.kimai_user_id)) && Number(record.kimai_user_id) > 0
             ? safeLink('/relatorios/apontamentos?ano-mes=' +
@@ -279,13 +317,13 @@
                 style + '">' + escapeHtml(label) + '</span>';
         }
         if (options.pendingInvoices && column === 'valor') {
-            const amount = Number(value);
-            return Number.isFinite(amount) && value !== '' && value !== null
+            const amount = numericValue(value);
+            return amount !== null
                 ? type === 'display' ? escapeHtml(brl.format(amount)) : amount : '';
         }
         if (options.capitalSocialSummary && ['integralizado', 'devolvido', 'total'].includes(column)) {
-            const amount = Number(value);
-            if (value === null || value === '' || !Number.isFinite(amount)) return '';
+            const amount = numericValue(value);
+            if (amount === null) return '';
             const rounded = Math.round(amount * 100) / 100;
             if (type === 'display') {
                 return '<span class="money-cell">' + escapeHtml(brl.format(rounded)) + '</span>';
@@ -299,8 +337,8 @@
         }
         if (options.financialMovements) {
             if ((column === 'bruto' || column === 'amount') &&
-                value !== null && value !== '' && Number.isFinite(Number(value))) {
-                const cents = Math.round(Number(value) * 100);
+                numericValue(value) !== null) {
+                const cents = Math.round(numericValue(value) * 100);
                 const amount = cents / 100;
                 if (type === 'display') return '<span class="money-cell">' +
                     escapeHtml(brl.format(amount)) + '</span>';
@@ -320,8 +358,8 @@
                 : '';
         }
         if (type === 'export' && options.productionMode && MONEY_COLUMNS.has(column)) {
-            return value !== null && value !== '' && Number.isFinite(Number(value))
-                ? decimalExport.format(Number(value)) : '';
+            return numericValue(value) !== null
+                ? decimalExport.format(numericValue(value)) : '';
         }
         if (type !== 'display') {
             return value ?? '';
@@ -330,9 +368,8 @@
             const imported = value === null || value === '' || value === undefined ? '—' : String(value).replace('.', ',');
             return '<span title="Peso da última importação">' + escapeHtml(imported) + '</span>';
         }
-        if (options.productionMode && MONEY_COLUMNS.has(column) && value !== null
-            && value !== '' && Number.isFinite(Number(value))) {
-            return '<span class="money-cell">' + escapeHtml(brl.format(Number(value))) + '</span>';
+        if (options.productionMode && MONEY_COLUMNS.has(column) && numericValue(value) !== null) {
+            return '<span class="money-cell">' + escapeHtml(brl.format(numericValue(value))) + '</span>';
         }
         const link = column === 'URL'
             ? safeLink(value, String(row?.type || 'Abrir no Akaunting'))
@@ -526,6 +563,87 @@
         }
     }
 
+    const REPORT_REQUEST_OPTIONS = {
+        credentials: 'same-origin',
+        headers: {Accept: 'application/json'},
+        cache: 'no-store',
+    };
+
+    // Source-only fallback is read-only and is allowed only for a confirmed
+    // economic-base failure; it must never masquerade as payable amounts.
+    async function loadReportData(table, request, providedPayload = null, sourceOnly = false) {
+        if (!table.dataset.url || typeof request !== 'function') {
+            throw new Error('A URL da API do relatório não está disponível.');
+        }
+        const response = providedPayload ? null : await request(table.dataset.url, REPORT_REQUEST_OPTIONS);
+        let payload = providedPayload;
+        let fallback = false;
+        if (response && !response.ok) {
+            let failure = null;
+            try {
+                failure = await response.json();
+            } catch {
+                // A non-JSON proxy failure has no recoverable source code.
+            }
+            if (failure?.code === 'BASE_ECONOMICA' &&
+                table.dataset.productionMode === 'yes' && table.dataset.sourceUrl) {
+                const source = await request(table.dataset.sourceUrl, REPORT_REQUEST_OPTIONS);
+                if (!source.ok) {
+                    throw new Error('Não foi possível consultar os dados importados (HTTP ' +
+                        source.status + ').');
+                }
+                payload = await source.json();
+                if (payload?.publication_allowed !== false ||
+                    payload?.competence !== table.dataset.competencia) {
+                    throw new Error('A origem retornou uma competência diferente da consultada.');
+                }
+                sourceOnly = true;
+                fallback = true;
+            } else {
+                const details = apiErrorDetails(failure);
+                throw new Error('Não foi possível carregar o relatório (HTTP ' + response.status +
+                    ').' + (details ? '\n' + details : ''));
+            }
+        }
+        if (!payload) payload = await response.json();
+        const details = apiErrorDetails(payload);
+        if (details) throw new Error(details);
+        if (!Array.isArray(payload?.data)) {
+            throw new Error('A API retornou um formato de relatório inválido.');
+        }
+        return {payload, sourceOnly, fallback};
+    }
+
+    function sourceFallbackMessage(payload) {
+        return 'Competência do trabalho: ' + payload.competence +
+            '. Mês financeiro: ' + payload.financial_month + '. ' +
+            payload.hours.entries + ' apontamentos de ' + payload.hours.members +
+            ' cooperados disponíveis. O cálculo da distribuição está pendente de conciliação; ' +
+            'os valores financeiros aparecem como A apurar. ' +
+            'A conferência das horas permanece disponível.';
+    }
+
+    function pendingInvoiceSummary(payload) {
+        const total = Number(payload.metadata?.total ?? payload.data.length);
+        const amount = numericValue(payload.metadata?.amount);
+        if (!Number.isSafeInteger(total) || total < 0 || amount === null) {
+            return 'Confira a situação das faturas e o que fazer em cada caso.';
+        }
+        const drafts = payload.data.filter(row => row.status_documento === 'draft').length;
+        const sent = payload.data.filter(row => row.status_documento === 'sent').length;
+        const statuses = [];
+        if (drafts) statuses.push(drafts + ' em rascunho');
+        if (sent) statuses.push(sent + (sent === 1 ? ' marcada como enviada' : ' marcadas como enviadas'));
+        const breakdown = !payload.metadata?.truncated && statuses.length
+            ? ' Situação: ' + statuses.join(', ') + '.' : '';
+        return total + (total === 1 ? ' fatura para conferir, valor nominal de ' :
+            ' faturas para conferir, valor nominal de ') +
+            brl.format(amount) + '.' + breakdown + ' ' +
+            (payload.metadata?.truncated ? 'Lista limitada às primeiras 100. ' : '') +
+            'O total não representa necessariamente valores em atraso ou a receber. ' +
+            'Os dados refletem a última importação, não a posição bancária atual.';
+    }
+
     async function initializeReportTable(doc = scope.document, options = {}) {
         const table = doc?.getElementById('example');
         if (!table) {
@@ -543,85 +661,19 @@
             if (!Array.isArray(excluded) || !excluded.every(item => typeof item === 'string')) {
                 throw new Error('A configuração das colunas do relatório está inválida.');
             }
-            if (!table.dataset.url || typeof request !== 'function') {
-                throw new Error('A URL da API do relatório não está disponível.');
-            }
-            const requestOptions = {
-                credentials: 'same-origin',
-                headers: { Accept: 'application/json' },
-                cache: 'no-store',
-            };
-            const response = options.payload ? null : await request(table.dataset.url, requestOptions);
-            let payload = options.payload;
-            let sourceOnly = options.sourceOnly === true;
-            if (response && !response.ok) {
-                let failure = null;
-                try {
-                    failure = await response.json();
-                } catch {
-                    // A non-JSON proxy failure has no recoverable source code.
+            const result = await loadReportData(table, request, options.payload || null,
+                options.sourceOnly === true);
+            const {payload, sourceOnly} = result;
+            if (result.fallback) {
+                const status = doc.getElementById('production-report-status');
+                if (status) {
+                    status.hidden = false;
+                    status.textContent = sourceFallbackMessage(payload);
                 }
-                if (failure?.code === 'BASE_ECONOMICA' &&
-                    table.dataset.productionMode === 'yes' && table.dataset.sourceUrl) {
-                    // A payable preview requires a valid financial base; looking
-                    // at already imported work does not. Never invent amounts.
-                    const source = await request(table.dataset.sourceUrl, requestOptions);
-                    if (!source.ok) {
-                        throw new Error('Não foi possível consultar os dados importados (HTTP ' +
-                            source.status + ').');
-                    }
-                    payload = await source.json();
-                    if (payload?.publication_allowed !== false ||
-                        payload?.competence !== table.dataset.competencia) {
-                        throw new Error('A origem retornou uma competência diferente da consultada.');
-                    }
-                    sourceOnly = true;
-                    const status = doc.getElementById('production-report-status');
-                    if (status) {
-                        status.hidden = false;
-                        status.textContent = 'Competência do trabalho: ' + payload.competence +
-                            '. Mês financeiro: ' + payload.financial_month + '. ' +
-                            payload.hours.entries + ' apontamentos de ' +
-                            payload.hours.members + ' cooperados disponíveis. ' +
-                            'O cálculo da distribuição está pendente de conciliação; ' +
-                            'os valores financeiros aparecem como A apurar. ' +
-                            'A conferência das horas permanece disponível.';
-                    }
-                } else {
-                    const details = apiErrorDetails(failure);
-                    throw new Error('Não foi possível carregar o relatório (HTTP ' + response.status +
-                        ').' + (details ? '\n' + details : ''));
-                }
-            }
-            if (!payload) payload = await response.json();
-            const details = apiErrorDetails(payload);
-            if (details) {
-                throw new Error(details);
-            }
-            if (!Array.isArray(payload?.data)) {
-                throw new Error('A API retornou um formato de relatório inválido.');
             }
             if (table.dataset.pendingInvoices === 'yes') {
                 const summary = doc.getElementById('pending-invoice-summary');
-                if (summary) {
-                    const total = Number(payload.metadata?.total ?? payload.data.length);
-                    const amount = Number(payload.metadata?.amount);
-                    const drafts = payload.data.filter(row => row.status_documento === 'draft').length;
-                    const sent = payload.data.filter(row => row.status_documento === 'sent').length;
-                    const statuses = [];
-                    if (drafts) statuses.push(drafts + ' em rascunho');
-                    if (sent) statuses.push(sent + (sent === 1 ? ' marcada como enviada' : ' marcadas como enviadas'));
-                    const breakdown = !payload.metadata?.truncated && statuses.length
-                        ? ' Situação: ' + statuses.join(', ') + '.' : '';
-                    summary.textContent = Number.isSafeInteger(total) && Number.isFinite(amount)
-                        ? total + (total === 1 ? ' fatura para conferir, valor nominal de ' :
-                            ' faturas para conferir, valor nominal de ') +
-                            brl.format(amount) + '.' + breakdown + ' ' +
-                            (payload.metadata?.truncated ? 'Lista limitada às primeiras 100. ' : '') +
-                            'O total não representa necessariamente valores em atraso ou a receber. ' +
-                            'Os dados refletem a última importação, não a posição bancária atual.'
-                        : 'Confira a situação das faturas e o que fazer em cada caso.';
-                }
+                if (summary) summary.textContent = pendingInvoiceSummary(payload);
             }
             if (!payload.data.length) {
                 showError(errors, 'Nenhum registro encontrado para os filtros informados.');
@@ -749,6 +801,8 @@
             escapeHtml, columnTitle, nestedTableHtml, safeLink, renderCell, buildColumns,
             stateUrl, setupFilters, apiErrorDetails, initializeReportTable,
             duration, productionDetails, buildProductionColumns, buildTimesheetColumns,
+            numericValue, advanceTotal, financialFacts, workEntries,
+            loadReportData, pendingInvoiceSummary, sourceFallbackMessage,
         };
     } else {
         scope.ReportTable = {initializeReportTable, duration};

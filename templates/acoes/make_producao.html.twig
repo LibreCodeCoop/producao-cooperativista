@@ -2,7 +2,7 @@
 {% block title %}Fechamento da produção cooperativista{% endblock %}
 {% block head %}
     <link rel="stylesheet" href="/css/production-workflow.css{% if workflow_asset_version is defined %}?v={{ workflow_asset_version }}{% endif %}">
-    <script src="/js/production-progress.js" defer></script>
+    <script src="/js/production-progress.js{% if workflow_asset_version is defined %}?v={{ workflow_asset_version }}{% endif %}" defer></script>
     <script src="/js/production-workflow.js{% if workflow_asset_version is defined %}?v={{ workflow_asset_version }}{% endif %}" defer></script>
 {% endblock %}
 {% block body %}

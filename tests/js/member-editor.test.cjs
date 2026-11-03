@@ -765,6 +765,7 @@ test('standalone administration page saves links without opening the modal', asy
             querySelector:sel=>({
                 '[type="submit"]':button,
                 '[name="nextcloud_uid"]':{value:'luis.souza'},
+                '[name="kimai_user_id"]':{value:'40'},
                 '[name="akaunting_contact_id"]':{value:'35'},
             })[sel]||null,
             closest:sel=>sel==='[data-member-editor-standalone]'?f.standaloneElement:null,
@@ -793,6 +794,7 @@ test('link form saves through a same-origin endpoint and reloads the editor only
             querySelector:sel=>({
                 '[type="submit"]':button,
                 '[name="nextcloud_uid"]':{value:'luis.souza'},
+                '[name="kimai_user_id"]':{value:'10'},
                 '[name="akaunting_contact_id"]':{value:'35'},
             })[sel]||null,
         };

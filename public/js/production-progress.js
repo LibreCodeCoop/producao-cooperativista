@@ -60,6 +60,30 @@
         return item;
     }
 
+    function operationIntent(publishFlag, importFlag) {
+        const publishing = publishFlag === '1';
+        return {publishing, conflicts: publishing && importFlag === '1'};
+    }
+
+    async function readExecutionStream(response, onEvent) {
+        if (!response.body || typeof response.body.getReader !== 'function') {
+            throw new Error('O navegador ou proxy não disponibilizou o fluxo de progresso.');
+        }
+        const parser = new SseParser(onEvent);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        try {
+            while (true) {
+                const packet = await reader.read();
+                if (packet.done) break;
+                parser.feed(decoder.decode(packet.value, {stream:true}));
+            }
+            parser.feed(decoder.decode());
+        } finally {
+            reader.releaseLock?.();
+        }
+    }
+
     async function submit(form, messages, submitButton, options = {}) {
         if (submitButton.disabled) {
             return false;
@@ -69,8 +93,9 @@
         const doc = options.document || form.ownerDocument || win.document;
         const createFormData = options.createFormData || (element => new win.FormData(element));
         const data = createFormData(form);
-        const publishing = data.get('atualiza_producao') === '1';
-        if (publishing && data.get('baixar_dados') === '1') {
+        const {publishing, conflicts} = operationIntent(
+            data.get('atualiza_producao'), data.get('baixar_dados'));
+        if (conflicts) {
             addMessage(messages, 'warning',
                 'Importação e publicação devem ser operações separadas. Calcule e confira a prévia antes de publicar.', doc);
             return false;
@@ -108,11 +133,7 @@
                         ? 'Acesso não autorizado pelo Nginx (HTTP 401). Verifique a autenticação HTTP do site.'
                         : 'O servidor recusou a execução (HTTP ' + response.status + '). Verifique o formulário e os logs.');
             }
-            if (!response.body || typeof response.body.getReader !== 'function') {
-                throw new Error('O navegador ou proxy não disponibilizou o fluxo de progresso.');
-            }
-
-            const parser = new SseParser((eventName, message) => {
+            await readExecutionStream(response, (eventName, message) => {
                 if (completed) {
                     return;
                 }
@@ -128,20 +149,6 @@
                     addMessage(messages, 'info', message, doc);
                 }
             });
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            try {
-                while (true) {
-                    const packet = await reader.read();
-                    if (packet.done) {
-                        break;
-                    }
-                    parser.feed(decoder.decode(packet.value, { stream: true }));
-                }
-                parser.feed(decoder.decode());
-            } finally {
-                reader.releaseLock?.();
-            }
             if (!completed) {
                 throw new Error('A conexão encerrou sem resultado final. Consulte o log pelo horário antes de reexecutar, pois podem existir documentos gravados.');
             }
@@ -218,7 +225,9 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = { SseParser, addMessage, submit, updateView, bind };
+        module.exports = {
+            SseParser, operationIntent, readExecutionStream, addMessage, submit, updateView, bind,
+        };
     } else {
         scope.ProductionProgress = {submit, addMessage};
         scope.addEventListener('DOMContentLoaded', () => bind());

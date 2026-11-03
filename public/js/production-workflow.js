@@ -38,6 +38,33 @@
         return Number.isFinite(n) && n >= 0 ? hoursFormat.format(n / 3600) + ' h' : '—';
     }
 
+    // Business contracts live outside the controller. A missing amount or
+    // duration is not automatically zero (Number(null) and Number('') are).
+    function finiteNumber(value) {
+        if (value === null || value === undefined || value === '' ||
+            typeof value === 'boolean') return null;
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+    }
+
+    function count(value, allowZero = true) {
+        if (typeof value !== 'number' &&
+            (typeof value !== 'string' || !/^(0|[1-9]\d*)$/.test(value))) return null;
+        const number = Number(value);
+        return Number.isSafeInteger(number) && number >= (allowZero ? 0 : 1) ? number : null;
+    }
+
+    function positiveId(value) {
+        return count(value, false);
+    }
+
+    function nextFinancialMonth(competence) {
+        if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(competence)) return null;
+        const [year, month] = competence.split('-').map(Number);
+        return String(month === 12 ? year + 1 : year).padStart(4, '0') + '-' +
+            String(month === 12 ? 1 : month + 1).padStart(2, '0');
+    }
+
     function validatePreview(payload, competence) {
         if (!Array.isArray(payload?.data) || payload.data.length === 0 ||
             payload?.metadata?.competence !== competence ||
@@ -46,43 +73,80 @@
         }
         const ids = new Set();
         const rows = payload.data.map(row => {
-            const id = Number(row.kimai_user_id);
-            if (!Number.isSafeInteger(id) || id <= 0 || ids.has(id) ||
-                typeof row.name !== 'string' ||
-                !Number.isFinite(Number(row.base_producao)) ||
-                !Number.isFinite(Number(row.liquido)) ||
-                !Number.isFinite(Number(row.hours_seconds))) {
+            const id = positiveId(row?.kimai_user_id);
+            const base = finiteNumber(row?.base_producao);
+            const net = finiteNumber(row?.liquido);
+            const seconds = count(row?.hours_seconds);
+            if (id === null || ids.has(id) || typeof row.name !== 'string' ||
+                !row.name.trim() || base === null || net === null || seconds === null) {
                 throw new Error('A prévia contém um cooperado sem vínculo ou valores válidos. Corrija a importação.');
             }
             ids.add(id);
-            return {
-                id, name: row.name, base: Number(row.base_producao),
-                net: Number(row.liquido), seconds: Number(row.hours_seconds),
-            };
+            return {id, name: row.name, base, net, seconds};
         });
         return {rows, revision: payload.metadata.revision};
     }
 
+    function validSourceRow(row) {
+        return positiveId(row?.kimai_user_id) !== null &&
+            count(row?.hours_seconds) !== null &&
+            row.base_producao === null && row.bruto === null && row.liquido === null;
+    }
+
+    function validSourceWorkSummary(payload, memberIds) {
+        const hours = payload.hours;
+        if (hours.by_member.length !== memberIds.size) return false;
+        let entries = 0;
+        let seconds = 0;
+        const seen = new Set();
+        const workById = new Map(payload.data.map(row => [Number(row.kimai_user_id), Number(row.hours_seconds)]));
+        for (const row of hours.by_member) {
+            const id = positiveId(row?.id);
+            const entryCount = count(row?.entries, false);
+            const duration = count(row?.seconds);
+            if (id === null || !memberIds.has(id) || seen.has(id) ||
+                entryCount === null || duration === null || workById.get(id) !== duration) return false;
+            seen.add(id);
+            entries += entryCount;
+            seconds += duration;
+        }
+        return entries === count(hours.entries) && seconds === count(hours.seconds);
+    }
+
+    function validSourceFinancials(payload) {
+        return finiteNumber(payload?.income_transactions?.amount) !== null &&
+            finiteNumber(payload?.client_cost_transactions?.amount) !== null &&
+            finiteNumber(payload?.internal_expense_transactions?.amount) !== null &&
+            Array.isArray(payload?.client_cost_transactions?.by_customer) &&
+            payload.client_cost_transactions.by_customer.every(item =>
+                typeof item?.label === 'string' && finiteNumber(item.amount) !== null) &&
+            Array.isArray(payload?.internal_expense_transactions?.by_category) &&
+            payload.internal_expense_transactions.by_category.every(item =>
+                typeof item?.label === 'string' && finiteNumber(item.amount) !== null) &&
+            Array.isArray(payload?.unconfirmed_invoices?.documents) &&
+            payload.unconfirmed_invoices.documents.every(item =>
+                positiveId(item?.id) !== null && finiteNumber(item.amount) !== null) &&
+            count(payload?.unconfirmed_invoices?.count) !== null &&
+            finiteNumber(payload?.unconfirmed_invoices?.amount) !== null;
+    }
+
     function validateSourceReview(payload, competence) {
+        const members = count(payload?.hours?.members, false);
+        const entries = count(payload?.hours?.entries, false);
+        const rows = payload?.data;
+        const ids = new Set();
         if (payload?.competence !== competence || payload?.publication_allowed !== false ||
-            !/^\d{4}-(0[1-9]|1[0-2])$/.test(payload?.financial_month || '') ||
-            !Number.isSafeInteger(Number(payload?.hours?.entries)) || Number(payload.hours.entries) <= 0 ||
-            !Number.isSafeInteger(Number(payload?.hours?.members)) || Number(payload.hours.members) <= 0 ||
-            !Number.isFinite(Number(payload?.hours?.seconds)) ||
+            payload?.financial_month !== nextFinancialMonth(competence) ||
+            members === null || entries === null || entries < members ||
+            count(payload?.hours?.seconds) === null ||
             !Array.isArray(payload?.hours?.by_member) ||
-            !Number.isFinite(Number(payload?.income_transactions?.amount)) ||
-            !Number.isFinite(Number(payload?.client_cost_transactions?.amount)) ||
-            !Number.isFinite(Number(payload?.internal_expense_transactions?.amount)) ||
-            !Array.isArray(payload?.client_cost_transactions?.by_customer) ||
-            !Array.isArray(payload?.internal_expense_transactions?.by_category) ||
-            !Array.isArray(payload?.unconfirmed_invoices?.documents) ||
-            !Array.isArray(payload?.data) ||
-            payload.data.length !== Number(payload.hours.members) ||
-            !payload.data.every(row => Number.isSafeInteger(row?.kimai_user_id) &&
-                row.kimai_user_id > 0 && Number.isFinite(Number(row?.hours_seconds)) &&
-                row?.base_producao === null && row?.bruto === null && row?.liquido === null) ||
-            !Number.isSafeInteger(Number(payload?.unconfirmed_invoices?.count)) ||
-            !Number.isFinite(Number(payload?.unconfirmed_invoices?.amount))) {
+            !Array.isArray(rows) || rows.length !== members ||
+            !rows.every(row => {
+                const id = positiveId(row?.kimai_user_id);
+                if (id === null || ids.has(id) || !validSourceRow(row)) return false;
+                ids.add(id);
+                return true;
+            }) || !validSourceWorkSummary(payload, ids) || !validSourceFinancials(payload)) {
             throw new Error('Não foi possível verificar as fontes importadas desta competência.');
         }
         return payload;
@@ -145,6 +209,41 @@
 
     function cents(rows, field) {
         return rows.reduce((sum, row) => sum + Math.round(row[field] * 100), 0);
+    }
+
+    // Cent values are rounded per cooperado, never redistributed to survivors.
+    function allocationSummary(rows, omitted) {
+        const selected = selectedMembers(rows, omitted);
+        return {
+            ...selected,
+            includedBaseCents: cents(selected.included, 'base'),
+            excludedBaseCents: cents(selected.excluded, 'base'),
+            includedNetCents: cents(selected.included, 'net'),
+            excludedNetCents: cents(selected.excluded, 'net'),
+        };
+    }
+
+    function availabilitySummary(state, competence, needsImport = false) {
+        const hasWork = state?.has_work_data === true;
+        const hasAny = state?.has_staging_data === true;
+        const status = !state ? 'unavailable' : hasWork ? 'available' : hasAny ? 'other' : 'empty';
+        const text = needsImport && hasWork
+            ? 'O cadastro de cooperados foi alterado. Reimporte ' + competence +
+                ' antes de conferir ou publicar.'
+            : !state
+                ? 'Não foi possível verificar a base importada. Atualize a página antes de conferir.'
+                : hasWork
+                    ? 'Dados disponíveis para conferência: ' + state.work_entries +
+                        ' apontamentos de ' + state.work_members + ' cooperados em ' + competence + '.'
+                    : hasAny
+                        ? 'Ainda não há apontamentos importados para ' + competence + '.' +
+                            (state.latest_imported_competence &&
+                            state.latest_imported_competence !== competence
+                                ? ' Última competência com horas: ' +
+                                    state.latest_imported_competence + '.' : '') +
+                            ' Confira o mês ou importe novamente.'
+                        : 'Base importada vazia. Selecione a competência e clique em Importar competência.';
+        return {status, text, hasWork, hasAny};
     }
 
     function initialize(doc = scope.document, options = {}) {
@@ -227,8 +326,7 @@
             const resetLink = el('reset-staging-link');
             const resetHelp = el('reset-staging-help');
             const summary = el('import-availability-status');
-            const hasWork = state?.has_work_data === true;
-            const hasAny = state?.has_staging_data === true;
+            const {hasWork, hasAny, status, text} = availabilitySummary(state, period, needsImport);
             if (reviewButton) reviewButton.hidden = !hasWork || needsImport;
             if (resetLink) {
                 resetLink.hidden = !hasAny;
@@ -240,24 +338,8 @@
                 show(1);
             }
             if (summary) {
-                summary.dataset.state = !state ? 'unavailable' :
-                    hasWork ? 'available' : hasAny ? 'other' : 'empty';
-                summary.textContent = needsImport && hasWork
-                    ? 'O cadastro de cooperados foi alterado. Reimporte ' + period +
-                        ' antes de conferir ou publicar.'
-                    : !state
-                        ? 'Não foi possível verificar a base importada. Atualize a página antes de conferir.'
-                        : hasWork
-                            ? 'Dados disponíveis para conferência: ' + state.work_entries +
-                                ' apontamentos de ' + state.work_members + ' cooperados em ' + period + '.'
-                            : hasAny
-                                ? 'Ainda não há apontamentos importados para ' + period + '.' +
-                                    (state.latest_imported_competence &&
-                                    state.latest_imported_competence !== period
-                                        ? ' Última competência com horas: ' +
-                                            state.latest_imported_competence + '.'
-                                        : '') + ' Confira o mês ou importe novamente.'
-                                : 'Base importada vazia. Selecione a competência e clique em Importar competência.';
+                summary.dataset.state = status;
+                summary.textContent = text;
             }
             syncNavigation();
         };
@@ -310,19 +392,19 @@
         };
         const updateSummary = () => {
             if (!preview) return;
-            const groups = selectedMembers(preview.rows, omitted);
+            const groups = allocationSummary(preview.rows, omitted);
             const included = groups.included.length;
             el('selection-summary').textContent = included +
-                ' com documentos previstos (' + money(cents(groups.included, 'net') / 100) + ') · ' +
+                ' com documentos previstos (' + money(groups.includedNetCents / 100) + ') · ' +
                 groups.excluded.length + ' não publicados agora (' +
-                money(cents(groups.excluded, 'net') / 100) +
+                money(groups.excludedNetCents / 100) +
                 '). Seleção total, inclusive cooperados ocultos por filtros.';
             el('publication-summary').textContent = competence() + ': ' +
                 included + ' documento(s) individuais previsto(s). ' +
                 groups.excluded.length + ' não publicado(s) agora. ' +
                 'Os valores não serão redistribuídos e nenhum pagamento bancário será executado.';
             publishButton.disabled = !preview || !included ||
-                !el('publication-confirmation').checked || loading || finished || needsImport;
+                !el('publication-confirmation').checked || loading || processing || finished || needsImport;
         };
         const invalidateApproval = () => {
             el('publication-confirmation').checked = false;
@@ -661,7 +743,7 @@
         }
         el('publication-confirmation').addEventListener('change', updateSummary);
         publishButton.addEventListener('click', async () => {
-            if (!preview || finished || loading || needsImport ||
+            if (!preview || finished || loading || processing || needsImport ||
                 !el('publication-confirmation').checked ||
                 selectedMembers(preview.rows, omitted).included.length === 0) return;
             processing = true;
@@ -669,7 +751,11 @@
             setAction('publish');
             messages.replaceChildren();
             try {
-                const success = await progress.submit(form, messages, publishButton, options);
+                // Let the progress adapter begin its single guarded request,
+                // then immediately lock the UI until the result is known.
+                const request = progress.submit(form, messages, publishButton, options);
+                publishButton.disabled = true;
+                const success = await request;
                 if (success) {
                     finished = true;
                     publishButton.textContent = 'Publicação concluída';
@@ -708,7 +794,10 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = {money, hours, validatePreview, selectedMembers, diagnosticLink, initialize};
+        module.exports = {
+            money, hours, validatePreview, validateSourceReview, nextFinancialMonth,
+            selectedMembers, allocationSummary, availabilitySummary, diagnosticLink, initialize,
+        };
     } else {
         scope.addEventListener('DOMContentLoaded', () => initialize());
     }

@@ -10,22 +10,34 @@
             String(seconds % 60).padStart(2, '0');
     }
 
+    function normalizedId(value, allowZero = false) {
+        const text = String(value ?? '');
+        if (!/^(0|[1-9]\d*)$/.test(text) || !Number.isSafeInteger(Number(text)) ||
+            (!allowZero && text === '0')) return null;
+        return text;
+    }
+
+    function importedSeconds(value) {
+        const text = String(value ?? '');
+        if (!/^(0|[1-9]\d*)$/.test(text)) return null;
+        const seconds = Number(text);
+        return Number.isSafeInteger(seconds) ? seconds : null;
+    }
+
     function customerTotals(rows) {
         const groups = new Map();
         let seconds = 0;
         let missingDurations = 0;
         for (const row of rows) {
-            const id = Number(row.customer_id);
-            const key = Number.isSafeInteger(id) && id > 0 ? String(id) : '0';
+            const key = normalizedId(row.customer_id) || '0';
             if (!groups.has(key)) {
                 groups.set(key, {id: key, name: String(row.cliente || 'Cliente não vinculado'),
                     entries: 0, seconds: 0, missingDurations: 0});
             }
             const group = groups.get(key);
             group.entries++;
-            const value = row.duracao_segundos;
-            const n = value === null || value === '' || value === undefined ? NaN : Number(value);
-            if (!Number.isSafeInteger(n) || n < 0) {
+            const n = importedSeconds(row.duracao_segundos);
+            if (n === null) {
                 group.missingDurations++;
                 missingDurations++;
             } else {
@@ -41,9 +53,9 @@
     function optionsFor(rows, idKey, labelKey) {
         const names = new Map();
         for (const row of rows) {
-            const id = Number(row[idKey]);
-            if (!Number.isSafeInteger(id) || id < 0 || (idKey === 'member_id' && id === 0)) continue;
-            if (!names.has(String(id))) names.set(String(id), String(row[labelKey] || '#' + id));
+            const id = normalizedId(row[idKey], idKey !== 'member_id');
+            if (id === null) continue;
+            if (!names.has(id)) names.set(id, String(row[labelKey] || '#' + id));
         }
         return [...names].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR') || Number(a[0]) - Number(b[0]));
     }
@@ -108,15 +120,16 @@
         const member = params.get('cooperado') || '';
         const customer = params.get('cliente') || '';
         return {
-            memberId: /^[1-9]\d*$/.test(member) ? member : '',
-            customerId: /^(0|[1-9]\d*)$/.test(customer) ? customer : '',
+            memberId: normalizedId(member) || '',
+            customerId: normalizedId(customer, true) || '',
         };
     }
 
     function filteredUrl(href, {memberId = '', customerId = ''} = {}, clearSearch = false) {
         const url = new URL(href);
         for (const [key, value] of [['cooperado', memberId], ['cliente', customerId]]) {
-            if (value) url.searchParams.set(key, value);
+            const id = normalizedId(value, key === 'cliente');
+            if (id !== null) url.searchParams.set(key, id);
             else url.searchParams.delete(key);
         }
         url.searchParams.delete('dtpage');
@@ -125,8 +138,10 @@
     }
 
     function applyGridFilters(grid, memberId, customerId) {
-        grid.column(10).search(memberId ? '^' + memberId + '$' : '', true, false);
-        grid.column(11).search(customerId ? '^' + customerId + '$' : '', true, false);
+        const exact = (value, allowZero) => value === '' ? '' :
+            normalizedId(value, allowZero) !== null ? '^' + value + '$' : '(?!)';
+        grid.column(10).search(exact(memberId, false), true, false);
+        grid.column(11).search(exact(customerId, true), true, false);
     }
 
     function clearGridFilters(grid) {
@@ -204,8 +219,11 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = {duration, customerTotals, optionsFor, fillSelect, displayTotals,
-            requestedFilters, filteredUrl, applyGridFilters, clearGridFilters, initialize};
+        module.exports = {
+            duration, normalizedId, importedSeconds, customerTotals, optionsFor,
+            fillSelect, displayTotals, requestedFilters, filteredUrl,
+            applyGridFilters, clearGridFilters, initialize,
+        };
     } else {
         scope.addEventListener('DOMContentLoaded', () => { void initialize(); });
     }
