@@ -7,6 +7,7 @@ namespace App\Tests\Service\Nextcloud;
 use App\Service\Nextcloud\ProfileFieldsClient;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\HttpClient\Exception\TransportException;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -184,6 +185,54 @@ final class ProfileFieldsLinkTest extends TestCase
         ], true);
         self::assertSame('52998224725', $enriched['tax_number']);
         self::assertSame(0, $enriched['dependents']);
+    }
+
+    public function testReadOnlyKimaiLookupRetriesOnceAfterTransportFailure(): void
+    {
+        $calls = 0;
+        $http = new MockHttpClient(static function (string $method, string $url, array $options) use (&$calls): MockResponse {
+            ++$calls;
+            self::assertSame('POST', $method);
+            self::assertStringEndsWith('/users/lookup', $url);
+            self::assertSame(12.0, (float) $options['timeout']);
+            self::assertSame(15.0, (float) $options['max_duration']);
+            if ($calls === 1) {
+                throw new TransportException('Transient TLS failure');
+            }
+            return self::response(['user_uid' => 'nc-account', 'fields' => [
+                'kimai_user_id' => ['value' => ['value' => '17']],
+            ]]);
+        });
+        $linked = new ProfileFieldsClient($http, new NullLogger())->findByKimaiId(17);
+        self::assertSame('nc-account', $linked['uid']);
+        self::assertSame(2, $calls);
+    }
+
+    public function testMissingKimaiLinkDoesNotRetryHttp404(): void
+    {
+        $calls = 0;
+        $http = new MockHttpClient(static function () use (&$calls): MockResponse {
+            ++$calls;
+            return self::response(['message' => 'No match'], 404);
+        });
+        self::assertNull(new ProfileFieldsClient($http, new NullLogger())->findByKimaiId(40));
+        self::assertSame(1, $calls);
+    }
+
+    public function testNonLookupRequestsAreNeverRetried(): void
+    {
+        $calls = 0;
+        $http = new MockHttpClient(static function () use (&$calls): MockResponse {
+            ++$calls;
+            throw new TransportException('Transit failed');
+        });
+        try {
+            new ProfileFieldsClient($http, new NullLogger())->activeDefinitions();
+            self::fail('Expected transport error.');
+        } catch (TransportException $error) {
+            self::assertSame('Transit failed', $error->getMessage());
+        }
+        self::assertSame(1, $calls);
     }
 
     public function testAmbiguousLinkLookupDoesNotPickAnyUser(): void

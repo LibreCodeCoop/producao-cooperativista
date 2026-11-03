@@ -573,9 +573,6 @@
     <PossiblyUnusedMethod>
       <code><![CDATA[__construct]]></code>
     </PossiblyUnusedMethod>
-    <UnusedProperty>
-      <code><![CDATA[$logger]]></code>
-    </UnusedProperty>
   </file>
   <file src="src/Service/ProducaoCooperativista.php">
     <PossiblyUnusedMethod>

@@ -7,6 +7,7 @@ namespace App\Service\Nextcloud;
 use Psr\Log\LoggerInterface;
 use App\Service\Config\SourceEnvironment;
 use RuntimeException;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class ProfileFieldsClient
@@ -389,14 +390,35 @@ class ProfileFieldsClient
             ],
         ], $options);
 
-        $response = $this->httpClient->request($method, $url, $options);
+        // Only the exact Kimai link lookup is a read-only POST. Its response is
+        // safe to request once more after a transient network failure. Never
+        // retry writes, and never turn a genuine 404 into a fabricated link.
+        $retryableLookup = $method === 'POST'
+            && $path === '/ocs/v2.php/apps/profile_fields/api/v1/users/lookup';
+        if ($retryableLookup) {
+            $options['timeout'] = 12;
+            $options['max_duration'] = 15;
+        }
+        for ($attempt = 1; ; ++$attempt) {
+            try {
+                $response = $this->httpClient->request($method, $url, $options);
+                $statusCode = $response->getStatusCode();
+                $payload = ($statusCode === 404 && $allowNotFound) ? [] : $response->toArray(false);
+                break;
+            } catch (TransportExceptionInterface $error) {
+                if (!$retryableLookup || $attempt >= 2) {
+                    throw $error;
+                }
+                $this->logger->warning('Consulta de vínculo no Profile Fields falhou por transporte; repetindo uma vez.', [
+                    'attempt' => $attempt,
+                    'error_class' => $error::class,
+                ]);
+            }
+        }
 
-        $statusCode = $response->getStatusCode();
         if ($statusCode === 404 && $allowNotFound) {
             return [];
         }
-
-        $payload = $response->toArray(false);
 
         if ($statusCode < 200 || $statusCode >= 300) {
             throw new RuntimeException(sprintf(

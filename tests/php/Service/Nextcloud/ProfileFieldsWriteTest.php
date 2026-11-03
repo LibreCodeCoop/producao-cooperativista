@@ -7,6 +7,7 @@ namespace App\Tests\Service\Nextcloud;
 use App\Service\Nextcloud\ProfileFieldsClient;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\HttpClient\Exception\TransportException;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -53,6 +54,32 @@ final class ProfileFieldsWriteTest extends TestCase
         $client->updateUserField('member-01', 'weight', 2.5);
         self::assertSame(['weight' => 2.5], $client->getFieldsForUser('member-01'));
         self::assertSame(['GET', 'GET', 'PUT', 'GET', 'GET'], array_column($requests, 0));
+    }
+
+    public function testTransportErrorNeverRetriesAnAdministrativeFieldWrite(): void
+    {
+        $calls = [];
+        $http = new MockHttpClient(static function (string $method, string $url) use (&$calls): MockResponse {
+            $calls[] = $method;
+            if ($method === 'PUT') {
+                throw new TransportException('Uncertain write response');
+            }
+            if (str_ends_with($url, '/cloud/users/member-01')) {
+                $data = ['id' => 'member-01'];
+            } else {
+                $data = [['id' => 2, 'field_key' => 'weight', 'type' => 'number', 'active' => true]];
+            }
+            return new MockResponse((string) json_encode([
+                'ocs' => ['meta' => ['statuscode' => 200], 'data' => $data],
+            ]));
+        });
+        try {
+            new ProfileFieldsClient($http, new NullLogger())->updateUserField('member-01', 'weight', 2.5);
+            self::fail('The uncertain external write must not be replayed.');
+        } catch (TransportException $error) {
+            self::assertSame('Uncertain write response', $error->getMessage());
+        }
+        self::assertSame(['GET', 'GET', 'PUT'], $calls);
     }
 
     public function testCannotCreateOrphanedProfileValuesForUnknownUid(): void
