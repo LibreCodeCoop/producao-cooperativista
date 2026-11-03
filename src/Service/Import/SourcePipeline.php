@@ -140,8 +140,11 @@ final class SourcePipeline
                     $step->name(),
                     $profileHint !== '' ? $profileHint
                         : ($error instanceof TransportExceptionInterface
-                            ? ' SOURCE_CONNECTION_FAILED: serviço de origem não respondeu.'
-                            : ''),
+                            && $error->getMessage() === 'NEXTCLOUD_PROFILE_FIELDS_LOOKUP_UNAVAILABLE'
+                            ? ' SOURCE_CONNECTION_FAILED: Nextcloud Profile Fields não respondeu à consulta dos vínculos.'
+                            : ($error instanceof TransportExceptionInterface
+                                ? ' SOURCE_CONNECTION_FAILED: serviço de origem não respondeu.'
+                                : '')),
                 ), 0, $error);
             }
         }

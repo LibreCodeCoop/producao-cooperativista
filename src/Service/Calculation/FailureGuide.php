@@ -26,6 +26,11 @@ final readonly class FailureGuide
     {
         $message = mb_strtolower($rawMessage);
         return match (true) {
+            str_contains($message, 'source_connection_failed: nextcloud profile fields') => new self(
+                'SERVICO_INACESSIVEL',
+                'A API Nextcloud Profile Fields não respondeu à consulta de vínculo Kimai–Nextcloud.',
+                'Há uma falha intermitente de rede ou resposta da API de perfis do Nextcloud. Confira a latência do Nextcloud na competência indicada e tente importar novamente, sem presumir vínculos ou alterar dados fiscais. Não repita operações de publicação financeira antes de conciliar o resultado anterior.'
+            ),
             str_contains($message, 'source_connection_failed') => new self(
                 'SERVICO_INACESSIVEL',
                 'A conexão com uma integração expirou ou foi interrompida durante a importação.',

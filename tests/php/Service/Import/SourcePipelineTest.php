@@ -155,6 +155,35 @@ final class SourcePipelineTest extends TestCase
         }
     }
 
+    public function testNextcloudLinkTimeoutNamesActualSourceWithoutLeakingUpstreamError(): void
+    {
+        $pipeline = new SourcePipeline([
+            new class () implements SourceStep {
+                public function name(): string
+                {
+                    return 'kimai.users';
+                }
+                public function synchronize(DateTime $competence): void
+                {
+                    throw new \Symfony\Component\HttpClient\Exception\TransportException(
+                        'NEXTCLOUD_PROFILE_FIELDS_LOOKUP_UNAVAILABLE',
+                        0,
+                        new \RuntimeException('Sensitive upstream error: internal-token private'),
+                    );
+                }
+            },
+        ], new NullLogger(), new Dates(now: new DateTime('2026-11-01')));
+        try {
+            $pipeline->run(new DateTime('2026-10-01'));
+            self::fail('Source should not silently skip the failed lookup.');
+        } catch (RuntimeException $error) {
+            self::assertStringContainsString('SOURCE_CONNECTION_FAILED: Nextcloud Profile Fields', $error->getMessage());
+            self::assertStringContainsString('etapa kimai.users', $error->getMessage());
+            self::assertStringNotContainsString('internal-token', $error->getMessage());
+            self::assertSame('NEXTCLOUD_PROFILE_FIELDS_LOOKUP_UNAVAILABLE', $error->getPrevious()?->getMessage());
+        }
+    }
+
     public function testDuplicatedStageNamesAreRejected(): void
     {
         $events = new ArrayObject();

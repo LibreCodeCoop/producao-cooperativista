@@ -415,15 +415,18 @@ class ProfileFieldsClient
             ],
         ], $options);
 
-        // Only the exact Kimai link lookup is a read-only POST. Its response is
-        // safe to request once more after a transient network failure. Never
-        // retry writes, and never turn a genuine 404 into a fabricated link.
+        // The exact link lookup is an idempotent read-only POST. Retry only
+        // transport interruptions, not other POSTs, 404s or HTTP conflicts.
+        // The bounded retries recover transient ADA connectivity stalls without
+        // ever falling back to guessing identity from a username or stale data.
         $retryableLookup = $method === 'POST'
             && $path === '/ocs/v2.php/apps/profile_fields/api/v1/users/lookup';
         if ($retryableLookup) {
             $options['timeout'] = 12;
             $options['max_duration'] = 15;
         }
+        $startedAt = microtime(true);
+        $maxAttempts = $retryableLookup ? 3 : 1;
         for ($attempt = 1; ; ++$attempt) {
             try {
                 $response = $this->httpClient->request($method, $url, $options);
@@ -431,13 +434,26 @@ class ProfileFieldsClient
                 $payload = ($statusCode === 404 && $allowNotFound) ? [] : $response->toArray(false);
                 break;
             } catch (TransportExceptionInterface $error) {
-                if (!$retryableLookup || $attempt >= 2) {
+                if (!$retryableLookup) {
                     throw $error;
                 }
-                $this->logger->warning('Consulta de vínculo no Profile Fields falhou por transporte; repetindo uma vez.', [
+                // Keep logs free of user IDs, values, tokens and response bodies.
+                $context = [
                     'attempt' => $attempt,
+                    'max_attempts' => $maxAttempts,
+                    'elapsed_ms' => (int) round((microtime(true) - $startedAt) * 1000),
                     'error_class' => $error::class,
-                ]);
+                ];
+                if ($attempt >= $maxAttempts) {
+                    $this->logger->error('Nextcloud Profile Fields: consulta técnica esgotou as tentativas.', $context);
+                    throw new \Symfony\Component\HttpClient\Exception\TransportException(
+                        'NEXTCLOUD_PROFILE_FIELDS_LOOKUP_UNAVAILABLE',
+                        0,
+                        $error,
+                    );
+                }
+                $this->logger->warning('Nextcloud Profile Fields: consulta de vínculo temporariamente interrompida; repetindo leitura.', $context);
+                usleep($attempt * 150_000);
             }
         }
 

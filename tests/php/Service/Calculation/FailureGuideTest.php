@@ -23,6 +23,7 @@ final class FailureGuideTest extends TestCase
     public static function pastProductionErrors(): iterable
     {
         yield ['SOURCE_CONNECTION_FAILED: integração temporariamente indisponível', 'SERVICO_INACESSIVEL'];
+        yield ['SOURCE_CONNECTION_FAILED: Nextcloud Profile Fields não respondeu à consulta dos vínculos.', 'SERVICO_INACESSIVEL'];
         yield ['PROFILE_SOURCE: usuário Kimai #28 sem vínculo válido', 'PROFILE_SOURCE'];
         yield ['PROFILE_KIMAI_LINK: usuário Kimai #40', 'PROFILE_KIMAI_LINK'];
         yield ['PROFILE_ACCOUNTING_LINK: usuário Kimai #40', 'PROFILE_ACCOUNTING_LINK'];
@@ -41,6 +42,16 @@ final class FailureGuideTest extends TestCase
         yield ['Nenhuma hora: não há horas ponderadas', 'PESOS_HORAS'];
         yield ['Publicação bloqueada: já existe uma gravação pendente ou de resultado incerto.', 'PUBLICACAO_INCERTA'];
         yield ['Table report_test.publication_write_attempts does not exist', 'REGISTRO_PUBLICACAO_AUSENTE'];
+    }
+
+    public function testNextcloudConnectionGuideExplainsTheRealUnavailableService(): void
+    {
+        $guide = FailureGuide::diagnose(
+            'Falha na importação de 2026-10, etapa kimai.users. SOURCE_CONNECTION_FAILED: Nextcloud Profile Fields não respondeu à consulta dos vínculos.'
+        );
+        self::assertSame('SERVICO_INACESSIVEL', $guide->code);
+        self::assertStringContainsString('Nextcloud Profile Fields', $guide->summary);
+        self::assertStringContainsString('latência do Nextcloud', $guide->instructions);
     }
 
     public function testSseNeverLeaksRawDataFromExceptions(): void

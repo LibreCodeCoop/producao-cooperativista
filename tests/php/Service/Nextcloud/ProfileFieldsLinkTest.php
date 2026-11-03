@@ -208,6 +208,45 @@ final class ProfileFieldsLinkTest extends TestCase
         self::assertSame(2, $calls);
     }
 
+    public function testTwoTransientLookupTimeoutsRecoverOnThirdReadOnlyAttempt(): void
+    {
+        $attempts = 0;
+        $client = new MockHttpClient(static function (string $method, string $url, array $options) use (&$attempts): MockResponse {
+            ++$attempts;
+            self::assertSame('POST', $method);
+            self::assertStringEndsWith('/users/lookup', $url);
+            self::assertSame(12.0, (float) $options['timeout']);
+            self::assertSame(15.0, (float) $options['max_duration']);
+            if ($attempts < 3) {
+                throw new TransportException('Private upstream detail that must not enter the browser');
+            }
+            return self::response(['user_uid' => 'confirmed-uid', 'fields' => [
+                'kimai_user_id' => ['value' => ['value' => '39']],
+            ]]);
+        });
+        $matched = new ProfileFieldsClient($client, new NullLogger())->findByKimaiId(39);
+        self::assertSame('confirmed-uid', $matched['uid']);
+        self::assertSame(3, $attempts);
+    }
+
+    public function testExhaustedLookupRetriesUseSafeTypedExceptionWithOriginalCause(): void
+    {
+        $attempts = 0;
+        $client = new MockHttpClient(static function () use (&$attempts): MockResponse {
+            ++$attempts;
+            throw new TransportException('upstream secret: never present in generic failure summary');
+        });
+        try {
+            new ProfileFieldsClient($client, new NullLogger())->findByKimaiId(39);
+            self::fail('Three failed lookups must block the import and never invent a link.');
+        } catch (TransportException $error) {
+            self::assertSame(3, $attempts);
+            self::assertSame('NEXTCLOUD_PROFILE_FIELDS_LOOKUP_UNAVAILABLE', $error->getMessage());
+            self::assertStringNotContainsString('secret', $error->getMessage());
+            self::assertInstanceOf(TransportException::class, $error->getPrevious());
+        }
+    }
+
     public function testMissingKimaiLinkDoesNotRetryHttp404(): void
     {
         $calls = 0;
