@@ -210,3 +210,26 @@
     width:16px; height:16px; min-height:16px; flex:none; margin:0;
 }
 .member-contact-provision [data-contact-provision-create]:disabled {opacity:.55; cursor:not-allowed;}
+
+/* One Nextcloud identity for both independent system references. */
+.member-nextcloud-hub {
+    border:1px solid var(--line); border-radius:11px;
+    background:var(--brand-soft); padding:17px; margin-top:17px;
+}
+.member-nextcloud-hub h3 {font-size:15px; margin:0;}
+.member-nextcloud-hub .member-link-section-heading {margin-bottom:11px;}
+.member-nextcloud-hub .member-editor-description {margin:5px 0 0;}
+.member-nextcloud-hub .member-link-fields {max-width:520px;}
+.member-nextcloud-hub .member-link-fields label {display:block;}
+.member-link-overview {font-size:13px; margin:19px 0 -3px; font-weight:700;}
+.member-link-panel h4 {font-size:15px; font-weight:700; margin:0;}
+.member-link-state {
+    display:inline-flex; align-items:center; gap:6px;
+    border-radius:999px; padding:4px 10px; font-size:11px;
+    font-weight:650; color:var(--muted); background:var(--warning-bg);
+}
+.member-link-state.is-linked {color:var(--text); background:var(--brand-soft);}
+.member-link-description {margin:-7px 0 14px;}
+@media(max-width:620px) {
+    .member-nextcloud-hub .member-link-section-heading {align-items:flex-start;}
+}

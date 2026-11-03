@@ -121,11 +121,23 @@ final class SourceConfigurationUiTest extends TestCase
         $html = $this->twig()->render('configuracao/_member_editor.html.twig', $data);
         self::assertStringContainsString('Pessoa teste', $html);
         self::assertStringContainsString('Vínculos registrados', $html);
-        self::assertStringContainsString('Vínculos entre sistemas', $html);
+        self::assertStringContainsString('Vínculos desta conta', $html);
         self::assertStringNotContainsString('data-kimai-confirm', $html);
         self::assertStringContainsString('Contato financeiro', $html);
         self::assertStringContainsString('Selecionar contato existente', $html);
-        self::assertStringNotContainsString('<summary>Vínculos entre sistemas</summary>', $html);
+        self::assertSame(1, substr_count($html, 'name="nextcloud_uid"'));
+        self::assertSame(1, substr_count($html, 'id="member-uid-12"'));
+        self::assertStringContainsString('class="member-nextcloud-hub"', $html);
+        self::assertStringContainsString('Cadastro central do cooperado.', $html);
+        self::assertStringContainsString('Kimai</h4>', $html);
+        self::assertStringContainsString('Akaunting</h4>', $html);
+        self::assertStringContainsString('Vinculado', $html);
+        self::assertStringContainsString('Dados cadastrais no Nextcloud', $html);
+        self::assertLessThan(strpos($html, 'member-link-layout'), strpos($html, 'member-nextcloud-hub'));
+        self::assertLessThan(strpos($html, 'member-link-actions'), strpos($html, 'member-link-layout'));
+        self::assertLessThan(strpos($html, 'member-fields-main'), strpos($html, 'member-link-actions'));
+
+        self::assertStringNotContainsString('<summary>Vínculos desta conta</summary>', $html);
         self::assertStringContainsString('class="member-link-layout"', $html);
         self::assertSame(1, substr_count($html, '>Salvar vínculos</button>'));
         self::assertSame(1, substr_count($html, 'name="field" value="tax_number"'));
@@ -149,7 +161,7 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('Dependentes:', $reader);
         foreach (['SYNTHETIC', 'fake-user', 'value="35"', 'ID 12',
             'name="_token"', 'name="akaunting_contact_id"',
-            'name="field" value="tax_number"', 'Vínculos entre sistemas'] as $private) {
+            'name="field" value="tax_number"', 'Vínculos desta conta'] as $private) {
             self::assertStringNotContainsString($private, $reader);
         }
 
@@ -175,11 +187,18 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringNotContainsString('data-links-prepare', $html);
         self::assertStringContainsString('Criar novo contato', $html);
         self::assertStringContainsString('data-contact-provision-open', $html);
+        self::assertSame(1, substr_count($html, 'name="nextcloud_uid"'));
+        self::assertStringContainsString('member-nextcloud-hub', $html);
+        self::assertStringContainsString('Vínculos desta conta', $html);
+        self::assertStringContainsString('Kimai</h4>', $html);
+        self::assertStringContainsString('Akaunting</h4>', $html);
+        self::assertSame(2, substr_count($html, 'class="member-link-state"'));
+
         self::assertStringContainsString('Verificar antes de criar', $html);
         self::assertStringContainsString('data-contact-provision-panel', $html);
         self::assertStringNotContainsString('data-contact-provision-panel hidden', $html);
         self::assertStringContainsString('data-contact-provision-confirm', $html);
-        self::assertStringContainsString('Registra os vínculos no Nextcloud. Não cria contatos no Akaunting.', $html);
+        self::assertStringContainsString('Registra os IDs do Kimai e do contato financeiro na conta Nextcloud selecionada. Não cria contatos.', $html);
         self::assertSame(1, substr_count($html, 'name="akaunting_contact_id"'));
         self::assertStringNotContainsString('member-editor-advanced', $html);
     }

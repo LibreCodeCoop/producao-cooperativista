@@ -9,31 +9,41 @@
         </span>
     </header>
 
-    <section class="member-fields-main">
-        <h3>Dados do cooperado</h3>
-        {% if services.nextcloud.error %}
-            <p class="member-editor-source-error" role="note">{{ services.nextcloud.error }}</p>
-        {% endif %}
-        {% for item in services.nextcloud.fields %}
-            {% if can_manage %}
-                {{ include('configuracao/_member_field.html.twig', {source:'nextcloud', item:item}) }}
-            {% elseif item.field != 'tax_number' %}
-                <p class="member-editor-description"><strong>{{ item.label }}:</strong> {{ item.value is not empty ? item.value : 'Não informado' }}</p>
-            {% endif %}
-        {% endfor %}
-    </section>
-
     {% if can_manage %}
         <form method="post" class="member-link-form" action="/configuracao/cooperado/{{ member.id }}/vincular" autocomplete="off">
             <input type="hidden" name="_token" value="{{ token }}">
+            <section class="member-nextcloud-hub" aria-labelledby="member-nextcloud-title-{{ member.id }}">
+                <div class="member-link-section-heading">
+                    <div>
+                        <h3 id="member-nextcloud-title-{{ member.id }}">Conta Nextcloud</h3>
+                        <p class="member-editor-description">Cadastro central do cooperado. Os dois vínculos abaixo pertencem a esta conta.</p>
+                    </div>
+                    <span class="member-link-system-tag">Cadastro principal</span>
+                </div>
+                <div class="member-link-fields">
+                    <div>
+                        <label for="member-uid-{{ member.id }}">Conta Nextcloud selecionada</label>
+                        <input id="member-uid-{{ member.id }}" type="search" name="nextcloud_uid"
+                               value="{{ link.uid|default('') }}" data-link-source="nextcloud"
+                               list="nc-users-{{ member.id }}" placeholder="Buscar conta" required>
+                        <datalist id="nc-users-{{ member.id }}"></datalist>
+                    </div>
+                </div>
+            </section>
+            <h3 class="member-link-overview">Vínculos desta conta</h3>
             <div class="member-link-layout">
                 <section class="member-link-panel member-link-identity" aria-labelledby="member-links-title-{{ member.id }}">
                     <div class="member-link-section-heading">
-                        <h3 id="member-links-title-{{ member.id }}">Vínculos entre sistemas</h3>
+                        <h4 id="member-links-title-{{ member.id }}">Kimai</h4>
                         {% if link.needs_fields|default(false) %}
                             <button type="button" class="button member-link-prepare" data-links-prepare>Preparar campos</button>
+                        {% else %}
+                            <span class="member-link-state{{ link.kimai_linked|default(false) ? ' is-linked' : '' }}">
+                                {{ link.kimai_linked|default(false) ? 'Vinculado' : 'Pendente' }}
+                            </span>
                         {% endif %}
                     </div>
+                    <p class="member-editor-description member-link-description">Usuário do Kimai associado à conta Nextcloud acima.</p>
                     <div class="member-link-fields">
                         <div>
                             <label for="member-kimai-{{ member.id }}">ID do usuário Kimai</label>
@@ -42,13 +52,6 @@
                             {% if not link.kimai_linked|default(false) %}
                                 <small class="member-contact-pending">Obtido do Kimai · ainda não vinculado no Nextcloud</small>
                             {% endif %}
-                        </div>
-                        <div>
-                            <label for="member-uid-{{ member.id }}">Conta Nextcloud</label>
-                            <input id="member-uid-{{ member.id }}" type="search" name="nextcloud_uid"
-                                   value="{{ link.uid|default('') }}" data-link-source="nextcloud"
-                                   list="nc-users-{{ member.id }}" placeholder="Buscar conta" required>
-                            <datalist id="nc-users-{{ member.id }}"></datalist>
                         </div>
                     </div>
                     {% if not link.kimai_linked|default(false) %}
@@ -63,9 +66,12 @@
 
                 <section class="member-link-panel member-link-accounting" aria-labelledby="member-accounting-title-{{ member.id }}">
                     <div class="member-link-section-heading">
-                        <h3 id="member-accounting-title-{{ member.id }}">Contato financeiro</h3>
-                        <span class="member-link-system-tag">Akaunting</span>
+                        <h4 id="member-accounting-title-{{ member.id }}">Akaunting</h4>
+                        <span class="member-link-state{{ link.contact_id|default('') is not empty ? ' is-linked' : '' }}">
+                            {{ link.contact_id|default('') is not empty ? 'Vinculado' : 'Pendente' }}
+                        </span>
                     </div>
+                    <p class="member-editor-description member-link-description">Contato financeiro vinculado à mesma conta Nextcloud.</p>
                     <div class="member-link-fields">
                         <div>
                             <label for="member-contact-{{ member.id }}">Selecionar contato existente</label>
@@ -104,9 +110,23 @@
                 </section>
             </div>
             <div class="member-link-actions">
-                <p>Registra os vínculos no Nextcloud. Não cria contatos no Akaunting.</p>
+                <p>Registra os IDs do Kimai e do contato financeiro na conta Nextcloud selecionada. Não cria contatos.</p>
                 <button type="submit" class="button button-primary">Salvar vínculos</button>
             </div>
         </form>
     {% endif %}
+    <section class="member-fields-main">
+        <h3>Dados cadastrais no Nextcloud</h3>
+        {% if services.nextcloud.error %}
+            <p class="member-editor-source-error" role="note">{{ services.nextcloud.error }}</p>
+        {% endif %}
+        {% for item in services.nextcloud.fields %}
+            {% if can_manage %}
+                {{ include('configuracao/_member_field.html.twig', {source:'nextcloud', item:item}) }}
+            {% elseif item.field != 'tax_number' %}
+                <p class="member-editor-description"><strong>{{ item.label }}:</strong> {{ item.value is not empty ? item.value : 'Não informado' }}</p>
+            {% endif %}
+        {% endfor %}
+    </section>
+
 </section>

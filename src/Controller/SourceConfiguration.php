@@ -426,7 +426,7 @@ final class SourceConfiguration extends AbstractController
                     }
                     $services['nextcloud']['configured'] = true;
                 } else {
-                    $services['nextcloud']['error'] = 'Vínculo Kimai-Nextcloud pendente. Confirme as contas na seção Vínculos entre sistemas para editar CPF/CNPJ, peso e dependentes.';
+                    $services['nextcloud']['error'] = 'Vínculo Kimai-Nextcloud pendente. Confirme a conta no cartão Kimai para editar CPF/CNPJ, peso e dependentes.';
                 }
             } else {
                 $services['nextcloud']['error'] = 'Escolha a conta Nextcloud para continuar.';
