@@ -6,6 +6,7 @@
         margin: 0 0 12px;
     }
 }
+/* Common text and form controls across separate settings components. */
 .settings-section-heading p,
 .settings-source p {
     color: #455f69;
@@ -232,14 +233,16 @@
     padding: 5px 9px;
     border-radius: 999px;
     font-weight: 700;
-}
-.settings-chip-ok {
-    background: #e7f6f0;
-    color: #176b4c;
-}
-.settings-chip-warn {
-    background: #fff0df;
-    color: #744b20;
+
+    &-ok {
+        background: #e7f6f0;
+        color: #176b4c;
+    }
+
+    &-warn {
+        background: #fff0df;
+        color: #744b20;
+    }
 }
 .settings-edit-field {
     border-top: 1px solid #dfebea;
@@ -326,12 +329,14 @@
         color: var(--muted);
         font-variant-numeric: tabular-nums;
     }
-}
-.settings-config-state.is-configured {
-    color: var(--brand);
-}
-.settings-config-state.is-incomplete {
-    color: var(--danger);
+
+    &.is-configured {
+        color: var(--brand);
+    }
+
+    &.is-incomplete {
+        color: var(--danger);
+    }
 }
 .settings-footnote {
     font-size: 13px;
@@ -419,22 +424,28 @@
         resize: vertical;
     }
 }
-.page-content .admin-settings-input .admin-settings-reveal {
-    flex: 0 0 auto;
-    min-height: 40px;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: var(--surface);
-    color: var(--brand);
-    padding: 8px 12px;
-    cursor: pointer;
-    font: inherit;
-    font-size: 12px;
-    &:hover {
-        background: var(--brand-soft);
-        color: var(--brand-deep);
+.page-content {
+    .admin-settings-input {
+        .admin-settings-reveal {
+            flex: 0 0 auto;
+            min-height: 40px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--surface);
+            color: var(--brand);
+            padding: 8px 12px;
+            cursor: pointer;
+            font: inherit;
+            font-size: 12px;
+
+            &:hover {
+                background: var(--brand-soft);
+                color: var(--brand-deep);
+            }
+        }
     }
 }
+
 .admin-settings-actions {
     display: flex;
     align-items: center;
@@ -454,8 +465,10 @@
     .admin-settings-fields {
         grid-template-columns: 1fr;
     }
-    .admin-settings-group > summary {
-        align-items: flex-start;
-        flex-direction: column;
+    .admin-settings-group {
+        > summary {
+            align-items: flex-start;
+            flex-direction: column;
+        }
     }
 }

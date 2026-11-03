@@ -123,9 +123,10 @@ table.dataTable > tbody > tr:nth-child(even):not(.selected) {
     .header-nav-link {
         background: var(--brand-soft);
         color: var(--brand-deep);
-    }
-    .header-nav-link:hover {
-        background: #315751;
+
+        &:hover {
+            background: #315751;
+        }
     }
     .report-number,
     .fact-icon-safe {
@@ -136,16 +137,19 @@ table.dataTable > tbody > tr:nth-child(even):not(.selected) {
         background: #203b36;
         color: var(--text);
         border-color: #426d62;
-    }
-    .action-link:hover {
-        background: #294c43;
-    }
-    .action-link-danger {
-        background: #3a272c;
-        border-color: #785257;
-    }
-    .action-link-danger:hover {
-        background: var(--danger-soft);
+
+        &:hover {
+            background: #294c43;
+        }
+
+        &-danger {
+            background: #3a272c;
+            border-color: #785257;
+        }
+
+        &-danger:hover {
+            background: var(--danger-soft);
+        }
     }
     .fact-icon-next {
         background: #263c55;
@@ -153,9 +157,10 @@ table.dataTable > tbody > tr:nth-child(even):not(.selected) {
     }
     .information-note {
         background: #203e3a;
-    }
-    .information-note p {
-        color: #bed7d2;
+
+        p {
+            color: #bed7d2;
+        }
     }
     .technical-details summary {
         color: var(--brand-deep);
@@ -169,10 +174,11 @@ table.dataTable > tbody > tr:nth-child(even):not(.selected) {
     .result-message {
         background: #1d4037;
         border-color: #507e70;
-    }
-    .result-message-error {
-        background: var(--danger-soft);
-        border-color: #94605e;
+
+        &-error {
+            background: var(--danger-soft);
+            border-color: #94605e;
+        }
     }
     code {
         background: #293f49;
@@ -201,13 +207,16 @@ table.dataTable > tbody > tr:nth-child(even):not(.selected) {
         color: #b5c4cb;
         opacity: 1;
     }
-    .page-content form button:not(.button) {
-        background: #26776f;
-        border-color: #4b9b8e;
-        color: #fff;
-    }
-    .page-content form button:not(.button):hover {
-        background: #328c80;
+    .page-content {
+        form button:not(.button) {
+            background: #26776f;
+            border-color: #4b9b8e;
+            color: #fff;
+
+            &:hover {
+                background: #328c80;
+            }
+        }
     }
     .button-danger:disabled {
         background: #475157;
@@ -224,35 +233,41 @@ table.dataTable > tbody > tr:nth-child(even):not(.selected) {
     table.dataTable :is(thead th, tfoot th, tbody td) {
         border-color: var(--line);
     }
-    .dt-container .dt-buttons .dt-button,
-    .dt-container .dt-paging .dt-paging-button {
-        color: var(--text) !important;
-        border: 1px solid var(--line) !important;
-        background: #263c46 !important;
-        box-shadow: none;
-    }
-    .dt-container .dt-buttons .dt-button:hover:not(.disabled),
-    .dt-container .dt-paging .dt-paging-button:hover:not(.disabled) {
-        background: #36535e !important;
-        color: #fff !important;
-    }
-    .dt-container .dt-paging .dt-paging-button.current {
-        background: #33594f !important;
-        border-color: #83cdbd !important;
-        color: #fff !important;
+    .dt-container {
+        .dt-buttons .dt-button,
+        .dt-paging .dt-paging-button {
+            color: var(--text) !important;
+            border: 1px solid var(--line) !important;
+            background: #263c46 !important;
+            box-shadow: none;
+        }
+
+        .dt-buttons .dt-button:hover:not(.disabled),
+        .dt-paging .dt-paging-button:hover:not(.disabled) {
+            background: #36535e !important;
+            color: #fff !important;
+        }
+
+        .dt-paging .dt-paging-button.current {
+            background: #33594f !important;
+            border-color: #83cdbd !important;
+            color: #fff !important;
+        }
     }
     .dt-button-collection {
         background: var(--surface);
         color: var(--text);
         border: 1px solid var(--line);
-    }
-    .dt-button-collection .dt-button {
-        background: #263c46;
-        color: var(--text);
-        border-color: var(--line);
-    }
-    .dt-button-collection .dt-button:hover {
-        background: #36535e;
+
+        .dt-button {
+            background: #263c46;
+            color: var(--text);
+            border-color: var(--line);
+
+            &:hover {
+                background: #36535e;
+            }
+        }
     }
     table.dataTable > tbody > tr.selected > * {
         box-shadow: inset 0 0 0 9999px #305e70;
@@ -268,29 +283,35 @@ table.dataTable > tbody > tr:nth-child(even):not(.selected) {
     .calc-notice {
         background: #203d39;
         color: var(--text);
-    }
-    .calc-notice-warning {
-        background: #423321;
-        color: #ffe2b8;
-    }
-    .calc-notice-error {
-        background: #482a2b;
-        color: #ffd7d2;
+
+        &-warning {
+            background: #423321;
+            color: #ffe2b8;
+        }
+
+        &-error {
+            background: #482a2b;
+            color: #ffd7d2;
+        }
     }
     .calc-instructions {
         color: var(--muted);
     }
-    .calc-report thead th {
-        background: #293e49;
-        color: #e2eff4;
-    }
-    .calc-report .calc-formula {
-        color: #d4e3e8;
-    }
-    .calc-report .calc-definition {
-        background: #142630;
-        border-color: #7695a1;
-        color: var(--text);
+    .calc-report {
+        thead th {
+            background: #293e49;
+            color: #e2eff4;
+        }
+
+        .calc-formula {
+            color: #d4e3e8;
+        }
+
+        .calc-definition {
+            background: #142630;
+            border-color: #7695a1;
+            color: var(--text);
+        }
     }
     .calc-definition::after {
         background: #213842;
@@ -302,11 +323,14 @@ table.dataTable > tbody > tr:nth-child(even):not(.selected) {
     .calc-report tbody th[data-highlight-key]:focus-visible {
         outline-color: #9fdbee;
     }
-    .calc-help-content :is(p, li) {
-        color: var(--muted);
-    }
-    .calc-help-content section:target {
-        background: #24403b;
+    .calc-help-content {
+        :is(p, li) {
+            color: var(--muted);
+        }
+
+        section:target {
+            background: #24403b;
+        }
     }
 
     /* Source configuration and operational feedback. */
@@ -326,29 +350,34 @@ table.dataTable > tbody > tr:nth-child(even):not(.selected) {
         background: #26776f;
         border-color: #4b9b8e;
         color: #fff;
-    }
-    .settings-primary:hover {
-        background: #328c80;
+
+        &:hover {
+            background: #328c80;
+        }
     }
     .settings-note {
         background: #203c3c;
         color: #dcefed;
         border-color: #507b7b;
     }
-    .settings-alert.settings-error {
-        background: #493126;
-        color: #ffe0c6;
-        border-color: #9a6d51;
-    }
-    .settings-alert.settings-success {
-        background: #254332;
-        color: #d3f7dc;
-        border-color: #59886b;
-    }
-    .settings-alert.settings-notice {
-        background: #243c4a;
-        color: #e1f0ff;
-        border-color: #6189a0;
+    .settings-alert {
+        &.settings-error {
+            background: #493126;
+            color: #ffe0c6;
+            border-color: #9a6d51;
+        }
+
+        &.settings-success {
+            background: #254332;
+            color: #d3f7dc;
+            border-color: #59886b;
+        }
+
+        &.settings-notice {
+            background: #243c4a;
+            color: #e1f0ff;
+            border-color: #6189a0;
+        }
     }
     .settings-summary span {
         background: #263e44;
@@ -363,13 +392,16 @@ table.dataTable > tbody > tr:nth-child(even):not(.selected) {
     .settings-shortcuts a {
         color: var(--brand);
     }
-    .settings-chip-ok {
-        background: #244d39;
-        color: #c6efcf;
-    }
-    .settings-chip-warn {
-        background: #4c3922;
-        color: #ffe2b8;
+    .settings-chip {
+        &-ok {
+            background: #244d39;
+            color: #c6efcf;
+        }
+
+        &-warn {
+            background: #4c3922;
+            color: #ffe2b8;
+        }
     }
     .settings-edit-field {
         border-color: var(--line);
@@ -379,18 +411,21 @@ table.dataTable > tbody > tr:nth-child(even):not(.selected) {
     .alert {
         background: #4b2d2d;
         color: #ffe1df;
-    }
-    .alert.info {
-        background: #253f53;
-        color: #d6edff;
-    }
-    .alert.warning {
-        background: #4b3921;
-        color: #ffe6b5;
-    }
-    .alert.success {
-        background: #234336;
-        color: #d1f2df;
+
+        &.info {
+            background: #253f53;
+            color: #d6edff;
+        }
+
+        &.warning {
+            background: #4b3921;
+            color: #ffe6b5;
+        }
+
+        &.success {
+            background: #234336;
+            color: #d1f2df;
+        }
     }
 }
 
@@ -407,11 +442,14 @@ table.dataTable > tbody > tr:nth-child(even):not(.selected) {
     }
 }
 
-:root[data-theme="dark"] .header-nav-link[aria-current="page"] {
-    background: #2b8075;
-    color: #fff;
-}
-:root[data-theme="dark"] .header-nav-link[aria-current="page"]:hover {
-    background: #347f76;
-    color: #fff;
+:root[data-theme="dark"] {
+    .header-nav-link[aria-current="page"] {
+        background: #2b8075;
+        color: #fff;
+
+        &:hover {
+            background: #347f76;
+            color: #fff;
+        }
+    }
 }

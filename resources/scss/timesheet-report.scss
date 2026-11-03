@@ -82,9 +82,11 @@
     }
 }
 
-#example .timesheet-description {
-    min-width: 220px;
-    max-width: 520px;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
+#example {
+    .timesheet-description {
+        min-width: 220px;
+        max-width: 520px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
 }
