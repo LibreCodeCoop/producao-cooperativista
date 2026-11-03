@@ -209,13 +209,18 @@
                 const id = String(pick.dataset.contactPick || '');
                 if (!/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(Number(id))) return true;
                 input.value = id;
-                panel.querySelector('[data-contact-provision-panel]').hidden = true;
+                if (existing) existing.hidden = true;
+                if (newContact) newContact.hidden = true;
+                if (createButton) createButton.disabled = true;
+                output.textContent = 'Contato #' + id + ' selecionado. Salve os vínculos para associá-lo.';
                 resultFeedback.textContent = 'Contato #' + id + ' selecionado. Clique em Salvar vínculos para associá-lo.';
                 return true;
             }
             if (trigger) {
-                const body = panel.querySelector('[data-contact-provision-panel]');
-                body.hidden = false;
+                if (input.value.trim() !== '') {
+                    output.textContent = 'Já há um contato selecionado. Limpe o campo para verificar outro.';
+                    return true;
+                }
                 if (confirmed) confirmed.checked = false;
                 if (createButton) createButton.disabled = true;
                 if (existing) existing.hidden = true;
@@ -266,7 +271,7 @@
                 return true;
             }
             if (create) {
-                if (create.disabled || !confirmed?.checked || !name?.value.trim()
+                if (create.disabled || !confirmed?.checked || !name?.value.trim() || input.value.trim() !== ''
                     || uid.value.trim() !== panel.dataset.confirmedUid) return true;
                 create.disabled = true;
                 output.textContent = 'Criando o contato no Akaunting…';
@@ -284,7 +289,8 @@
                         throw new Error('O Akaunting não confirmou o ID. Verifique a origem antes de tentar de novo.');
                     }
                     input.value = String(id);
-                    panel.querySelector('[data-contact-provision-panel]').hidden = true;
+                    if (newContact) newContact.hidden = true;
+                    output.textContent = 'Contato #' + id + ' criado. Salve os vínculos para associá-lo.';
                     resultFeedback.textContent = result.message || 'Contato criado. Salve o vínculo para associá-lo.';
                     if (win.CustomEvent) doc.dispatchEvent?.(new win.CustomEvent('member-source-changed', {
                         detail:{source:'akaunting'},
@@ -305,7 +311,7 @@
                 return;
             }
             if (event.target?.closest?.('[data-links-prepare]')) {
-                const form = content.querySelector('.member-link-form');
+                const form = event.target.closest?.('.member-link-form') || content.querySelector('.member-link-form');
                 if (form) void submitLinks(form, '/configuracao/vinculos/preparar');
                 return;
             }
@@ -331,7 +337,7 @@
                 ?.querySelector?.('[data-standalone-feedback]') || feedback;
             if (form?.classList?.contains?.('member-link-form')) {
                 event.preventDefault();
-                if (activeUrl) void submitLinks(form, form.action);
+                if (activeUrl || standalone) void submitLinks(form, form.action);
                 return;
             }
             if (!form?.matches?.('.member-editor-field') || !activeUrl) return;

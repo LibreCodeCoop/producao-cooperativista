@@ -111,55 +111,92 @@
 .page-content .member-editor-field .member-editor-copy { border:0; background:transparent; color:var(--brand); font:inherit; font-size:12px; padding:8px 0 0; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
 .page-content .member-editor-field .member-editor-copy:hover { background:transparent; color:var(--brand-deep); }
 
-.member-link-panel, .member-fields-main, .member-editor-advanced {
+.member-fields-main, .member-link-panel {
     border:1px solid var(--line); border-radius:11px; padding:17px;
     margin:14px 0; background:var(--surface);
 }
-.member-link-title { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-.member-link-panel h3, .member-fields-main h3 { font-size:15px; margin:0 0 11px; }
-.member-link-origin { font-size:12px; color:var(--muted); margin:0 0 12px; }
-.member-link-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
-.member-link-fields label { font-size:12px; font-weight:650; display:block; margin-bottom:6px; }
-.member-link-fields input {
+.member-fields-main h3, .member-link-panel h3 {font-size:15px; margin:0;}
+.member-link-layout {
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:14px; margin-top:13px; align-items:stretch;
+}
+.member-link-panel {margin:0; min-width:0;}
+.member-link-section-heading {
+    display:flex; align-items:center; justify-content:space-between;
+    flex-wrap:wrap; gap:8px; margin-bottom:16px;
+}
+.member-link-system-tag {
+    display:inline-flex; border:1px solid var(--line); border-radius:6px;
+    padding:3px 8px; color:var(--muted); font-size:11px; font-weight:650;
+}
+.member-link-fields {display:grid; grid-template-columns:minmax(0,1fr); gap:13px;}
+.member-link-fields label, .member-contact-provision label {
+    font-size:12px; font-weight:650; display:block; margin-bottom:6px;
+}
+.member-link-fields input, .member-contact-provision input[type="text"] {
     width:100%; min-width:0; box-sizing:border-box; min-height:40px;
     border:1px solid var(--line); border-radius:8px;
     color:var(--text); background:var(--surface); padding:8px 11px; font:inherit;
 }
-.member-link-actions { display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin-top:14px; }
-.member-link-prepare { background:transparent; border:0; color:var(--brand); padding:9px 0; cursor:pointer; font:inherit; font-size:12px; text-decoration:underline; }
-.member-fields-main .member-editor-field { display:inline-block; vertical-align:top; width:min(100%,290px); margin-right:12px; }
-.member-editor-advanced summary { cursor:pointer; font-weight:650; font-size:13px; }
-.member-editor-advanced .member-editor-sources { margin-bottom:0; }
+.member-contact-pending {display:block; margin-top:5px; color:var(--muted); font-size:11px; line-height:1.5;}
+.member-link-actions {
+    display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between;
+    gap:12px; margin-top:14px; padding:13px 17px;
+    border:1px solid var(--line); border-radius:11px;
+    background:var(--surface);
+}
+.member-link-actions p {margin:0; font-size:12px; line-height:1.5; color:var(--muted);}
+.member-link-actions .button-primary {
+    margin-left:auto; background:var(--brand); color:#fff;
+    border-color:var(--brand);
+}
+.member-link-actions .button-primary:hover:not(:disabled) {
+    background:var(--brand-deep); color:#fff;
+}
+.member-link-prepare {
+    background:transparent; border:0; color:var(--brand); padding:3px 0;
+    min-height:unset; font-weight:650; cursor:pointer;
+    font-size:12px; text-decoration:underline; text-underline-offset:3px;
+}
+.member-fields-main .member-editor-field {
+    display:inline-block; vertical-align:top; width:min(100%,290px); margin-right:12px;
+}
+@media(max-width:760px) {
+    .member-link-layout {grid-template-columns:minmax(0,1fr);}
+    .member-link-actions {align-items:stretch;}
+    .member-link-actions .button-primary {margin-left:0;}
+}
 @media(max-width:620px) {
-    .member-editor-fiscal-status > div { grid-template-columns:1fr; gap:3px; }
+    .member-fields-main .member-editor-field {display:block; width:100%;}
 }
-@media(max-width:620px) { .member-link-fields { grid-template-columns:1fr; } .member-fields-main .member-editor-field { display:block; width:100%; } }
 
-/* Existing contact selection and explicit creation are separate actions. */
-.member-contact-provision {margin-top:8px;}
-.member-contact-trigger {
-    border:0; background:transparent; padding:5px 0; color:var(--brand);
-    font:inherit; font-size:12px; font-weight:700; cursor:pointer;
-    text-decoration:underline; text-underline-offset:3px;
+/* The financial contact card is independent from saving Nextcloud links. */
+.member-contact-provision {
+    border-top:1px solid var(--line); margin-top:17px; padding-top:15px;
 }
-.member-contact-provision-panel {
-    margin-top:9px; padding:12px; border:1px solid var(--line);
-    border-radius:9px; background:var(--brand-soft);
+.member-contact-provision h4 {margin:0 0 4px; font-size:13px; font-weight:700;}
+.member-contact-provision .member-editor-description {margin:0 0 10px;}
+.member-contact-verify {font-size:12px; min-height:36px;}
+.member-contact-provision [data-contact-provision-panel] > p {
+    margin:10px 0 0; font-size:12px; line-height:1.5;
 }
-.member-contact-provision-panel[hidden],
-.member-contact-provision-panel [hidden] {display:none;}
-.member-contact-provision-panel p {margin:0 0 10px; font-size:12px; line-height:1.5;}
-.member-contact-provision-panel .member-contact-choice {
-    display:block; width:100%; margin:7px 0; padding:9px 10px; font:inherit;
-    text-align:left; color:var(--text); border:1px solid var(--line);
-    border-radius:7px; background:var(--surface); cursor:pointer;
+.member-contact-provision [data-contact-provision-panel] > p:empty {display:none;}
+.member-contact-provision [hidden] {display:none;}
+.member-contact-provision [data-contact-provision-new] {
+    margin-top:12px; padding-top:12px; border-top:1px dashed var(--line);
 }
-.member-contact-provision-panel .member-contact-choice:hover {border-color:var(--brand);}
-.member-contact-provision-panel .member-contact-confirmation {
-    display:flex; gap:8px; align-items:start; margin:10px 0;
+.member-contact-provision .member-contact-choice {
+    display:block; width:100%; margin:8px 0; padding:9px 10px;
+    text-align:left; color:var(--text); font:inherit; font-size:12px;
+    border:1px solid var(--line); border-radius:7px;
+    background:var(--surface); cursor:pointer;
+}
+.member-contact-provision .member-contact-choice:hover {border-color:var(--brand);}
+.member-contact-provision .member-contact-confirmation {
+    display:flex; align-items:center; gap:8px; margin:12px 0;
     font-size:12px; font-weight:600;
 }
-.member-contact-provision-panel .member-contact-confirmation input {
+.member-contact-provision .member-contact-confirmation input {
     width:16px; height:16px; min-height:16px; flex:none; margin:0;
 }
-.member-contact-provision-panel [data-contact-provision-create]:disabled {opacity:.55; cursor:not-allowed;}
+.member-contact-provision [data-contact-provision-create]:disabled {opacity:.55; cursor:not-allowed;}

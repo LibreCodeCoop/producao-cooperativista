@@ -20,12 +20,14 @@ function node() {
 
 function fixture({failGet=false, failPost=false, changed=true,
     contactStatus='available', contactCreateFails=false, contactUid='luis.souza', contacts=[],
-    location='https://host.test/relatorios/producao?ano-mes=2026-08'} = {}) {
+    standalone=false, location='https://host.test/relatorios/producao?ano-mes=2026-08'} = {}) {
     const dialog=node();
     dialog.open=false;
     dialog.showModal=()=>{dialog.open=true;};
     dialog.close=()=>{dialog.open=false;};
-    const content=node(), feedback=node();
+    const content=node(), feedback=node(), standaloneElement=node(), standaloneFeedback=node();
+    let reloads=0;
+    standaloneElement.querySelector=sel=>sel==='[data-standalone-feedback]'?standaloneFeedback:null;
     const items={
         'member-editor-dialog':dialog,
         'member-editor-content':content,
@@ -34,6 +36,7 @@ function fixture({failGet=false, failPost=false, changed=true,
     const handlers=new Map(),dispatched=[];
     const doc={
         getElementById:id=>items[id],
+        querySelector:sel=>standalone && sel==='[data-member-editor-standalone]'?standaloneElement:null,
         createElement:() => ({...node(), dataset:{}, children:[],
             appendChild(child){this.children.push(child);}, replaceChildren(...children){this.children=children;}}),
         addEventListener:(type,cb)=>handlers.set(type,cb),
@@ -42,6 +45,7 @@ function fixture({failGet=false, failPost=false, changed=true,
     };
     const calls=[];
     const loc=new URL(location);
+    loc.reload=()=>{reloads++;};
     const options={
         location:loc,
         window:{location:loc,CustomEvent:class {constructor(name,params){this.type=name;this.detail=params?.detail;}}},
@@ -70,7 +74,8 @@ function fixture({failGet=false, failPost=false, changed=true,
         },
     };
     const controller=initialize(doc,options);
-    return {doc,dialog,content,feedback,calls,dispatched,controller,loc};
+    return {doc,dialog,content,feedback,calls,dispatched,controller,loc,standaloneElement,standaloneFeedback,
+        reloadCount:()=>reloads};
 }
 
 test('editor URL only accepts the same-origin, positive Kimai ID and known path', () => {
@@ -217,7 +222,7 @@ test('field save buttons activate only after an actual edit', () => {
 function provisionWidget(f) {
     const contact={value:''}, uid={value:'luis.souza'},
         name={value:''},confirm={checked:false},create={disabled:true};
-    const body={hidden:true},newFields={hidden:true},status={textContent:''},
+    const body={hidden:false},newFields={hidden:true},status={textContent:''},
         existing={hidden:true,children:[],appendChild(child){this.children.push(child);},
             replaceChildren(...items){this.children=items;}};
     const form={
@@ -304,7 +309,8 @@ test('creating a new Akaunting contact is explicit and never auto-links Nextclou
         assert.equal(f.calls[2].config.body.fields.contact_name,'Luiz Amorim');
         assert.equal(f.calls[2].config.body.fields.identity_confirmed,'1');
         assert.equal(widget.contact.value,'91');
-        assert.equal(widget.body.hidden,true);
+        assert.equal(widget.body.hidden,false, 'The financial contact section does not collapse');
+        assert.equal(widget.newFields.hidden,true, 'Creation inputs disappear after confirmed creation');
         assert.equal(widget.create.disabled,true);
         assert.match(f.feedback.textContent,/Salve os vínculos/);
         assert.equal(f.dispatched.at(-1).type,'member-source-changed');
@@ -330,9 +336,22 @@ test('existing financial contact can be selected without invoking creation', asy
         sel.includes('[data-contact-pick]')?pick:null};
     await w.fire(pick);
     assert.equal(w.contact.value,'77');
-    assert.equal(w.body.hidden,true);
+    assert.equal(w.body.hidden,false, 'No collapsible panel is used for selecting existing contacts');
+    assert.equal(w.existing.hidden,true);
+    assert.match(w.status.textContent,/Salve os vínculos/);
     assert.match(f.feedback.textContent,/Salvar vínculos/);
     assert.equal(f.calls.length,2,'No financial write when selecting an existing contact');
+});
+
+test('creation check does not run when an existing contact is already selected', async () => {
+    const f=fixture();
+    await f.controller.load('/configuracao/cooperado/40/editar');
+    const w=provisionWidget(f);
+    w.contact.value='92';
+    await w.fire(w.trigger);
+    assert.equal(f.calls.length,1,'Do not issue a financial lookup while contact ID is filled');
+    assert.equal(w.newFields.hidden,true);
+    assert.match(w.status.textContent,/Já há um contato selecionado/);
 });
 
 test('profile identity mismatch and denied contact creation fail closed', async () => {
@@ -358,6 +377,30 @@ test('profile identity mismatch and denied contact creation fail closed', async 
         assert.equal(v.create.disabled,true,'Never repeat a failed financial write automatically');
         assert.match(v.status.textContent,/Atualize a consulta antes de tentar outra vez/);
         assert.equal(denied.calls.length,3);
+    } finally {globalThis.FormData=originalFormData;}
+});
+
+test('standalone administration page saves links without opening the modal', async () => {
+    const f=fixture({standalone:true});
+    const originalFormData=globalThis.FormData;
+    globalThis.FormData=class {constructor(form){this.form=form;}};
+    try {
+        let prevented=false;
+        const button={disabled:false};
+        const form={
+            action:'https://host.test/configuracao/cooperado/40/vincular',
+            classList:{contains:sel=>sel==='member-link-form'},
+            querySelector:()=>button,
+            closest:sel=>sel==='[data-member-editor-standalone]'?f.standaloneElement:null,
+        };
+        f.standaloneElement.fire('submit',{target:form,preventDefault(){prevented=true;}});
+        await new Promise(resolve=>setImmediate(resolve));
+        assert.equal(prevented,true);
+        assert.equal(f.calls.length,1);
+        assert.equal(f.calls[0].config.method,'POST');
+        assert.equal(f.reloadCount(),1);
+        assert.equal(f.dialog.open,false);
+        assert.equal(button.disabled,false);
     } finally {globalThis.FormData=originalFormData;}
 });
 

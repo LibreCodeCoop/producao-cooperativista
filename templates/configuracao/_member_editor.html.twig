@@ -24,67 +24,81 @@
     </section>
 
     {% if can_manage %}
-        <details class="member-editor-advanced member-editor-admin-links">
-            <summary>Vínculos entre sistemas</summary>
-            <p class="member-editor-description">Identificadores técnicos restritos à administração, gravados no Nextcloud Profile Fields.</p>
-            <form method="post" class="member-link-form" action="/configuracao/cooperado/{{ member.id }}/vincular" autocomplete="off">
-                <input type="hidden" name="_token" value="{{ token }}">
-                <p class="member-editor-description">Confirme os identificadores associados a esta conta. Alterar o Kimai transfere este vínculo para outro usuário após conferir que não há duplicidade.</p>
-                <div class="member-link-fields">
-                    <div>
-                        <label for="member-kimai-{{ member.id }}">Usuário Kimai (ID)</label>
-                        <input id="member-kimai-{{ member.id }}" type="number" name="kimai_user_id"
-                               value="{{ link.kimai_id|default(member.id) }}" min="1" step="1" required>
-                        {% if not link.kimai_linked|default(false) %}
-                            <small class="member-contact-pending">ID sugerido, ainda não salvo no Nextcloud</small>
+        <form method="post" class="member-link-form" action="/configuracao/cooperado/{{ member.id }}/vincular" autocomplete="off">
+            <input type="hidden" name="_token" value="{{ token }}">
+            <div class="member-link-layout">
+                <section class="member-link-panel member-link-identity" aria-labelledby="member-links-title-{{ member.id }}">
+                    <div class="member-link-section-heading">
+                        <h3 id="member-links-title-{{ member.id }}">Vínculos entre sistemas</h3>
+                        {% if not link.linked|default(false) %}
+                            <button type="button" class="button member-link-prepare" data-links-prepare>Preparar campos</button>
                         {% endif %}
                     </div>
-                    <div>
-                        <label for="member-uid-{{ member.id }}">Conta Nextcloud</label>
-                        <input id="member-uid-{{ member.id }}" type="search" name="nextcloud_uid"
-                               value="{{ link.uid|default('') }}" data-link-source="nextcloud"
-                               list="nc-users-{{ member.id }}" placeholder="Buscar usuário Nextcloud" required>
-                        <datalist id="nc-users-{{ member.id }}"></datalist>
+                    <div class="member-link-fields">
+                        <div>
+                            <label for="member-kimai-{{ member.id }}">ID do usuário Kimai</label>
+                            <input id="member-kimai-{{ member.id }}" type="number" name="kimai_user_id"
+                                   value="{{ link.kimai_id|default(member.id) }}" min="1" step="1" required>
+                            {% if not link.kimai_linked|default(false) %}
+                                <small class="member-contact-pending">Obtido do Kimai · ainda não vinculado no Nextcloud</small>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label for="member-uid-{{ member.id }}">Conta Nextcloud</label>
+                            <input id="member-uid-{{ member.id }}" type="search" name="nextcloud_uid"
+                                   value="{{ link.uid|default('') }}" data-link-source="nextcloud"
+                                   list="nc-users-{{ member.id }}" placeholder="Buscar conta" required>
+                            <datalist id="nc-users-{{ member.id }}"></datalist>
+                        </div>
                     </div>
-                    <div>
-                        <label for="member-contact-{{ member.id }}">Contato Akaunting</label>
-                        <input id="member-contact-{{ member.id }}" type="search" name="akaunting_contact_id"
-                               value="{{ link.contact_id|default('') }}" data-link-source="akaunting"
-                               list="akaunting-contacts-{{ member.id }}" inputmode="numeric"
-                               pattern="[1-9][0-9]*" placeholder="Buscar contato" required>
-                        <datalist id="akaunting-contacts-{{ member.id }}"></datalist>
-                        {% if link.uid|default('') is not empty and link.contact_id|default('') is empty %}
-                            <div class="member-contact-provision" data-contact-provision>
-                                <button type="button" class="member-contact-trigger" data-contact-provision-open>
-                                    Não encontrou? Criar contato
-                                </button>
-                                <div class="member-contact-provision-panel" data-contact-provision-panel hidden>
-                                    <p data-contact-provision-status role="status" aria-live="polite"></p>
-                                    <div data-contact-provision-existing hidden></div>
-                                    <div data-contact-provision-new hidden>
-                                        <label for="member-new-contact-name-{{ member.id }}">Nome no Akaunting</label>
-                                        <input id="member-new-contact-name-{{ member.id }}" type="text"
-                                               data-contact-provision-name autocomplete="off" maxlength="120"
-                                               value="{{ member.alias }}">
-                                        <label class="member-contact-confirmation">
-                                            <input type="checkbox" data-contact-provision-confirm>
-                                            Conferi a identidade do cooperado
-                                        </label>
-                                        <button type="button" class="button button-secondary"
-                                                data-contact-provision-create disabled>Criar contato</button>
-                                    </div>
+                </section>
+
+                <section class="member-link-panel member-link-accounting" aria-labelledby="member-accounting-title-{{ member.id }}">
+                    <div class="member-link-section-heading">
+                        <h3 id="member-accounting-title-{{ member.id }}">Contato financeiro</h3>
+                        <span class="member-link-system-tag">Akaunting</span>
+                    </div>
+                    <div class="member-link-fields">
+                        <div>
+                            <label for="member-contact-{{ member.id }}">Selecionar contato existente</label>
+                            <input id="member-contact-{{ member.id }}" type="search" name="akaunting_contact_id"
+                                   value="{{ link.contact_id|default('') }}" data-link-source="akaunting"
+                                   list="akaunting-contacts-{{ member.id }}" inputmode="numeric"
+                                   pattern="[1-9][0-9]*" placeholder="Buscar por nome ou ID" required>
+                            <datalist id="akaunting-contacts-{{ member.id }}"></datalist>
+                        </div>
+                    </div>
+                    {% if link.contact_id|default('') is empty %}
+                        <div class="member-contact-provision" data-contact-provision>
+                            <h4>Criar novo contato</h4>
+                            <p class="member-editor-description">Somente se ainda não existir no Akaunting.</p>
+                            <button type="button" class="button button-secondary member-contact-verify" data-contact-provision-open>
+                                Verificar antes de criar
+                            </button>
+                            <div data-contact-provision-panel>
+                                <p data-contact-provision-status role="status" aria-live="polite"></p>
+                                <div data-contact-provision-existing hidden></div>
+                                <div data-contact-provision-new hidden>
+                                    <label for="member-new-contact-name-{{ member.id }}">Nome do novo contato</label>
+                                    <input id="member-new-contact-name-{{ member.id }}" type="text"
+                                           data-contact-provision-name autocomplete="off" maxlength="120"
+                                           value="{{ member.alias }}">
+                                    <label class="member-contact-confirmation">
+                                        <input type="checkbox" data-contact-provision-confirm>
+                                        Conferi a identidade do cooperado
+                                    </label>
+                                    <button type="button" class="button button-secondary"
+                                            data-contact-provision-create disabled>Criar no Akaunting</button>
                                 </div>
                             </div>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="member-link-actions">
-                    <button type="submit" class="button button-primary">Salvar vínculos</button>
-                    {% if not link.linked|default(false) %}
-                        <button type="button" class="member-link-prepare button button-secondary" data-links-prepare>Preparar campos</button>
+                        </div>
                     {% endif %}
-                </div>
-            </form>
-        </details>
+                </section>
+            </div>
+            <div class="member-link-actions">
+                <p>Registra as referências no Nextcloud. Não cria contatos financeiros.</p>
+                <button type="submit" class="button button-primary">Salvar vínculos</button>
+            </div>
+        </form>
     {% endif %}
 </section>

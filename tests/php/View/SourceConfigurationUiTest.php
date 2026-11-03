@@ -122,6 +122,11 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('Pessoa teste', $html);
         self::assertStringContainsString('Vínculos registrados', $html);
         self::assertStringContainsString('Vínculos entre sistemas', $html);
+        self::assertStringContainsString('Contato financeiro', $html);
+        self::assertStringContainsString('Selecionar contato existente', $html);
+        self::assertStringNotContainsString('<summary>Vínculos entre sistemas</summary>', $html);
+        self::assertStringContainsString('class="member-link-layout"', $html);
+        self::assertSame(1, substr_count($html, '>Salvar vínculos</button>'));
         self::assertSame(1, substr_count($html, 'name="field" value="tax_number"'));
         self::assertSame(1, substr_count($html, 'value="SYNTHETIC"'));
         self::assertSame(1, substr_count($html, 'name="field" value="dependents"'));
@@ -151,6 +156,28 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('<html lang="pt-BR">', $standalone);
         self::assertStringContainsString('action="/configuracao/cooperado/12/nextcloud"', $standalone);
         self::assertStringContainsString('id="member-editor-dialog"', $standalone);
+    }
+
+    public function testUnlinkedMemberCanCreateInSeparateFinancialCardWithoutCollapsiblePanel(): void
+    {
+        $html = $this->twig()->render('configuracao/_member_editor.html.twig', [
+            'token' => 'csrf-value', 'month' => '2026-09',
+            'can_manage' => true,
+            'member' => ['id' => 40, 'alias' => 'Pessoa pendente'],
+            'services' => ['nextcloud' => ['fields' => [], 'error' => 'Confirme vínculo']],
+            'links' => ['uid' => 'some-account', 'contact_id' => '',
+                'kimai_id' => '40', 'linked' => false, 'kimai_linked' => false],
+        ]);
+        self::assertStringContainsString('Obtido do Kimai', $html);
+        self::assertStringContainsString('Criar novo contato', $html);
+        self::assertStringContainsString('data-contact-provision-open', $html);
+        self::assertStringContainsString('Verificar antes de criar', $html);
+        self::assertStringContainsString('data-contact-provision-panel', $html);
+        self::assertStringNotContainsString('data-contact-provision-panel hidden', $html);
+        self::assertStringContainsString('data-contact-provision-confirm', $html);
+        self::assertStringContainsString('Registra as referências no Nextcloud. Não cria contatos financeiros.', $html);
+        self::assertSame(1, substr_count($html, 'name="akaunting_contact_id"'));
+        self::assertStringNotContainsString('member-editor-advanced', $html);
     }
 
     public function testUnlinkedMemberCanPrepareTechnicalFieldsOnlyAsAdministrator(): void
