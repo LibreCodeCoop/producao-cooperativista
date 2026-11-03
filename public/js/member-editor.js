@@ -106,6 +106,8 @@
                 if (current !== revision) return false;
                 content.innerHTML = html;
                 bindFieldControls(content);
+                bindSearchDefaults(content);
+                bindIdentityPreviews(content);
                 content.querySelector('input:not([type="hidden"])')?.focus?.();
                 return true;
             } catch (error) {
@@ -157,14 +159,19 @@
             if (source === 'kimai' || source === 'akaunting') {
                 add('Nextcloud vinculado', link || 'Nenhuma conta vinculada');
             }
-            const warning = source === 'nextcloud' && link && link !== 'Kimai #' + kimaiId
-                ? 'Atenção: esta conta Nextcloud já está ligada a outro ID Kimai.'
-                : (source === 'kimai' || source === 'akaunting') && link && link !== selectedUid
-                    ? 'Atenção: este registro já está vinculado a outra conta Nextcloud.'
-                    : source === 'akaunting' && identity.tax_match === 'different'
-                        ? 'Identificação fiscal divergente. Não salve o vínculo sem corrigir as origens.'
-                        : '';
-            return {rows, warning};
+            const alerts = [];
+            if (source === 'nextcloud' && link && link !== 'Kimai #' + kimaiId) {
+                alerts.push('Atenção: esta conta Nextcloud já está ligada a outro ID Kimai.');
+            } else if ((source === 'kimai' || source === 'akaunting') && link && selectedUid && link !== selectedUid) {
+                alerts.push('Atenção: este registro já está vinculado a outra conta Nextcloud.');
+            }
+            if (source === 'akaunting' && identity.tax_match === 'different') {
+                alerts.push('Identificação fiscal divergente. Não salve o vínculo sem corrigir as origens.');
+            }
+            if ((source === 'nextcloud' || source === 'kimai') && identity.enabled === false) {
+                alerts.push('Conta inativa. Um vínculo técnico para competências históricas não reativa o acesso.');
+            }
+            return {rows, warning: alerts.join(' ')};
         };
         const clearIdentity = (form, source, message) => {
             const preview = form?.querySelector?.('[data-identity-preview="' + source + '"]');
@@ -187,7 +194,7 @@
             output.replaceChildren();
             const url = identityEndpoint(form, location.href, source, identifier, uid);
             if (!url) {
-                output.textContent = 'Informe um identificador válido para consultar a origem.';
+                output.textContent = 'Selecione um resultado da busca para conferir a identidade na origem.';
                 return false;
             }
             preview.classList?.add?.('is-busy');
@@ -236,7 +243,7 @@
         };
         const bindIdentityPreviews = root => {
             const form = root?.querySelector?.('.member-link-form');
-            if (!form) return;
+            if (!form || typeof form.querySelector !== 'function') return;
             for (const source of ['nextcloud', 'kimai', 'akaunting']) {
                 if (form.querySelector('[data-identity-preview="' + source + '"]')) {
                     void inspectIdentity(form, source);
@@ -245,59 +252,170 @@
         };
         bindIdentityPreviews(standalone);
 
-        let searchTicket = 0;
-        let searchTimer = null;
+        // Search is a separate action from selecting the technical ID. Native
+        // datalist widgets silently accepted arbitrary text (and did not open
+        // after delayed results), which looked like a saved association.
+        const searchTickets = new WeakMap();
+        const searchTimers = new WeakMap();
+        const searchField = {nextcloud: 'nextcloud_uid', akaunting: 'akaunting_contact_id'};
+        const showContactCreation = (form, canCreate) => {
+            const panel = form?.querySelector?.('[data-contact-provision]');
+            if (panel) panel.hidden = !canCreate;
+        };
+        const setSearchStatus = (form, source, message, warning = false) => {
+            const status = form?.querySelector?.('[data-link-status="' + source + '"]');
+            if (status) {
+                status.textContent = message;
+                status.classList?.toggle?.('is-warning', warning);
+            }
+        };
+        const syncLinkActions = form => {
+            if (!form) return;
+            const uid = form.querySelector('[name="nextcloud_uid"]')?.value.trim() || '';
+            const kimaiId = form.querySelector('[name="kimai_user_id"]')?.value.trim() || '';
+            const contactId = form.querySelector('[name="akaunting_contact_id"]')?.value.trim() || '';
+            const kimaiValid = /^[1-9]\d*$/.test(kimaiId);
+            const contactValid = /^[1-9]\d*$/.test(contactId);
+            const confirm = form.querySelector('[data-kimai-confirm]');
+            if (confirm) confirm.disabled = !uid || !kimaiValid;
+            const save = form.querySelector('[data-links-save]');
+            if (save) save.disabled = !uid || !kimaiValid || !contactValid;
+            if (contactValid) showContactCreation(form, false);
+        };
+        const findOptions = (input, immediate = false) => {
+            const source = input?.dataset?.linkSource;
+            if (!searchField[source]) return;
+            const form = input.closest?.('.member-link-form');
+            const choices = form?.querySelector?.('[data-link-results="' + source + '"]');
+            if (!choices) return;
+            const previous = searchTimers.get(input);
+            if (previous !== undefined) clearTimeout(previous);
+            const ticket = (searchTickets.get(input) || 0) + 1;
+            searchTickets.set(input, ticket);
+            choices.replaceChildren();
+            const query = source === 'akaunting'
+                ? input.value.trim().replace(/^#/, '') : input.value.trim();
+            if (query.length < 2) {
+                if (source === 'akaunting') showContactCreation(form, true);
+                setSearchStatus(form, source, 'Digite pelo menos 2 caracteres para pesquisar.');
+                return;
+            }
+            setSearchStatus(form, source, 'Pesquisando na origem…');
+            const send = async () => {
+                try {
+                    const url = new URL('/configuracao/vinculos/opcoes', location.href);
+                    url.searchParams.set('source', source);
+                    url.searchParams.set('q', query);
+                    const response = await request(url.href, {
+                        credentials:'same-origin', cache:'no-store', headers:{Accept:'application/json'},
+                    });
+                    const result = await response.json();
+                    const current = source === 'akaunting'
+                        ? input.value.trim().replace(/^#/, '') : input.value.trim();
+                    if (searchTickets.get(input) !== ticket || current !== query) return;
+                    if (!response.ok || !Array.isArray(result.items)) {
+                        throw new Error(result.error || 'Não foi possível consultar a origem.');
+                    }
+                    choices.replaceChildren();
+                    for (const item of result.items.slice(0, 12)) {
+                        const id = String(item.id || '').trim();
+                        if (!id || id.length > 128 ||
+                            (source === 'akaunting' && (!/^[1-9]\d*$/.test(id)
+                                || !Number.isSafeInteger(Number(id))))) continue;
+                        const button = doc.createElement('button');
+                        button.type = 'button';
+                        button.className = 'button member-link-search-choice';
+                        button.dataset.linkPick = id;
+                        button.dataset.linkSource = source;
+                        button.textContent = String(item.label || id);
+                        choices.appendChild(button);
+                    }
+                    const count = choices.children?.length || 0;
+                    if (source === 'akaunting') showContactCreation(form, count === 0);
+                    setSearchStatus(form, source, count
+                        ? 'Escolha um dos ' + count + ' resultados abaixo. Digitar não registra o vínculo.'
+                        : (source === 'nextcloud'
+                            ? 'Nenhuma conta Nextcloud encontrada. Confira o login ou o nome.'
+                            : 'Nenhum contato financeiro encontrado. Confira a grafia ou utilize Verificar antes de criar.'),
+                        count === 0);
+                } catch (error) {
+                    if (searchTickets.get(input) === ticket) {
+                        choices.replaceChildren();
+                        if (source === 'akaunting') showContactCreation(form, false);
+                        setSearchStatus(form, source,
+                            error.message || 'A pesquisa falhou. Tente novamente.', true);
+                    }
+                }
+            };
+            searchTimers.set(input, setTimeout(() => { void send(); }, immediate ? 0 : 220));
+        };
+        const pickOption = (button) => {
+            const source = button?.dataset?.linkSource;
+            const id = String(button?.dataset?.linkPick || '');
+            if (!searchField[source] || !id || id.length > 128 ||
+                (source === 'akaunting' && (!/^[1-9]\d*$/.test(id)
+                    || !Number.isSafeInteger(Number(id))))) return false;
+            const form = button.closest?.('.member-link-form');
+            const search = form?.querySelector?.('[data-link-source="' + source + '"]');
+            const selected = form?.querySelector?.('[name="' + searchField[source] + '"]');
+            const results = form?.querySelector?.('[data-link-results="' + source + '"]');
+            if (!search || !selected || !results) return false;
+            // Invalidate any in-flight request before choosing the option.
+            searchTickets.set(search, (searchTickets.get(search) || 0) + 1);
+            const timer = searchTimers.get(search);
+            if (timer !== undefined) clearTimeout(timer);
+            selected.value = id;
+            search.value = source === 'nextcloud' ? id : button.textContent;
+            results.replaceChildren();
+            setSearchStatus(form, source, 'Selecionado: ' + button.textContent
+                + '. Confira a identidade abaixo; o vínculo ainda não foi salvo.');
+            syncLinkActions(form);
+            void inspectIdentity(form, source);
+            if (source === 'nextcloud') void inspectIdentity(form, 'akaunting');
+            return true;
+        };
+        const bindSearchDefaults = root => {
+            const form = root?.querySelector?.('.member-link-form');
+            if (!form || typeof form.querySelector !== 'function') return;
+            syncLinkActions(form);
+            for (const source of ['nextcloud', 'akaunting']) {
+                const selected = form.querySelector('[name="' + searchField[source] + '"]');
+                const input = form.querySelector('[data-link-source="' + source + '"]');
+                // Suggest the existing Kimai username/full name as a search;
+                // never silently select by name or associate a disabled user.
+                if (input && selected && !selected.value.trim() && input.value.trim()) {
+                    findOptions(input, true);
+                }
+            }
+        };
+        bindSearchDefaults(standalone);
         const handleEditorInput = event => {
             const input = event.target;
             const name = input?.name;
-            const source = name === 'nextcloud_uid' ? 'nextcloud'
-                : name === 'kimai_user_id' ? 'kimai'
-                    : name === 'akaunting_contact_id' ? 'akaunting' : null;
-            if (source) {
-                const form = input.closest?.('.member-link-form');
-                if (form) {
-                    clearIdentity(form, source, 'Identificador alterado. Confira os novos dados na origem.');
-                    if (source === 'nextcloud') {
-                        clearIdentity(form, 'akaunting', 'Conta Nextcloud alterada. Confira novamente a identificação fiscal.');
-                    }
-                }
+            const form = input?.closest?.('.member-link-form');
+            if (name === 'kimai_user_id' && form) {
+                clearIdentity(form, 'kimai', 'ID alterado. Confira a identidade na origem.');
+                syncLinkActions(form);
+                return;
             }
-            if (!input?.matches?.('[data-link-source]')) return;
-            const ticket = ++searchTicket;
-            if (searchTimer !== null) clearTimeout(searchTimer);
-            const query = input.value.trim();
-            const root = input.closest?.('[data-member-editor-standalone]') || content;
-            const choices = root.querySelector('#' + input.getAttribute('list'));
-            if (!choices) return;
-            choices.replaceChildren();
-            if (query.length < 2) return;
-            const send = async () => {
-                try {
-                    const path = '/configuracao/vinculos/opcoes?source='
-                        + encodeURIComponent(input.dataset.linkSource) + '&q=' + encodeURIComponent(query);
-                    const response = await request(new URL(path, location.href).href, {
-                        credentials: 'same-origin', cache: 'no-store',
-                        headers: {Accept: 'application/json'},
-                    });
-                    if (!response.ok) throw new Error('A busca de vínculos falhou.');
-                    const data = await response.json();
-                    if (ticket !== searchTicket || !Array.isArray(data.items)) return;
-                    choices.replaceChildren();
-                    for (const option of data.items) {
-                        const element = doc.createElement('option');
-                        element.value = String(option.id);
-                        element.label = String(option.label);
-                        choices.appendChild(element);
-                    }
-                } catch (error) {
-                    if (ticket === searchTicket) feedback.textContent = error.message;
-                }
-            };
-            searchTimer = setTimeout(() => { void send(); }, 220);
+            const source = input?.dataset?.linkSource;
+            if (!searchField[source] || !form) return;
+            const selected = form.querySelector('[name="' + searchField[source] + '"]');
+            if (selected) selected.value = '';
+            if (source === 'akaunting') showContactCreation(form, false);
+            clearIdentity(form, source, 'Pesquisa alterada. Selecione um resultado e confira a identidade.');
+            if (source === 'nextcloud') {
+                clearIdentity(form, 'akaunting', 'Conta Nextcloud alterada. Confira novamente a identificação fiscal.');
+            }
+            syncLinkActions(form);
+            findOptions(input);
         };
         dialog.addEventListener('input', handleEditorInput);
         standalone?.addEventListener('input', handleEditorInput);
+        // The technical identifiers only change via explicit result selection,
+        // not by blur/change on a text search box.
         const handleIdentityChange = event => {
+            if (event.target?.dataset?.linkSource) return;
             const field = event.target?.name;
             const source = field === 'nextcloud_uid' ? 'nextcloud'
                 : field === 'kimai_user_id' ? 'kimai'
@@ -316,6 +434,12 @@
                 ?.querySelector?.('[data-standalone-feedback]') || feedback;
             const endpoint = new URL(url, location.href);
             const prepare = endpoint.pathname === '/configuracao/vinculos/preparar';
+            if (!prepare && form?.querySelector?.('[name="nextcloud_uid"]')
+                && (!form.querySelector('[name="nextcloud_uid"]').value.trim()
+                    || !/^[1-9]\d*$/.test(form.querySelector('[name="akaunting_contact_id"]')?.value || ''))) {
+                resultFeedback.textContent = 'Selecione uma conta Nextcloud e um contato Akaunting nos resultados da busca. Para confirmar só o Kimai, use o botão do cartão Kimai.';
+                return;
+            }
             const linking = /^\/configuracao\/cooperado\/[1-9]\d*\/vincular$/.test(endpoint.pathname);
             if (endpoint.origin !== new URL(location.href).origin || (!prepare && !linking)) {
                 resultFeedback.textContent = 'Destino de vínculo inválido.';
@@ -373,6 +497,9 @@
                 const id = String(pick.dataset.contactPick || '');
                 if (!/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(Number(id))) return true;
                 input.value = id;
+                const search = form.querySelector('[data-link-source="akaunting"]');
+                if (search) search.value = 'Contato #' + id;
+                syncLinkActions(form);
                 if (existing) existing.hidden = true;
                 if (newContact) newContact.hidden = true;
                 if (createButton) createButton.disabled = true;
@@ -454,6 +581,9 @@
                         throw new Error('O Akaunting não confirmou o ID. Verifique a origem antes de tentar de novo.');
                     }
                     input.value = String(id);
+                    const search = form.querySelector('[data-link-source="akaunting"]');
+                    if (search) search.value = 'Contato #' + id;
+                    syncLinkActions(form);
                     if (newContact) newContact.hidden = true;
                     output.textContent = 'Contato #' + id + ' criado. Salve os vínculos para associá-lo.';
                     resultFeedback.textContent = result.message || 'Contato criado. Salve o vínculo para associá-lo.';
@@ -510,6 +640,11 @@
         };
 
         const handleEditorClick = event => {
+            const option = event.target?.closest?.('[data-link-pick]');
+            if (option) {
+                pickOption(option);
+                return;
+            }
             const identityRefresh = event.target?.closest?.('[data-identity-verify]');
             if (identityRefresh) {
                 const source = identityRefresh.dataset.identityVerify;

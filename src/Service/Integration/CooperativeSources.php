@@ -220,8 +220,10 @@ final class CooperativeSources
     public function contactProvisioning(int $kimaiId, string $selectedUid): array
     {
         $member = $this->user($kimaiId);
-        if ($member['system'] || !$member['enabled']) {
-            throw new \DomainException('A criação de contatos está disponível somente para cooperados ativos.');
+        // Historical production must remain auditable after a member leaves.
+        // Identity and fiscal safeguards still apply; no account is reactivated.
+        if ($member['system']) {
+            throw new \DomainException('Contatos financeiros não podem ser criados para contas de serviço.');
         }
         $selectedUid = trim($selectedUid);
         if ($selectedUid === '' || mb_strlen($selectedUid) > 128
@@ -322,9 +324,12 @@ final class CooperativeSources
     public function confirmKimaiLink(int $kimaiId, string $uid): void
     {
         $member = $this->user($kimaiId);
-        if ($member['system'] || !$member['enabled'] || trim($uid) === ''
+        // A disabled Kimai or Nextcloud account may have legitimate hours in
+        // earlier competencies. The admin confirms immutable account identity;
+        // linking must neither enable a user nor require financial data.
+        if ($member['system'] || trim($uid) === ''
             || !$this->profileFields->userExists($uid)) {
-            throw new \DomainException('Selecione uma conta Nextcloud existente para um cooperado ativo.');
+            throw new \DomainException('Selecione uma conta Nextcloud existente para o cooperado (inclusive histórico).');
         }
         $definition = $this->profileFields->activeDefinitions()['kimai_user_id'] ?? null;
         if ($definition === null || $definition['type'] !== 'text'

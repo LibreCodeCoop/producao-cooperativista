@@ -46,13 +46,13 @@ final class CooperativeContactProvisioningTest extends TestCase
     /** @param array<string,mixed>|null $profileValues
      *  @param list<array<string,mixed>> $matchingContacts
      */
-    private function source(?array $profileValues, array $matchingContacts = [], bool $createAllowed = false, bool $linked = true): CooperativeSources
+    private function source(?array $profileValues, array $matchingContacts = [], bool $createAllowed = false, bool $linked = true, bool $enabled = true): CooperativeSources
     {
-        $http = new MockHttpClient(static function (string $method, string $url) use ($createAllowed): MockResponse {
+        $http = new MockHttpClient(static function (string $method, string $url) use ($createAllowed, $enabled): MockResponse {
             if (str_contains($url, '/users/')) {
                 return new MockResponse((string) json_encode([
                     'id' => 40, 'username' => 'luis.souza', 'alias' => 'Luis Souza',
-                    'enabled' => true, 'systemAccount' => false,
+                    'enabled' => $enabled, 'systemAccount' => false,
                 ]));
             }
             if ($method === 'POST' && $createAllowed && str_contains($url, '/api/contacts')) {
@@ -96,6 +96,17 @@ final class CooperativeContactProvisioningTest extends TestCase
             'status' => 'available', 'uid' => 'luis.souza',
             'name' => 'Luis Souza', 'tax_hint' => 'CPF final 725', 'contacts' => [],
         ], $source->contactProvisioning(40, 'luis.souza'));
+    }
+
+    public function testInactiveHistoricalMemberCanFindExistingFinancialContactWithoutCreatingOne(): void
+    {
+        $source = $this->source([
+            'kimai_user_id' => '40', 'tax_number' => '52998224725',
+        ], [['id' => 172, 'name' => 'Crisciany Souza', 'type' => 'vendor']], enabled: false);
+        $proposal = $source->contactProvisioning(40, 'luis.souza');
+        self::assertSame('existing', $proposal['status']);
+        self::assertSame(172, $proposal['contacts'][0]['id']);
+        self::assertSame('luis.souza', $proposal['uid']);
     }
 
     public function testExistingContactMustBeSelectedInsteadOfBeingCreated(): void

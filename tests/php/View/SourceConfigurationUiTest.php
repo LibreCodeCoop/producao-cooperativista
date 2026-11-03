@@ -123,12 +123,20 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('Vínculos registrados', $html);
         self::assertStringContainsString('Vínculos desta conta', $html);
         self::assertStringNotContainsString('data-kimai-confirm', $html);
-        self::assertStringContainsString('Contato financeiro', $html);
-        self::assertStringContainsString('Selecionar contato existente', $html);
+        self::assertStringContainsString('Pesquisar contato existente', $html);
         self::assertSame(1, substr_count($html, 'name="nextcloud_uid"'));
         self::assertSame(1, substr_count($html, 'id="member-uid-12"'));
+        self::assertStringContainsString('type="hidden" name="nextcloud_uid" value="nc-user"', $html);
+        self::assertStringContainsString('type="hidden" name="akaunting_contact_id" value="35"', $html);
+        self::assertStringContainsString('data-link-source="nextcloud"', $html);
+        self::assertStringContainsString('data-link-source="akaunting"', $html);
+        self::assertStringContainsString('data-link-results="nextcloud"', $html);
+        self::assertStringContainsString('data-link-results="akaunting"', $html);
+        self::assertStringContainsString('data-link-status="nextcloud"', $html);
+        self::assertStringContainsString('data-links-save', $html);
+        self::assertStringNotContainsString('<datalist', $html);
         self::assertStringContainsString('class="member-nextcloud-hub"', $html);
-        self::assertStringContainsString('Cadastro central do cooperado.', $html);
+        self::assertStringContainsString('A busca não grava o vínculo.', $html);
         self::assertStringContainsString('Kimai</h4>', $html);
         self::assertStringContainsString('Akaunting</h4>', $html);
         foreach (['nextcloud', 'kimai', 'akaunting'] as $source) {
@@ -181,6 +189,27 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('id="member-editor-dialog"', $standalone);
     }
 
+    public function testInactiveUnlinkedMemberHasSearchSuggestionButNoPresumedTechnicalId(): void
+    {
+        $html = $this->twig()->render('configuracao/_member_editor.html.twig', [
+            'token' => 'csrf-value', 'month' => '2026-01',
+            'can_manage' => true,
+            'member' => ['id' => 27, 'alias' => 'Crisciany Souza', 'username' => 'crisciany.souza', 'enabled' => false],
+            'services' => ['nextcloud' => ['fields' => [], 'error' => 'Vínculo Kimai pendente']],
+            'links' => ['uid' => '', 'contact_id' => '', 'kimai_id' => '27',
+                'linked' => false, 'kimai_linked' => false],
+        ]);
+        self::assertStringContainsString('value="crisciany.souza"', $html);
+        self::assertStringContainsString('name="nextcloud_uid" value=""', $html);
+        self::assertStringContainsString('name="akaunting_contact_id" value=""', $html);
+        self::assertStringContainsString('data-link-results="nextcloud"', $html);
+        self::assertStringContainsString('data-link-results="akaunting"', $html);
+        self::assertStringContainsString('Confirme a identidade', $html);
+        self::assertStringContainsString('Nenhuma conta será reativada', $html);
+        self::assertStringContainsString('data-kimai-confirm', $html);
+        self::assertStringContainsString('data-links-save', $html);
+    }
+
     public function testUnlinkedMemberCanCreateInSeparateFinancialCardWithoutCollapsiblePanel(): void
     {
         $html = $this->twig()->render('configuracao/_member_editor.html.twig', [
@@ -208,7 +237,7 @@ final class SourceConfigurationUiTest extends TestCase
         self::assertStringContainsString('data-contact-provision-panel', $html);
         self::assertStringNotContainsString('data-contact-provision-panel hidden', $html);
         self::assertStringContainsString('data-contact-provision-confirm', $html);
-        self::assertStringContainsString('Registra os IDs do Kimai e do contato financeiro na conta Nextcloud selecionada. Não cria contatos.', $html);
+        self::assertStringContainsString('Para registrar o Kimai sem contato financeiro', $html);
         self::assertSame(1, substr_count($html, 'name="akaunting_contact_id"'));
         self::assertStringNotContainsString('member-editor-advanced', $html);
     }

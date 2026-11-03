@@ -45,14 +45,15 @@ final class KimaiLinkConfirmationTest extends TestCase
         bool $uidExists = true,
         bool $safeDefinition = true,
         bool $system = false,
+        bool $enabled = true,
     ): CooperativeSources {
         $logger = new NullLogger();
-        $http = new MockHttpClient(static function (string $method, string $url) use ($system): MockResponse {
+        $http = new MockHttpClient(static function (string $method, string $url) use ($system, $enabled): MockResponse {
             self::assertSame('GET', $method);
             self::assertStringEndsWith('/api/users/39', $url);
             return new MockResponse((string) json_encode([
                 'id' => 39, 'username' => 'renata', 'alias' => 'Renata',
-                'enabled' => true, 'systemAccount' => $system,
+                'enabled' => $enabled, 'systemAccount' => $system,
             ]));
         });
         $profile = $this->createStub(ProfileFieldsClient::class);
@@ -100,6 +101,17 @@ final class KimaiLinkConfirmationTest extends TestCase
         self::assertTrue($source->linkFieldsReady());
         $source->confirmKimaiLink(39, 'renata');
         self::assertSame([['uid' => 'renata', 'key' => 'kimai_user_id', 'value' => '39']], $writes);
+        self::assertSame('', $values['akaunting_contact_id']);
+        self::assertSame('', $values['tax_number']);
+    }
+
+    public function testInactiveHistoricalMemberCanBeLinkedWithoutReactivatingKimaiOrNextcloud(): void
+    {
+        $values = ['tax_number' => '', 'akaunting_contact_id' => '', 'dependents' => ''];
+        $writes = [];
+        $this->source($values, $writes, enabled: false)->confirmKimaiLink(39, 'renata');
+        self::assertSame([['uid' => 'renata', 'key' => 'kimai_user_id', 'value' => '39']], $writes);
+        self::assertArrayNotHasKey('enabled', $values);
         self::assertSame('', $values['akaunting_contact_id']);
         self::assertSame('', $values['tax_number']);
     }

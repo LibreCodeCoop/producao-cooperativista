@@ -20,7 +20,7 @@ function node() {
 
 function fixture({failGet=false, failPost=false, changed=true,
     contactStatus='available', contactCreateFails=false, contactUid='luis.souza', contacts=[],
-    kimaiConfirmFails=false, identityResponder=null,
+    kimaiConfirmFails=false, identityResponder=null, searchResponder=null,
     standalone=false, location='https://host.test/relatorios/producao?ano-mes=2026-08'} = {}) {
     const dialog=node();
     dialog.open=false;
@@ -61,6 +61,10 @@ function fixture({failGet=false, failPost=false, changed=true,
                     email:'renata@example.test',enabled:true,kind:'Fornecedor',
                     tax_hint:'CPF final 725',tax_match:'match',linked_account:'renata.demetrio',
                 }})};
+            }
+            if(url.includes('/vinculos/opcoes')) {
+                if(searchResponder) return searchResponder(url,config);
+                return {ok:true,status:200,json:async()=>({items:[]})};
             }
             if(url.includes('/contato/proposta')) {
                 return {ok:true, status:200, json:async()=>({status:contactStatus,
@@ -216,6 +220,140 @@ test('stale lookup cannot replace the identity for a newly selected account', as
     const text=identityRenderedText(view.output);
     assert.match(text,/Conta certa/);
     assert.doesNotMatch(text,/Conta errada/);
+});
+
+function searchWidget(f) {
+    const names=['nextcloud','akaunting'];
+    const hidden={nextcloud:{value:''},akaunting:{value:''}};
+    const kimai={value:'27'};
+    const buttons={confirm:{disabled:false},save:{disabled:false}};
+    const provision={hidden:false};
+    const inputs={};
+    const statuses={};
+    const results={};
+    const form={
+        action:'https://host.test/configuracao/cooperado/27/vincular',
+        querySelector:sel=>{
+            const m=/^\[name="([a-z_]+)"\]$/.exec(sel);
+            if(m){return {'nextcloud_uid':hidden.nextcloud,'akaunting_contact_id':hidden.akaunting,
+                'kimai_user_id':kimai}[m[1]]||null;}
+            const source=/^\[data-link-(?:results|status|source)="([a-z]+)"\]$/.exec(sel);
+            if(source) return sel.startsWith('[data-link-results')?results[source[1]]:
+                sel.startsWith('[data-link-status')?statuses[source[1]]:inputs[source[1]];
+            if(sel==='[data-kimai-confirm]')return buttons.confirm;
+            if(sel==='[data-links-save]')return buttons.save;
+            if(sel==='[data-contact-provision]')return provision;
+            return null;
+        },
+    };
+    for(const source of names){
+        inputs[source]={value:'',dataset:{linkSource:source},
+            closest:sel=>sel==='.member-link-form'?form:null};
+        statuses[source]={textContent:'',classList:{toggle() {}}};
+        results[source]={children:[],replaceChildren(){this.children=[];},
+            appendChild(child){
+                child.closest=sel=>sel==='[data-link-pick]'?child:
+                    sel==='.member-link-form'?form:null;
+                this.children.push(child);
+            },
+        };
+    }
+    return {form,inputs,hidden,statuses,results,buttons,provision,kimai,search(source,query){
+        inputs[source].value=query;
+        f.standaloneElement.fire('input',{target:inputs[source]});
+    },choose(source,index=0){
+        const item=results[source].children[index];
+        f.standaloneElement.fire('click',{target:item});
+        return item;
+    }};
+}
+
+const searchResponse=items=>({ok:true,status:200,json:async()=>({items})});
+
+test('typing a Nextcloud login is not choosing it, and inactive accounts can be inspected explicitly', async () => {
+    const f=fixture({standalone:true,searchResponder:async url=>{
+        assert.equal(new URL(url).searchParams.get('source'),'nextcloud');
+        return searchResponse([{id:'crisciany.souza',label:'crisciany.souza'}]);
+    },identityResponder:async url=>{
+        const parsed=new URL(url);
+        return {ok:true,status:200,json:async()=>({identity:{
+            source:parsed.searchParams.get('source'),id:parsed.searchParams.get('id'),
+            name:'Crisciany Souza',username:'crisciany.souza',email:'crisciany@example.test',
+            enabled:false,kind:'Usuário',tax_hint:'',tax_match:'',linked_account:'',
+        }})};
+    }});
+    const w=searchWidget(f);
+    w.search('nextcloud','crisciany');
+    assert.equal(w.hidden.nextcloud.value,'');
+    assert.equal(w.buttons.confirm.disabled,true);
+    assert.equal(w.buttons.save.disabled,true);
+    await new Promise(resolve=>setTimeout(resolve,260));
+    assert.equal(w.results.nextcloud.children.length,1);
+    assert.match(w.statuses.nextcloud.textContent,/Escolha um dos 1 resultados/);
+    w.choose('nextcloud');
+    assert.equal(w.hidden.nextcloud.value,'crisciany.souza');
+    assert.equal(w.inputs.nextcloud.value,'crisciany.souza');
+    assert.equal(w.buttons.confirm.disabled,false);
+    assert.equal(w.buttons.save.disabled,true,'Saving both links requires a selected financial contact');
+    assert.match(w.statuses.nextcloud.textContent,/ainda não foi salvo/);
+    assert.equal(f.calls.some(c=>c.config?.method==='POST'),false,'Search and choice are read-only');
+});
+
+test('Akaunting name search shows the real Crisciany contact, but a misspelling cannot be saved', async () => {
+    const f=fixture({standalone:true,searchResponder:async url=>{
+        const q=new URL(url).searchParams.get('q');
+        return searchResponse(q==='Crisciany'
+            ? [{id:172,label:'Crisciany Souza · Fornecedor'}] : []);
+    }});
+    const w=searchWidget(f);
+    w.search('akaunting','Cristiane');
+    await new Promise(resolve=>setTimeout(resolve,265));
+    assert.equal(w.results.akaunting.children.length,0);
+    assert.equal(w.hidden.akaunting.value,'');
+    assert.match(w.statuses.akaunting.textContent,/Nenhum contato financeiro encontrado/);
+    assert.equal(w.provision.hidden,false,'Only absent contacts permit a separate creation action');
+    w.search('akaunting','Crisciany');
+    await new Promise(resolve=>setTimeout(resolve,265));
+    assert.equal(w.results.akaunting.children.length,1);
+    assert.equal(w.provision.hidden,true,'Creating a duplicate is not offered when a contact exists');
+    w.choose('akaunting');
+    assert.equal(w.hidden.akaunting.value,'172');
+    assert.match(w.inputs.akaunting.value,/Crisciany Souza/);
+    assert.equal(w.buttons.save.disabled,true,'Nextcloud confirmation still required');
+    assert.equal(f.calls.some(c=>c.config?.method==='POST'),false);
+});
+
+test('changing an already chosen search invalidates the technical ID and both save buttons', async () => {
+    const f=fixture({standalone:true,searchResponder:async()=>searchResponse([])});
+    const w=searchWidget(f);
+    w.hidden.nextcloud.value='crisciany.souza';
+    w.hidden.akaunting.value='172';
+    w.search('nextcloud','outra.conta');
+    assert.equal(w.hidden.nextcloud.value,'');
+    assert.equal(w.hidden.akaunting.value,'172');
+    assert.equal(w.buttons.confirm.disabled,true);
+    assert.equal(w.buttons.save.disabled,true);
+    await new Promise(resolve=>setTimeout(resolve,260));
+});
+
+test('old asynchronous suggestions cannot replace newer search results', async () => {
+    let resolveOld;
+    const f=fixture({standalone:true,searchResponder:async url=>{
+        const q=new URL(url).searchParams.get('q');
+        if(q==='old')return new Promise(resolve=>{resolveOld=resolve;});
+        return searchResponse([{id:172,label:'Crisciany Souza'}]);
+    }});
+    const w=searchWidget(f);
+    w.search('akaunting','old');
+    await new Promise(resolve=>setTimeout(resolve,245));
+    assert.equal(typeof resolveOld,'function');
+    w.search('akaunting','Crisciany');
+    await new Promise(resolve=>setTimeout(resolve,245));
+    resolveOld(searchResponse([{id:99,label:'Conta errada'}]));
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(w.results.akaunting.children.length,1);
+    assert.equal(w.results.akaunting.children[0].dataset.linkPick,'172');
+    assert.equal(w.hidden.akaunting.value,'');
 });
 
 test('missing modal is ignored; invalid editor path never opens it', async () => {
@@ -607,7 +745,11 @@ test('standalone administration page saves links without opening the modal', asy
         const form={
             action:'https://host.test/configuracao/cooperado/40/vincular',
             classList:{contains:sel=>sel==='member-link-form'},
-            querySelector:()=>button,
+            querySelector:sel=>({
+                '[type="submit"]':button,
+                '[name="nextcloud_uid"]':{value:'luis.souza'},
+                '[name="akaunting_contact_id"]':{value:'35'},
+            })[sel]||null,
             closest:sel=>sel==='[data-member-editor-standalone]'?f.standaloneElement:null,
         };
         f.standaloneElement.fire('submit',{target:form,preventDefault(){prevented=true;}});
@@ -631,7 +773,11 @@ test('link form saves through a same-origin endpoint and reloads the editor only
         const form={
             action:'https://host.test/configuracao/cooperado/10/vincular',
             classList:{contains:name=>name==='member-link-form'},
-            querySelector:()=>button,
+            querySelector:sel=>({
+                '[type="submit"]':button,
+                '[name="nextcloud_uid"]':{value:'luis.souza'},
+                '[name="akaunting_contact_id"]':{value:'35'},
+            })[sel]||null,
         };
         f.dialog.fire('submit',{target:form,preventDefault(){}});
         await new Promise(resolve=>setImmediate(resolve));

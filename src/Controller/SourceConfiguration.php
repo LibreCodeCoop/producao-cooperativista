@@ -456,7 +456,7 @@ final class SourceConfiguration extends AbstractController
                     $services['nextcloud']['error'] = 'Vínculo Kimai-Nextcloud pendente. Confirme a conta no cartão Kimai para editar CPF/CNPJ, peso e dependentes.';
                 }
             } else {
-                $services['nextcloud']['error'] = 'Escolha a conta Nextcloud para continuar.';
+                $services['nextcloud']['error'] = 'Vínculo Kimai–Nextcloud ainda não confirmado. Selecione uma conta nos resultados acima e confirme no cartão Kimai para liberar CPF/CNPJ, peso e dependentes. Contas inativas podem ser vinculadas para competências históricas sem reativação.';
             }
         } catch (\Throwable $error) {
             $this->logger->warning('Falha ao consultar perfil para edição.', ['member_id' => $id, 'class' => $error::class]);

@@ -16,20 +16,21 @@
                 <div class="member-link-section-heading">
                     <div>
                         <h3 id="member-nextcloud-title-{{ member.id }}">Conta Nextcloud</h3>
-                        <p class="member-editor-description">Cadastro central do cooperado. Os dois vínculos abaixo pertencem a esta conta.</p>
+                        <p class="member-editor-description">Pesquise e escolha uma conta para conferir a identidade. A busca não grava o vínculo.</p>
                     </div>
                     <span class="member-link-system-tag">Cadastro principal</span>
                 </div>
                 <div class="member-link-fields">
                     <div>
-                        <label for="member-uid-{{ member.id }}">Conta Nextcloud selecionada</label>
-                        <input id="member-uid-{{ member.id }}" type="search" name="nextcloud_uid"
-                               value="{{ link.uid|default('') }}" data-link-source="nextcloud"
-                               list="nc-users-{{ member.id }}" placeholder="Buscar conta Nextcloud" required>
-                        <datalist id="nc-users-{{ member.id }}"></datalist>
-                        {% if link.uid|default('') is empty %}
-                            <small class="member-contact-pending">Selecione a conta correta. Logins iguais no Kimai e no Nextcloud não confirmam a identidade.</small>
-                        {% endif %}
+                        <label for="member-uid-{{ member.id }}">Pesquisar conta Nextcloud</label>
+                        <input id="member-uid-{{ member.id }}" type="search" data-link-source="nextcloud"
+                               value="{{ link.uid|default('') is not empty ? link.uid : member.username }}"
+                               placeholder="Nome ou login Nextcloud" autocomplete="off">
+                        <input type="hidden" name="nextcloud_uid" value="{{ link.uid|default('') }}">
+                        <div class="member-link-search-status" data-link-status="nextcloud" role="status" aria-live="polite">
+                            {{ link.uid|default('') is not empty ? 'Conta vinculada. Digite para procurar outra.' : 'Sugestão de pesquisa baseada no login do Kimai. Selecione um resultado para confirmar a identidade.' }}
+                        </div>
+                        <div class="member-link-search-results" data-link-results="nextcloud" role="group" aria-label="Contas Nextcloud encontradas"></div>
                     </div>
                 </div>
                 {{ include('configuracao/_identity_inspection.html.twig', {source: 'nextcloud', title: 'Identidade no Nextcloud'}) }}
@@ -47,7 +48,7 @@
                             </span>
                         {% endif %}
                     </div>
-                    <p class="member-editor-description member-link-description">Usuário do Kimai associado à conta Nextcloud acima.</p>
+                    <p class="member-editor-description member-link-description">Confirme a identidade para registrar apenas o vínculo técnico, mesmo se a conta estiver inativa. Nenhum acesso é reativado.</p>
                     <div class="member-link-fields">
                         <div>
                             <label for="member-kimai-{{ member.id }}">ID do usuário Kimai</label>
@@ -79,12 +80,15 @@
                     <p class="member-editor-description member-link-description">Contato financeiro vinculado à mesma conta Nextcloud.</p>
                     <div class="member-link-fields">
                         <div>
-                            <label for="member-contact-{{ member.id }}">Selecionar contato existente</label>
-                            <input id="member-contact-{{ member.id }}" type="search" name="akaunting_contact_id"
-                                   value="{{ link.contact_id|default('') }}" data-link-source="akaunting"
-                                   list="akaunting-contacts-{{ member.id }}" inputmode="numeric"
-                                   pattern="[1-9][0-9]*" placeholder="Buscar por nome ou ID" required>
-                            <datalist id="akaunting-contacts-{{ member.id }}"></datalist>
+                            <label for="member-contact-{{ member.id }}">Pesquisar contato existente</label>
+                            <input id="member-contact-{{ member.id }}" type="search" data-link-source="akaunting"
+                                   value="{{ link.contact_id|default('') is not empty ? '#' ~ link.contact_id : member.alias }}"
+                                   placeholder="Nome correto ou ID do contato" autocomplete="off">
+                            <input type="hidden" name="akaunting_contact_id" value="{{ link.contact_id|default('') }}">
+                            <div class="member-link-search-status" data-link-status="akaunting" role="status" aria-live="polite">
+                                {{ link.contact_id|default('') is not empty ? 'Contato vinculado. Digite para procurar outro.' : 'Pesquise pelo nome do Kimai ou pelo ID e selecione um contato existente.' }}
+                            </div>
+                            <div class="member-link-search-results" data-link-results="akaunting" role="group" aria-label="Contatos Akaunting encontrados"></div>
                         </div>
                     </div>
                     {{ include('configuracao/_identity_inspection.html.twig', {source: 'akaunting', title: 'Identidade no Akaunting'}) }}
@@ -116,8 +120,8 @@
                 </section>
             </div>
             <div class="member-link-actions">
-                <p>Registra os IDs do Kimai e do contato financeiro na conta Nextcloud selecionada. Não cria contatos.</p>
-                <button type="submit" class="button button-primary">Salvar vínculos</button>
+                <p data-link-save-help>Para registrar o Kimai sem contato financeiro, use o botão Confirmar vínculo Kimai–Nextcloud. Para salvar ambos, selecione também um contato existente. Nenhuma conta será reativada.</p>
+                <button type="submit" class="button button-primary" data-links-save>Salvar vínculos</button>
             </div>
         </form>
     {% endif %}

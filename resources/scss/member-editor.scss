@@ -163,6 +163,9 @@
 .member-link-actions .button-primary:hover:not(:disabled) {
     background:var(--brand-deep); color:#fff;
 }
+.member-link-actions .button-primary:disabled {
+    opacity:.48; cursor:not-allowed;
+}
 .member-link-prepare {
     background:transparent; border:0; color:var(--brand); padding:3px 0;
     min-height:unset; font-weight:650; cursor:pointer;
@@ -181,6 +184,7 @@
 }
 
 /* The financial contact card is independent from saving Nextcloud links. */
+.member-contact-provision[hidden] {display:none;}
 .member-contact-provision {
     border-top:1px solid var(--line); margin-top:17px; padding-top:15px;
 }
@@ -260,3 +264,20 @@
 .member-identity-note {margin:9px 0 0; font-size:11px; color:var(--muted);}
 .member-identity-note.is-warning {color:var(--text); padding:8px; background:var(--warning-bg); border-radius:7px;}
 .member-identity-inspection.is-busy {opacity:.72;}
+
+/* Explicit search + pick: typing is not equivalent to storing a technical ID. */
+.member-link-search-status {font-size:12px;line-height:1.5;color:var(--muted);margin:7px 0 0;}
+.member-link-search-results {
+    display:grid;gap:5px;margin-top:8px;max-height:240px;overflow-y:auto;
+}
+.member-link-search-results:empty {display:none;}
+.member-editor-panel .member-link-search-results button.button.member-link-search-choice {
+    display:block;width:100%;margin:0;padding:9px 11px;min-height:39px;
+    border:1px solid var(--line);border-radius:7px;background:var(--surface);
+    color:var(--text);text-align:left;font:inherit;font-size:12px;cursor:pointer;
+}
+.member-editor-panel .member-link-search-results button.button.member-link-search-choice:hover,
+.member-editor-panel .member-link-search-results button.button.member-link-search-choice:focus-visible {
+    border-color:var(--brand);outline-offset:2px;
+}
+.member-link-search-status.is-warning {color:var(--text);background:var(--warning-bg);border-radius:6px;padding:7px;}
