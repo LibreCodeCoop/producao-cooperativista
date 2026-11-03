@@ -168,6 +168,11 @@
             if (source === 'akaunting' && identity.tax_match === 'different') {
                 alerts.push('Identificação fiscal divergente. Não salve o vínculo sem corrigir as origens.');
             }
+            if (source === 'akaunting' && identity.tax_match === 'missing') {
+                alerts.push(identity.tax_hint
+                    ? 'O contato tem documento fiscal, mas falta CPF/CNPJ válido no Nextcloud. Preencha em Dados cadastrais antes de salvar.'
+                    : 'Sem CPF/CNPJ válido nas duas origens para comparar. Confira os cadastros antes de salvar.');
+            }
             if ((source === 'nextcloud' || source === 'kimai') && identity.enabled === false) {
                 alerts.push('Conta inativa. Um vínculo técnico para competências históricas não reativa o acesso.');
             }

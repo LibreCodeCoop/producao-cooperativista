@@ -188,6 +188,23 @@ test('Akaunting contact shows fiscal agreement without exposing the full CPF', a
     assert.doesNotMatch(text,/52998224725/);
 });
 
+test('missing fiscal data names Nextcloud as the next action without inventing values', async () => {
+    const f=fixture({standalone:true,identityResponder:async url=>({
+        ok:true,status:200,json:async()=>({identity:{
+            source:'akaunting',id:new URL(url).searchParams.get('id'),name:'Crisciany Souza',
+            username:'',email:'',enabled:null,kind:'Fornecedor',tax_hint:'CPF final 725',
+            tax_match:'missing',linked_account:'',
+        }}),
+    })});
+    const view=makeIdentityWidget(f,'akaunting');
+    f.standaloneElement.fire('click',{target:view.target});
+    await new Promise(resolve=>setImmediate(resolve));
+    const text=identityRenderedText(view.output);
+    assert.match(text,/falta CPF\/CNPJ válido no Nextcloud/);
+    assert.match(text,/Preencha em Dados cadastrais/);
+    assert.doesNotMatch(text,/52998224725/);
+});
+
 test('identity conflict warns without claiming that two accounts are the same person', async () => {
     const f=fixture({standalone:true,identityResponder:async url=>({ok:true,status:200,
         json:async()=>({identity:{source:'kimai',id:new URL(url).searchParams.get('id'),

@@ -69,6 +69,7 @@ final class MemberLinksTest extends TestCase
         $profile = $this->profileClient($values, 'different-uid');
         $source = $this->source($profile);
         $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Usuário Kimai já vinculado a outra conta Nextcloud');
         try {
             $source->linkMember(17, 'nc-account', 31);
         } finally {
@@ -103,6 +104,20 @@ final class MemberLinksTest extends TestCase
         $profile = $this->profileClient($values, profileTax: '');
         $source = $this->source($profile);
         $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('CPF/CNPJ ausente ou inválido no Nextcloud');
+        try {
+            $source->linkMember(17, 'nc-account', 31);
+        } finally {
+            self::assertSame([], $values);
+        }
+    }
+
+    public function testMissingAkauntingContactTaxRejectsLinkWithSpecificSource(): void
+    {
+        $values = [];
+        $source = $this->source($this->profileClient($values), contactTax: '');
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('CPF/CNPJ ausente ou inválido no contato do Akaunting');
         try {
             $source->linkMember(17, 'nc-account', 31);
         } finally {

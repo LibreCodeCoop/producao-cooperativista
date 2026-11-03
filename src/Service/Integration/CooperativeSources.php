@@ -388,7 +388,13 @@ final class CooperativeSources
         $taxFieldKey = trim((string) getenv('PROFILE_FIELDS_TAX_NUMBER_FIELD_KEY')) ?: 'tax_number';
         $profileTax = (string) preg_replace('/\\D/', '', (string) ($existing[$taxFieldKey] ?? ''));
         $contactTax = (string) preg_replace('/\\D/', '', (string) $financial['tax_number']);
-        if (!in_array(strlen($profileTax), [11, 14], true) || $profileTax !== $contactTax) {
+        if (!in_array(strlen($profileTax), [11, 14], true)) {
+            throw new \DomainException('CPF/CNPJ ausente ou inválido no Nextcloud. Confira o documento do cooperado e preencha Dados cadastrais no Nextcloud antes de salvar o contato financeiro.');
+        }
+        if (!in_array(strlen($contactTax), [11, 14], true)) {
+            throw new \DomainException('CPF/CNPJ ausente ou inválido no contato do Akaunting. Corrija o documento na origem antes de vincular.');
+        }
+        if ($profileTax !== $contactTax) {
             throw new \DomainException('CPF/CNPJ divergente entre o Profile Fields e o contato do Akaunting.');
         }
         $otherKimai = $this->profileFields->findUserUidByLink('kimai_user_id', $targetKimaiId);
