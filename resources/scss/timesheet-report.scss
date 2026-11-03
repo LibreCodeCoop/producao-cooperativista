@@ -2,7 +2,9 @@
     padding: clamp(14px, 2.5vw, 24px);
     margin-bottom: 24px;
 
-    h2 { margin: 0 0 16px; }
+    h2 {
+        margin: 0 0 16px;
+    }
 }
 
 .timesheet-filters {
@@ -12,8 +14,17 @@
     gap: 14px;
     margin-bottom: 15px;
 
-    > div { flex: 1 1 200px; min-width: 160px; max-width: 370px; }
-    label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 700; }
+    > div {
+        flex: 1 1 200px;
+        min-width: 160px;
+        max-width: 370px;
+    }
+    label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+        font-weight: 700;
+    }
     select {
         width: 100%;
         min-height: 42px;
@@ -24,7 +35,9 @@
         border-radius: 8px;
         font: inherit;
     }
-    button { min-height: 42px; }
+    button {
+        min-height: 42px;
+    }
 }
 
 .timesheet-summary {
@@ -39,18 +52,34 @@
 .timesheet-client-summary {
     margin-top: 24px;
 
-    h3 { font-size: 17px; margin: 0 0 11px; }
+    h3 {
+        font-size: 17px;
+        margin: 0 0 11px;
+    }
 }
-.timesheet-summary-scroll { overflow: auto; max-width: 100%; }
+.timesheet-summary-scroll {
+    overflow: auto;
+    max-width: 100%;
+}
 
 .timesheet-client-table {
     width: 100%;
     border-collapse: collapse;
     font-variant-numeric: tabular-nums;
 
-    th, td { padding: 9px 12px; border-bottom: 1px solid var(--line); text-align: left; }
-    td:nth-child(n + 2), th:nth-child(n + 2) { text-align: right; }
-    thead { background: var(--brand-soft); }
+    th,
+    td {
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+    }
+    td:nth-child(n + 2),
+    th:nth-child(n + 2) {
+        text-align: right;
+    }
+    thead {
+        background: var(--brand-soft);
+    }
 }
 
 #example .timesheet-description {

@@ -4,9 +4,16 @@
   "scripts": {
     "css:build": "sass resources/scss:public/css --no-source-map --style=compressed",
     "css:watch": "sass --watch resources/scss:public/css --no-source-map --style=compressed",
-    "css:check": "npm run css:build && git diff --quiet -- public/css"
+    "css:check": "node scripts/check-generated-css.cjs",
+    "scss:format": "prettier --write \"resources/scss/**/*.scss\"",
+    "scss:format:check": "prettier --check \"resources/scss/**/*.scss\"",
+    "scss:lint": "stylelint \"resources/scss/**/*.scss\"",
+    "scss:lint:fix": "stylelint \"resources/scss/**/*.scss\" --fix"
   },
   "devDependencies": {
-    "sass": "1.107.1"
+    "prettier": "3.9.10",
+    "sass": "1.107.1",
+    "stylelint": "17.16.0",
+    "stylelint-config-recommended-scss": "17.0.1"
   }
 }

@@ -234,7 +234,18 @@ A instalação produtiva usa o [Compose versionado e o procedimento operacional]
 
 ### Estilos
 
-Edite os arquivos em `resources/scss/`, não os CSS gerados. Para compilar, rode `npm ci --include=dev` e `npm run css:build`. Os arquivos em `public/css/` são versionados e servidos diretamente; Node.js/Sass não são exigidos no servidor de produção. O CI verifica que os estilos compilados estão atualizados.
+Edite os arquivos em `resources/scss/`, não os CSS gerados. Os arquivos compilados em `public/css/` são versionados e servidos diretamente: Node.js/Sass não são exigidos na Conceição. Para desenvolver ou revisar os estilos, use:
+
+```bash
+npm ci --include=dev
+npm run scss:format        # formata o código-fonte
+npm run scss:format:check  # falha se o SCSS estiver fora do padrão
+npm run scss:lint          # verifica erros e construções SCSS
+npm run css:build          # atualiza os CSS versionados após editar o SCSS
+npm run css:check          # compila em memória e compara sem alterar arquivos
+```
+
+O workflow **Styles** executa dois checks independentes em todo pull request: `SCSS formatting and lint` (Prettier + Stylelint) e `Generated CSS matches SCSS` (inclui testes para alterações manuais e CSS ausente/obsoleto). Se o segundo falhar, rode `npm run css:build` e inclua os CSS atualizados no commit. Não edite `public/css/` manualmente; o verificador sempre recompila o SCSS em memória e compara byte a byte com o CSS versionado.
 
 ### Configuração administrativa
 

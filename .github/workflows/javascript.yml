@@ -26,11 +26,8 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - name: Install Sass compiler
+      - name: Install locked Node.js dependencies for tests
         run: npm ci --include=dev --ignore-scripts --no-audit --no-fund
-
-      - name: Check generated CSS
-        run: npm run css:check
 
       - name: Validate JavaScript syntax
         run: find public/js -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
