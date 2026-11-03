@@ -168,7 +168,10 @@ final class SourceConfiguration extends AbstractController
     {
         $this->assertAdmin($request);
         try {
-            return $this->linkResponse($this->sources->contactProvisioning($id));
+            return $this->linkResponse($this->sources->contactProvisioning(
+                $id,
+                $request->query->getString('uid'),
+            ));
         } catch (\DomainException | \InvalidArgumentException $error) {
             return $this->linkResponse(['error' => $error->getMessage()], Response::HTTP_CONFLICT);
         } catch (\Throwable $error) {

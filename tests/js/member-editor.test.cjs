@@ -299,6 +299,7 @@ test('creating a new Akaunting contact is explicit and never auto-links Nextclou
         await widget.fire(widget.submit);
         assert.equal(f.calls.length,3,'Read editor, inspect contact, then write only once');
         assert.equal(f.calls[1].config.method,undefined,'Proposal must be read-only');
+        assert.equal(new URL(f.calls[1].url).searchParams.get('uid'),'luis.souza');
         assert.equal(f.calls[2].config.method,'POST');
         assert.equal(f.calls[2].config.body.fields.contact_name,'Luiz Amorim');
         assert.equal(f.calls[2].config.body.fields.identity_confirmed,'1');

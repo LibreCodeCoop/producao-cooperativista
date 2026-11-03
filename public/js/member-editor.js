@@ -223,7 +223,9 @@
                 output.textContent = 'Consultando contatos do Akaunting…';
                 trigger.disabled = true;
                 try {
-                    const response = await request(endpoint, {credentials:'same-origin', cache:'no-store',
+                    const proposalUrl = new URL(endpoint);
+                    proposalUrl.searchParams.set('uid', uid.value.trim());
+                    const response = await request(proposalUrl.href, {credentials:'same-origin', cache:'no-store',
                         headers:{Accept:'application/json'}});
                     const result = await response.json();
                     if (!response.ok) throw new Error(result.error || 'Não foi possível conferir os contatos.');

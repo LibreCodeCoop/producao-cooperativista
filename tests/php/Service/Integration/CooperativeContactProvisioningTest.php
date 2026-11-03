@@ -46,7 +46,7 @@ final class CooperativeContactProvisioningTest extends TestCase
     /** @param array<string,mixed>|null $profileValues
      *  @param list<array<string,mixed>> $matchingContacts
      */
-    private function source(?array $profileValues, array $matchingContacts = [], bool $createAllowed = false): CooperativeSources
+    private function source(?array $profileValues, array $matchingContacts = [], bool $createAllowed = false, bool $linked = true): CooperativeSources
     {
         $http = new MockHttpClient(static function (string $method, string $url) use ($createAllowed): MockResponse {
             if (str_contains($url, '/users/')) {
@@ -64,11 +64,12 @@ final class CooperativeContactProvisioningTest extends TestCase
             throw new \LogicException('Unexpected live request.');
         });
         $profile = $this->createMock(ProfileFieldsClient::class);
-        $profile->method('findByKimaiId')->willReturn($profileValues === null ? null : [
+        $profile->method('findByKimaiId')->willReturn(!$linked || $profileValues === null ? null : [
             'uid' => 'luis.souza', 'values' => $profileValues,
         ]);
         $profile->expects(self::never())->method('updateUserField');
         $profile->method('userExists')->willReturn(true);
+        $profile->method('getFieldsForUser')->willReturn($profileValues ?? []);
         $db = $this->createStub(Connection::class);
         $db->method('fetchAllAssociative')->willReturn($matchingContacts);
         $db->method('fetchOne')->willReturn(1);
@@ -94,7 +95,7 @@ final class CooperativeContactProvisioningTest extends TestCase
         self::assertSame([
             'status' => 'available', 'uid' => 'luis.souza',
             'name' => 'Luis Souza', 'tax_hint' => 'CPF final 725', 'contacts' => [],
-        ], $source->contactProvisioning(40));
+        ], $source->contactProvisioning(40, 'luis.souza'));
     }
 
     public function testExistingContactMustBeSelectedInsteadOfBeingCreated(): void
@@ -102,7 +103,7 @@ final class CooperativeContactProvisioningTest extends TestCase
         $source = $this->source([
             'kimai_user_id' => '40', 'tax_number' => '52998224725',
         ], [['id' => 73, 'name' => 'Luiz Amorim', 'type' => 'vendor']]);
-        $proposal = $source->contactProvisioning(40);
+        $proposal = $source->contactProvisioning(40, 'luis.souza');
         self::assertSame('existing', $proposal['status']);
         self::assertSame(73, $proposal['contacts'][0]['id']);
         $this->expectException(\DomainException::class);
@@ -114,7 +115,7 @@ final class CooperativeContactProvisioningTest extends TestCase
     {
         $source = $this->source(['kimai_user_id' => '40', 'tax_number' => '52998224725']);
         $this->expectException(\DomainException::class);
-        $this->expectExceptionMessage('alterada');
+        $this->expectExceptionMessage('outra conta Nextcloud');
         $source->createContactForMember(40, 'someone-else', 'Luis Souza');
     }
 
@@ -131,10 +132,47 @@ final class CooperativeContactProvisioningTest extends TestCase
 
     public function testUnlinkedNextcloudIdentityCannotCreateFinancialContact(): void
     {
-        $source = $this->source(null, createAllowed: true);
+        $source = $this->source(null, createAllowed: true, linked: false);
         $this->expectException(\DomainException::class);
-        $this->expectExceptionMessage('vínculo');
+        $this->expectExceptionMessage('CPF/CNPJ');
         $source->createContactForMember(40, 'luis.souza', 'Luis Souza');
+    }
+
+    public function testFirstTimeCooperadoCanInspectAndCreateWithoutPreexistingKimaiLink(): void
+    {
+        $source = $this->source([
+            'kimai_user_id' => '', 'akaunting_contact_id' => '',
+            'tax_number' => '529.982.247-25',
+        ], createAllowed: true, linked: false);
+        $proposal = $source->contactProvisioning(40, 'luis.souza');
+        self::assertSame('available', $proposal['status']);
+        self::assertSame('luis.souza', $proposal['uid']);
+        self::assertSame('CPF final 725', $proposal['tax_hint']);
+        self::assertSame(
+            ['id' => 90, 'name' => 'Luiz Amorim'],
+            $source->createContactForMember(40, 'luis.souza', 'Luiz Amorim')
+        );
+    }
+
+    public function testFirstTimeCooperadoCannotOverwriteAnotherKimaiId(): void
+    {
+        $source = $this->source([
+            'kimai_user_id' => '27', 'akaunting_contact_id' => '',
+            'tax_number' => '52998224725',
+        ], createAllowed: true, linked: false);
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('outro usuário Kimai');
+        $source->contactProvisioning(40, 'luis.souza');
+    }
+
+    public function testProposalNeedsSelectedNextcloudAccount(): void
+    {
+        $source = $this->source([
+            'kimai_user_id' => '', 'tax_number' => '52998224725',
+        ], linked: false);
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Selecione uma conta Nextcloud');
+        $source->contactProvisioning(40, '');
     }
 
     public function testLinkedFinancialContactPreventsSecondCreation(): void

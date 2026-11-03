@@ -155,33 +155,44 @@ final class CooperativeSources
     /**
      * @return array{status:string,uid:string,name:string,tax_hint:string,contacts:list<array{id:int,name:string,type:string}>}
      */
-    public function contactProvisioning(int $kimaiId): array
+    public function contactProvisioning(int $kimaiId, string $selectedUid): array
     {
         $member = $this->user($kimaiId);
         if ($member['system'] || !$member['enabled']) {
             throw new \DomainException('A criação de contatos está disponível somente para cooperados ativos.');
         }
+        $selectedUid = trim($selectedUid);
+        if ($selectedUid === '' || mb_strlen($selectedUid) > 128
+            || !$this->profileFields->userExists($selectedUid)) {
+            throw new \DomainException('Selecione uma conta Nextcloud existente antes de consultar o contato.');
+        }
         $linked = $this->profileFields->findByKimaiId($kimaiId);
-        if ($linked === null || (string) ($linked['values']['kimai_user_id'] ?? '') !== (string) $kimaiId) {
-            throw new \DomainException('Confirme primeiro o vínculo deste cooperado com o Nextcloud.');
+        if ($linked !== null && $linked['uid'] !== $selectedUid) {
+            throw new \DomainException('Este ID Kimai já pertence a outra conta Nextcloud. Confira os vínculos.');
         }
-        if (!$this->profileFields->userExists($linked['uid'])) {
-            throw new \DomainException('A conta Nextcloud vinculada não existe mais. Corrija o vínculo antes de criar contato.');
+        // The first-time flow has no Kimai link yet. A selected administrator-
+        // confirmed UID can be inspected without writing the technical link.
+        // Contact creation and saving both links remain separate actions.
+        $values = $linked !== null
+            ? $linked['values'] : $this->profileFields->getFieldsForUser($selectedUid);
+        $currentKimaiId = trim((string) ($values['kimai_user_id'] ?? ''));
+        if ($currentKimaiId !== '' && $currentKimaiId !== (string) $kimaiId) {
+            throw new \DomainException('Esta conta Nextcloud já pertence a outro usuário Kimai.');
         }
-        $existingId = (int) ($linked['values']['akaunting_contact_id'] ?? 0);
+        $existingId = (int) ($values['akaunting_contact_id'] ?? 0);
         if ($existingId > 0) {
-            return ['status' => 'linked', 'uid' => $linked['uid'],
+            return ['status' => 'linked', 'uid' => $selectedUid,
                 'name' => $member['alias'], 'tax_hint' => '', 'contacts' => []];
         }
         $taxKey = trim((string) getenv('PROFILE_FIELDS_TAX_NUMBER_FIELD_KEY')) ?: 'tax_number';
-        $tax = (string) preg_replace('/\D/', '', (string) ($linked['values'][$taxKey] ?? ''));
+        $tax = (string) preg_replace('/\D/', '', (string) ($values[$taxKey] ?? ''));
         if (!in_array(strlen($tax), [11, 14], true)) {
             throw new \DomainException('CPF/CNPJ não cadastrado ou inválido no Nextcloud. Corrija o perfil antes de criar o contato.');
         }
         $contacts = $this->akauntingContacts->findByTaxNumber($tax);
         return [
             'status' => $contacts !== [] ? 'existing' : 'available',
-            'uid' => $linked['uid'],
+            'uid' => $selectedUid,
             'name' => $member['alias'],
             'tax_hint' => (strlen($tax) === 11 ? 'CPF' : 'CNPJ') . ' final ' . substr($tax, -3),
             'contacts' => $contacts,
@@ -193,7 +204,7 @@ final class CooperativeSources
      */
     public function createContactForMember(int $kimaiId, string $expectedUid, string $name): array
     {
-        $proposal = $this->contactProvisioning($kimaiId);
+        $proposal = $this->contactProvisioning($kimaiId, $expectedUid);
         if ($proposal['status'] === 'linked') {
             throw new \DomainException('Este cooperado já tem um contato financeiro vinculado.');
         }
@@ -208,18 +219,18 @@ final class CooperativeSources
             || preg_match("/^[\p{L}\p{M}][\p{L}\p{M} .'-]*$/uD", $name) !== 1) {
             throw new \InvalidArgumentException('Informe o nome completo válido para o contato financeiro.');
         }
-        // Profile Fields is the sole fiscal source. Do not accept a posted
-        // CPF/CNPJ or auto-link the new ID to Nextcloud in this operation.
-        $linked = $this->profileFields->findByKimaiId($kimaiId);
-        $taxKey = trim((string) getenv('PROFILE_FIELDS_TAX_NUMBER_FIELD_KEY')) ?: 'tax_number';
-        if ($linked === null || $linked['uid'] !== $expectedUid
-            || (string) ($linked['values']['kimai_user_id'] ?? '') !== (string) $kimaiId) {
+        // Read the selected account again; a first-time cooperado is allowed
+        // to have no Kimai link, but cannot already belong to another one.
+        $values = $this->profileFields->getFieldsForUser($expectedUid);
+        $currentKimaiId = trim((string) ($values['kimai_user_id'] ?? ''));
+        if ($currentKimaiId !== '' && $currentKimaiId !== (string) $kimaiId) {
             throw new \DomainException('O vínculo Nextcloud foi alterado. Reabra o cadastro.');
         }
-        if ((int) ($linked['values']['akaunting_contact_id'] ?? 0) > 0) {
+        if ((int) ($values['akaunting_contact_id'] ?? 0) > 0) {
             throw new \DomainException('Contato já vinculado no Nextcloud. Reabra o cadastro.');
         }
-        $tax = (string) preg_replace('/\D/', '', (string) ($linked['values'][$taxKey] ?? ''));
+        $taxKey = trim((string) getenv('PROFILE_FIELDS_TAX_NUMBER_FIELD_KEY')) ?: 'tax_number';
+        $tax = (string) preg_replace('/\D/', '', (string) ($values[$taxKey] ?? ''));
         $id = $this->akauntingContacts->createMissingContact($name, $tax);
         return ['id' => $id, 'name' => $name];
     }

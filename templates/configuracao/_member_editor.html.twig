@@ -35,6 +35,9 @@
                         <label for="member-kimai-{{ member.id }}">Usuário Kimai (ID)</label>
                         <input id="member-kimai-{{ member.id }}" type="number" name="kimai_user_id"
                                value="{{ link.kimai_id|default(member.id) }}" min="1" step="1" required>
+                        {% if not link.kimai_linked|default(false) %}
+                            <small class="member-contact-pending">ID sugerido, ainda não salvo no Nextcloud</small>
+                        {% endif %}
                     </div>
                     <div>
                         <label for="member-uid-{{ member.id }}">Conta Nextcloud</label>
@@ -50,7 +53,7 @@
                                list="akaunting-contacts-{{ member.id }}" inputmode="numeric"
                                pattern="[1-9][0-9]*" placeholder="Buscar contato" required>
                         <datalist id="akaunting-contacts-{{ member.id }}"></datalist>
-                        {% if link.kimai_linked|default(false) and link.contact_id|default('') is empty %}
+                        {% if link.uid|default('') is not empty and link.contact_id|default('') is empty %}
                             <div class="member-contact-provision" data-contact-provision>
                                 <button type="button" class="member-contact-trigger" data-contact-provision-open>
                                     Não encontrou? Criar contato
