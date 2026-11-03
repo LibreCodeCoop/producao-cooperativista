@@ -110,15 +110,48 @@ final class CooperativeSourcesTest extends TestCase
         self::assertSame([2 => '1.2500', 4 => '2.75'], $sources->importedWeights());
     }
 
-    public function testUnlinkedNextcloudAccountIsOnlySuggestedWithoutMatchingTaxNumber(): void
+    public function testMatchingLoginNeverPreselectsUnconfirmedNextcloudIdentity(): void
     {
         $logger = new NullLogger();
         $client = $this->createMock(ProfileFieldsClient::class);
         $client->method('isConfigured')->willReturn(true);
-        $client->expects(self::once())->method('userExists')->with('member-b')->willReturn(true);
-        $client->expects(self::once())->method('getFieldsForUser')->with('member-b')->willReturn([
-            'tax_number' => 'reference-other', 'dependents' => 1,
+        $client->expects(self::once())->method('findByKimaiId')->with(39)->willReturn(null);
+        $client->expects(self::never())->method('userExists');
+        $client->expects(self::never())->method('getFieldsForUser');
+        $sources = new CooperativeSources(
+            new MockHttpClient([]),
+            $logger,
+            $client,
+            new AkauntingContactGateway(
+                new AkauntingRequest($logger, new MockHttpClient([])),
+                $this->createStub(Connection::class),
+            ),
+            $this->createStub(Connection::class),
+        );
+        self::assertSame([
+            'exists' => false,
+            'uid' => '',
+            'values' => [],
+        ], $sources->nextcloudForMember([
+            'id' => 39,
+            'username' => 'renata',
+        ]));
+    }
+
+    public function testConfirmedProfileLinkOverridesDifferentKimaiUsername(): void
+    {
+        $logger = new NullLogger();
+        $client = $this->createMock(ProfileFieldsClient::class);
+        $client->method('isConfigured')->willReturn(true);
+        $client->expects(self::once())->method('findByKimaiId')->with(39)->willReturn([
+            'uid' => 'renata.demetrio',
+            'values' => [
+                'kimai_user_id' => '39',
+                'akaunting_contact_id' => '',
+                'weight' => '1.25',
+            ],
         ]);
+        $client->expects(self::never())->method('userExists');
         $sources = new CooperativeSources(
             new MockHttpClient([]),
             $logger,
@@ -131,11 +164,15 @@ final class CooperativeSourcesTest extends TestCase
         );
         self::assertSame([
             'exists' => true,
-            'uid' => 'member-b',
-            'values' => ['tax_number' => 'reference-other', 'dependents' => 1],
+            'uid' => 'renata.demetrio',
+            'values' => [
+                'kimai_user_id' => '39',
+                'akaunting_contact_id' => '',
+                'weight' => '1.25',
+            ],
         ], $sources->nextcloudForMember([
-            'id' => 2,
-            'username' => 'member-b',
+            'id' => 39,
+            'username' => 'renata',
         ]));
     }
 

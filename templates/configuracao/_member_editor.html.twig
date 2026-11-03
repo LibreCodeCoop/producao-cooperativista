@@ -25,8 +25,11 @@
                         <label for="member-uid-{{ member.id }}">Conta Nextcloud selecionada</label>
                         <input id="member-uid-{{ member.id }}" type="search" name="nextcloud_uid"
                                value="{{ link.uid|default('') }}" data-link-source="nextcloud"
-                               list="nc-users-{{ member.id }}" placeholder="Buscar conta" required>
+                               list="nc-users-{{ member.id }}" placeholder="Buscar conta Nextcloud" required>
                         <datalist id="nc-users-{{ member.id }}"></datalist>
+                        {% if link.uid|default('') is empty %}
+                            <small class="member-contact-pending">Selecione a conta correta. Logins iguais no Kimai e no Nextcloud não confirmam a identidade.</small>
+                        {% endif %}
                     </div>
                 </div>
             </section>

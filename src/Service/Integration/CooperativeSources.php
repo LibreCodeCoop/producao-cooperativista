@@ -125,19 +125,10 @@ final class CooperativeSources
         if ($linked !== null) {
             return ['exists' => true, 'uid' => $linked['uid'], 'values' => $linked['values']];
         }
-        // Before an explicit link is saved, the exact matching account UID is a
-        // candidate for administration, not an automatic identity binding.
-        $uid = trim((string) $member['username']);
-        if ($uid === '' || !$this->profileFields->userExists($uid)) {
-            return ['exists' => false, 'uid' => '', 'values' => []];
-        }
-        $fields = $this->profileFields->getFieldsForUser($uid);
-        $linkedId = trim((string) ($fields['kimai_user_id'] ?? ''));
-        if ($linkedId !== '' && $linkedId !== (string) $member['id']) {
-            throw new \DomainException('A conta Nextcloud já está vinculada a outro usuário Kimai.');
-        }
-
-        return ['exists' => true, 'uid' => $uid, 'values' => $fields];
+        // A matching login in Kimai is not proof of identity in Nextcloud.
+        // Never preselect an unconfirmed account: the administrator must search
+        // and explicitly confirm the correct Nextcloud UID before any write.
+        return ['exists' => false, 'uid' => '', 'values' => []];
     }
 
     /** @return list<string> */
