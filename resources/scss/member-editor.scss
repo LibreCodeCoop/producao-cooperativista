@@ -134,3 +134,32 @@
     .member-editor-fiscal-status > div { grid-template-columns:1fr; gap:3px; }
 }
 @media(max-width:620px) { .member-link-fields { grid-template-columns:1fr; } .member-fields-main .member-editor-field { display:block; width:100%; } }
+
+/* Existing contact selection and explicit creation are separate actions. */
+.member-contact-provision {margin-top:8px;}
+.member-contact-trigger {
+    border:0; background:transparent; padding:5px 0; color:var(--brand);
+    font:inherit; font-size:12px; font-weight:700; cursor:pointer;
+    text-decoration:underline; text-underline-offset:3px;
+}
+.member-contact-provision-panel {
+    margin-top:9px; padding:12px; border:1px solid var(--line);
+    border-radius:9px; background:var(--brand-soft);
+}
+.member-contact-provision-panel[hidden],
+.member-contact-provision-panel [hidden] {display:none;}
+.member-contact-provision-panel p {margin:0 0 10px; font-size:12px; line-height:1.5;}
+.member-contact-provision-panel .member-contact-choice {
+    display:block; width:100%; margin:7px 0; padding:9px 10px; font:inherit;
+    text-align:left; color:var(--text); border:1px solid var(--line);
+    border-radius:7px; background:var(--surface); cursor:pointer;
+}
+.member-contact-provision-panel .member-contact-choice:hover {border-color:var(--brand);}
+.member-contact-provision-panel .member-contact-confirmation {
+    display:flex; gap:8px; align-items:start; margin:10px 0;
+    font-size:12px; font-weight:600;
+}
+.member-contact-provision-panel .member-contact-confirmation input {
+    width:16px; height:16px; min-height:16px; flex:none; margin:0;
+}
+.member-contact-provision-panel [data-contact-provision-create]:disabled {opacity:.55; cursor:not-allowed;}

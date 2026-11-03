@@ -4,7 +4,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {editorUrl, initialize, bindFieldControls} = require('../../public/js/member-editor.js');
+const {editorUrl, contactEndpoint, initialize, bindFieldControls} = require('../../public/js/member-editor.js');
 
 function node() {
     const handlers = new Map();
@@ -18,7 +18,9 @@ function node() {
     };
 }
 
-function fixture({failGet=false, failPost=false, changed=true, location='https://host.test/relatorios/producao?ano-mes=2026-08'} = {}) {
+function fixture({failGet=false, failPost=false, changed=true,
+    contactStatus='available', contactCreateFails=false, contactUid='luis.souza', contacts=[],
+    location='https://host.test/relatorios/producao?ano-mes=2026-08'} = {}) {
     const dialog=node();
     dialog.open=false;
     dialog.showModal=()=>{dialog.open=true;};
@@ -32,6 +34,8 @@ function fixture({failGet=false, failPost=false, changed=true, location='https:/
     const handlers=new Map(),dispatched=[];
     const doc={
         getElementById:id=>items[id],
+        createElement:() => ({...node(), dataset:{}, children:[],
+            appendChild(child){this.children.push(child);}, replaceChildren(...children){this.children=children;}}),
         addEventListener:(type,cb)=>handlers.set(type,cb),
         fire:(type,event)=>handlers.get(type)?.(event),
         dispatchEvent:event=>{dispatched.push(event);},
@@ -43,6 +47,15 @@ function fixture({failGet=false, failPost=false, changed=true, location='https:/
         window:{location:loc,CustomEvent:class {constructor(name,params){this.type=name;this.detail=params?.detail;}}},
         fetch:async(url,config)=>{
             calls.push({url,config});
+            if(url.includes('/contato/proposta')) {
+                return {ok:true, status:200, json:async()=>({status:contactStatus,
+                    uid:contactUid,name:'Luis Souza',tax_hint:'CPF final 725',contacts})};
+            }
+            if(url.includes('/contato/criar')) {
+                return {ok:!contactCreateFails, status:contactCreateFails?409:201,
+                    json:async()=>contactCreateFails ? {error:'Contato já existente no Akaunting.'} :
+                        {id:91,message:'Contato criado. Salve os vínculos.'}};
+            }
             if(config.method==='POST'){
                 return {
                     ok:!failPost, status:failPost?409:200,
@@ -199,6 +212,152 @@ test('field save buttons activate only after an actual edit', () => {
     assert.equal(button.disabled,false);
     input.value='1,5'; events.get('input')();
     assert.equal(button.disabled,true);
+});
+
+function provisionWidget(f) {
+    const contact={value:''}, uid={value:'luis.souza'},
+        name={value:''},confirm={checked:false},create={disabled:true};
+    const body={hidden:true},newFields={hidden:true},status={textContent:''},
+        existing={hidden:true,children:[],appendChild(child){this.children.push(child);},
+            replaceChildren(...items){this.children=items;}};
+    const form={
+        action:'https://host.test/configuracao/cooperado/40/vincular',
+        querySelector:selector=>({
+            '[name="akaunting_contact_id"]':contact,
+            '[name="nextcloud_uid"]':uid,
+        })[selector] || null,
+    };
+    const panel={dataset:{},
+        closest:selector=>selector==='.member-link-form'?form:null,
+        querySelector:selector=>({
+            '[data-contact-provision-panel]':body,
+            '[data-contact-provision-status]':status,
+            '[data-contact-provision-existing]':existing,
+            '[data-contact-provision-new]':newFields,
+            '[data-contact-provision-name]':name,
+            '[data-contact-provision-confirm]':confirm,
+            '[data-contact-provision-create]':create,
+        })[selector] || null,
+    };
+    function control(marker, item) {
+        return {
+            ...item,
+            closest(selector){
+                if(selector === '[data-contact-provision]') return panel;
+                if(selector.includes(marker)) return this;
+                return null;
+            },
+        };
+    }
+    const trigger=control('[data-contact-provision-open]', {disabled:false});
+    const submit=create;
+    submit.closest=selector=>selector==='[data-contact-provision]'?panel:
+        selector.includes('[data-contact-provision-create]')?submit:null;
+    const checkbox=confirm;
+    checkbox.closest=()=>panel;
+    checkbox.matches=selector=>selector==='[data-contact-provision-confirm]';
+    const fire=async control=>{
+        f.dialog.fire('click',{target:control});
+        await new Promise(resolve=>setImmediate(resolve));
+    };
+    return {form,panel,trigger,submit,checkbox,status,body,existing,newFields,name,uid,contact,create,
+        fire};
+}
+
+test('creation endpoints accept only a known same-origin cooperado form', () => {
+    const base='https://host.test/configuracao/cooperados';
+    assert.equal(contactEndpoint({action:'/configuracao/cooperado/40/vincular'},base,'proposta'),
+        'https://host.test/configuracao/cooperado/40/contato/proposta');
+    assert.equal(contactEndpoint({action:'/configuracao/cooperado/40/vincular'},base,'criar'),
+        'https://host.test/configuracao/cooperado/40/contato/criar');
+    assert.equal(contactEndpoint({action:'/configuracao/cooperado/40/vincular'},base,'delete'),null);
+    assert.equal(contactEndpoint({action:'https://external.test/configuracao/cooperado/40/vincular'},base,'criar'),null);
+    assert.equal(contactEndpoint({action:'/configuracao/cooperado/0/vincular'},base,'criar'),null);
+});
+
+test('creating a new Akaunting contact is explicit and never auto-links Nextcloud', async () => {
+    const f=fixture();
+    await f.controller.load('/configuracao/cooperado/40/editar');
+    const widget=provisionWidget(f);
+    await widget.fire(widget.trigger);
+    assert.equal(widget.body.hidden,false);
+    assert.equal(widget.newFields.hidden,false);
+    assert.match(widget.status.textContent,/Nextcloud: luis.souza/);
+    assert.match(widget.status.textContent,/CPF final 725/);
+    assert.equal(widget.name.value,'Luis Souza');
+    assert.equal(widget.create.disabled,true,'Cannot create before explicit identity confirmation');
+    widget.checkbox.checked=true;
+    f.dialog.fire('change',{target:widget.checkbox});
+    assert.equal(widget.create.disabled,false);
+    widget.name.value='Luiz Amorim';
+    const originalFormData=globalThis.FormData;
+    globalThis.FormData=class {
+        constructor(form){this.form=form;this.fields={};}
+        set(key,value){this.fields[key]=value;}
+    };
+    try {
+        await widget.fire(widget.submit);
+        assert.equal(f.calls.length,3,'Read editor, inspect contact, then write only once');
+        assert.equal(f.calls[1].config.method,undefined,'Proposal must be read-only');
+        assert.equal(f.calls[2].config.method,'POST');
+        assert.equal(f.calls[2].config.body.fields.contact_name,'Luiz Amorim');
+        assert.equal(f.calls[2].config.body.fields.identity_confirmed,'1');
+        assert.equal(widget.contact.value,'91');
+        assert.equal(widget.body.hidden,true);
+        assert.equal(widget.create.disabled,true);
+        assert.match(f.feedback.textContent,/Salve os vínculos/);
+        assert.equal(f.dispatched.at(-1).type,'member-source-changed');
+        assert.equal(f.dispatched.at(-1).detail.source,'akaunting');
+        assert.equal(f.calls.filter(call=>call.url.includes('/vincular')).length,0,
+            'Creating the contact must not automatically associate it');
+    } finally {globalThis.FormData=originalFormData;}
+});
+
+test('existing financial contact can be selected without invoking creation', async () => {
+    const f=fixture({contactStatus:'existing',contacts:[
+        {id:77,name:'Luiz Amorim',type:'vendor'},
+        {id:80,name:'Luiz A.',type:'employee'},
+    ]});
+    await f.controller.load('/configuracao/cooperado/40/editar');
+    const w=provisionWidget(f);
+    await w.fire(w.trigger);
+    assert.equal(w.newFields.hidden,true);
+    assert.equal(w.existing.hidden,false);
+    assert.equal(w.existing.children.length,2);
+    assert.match(w.existing.children[0].textContent,/Fornecedor/);
+    const pick={dataset:{contactPick:'77'},closest:sel=>sel==='[data-contact-provision]'?w.panel:
+        sel.includes('[data-contact-pick]')?pick:null};
+    await w.fire(pick);
+    assert.equal(w.contact.value,'77');
+    assert.equal(w.body.hidden,true);
+    assert.match(f.feedback.textContent,/Salvar vínculos/);
+    assert.equal(f.calls.length,2,'No financial write when selecting an existing contact');
+});
+
+test('profile identity mismatch and denied contact creation fail closed', async () => {
+    const mismatch=fixture({contactUid:'different-account'});
+    await mismatch.controller.load('/configuracao/cooperado/40/editar');
+    const w=provisionWidget(mismatch);
+    await w.fire(w.trigger);
+    assert.equal(w.newFields.hidden,true);
+    assert.match(w.status.textContent,/conta Nextcloud selecionada mudou/);
+    assert.equal(mismatch.calls.length,2);
+
+    const denied=fixture({contactCreateFails:true});
+    await denied.controller.load('/configuracao/cooperado/40/editar');
+    const v=provisionWidget(denied);
+    await v.fire(v.trigger);
+    v.checkbox.checked=true;
+    denied.dialog.fire('change',{target:v.checkbox});
+    const originalFormData=globalThis.FormData;
+    globalThis.FormData=class {set() {}};
+    try {
+        await v.fire(v.submit);
+        assert.equal(v.contact.value,'');
+        assert.equal(v.create.disabled,true,'Never repeat a failed financial write automatically');
+        assert.match(v.status.textContent,/Atualize a consulta antes de tentar outra vez/);
+        assert.equal(denied.calls.length,3);
+    } finally {globalThis.FormData=originalFormData;}
 });
 
 test('link form saves through a same-origin endpoint and reloads the editor only after confirmation', async () => {

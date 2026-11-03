@@ -30,6 +30,17 @@ final class MemberLinksHttpTest extends WebTestCase
         self::assertSame(Response::HTTP_FORBIDDEN, $client->getResponse()->getStatusCode());
     }
 
+    public function testNonAdministratorsCannotInspectOrCreateFinancialContacts(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/configuracao/cooperado/40/contato/proposta');
+        self::assertSame(Response::HTTP_FORBIDDEN, $client->getResponse()->getStatusCode());
+        $client->request('POST', '/configuracao/cooperado/40/contato/criar', [
+            'contact_name' => 'Pessoa Teste', 'identity_confirmed' => '1',
+        ]);
+        self::assertSame(Response::HTTP_FORBIDDEN, $client->getResponse()->getStatusCode());
+    }
+
     public function testAdministratorShortSearchAvoidsExternalSources(): void
     {
         $client = static::createClient();
@@ -57,6 +68,12 @@ final class MemberLinksHttpTest extends WebTestCase
 
         $client->request('POST', '/configuracao/cooperado/17/vincular', [
             'nextcloud_uid' => 'any-uid', 'akaunting_contact_id' => '31',
+        ], server: ['REMOTE_USER' => 'librecode']);
+        self::assertSame(Response::HTTP_FORBIDDEN, $client->getResponse()->getStatusCode());
+
+        $client->request('POST', '/configuracao/cooperado/17/contato/criar', [
+            'nextcloud_uid' => 'any-uid', 'contact_name' => 'Pessoa de teste',
+            'identity_confirmed' => '1',
         ], server: ['REMOTE_USER' => 'librecode']);
         self::assertSame(Response::HTTP_FORBIDDEN, $client->getResponse()->getStatusCode());
     }

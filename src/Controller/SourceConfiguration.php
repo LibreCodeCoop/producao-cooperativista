@@ -163,6 +163,66 @@ final class SourceConfiguration extends AbstractController
         }
     }
 
+    #[Route('/configuracao/cooperado/{id}/contato/proposta', requirements: ['id' => '\\d+'], methods: ['GET'])]
+    public function contactProposal(Request $request, int $id): Response
+    {
+        $this->assertAdmin($request);
+        try {
+            return $this->linkResponse($this->sources->contactProvisioning($id));
+        } catch (\DomainException | \InvalidArgumentException $error) {
+            return $this->linkResponse(['error' => $error->getMessage()], Response::HTTP_CONFLICT);
+        } catch (\Throwable $error) {
+            $this->logger->error('Falha na consulta de disponibilidade de contato financeiro.', [
+                'member_id' => $id, 'error_class' => $error::class,
+            ]);
+            return $this->linkResponse([
+                'error' => 'Não foi possível consultar os contatos existentes. Nenhum contato foi criado.',
+            ], Response::HTTP_BAD_GATEWAY);
+        }
+    }
+
+    #[Route('/configuracao/cooperado/{id}/contato/criar', requirements: ['id' => '\\d+'], methods: ['POST'])]
+    public function createContact(Request $request, int $id): Response
+    {
+        $this->assertAdmin($request);
+        $this->guard->assertAuthorized($request);
+        if ($id <= 0 || $request->request->getString('identity_confirmed') !== '1') {
+            return $this->linkResponse(
+                ['error' => 'Confirme a identidade do cooperado antes de criar.'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+        $uid = trim($request->request->getString('nextcloud_uid'));
+        $name = trim($request->request->getString('contact_name'));
+        if ($uid === '' || mb_strlen($uid) > 128 || mb_strlen($name) > 120) {
+            return $this->linkResponse(
+                ['error' => 'Confira a conta Nextcloud e o nome do contato.'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+        try {
+            $created = $this->sources->createContactForMember($id, $uid, $name);
+            $this->logger->notice('Contato financeiro criado por ação administrativa explícita.', [
+                'member_id' => $id, 'contact_id' => $created['id'],
+            ]);
+            return $this->linkResponse([
+                'id' => $created['id'],
+                'message' => 'Contato criado no Akaunting. Confira o ID e clique em Salvar vínculos para associá-lo.',
+            ], Response::HTTP_CREATED);
+        } catch (\DomainException | \InvalidArgumentException $error) {
+            return $this->linkResponse(['error' => $error->getMessage()], Response::HTTP_CONFLICT);
+        } catch (\Throwable $error) {
+            $this->logger->error('Criação de contato financeiro não confirmada.', [
+                'member_id' => $id, 'error_class' => $error::class,
+                'exception' => $error,
+            ]);
+            return $this->linkResponse(
+                ['error' => 'Resultado da criação não confirmado. Consulte os contatos no Akaunting antes de repetir; não crie outro contato às cegas.'],
+                Response::HTTP_BAD_GATEWAY
+            );
+        }
+    }
+
     #[Route('/configuracao/cooperado/{id}/vincular', requirements: ['id' => '\\d+'], methods: ['POST'])]
     public function saveLinks(Request $request, int $id): Response
     {
@@ -193,6 +253,7 @@ final class SourceConfiguration extends AbstractController
     {
         $response = new JsonResponse($result, $status);
         $response->headers->set('Cache-Control', 'private, no-store, max-age=0');
+        $response->headers->set('Referrer-Policy', 'no-referrer');
         return $response;
     }
 

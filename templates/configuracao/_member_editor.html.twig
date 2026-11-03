@@ -50,6 +50,29 @@
                                list="akaunting-contacts-{{ member.id }}" inputmode="numeric"
                                pattern="[1-9][0-9]*" placeholder="Buscar contato" required>
                         <datalist id="akaunting-contacts-{{ member.id }}"></datalist>
+                        {% if link.kimai_linked|default(false) and link.contact_id|default('') is empty %}
+                            <div class="member-contact-provision" data-contact-provision>
+                                <button type="button" class="member-contact-trigger" data-contact-provision-open>
+                                    Não encontrou? Criar contato
+                                </button>
+                                <div class="member-contact-provision-panel" data-contact-provision-panel hidden>
+                                    <p data-contact-provision-status role="status" aria-live="polite"></p>
+                                    <div data-contact-provision-existing hidden></div>
+                                    <div data-contact-provision-new hidden>
+                                        <label for="member-new-contact-name-{{ member.id }}">Nome no Akaunting</label>
+                                        <input id="member-new-contact-name-{{ member.id }}" type="text"
+                                               data-contact-provision-name autocomplete="off" maxlength="120"
+                                               value="{{ member.alias }}">
+                                        <label class="member-contact-confirmation">
+                                            <input type="checkbox" data-contact-provision-confirm>
+                                            Conferi a identidade do cooperado
+                                        </label>
+                                        <button type="button" class="button button-secondary"
+                                                data-contact-provision-create disabled>Criar contato</button>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="member-link-actions">

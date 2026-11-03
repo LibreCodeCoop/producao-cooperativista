@@ -91,6 +91,88 @@ final class AkauntingContactGateway
         ], $rows);
     }
 
+    /**
+     * Resolve eligible financial contacts by the normalized fiscal identifier,
+     * not by display name. Multiple records require manual selection.
+     *
+     * @return list<array{id:int, name:string, type:string}>
+     */
+    public function findByTaxNumber(string $taxNumber): array
+    {
+        if (!preg_match('/^(?:[0-9]{11}|[0-9]{14})$/D', $taxNumber)) {
+            throw new \InvalidArgumentException('Identificação fiscal inválida.');
+        }
+        $rows = $this->akauntingDb->fetchAllAssociative(
+            "SELECT id, name, type FROM contacts
+             WHERE company_id = :company AND deleted_at IS NULL
+               AND type IN ('vendor', 'employee')
+               AND REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(tax_number, ''), '.', ''), '-', ''), '/', ''), ' ', '') = :tax
+             ORDER BY id ASC",
+            ['company' => $this->companyId(), 'tax' => $taxNumber],
+        );
+        return array_map(static fn (array $row): array => [
+            'id' => (int) $row['id'],
+            'name' => (string) $row['name'],
+            'type' => (string) $row['type'],
+        ], $rows);
+    }
+
+    /**
+     * Explicit admin-only provisioning through the Akaunting API, never from
+     * ETL import, preview or financial publication. A MySQL advisory lock
+     * serializes competing provisioning requests for the same company/tax ID.
+     * If an HTTP response is uncertain, the caller must inspect existing
+     * contacts before any manual retry. It must never replay POST implicitly.
+     */
+    public function createMissingContact(string $name, string $taxNumber): int
+    {
+        $company = $this->companyId();
+        if (!preg_match('/^(?:[0-9]{11}|[0-9]{14})$/D', $taxNumber)
+            || mb_strlen(trim($name)) < 2 || mb_strlen(trim($name)) > 120) {
+            throw new \InvalidArgumentException('Confira o nome e o CPF/CNPJ antes de criar o contato.');
+        }
+        $lockName = 'coop.contact.' . substr(hash('sha256', $company . ':' . $taxNumber), 0, 48);
+        if ((int) $this->akauntingDb->fetchOne('SELECT GET_LOCK(:lock_name, 5)', ['lock_name' => $lockName]) !== 1) {
+            throw new DomainException('Outra criação desse contato está em andamento. Atualize a consulta antes de tentar novamente.');
+        }
+        try {
+            if ($this->findByTaxNumber($taxNumber) !== []) {
+                throw new DomainException('Já existe contato financeiro com esse CPF/CNPJ. Selecione-o em vez de criar outro.');
+            }
+            $payload = $this->api->send('/api/contacts', [
+                'company_id' => $company,
+                'type' => 'vendor',
+                'name' => trim($name),
+                'tax_number' => $taxNumber,
+                'country' => 'BR',
+                'currency_code' => 'BRL',
+                'enabled' => 1,
+            ], ['search' => 'type:vendor'], 'POST');
+            $data = $payload['data'] ?? null;
+            $id = (int) ($data['id'] ?? 0);
+            if (!is_array($data) || $id <= 0
+                || ($data['type'] ?? null) !== 'vendor'
+                || (int) ($data['company_id'] ?? 0) !== $company
+                || preg_replace('/\D/', '', (string) ($data['tax_number'] ?? '')) !== $taxNumber) {
+                throw new RuntimeException(
+                    'O Akaunting não confirmou a identidade do contato criado. Verifique o cadastro antes de repetir.'
+                );
+            }
+            // A successful API response is not sufficient evidence of a durable
+            // record if the application and finance DB temporarily disagree.
+            $stored = $this->overview($id);
+            if ($stored['type'] !== 'vendor'
+                || preg_replace('/\D/', '', $stored['tax_number']) !== $taxNumber) {
+                throw new RuntimeException(
+                    'O contato não foi confirmado na base financeira. Verifique o Akaunting antes de repetir.'
+                );
+            }
+            return $id;
+        } finally {
+            $this->akauntingDb->fetchOne('SELECT RELEASE_LOCK(:lock_name)', ['lock_name' => $lockName]);
+        }
+    }
+
     /** @psalm-suppress PossiblyUnusedMethod Retained for standalone Akaunting contact maintenance. */
     public function updateTaxNumber(int $contactId, string $taxNumber): void
     {

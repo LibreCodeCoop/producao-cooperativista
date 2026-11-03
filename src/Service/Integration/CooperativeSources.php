@@ -152,6 +152,78 @@ final class CooperativeSources
         return $this->akauntingContacts->search($query);
     }
 
+    /**
+     * @return array{status:string,uid:string,name:string,tax_hint:string,contacts:list<array{id:int,name:string,type:string}>}
+     */
+    public function contactProvisioning(int $kimaiId): array
+    {
+        $member = $this->user($kimaiId);
+        if ($member['system'] || !$member['enabled']) {
+            throw new \DomainException('A criação de contatos está disponível somente para cooperados ativos.');
+        }
+        $linked = $this->profileFields->findByKimaiId($kimaiId);
+        if ($linked === null || (string) ($linked['values']['kimai_user_id'] ?? '') !== (string) $kimaiId) {
+            throw new \DomainException('Confirme primeiro o vínculo deste cooperado com o Nextcloud.');
+        }
+        if (!$this->profileFields->userExists($linked['uid'])) {
+            throw new \DomainException('A conta Nextcloud vinculada não existe mais. Corrija o vínculo antes de criar contato.');
+        }
+        $existingId = (int) ($linked['values']['akaunting_contact_id'] ?? 0);
+        if ($existingId > 0) {
+            return ['status' => 'linked', 'uid' => $linked['uid'],
+                'name' => $member['alias'], 'tax_hint' => '', 'contacts' => []];
+        }
+        $taxKey = trim((string) getenv('PROFILE_FIELDS_TAX_NUMBER_FIELD_KEY')) ?: 'tax_number';
+        $tax = (string) preg_replace('/\D/', '', (string) ($linked['values'][$taxKey] ?? ''));
+        if (!in_array(strlen($tax), [11, 14], true)) {
+            throw new \DomainException('CPF/CNPJ não cadastrado ou inválido no Nextcloud. Corrija o perfil antes de criar o contato.');
+        }
+        $contacts = $this->akauntingContacts->findByTaxNumber($tax);
+        return [
+            'status' => $contacts !== [] ? 'existing' : 'available',
+            'uid' => $linked['uid'],
+            'name' => $member['alias'],
+            'tax_hint' => (strlen($tax) === 11 ? 'CPF' : 'CNPJ') . ' final ' . substr($tax, -3),
+            'contacts' => $contacts,
+        ];
+    }
+
+    /**
+     * @return array{id:int,name:string}
+     */
+    public function createContactForMember(int $kimaiId, string $expectedUid, string $name): array
+    {
+        $proposal = $this->contactProvisioning($kimaiId);
+        if ($proposal['status'] === 'linked') {
+            throw new \DomainException('Este cooperado já tem um contato financeiro vinculado.');
+        }
+        if ($proposal['status'] === 'existing') {
+            throw new \DomainException('Contato existente localizado. Selecione-o no cadastro em vez de criar outro.');
+        }
+        if ($expectedUid === '' || !hash_equals($proposal['uid'], $expectedUid)) {
+            throw new \DomainException('A conta Nextcloud foi alterada. Reabra o cadastro e confirme a identidade.');
+        }
+        $name = trim($name);
+        if (mb_strlen($name) < 2 || mb_strlen($name) > 120
+            || preg_match("/^[\p{L}\p{M}][\p{L}\p{M} .'-]*$/uD", $name) !== 1) {
+            throw new \InvalidArgumentException('Informe o nome completo válido para o contato financeiro.');
+        }
+        // Profile Fields is the sole fiscal source. Do not accept a posted
+        // CPF/CNPJ or auto-link the new ID to Nextcloud in this operation.
+        $linked = $this->profileFields->findByKimaiId($kimaiId);
+        $taxKey = trim((string) getenv('PROFILE_FIELDS_TAX_NUMBER_FIELD_KEY')) ?: 'tax_number';
+        if ($linked === null || $linked['uid'] !== $expectedUid
+            || (string) ($linked['values']['kimai_user_id'] ?? '') !== (string) $kimaiId) {
+            throw new \DomainException('O vínculo Nextcloud foi alterado. Reabra o cadastro.');
+        }
+        if ((int) ($linked['values']['akaunting_contact_id'] ?? 0) > 0) {
+            throw new \DomainException('Contato já vinculado no Nextcloud. Reabra o cadastro.');
+        }
+        $tax = (string) preg_replace('/\D/', '', (string) ($linked['values'][$taxKey] ?? ''));
+        $id = $this->akauntingContacts->createMissingContact($name, $tax);
+        return ['id' => $id, 'name' => $name];
+    }
+
     public function prepareLinkFields(): void
     {
         $this->profileFields->ensureLinkDefinitions();

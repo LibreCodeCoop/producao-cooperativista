@@ -86,6 +86,98 @@ final class AkauntingContactGatewayTest extends TestCase
         return new AkauntingContactGateway(new AkauntingRequest(new NullLogger(), $http), $db);
     }
 
+    public function testFindContactsByFiscalIdUsesCompanyAndIncludesOnlyEligibleTypes(): void
+    {
+        $db = $this->createMock(Connection::class);
+        $db->expects(self::once())->method('fetchAllAssociative')->willReturnCallback(
+            static function (string $sql, array $params): array {
+                self::assertStringContainsString('deleted_at IS NULL', $sql);
+                self::assertStringContainsString("type IN ('vendor', 'employee')", $sql);
+                self::assertStringContainsString('REPLACE(', $sql);
+                self::assertSame(['company' => 1, 'tax' => '52998224725'], $params);
+                return [
+                    ['id' => '28', 'name' => 'Cooperado', 'type' => 'vendor'],
+                    ['id' => '63', 'name' => 'Outro cadastro', 'type' => 'employee'],
+                ];
+            }
+        );
+        $gateway = new AkauntingContactGateway(new AkauntingRequest(new NullLogger(), new MockHttpClient()), $db);
+        self::assertSame([
+            ['id' => 28, 'name' => 'Cooperado', 'type' => 'vendor'],
+            ['id' => 63, 'name' => 'Outro cadastro', 'type' => 'employee'],
+        ], $gateway->findByTaxNumber('52998224725'));
+    }
+
+    public function testExplicitCreateUsesApiAndConfirmsIdentityWithoutCreatingUsersOrDocuments(): void
+    {
+        $db = $this->createMock(Connection::class);
+        $lock = [];
+        $db->method('fetchOne')->willReturnCallback(static function (string $query, array $params) use (&$lock): int {
+            $lock[] = [$query, $params['lock_name']];
+            self::assertLessThanOrEqual(64, strlen($params['lock_name']));
+            return 1;
+        });
+        $db->expects(self::once())->method('fetchAllAssociative')->willReturn([]);
+        $db->expects(self::once())->method('fetchAssociative')->willReturn([
+            'id' => 74, 'company_id' => 1, 'type' => 'vendor',
+            'name' => 'Luiz Amorim', 'tax_number' => '529.982.247-25',
+        ]);
+        $http = new MockHttpClient(static function (string $method, string $url, array $options): MockResponse {
+            self::assertSame('POST', $method);
+            self::assertStringContainsString('/api/contacts', $url);
+            parse_str((string) $options['body'], $body);
+            self::assertSame('Luiz Amorim', $body['name']);
+            self::assertSame('52998224725', $body['tax_number']);
+            self::assertSame('1', $body['company_id']);
+            self::assertSame('vendor', $body['type']);
+            self::assertSame('BRL', $body['currency_code']);
+            self::assertSame('BR', $body['country']);
+            self::assertArrayNotHasKey('create_user', $body);
+            self::assertArrayNotHasKey('contact_id', $body);
+            return new MockResponse(json_encode(['data' => [
+                'id' => 74, 'type' => 'vendor', 'company_id' => 1, 'tax_number' => '52998224725',
+            ]], JSON_THROW_ON_ERROR), ['http_code' => 201]);
+        });
+        $gateway = new AkauntingContactGateway(new AkauntingRequest(new NullLogger(), $http), $db);
+        self::assertSame(74, $gateway->createMissingContact('Luiz Amorim', '52998224725'));
+        self::assertCount(2, $lock);
+        self::assertStringContainsString('GET_LOCK', $lock[0][0]);
+        self::assertStringContainsString('RELEASE_LOCK', $lock[1][0]);
+    }
+
+    public function testExistingFiscalContactBlocksApiCreationAndReleasesLock(): void
+    {
+        $db = $this->createMock(Connection::class);
+        $locks = [];
+        $db->method('fetchOne')->willReturnCallback(static function (string $sql) use (&$locks): int {
+            $locks[] = $sql;
+            return 1;
+        });
+        $db->method('fetchAllAssociative')->willReturn([
+            ['id' => 14, 'name' => 'Já existente', 'type' => 'vendor'],
+        ]);
+        $http = new MockHttpClient(static fn (): never => throw new \LogicException('No POST should occur'));
+        $gateway = new AkauntingContactGateway(new AkauntingRequest(new NullLogger(), $http), $db);
+        try {
+            $gateway->createMissingContact('Cooperado', '52998224725');
+            self::fail('Duplicate contact must not be created.');
+        } catch (\DomainException $error) {
+            self::assertStringContainsString('Já existe contato', $error->getMessage());
+        }
+        self::assertCount(2, $locks);
+    }
+
+    public function testUnavailableCreationLockPreventsWrite(): void
+    {
+        $db = $this->createMock(Connection::class);
+        $db->expects(self::once())->method('fetchOne')->willReturn(0);
+        $http = new MockHttpClient(static fn (): never => throw new \LogicException('No POST should occur'));
+        $gateway = new AkauntingContactGateway(new AkauntingRequest(new NullLogger(), $http), $db);
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('em andamento');
+        $gateway->createMissingContact('Cooperado', '52998224725');
+    }
+
     public function testVendorReadAddsLaravelAclSearchType(): void
     {
         $seen = [];
