@@ -101,6 +101,39 @@
         body.replaceChildren(...cells);
     }
 
+    // Keep URL state and DataTables column filtering independent of the DOM.
+    // These functions are deterministic and can be tested without a browser.
+    function requestedFilters(href) {
+        const params = new URL(href).searchParams;
+        const member = params.get('cooperado') || '';
+        const customer = params.get('cliente') || '';
+        return {
+            memberId: /^[1-9]\d*$/.test(member) ? member : '',
+            customerId: /^(0|[1-9]\d*)$/.test(customer) ? customer : '',
+        };
+    }
+
+    function filteredUrl(href, {memberId = '', customerId = ''} = {}, clearSearch = false) {
+        const url = new URL(href);
+        for (const [key, value] of [['cooperado', memberId], ['cliente', customerId]]) {
+            if (value) url.searchParams.set(key, value);
+            else url.searchParams.delete(key);
+        }
+        url.searchParams.delete('dtpage');
+        if (clearSearch) url.searchParams.delete('dtsearch');
+        return url.pathname + url.search + url.hash;
+    }
+
+    function applyGridFilters(grid, memberId, customerId) {
+        grid.column(10).search(memberId ? '^' + memberId + '$' : '', true, false);
+        grid.column(11).search(customerId ? '^' + customerId + '$' : '', true, false);
+    }
+
+    function clearGridFilters(grid) {
+        grid.search('');
+        for (let i = 0; i < 12; i++) grid.column(i).search('');
+    }
+
     async function initialize(doc = scope.document, env = {}) {
         const table = doc?.getElementById('example');
         const selectMember = doc?.getElementById('timesheet-member-filter');
@@ -125,9 +158,7 @@
                 throw new Error('Dados importados ou competência inválidos na resposta da origem.');
             }
             const data = payload.data;
-            const params = new URL(location.href).searchParams;
-            const memberId = /^[1-9]\d*$/.test(params.get('cooperado') || '') ? params.get('cooperado') : '';
-            const customerId = /^(0|[1-9]\d*)$/.test(params.get('cliente') || '') ? params.get('cliente') : '';
+            const {memberId, customerId} = requestedFilters(location.href);
             fillSelect(doc, selectMember, optionsFor(data, 'member_id', 'nome'), 'Todos os cooperados', memberId);
             fillSelect(doc, selectCustomer, optionsFor(data, 'customer_id', 'cliente'), 'Todos os clientes', customerId);
             if (monthMember) monthMember.value = selectMember.value;
@@ -141,19 +172,11 @@
             }
             const update = () => displayTotals(doc, visibleRows());
             const filter = (save) => {
-                grid.column(10).search(selectMember.value ? '^' + selectMember.value + '$' : '', true, false);
-                grid.column(11).search(selectCustomer.value ? '^' + selectCustomer.value + '$' : '', true, false);
-                if (monthMember) monthMember.value = selectMember.value;
-                if (monthCustomer) monthCustomer.value = selectCustomer.value;
-                if (save) {
-                    const url = new URL(location.href);
-                    for (const [key, value] of [['cooperado', selectMember.value], ['cliente', selectCustomer.value]]) {
-                        if (value) url.searchParams.set(key, value);
-                        else url.searchParams.delete(key);
-                    }
-                    url.searchParams.delete('dtpage');
-                    history.replaceState({}, '', url.pathname + url.search + url.hash);
-                }
+                const selected = {memberId: selectMember.value, customerId: selectCustomer.value};
+                applyGridFilters(grid, selected.memberId, selected.customerId);
+                if (monthMember) monthMember.value = selected.memberId;
+                if (monthCustomer) monthCustomer.value = selected.customerId;
+                if (save) history.replaceState({}, '', filteredUrl(location.href, selected));
                 grid.draw();
                 update();
             };
@@ -163,14 +186,11 @@
             clear?.addEventListener('click', () => {
                 selectMember.value = '';
                 selectCustomer.value = '';
-                grid.search('');
-                for (let i = 0; i < 12; i++) grid.column(i).search('');
+                clearGridFilters(grid);
                 for (const input of doc.querySelectorAll('#example_wrapper input')) {
                     if (input.type === 'search' || input.closest('tfoot')) input.value = '';
                 }
-                const url = new URL(location.href);
-                for (const key of ['dtsearch', 'dtpage', 'cooperado', 'cliente']) url.searchParams.delete(key);
-                history.replaceState({}, '', url.pathname + url.search + url.hash);
+                history.replaceState({}, '', filteredUrl(location.href, {}, true));
                 filter(false);
             });
             filter(false);
@@ -184,7 +204,8 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = {duration, customerTotals, optionsFor, fillSelect, displayTotals, initialize};
+        module.exports = {duration, customerTotals, optionsFor, fillSelect, displayTotals,
+            requestedFilters, filteredUrl, applyGridFilters, clearGridFilters, initialize};
     } else {
         scope.addEventListener('DOMContentLoaded', () => { void initialize(); });
     }

@@ -3,22 +3,9 @@
 
 name: JavaScript
 
-on:
-  pull_request:
-    paths:
-      - '.github/workflows/javascript.yml'
-      - '.nvmrc'
-      - 'public/js/**'
-      - 'public/css/**'
-      - 'resources/scss/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'tests/js/**'
-      - 'templates/**'
-      - 'src/Controller/Api/**'
-      - 'src/Controller/Acoes.php'
-      - 'src/Helper/Sse.php'
-      - 'src/Helper/SseEventMessage.php'
+# Run on every PR: cross-layer integration and generated assets make a
+# path allowlist easy to under-specify and increasingly difficult to review.
+on: pull_request
 
 permissions:
   contents: read

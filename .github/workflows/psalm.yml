@@ -3,20 +3,9 @@
 
 name: Psalm
 
-on:
-  pull_request:
-    paths:
-      - '.github/workflows/psalm.yml'
-      - '.docker/php/Dockerfile'
-      - '.github/actions/php-version/**'
-      - 'composer.json'
-      - 'composer.lock'
-      - 'psalm.xml'
-      - 'tests/psalm-baseline.xml'
-      - 'vendor-bin/psalm/**'
-      - 'bin/**'
-      - 'src/**'
-      - 'public/**'
+# Run on every PR: cross-layer integration and generated assets make a
+# path allowlist easy to under-specify and increasingly difficult to review.
+on: pull_request
 
 permissions:
   contents: read

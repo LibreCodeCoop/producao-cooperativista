@@ -105,6 +105,8 @@ composer install
 php ./bin/console doctrine:migrations:migrate -n
 ```
 
+O banco de ETL de produção **não é descartável**: além dos dados importados, ele mantém o histórico de tentativas de publicação financeira. Em instalações novas, as migrations são executadas em ordem sobre um banco vazio; em ambientes existentes, aplique apenas as migrations pendentes após backup e conferência. A retirada da tabela `nfse` exige confirmação de que ela está vazia. Não apague tabelas ou reinicie o histórico de migrations da Conceição para simplificar o PR.
+
 ## Comandos
 ### Prévia e publicação
 

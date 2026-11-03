@@ -12,6 +12,8 @@ on:
       - '.docker/php/**'
       - 'docker-compose.yml'
       - 'composer.json'
+      - 'tests/ci/check-php-runtime.sh'
+      - 'tests/ci/check-php-runtime.test.sh'
 
 permissions:
   contents: read
@@ -34,20 +36,11 @@ jobs:
       - name: Validate Compose
         run: docker compose -f docker-compose.yml config --quiet
 
+      - name: Check the image verifier without Docker
+        run: sh tests/ci/check-php-runtime.test.sh
+
       - name: Build the PHP-FPM runtime used by the application
-        run: |
-          php_version="${{ steps.runtime.outputs.php }}"
-          docker build --pull --build-arg PHP_IMAGE="${{ steps.runtime.outputs.image }}" --tag librecode-pdc-ci:php-fpm -f .docker/php/Dockerfile .docker/php
-          actual_version="$(docker run --rm --entrypoint php librecode-pdc-ci:php-fpm -r 'echo PHP_VERSION;')"
-          case "$actual_version" in
-            "$php_version"|"$php_version".*) ;;
-            *) echo "::error::Built PHP $actual_version instead of $php_version"; exit 1 ;;
-          esac
-          # The ETL calls BusinessDay to calculate holidays and payroll dates.
-          # Without ext-calendar, easter_days() aborts make:producao and etl:sync.
-          docker run --rm --entrypoint php librecode-pdc-ci:php-fpm -r '
-            if (!extension_loaded("calendar") || !function_exists("easter_days") || easter_days(2026) !== 15) {
-                fwrite(STDERR, "PHP calendar extension missing or unusable in the runtime image.\n");
-                exit(1);
-            }
-          '
+        run: docker build --pull --build-arg PHP_IMAGE="${{ steps.runtime.outputs.image }}" --tag librecode-pdc-ci:php-fpm -f .docker/php/Dockerfile .docker/php
+
+      - name: Verify PHP version and calendar runtime
+        run: sh tests/ci/check-php-runtime.sh "${{ steps.runtime.outputs.php }}" librecode-pdc-ci:php-fpm

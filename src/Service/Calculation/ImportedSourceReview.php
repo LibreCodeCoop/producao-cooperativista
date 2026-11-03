@@ -63,6 +63,49 @@ final readonly class ImportedSourceReview
         // The original financial table is unavailable before settlement.
         // Preserve its per-member layout and work-by-customer details without
         // manufacturing a payable monetary amount.
+        $workByMember = $this->readCustomerWork($competence);
+        $data = [];
+        foreach ($members as $member) {
+            $data[] = [
+                'kimai_user_id' => $member['id'],
+                'name' => $member['name'],
+                'hours_seconds' => $member['seconds'],
+                'peso' => $member['weight'],
+                'base_producao' => null,
+                'bruto' => null,
+                'liquido' => null,
+                'trabalhado' => json_encode(
+                    $workByMember[$member['id']] ?? [],
+                    JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE,
+                ),
+            ];
+        }
+
+        $income = $this->categoryIds('AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID');
+        $financial = $this->readFinancialMovements($financialMonth, $income);
+        $unconfirmed = $this->readUnconfirmedInvoices($financialMonth, $income, $financial['received']);
+        return [
+            'competence' => $workMonth,
+            'financial_month' => $financialMonth,
+            'publication_allowed' => false,
+            'data' => $data,
+            'hours' => [
+                'entries' => (int) ($work['entries'] ?? 0),
+                'members' => (int) ($work['members'] ?? 0),
+                'seconds' => (int) ($work['seconds'] ?? 0),
+                'by_member' => $members,
+            ],
+            'income_transactions' => $financial['income'],
+            'client_cost_transactions' => $financial['client_costs'],
+            'internal_expense_transactions' => $financial['internal'],
+            'unconfirmed_invoices' => $unconfirmed,
+        ];
+    }
+
+    /** @return array<int, list<array<string, mixed>>> */
+    private function readCustomerWork(Competencia $competence): array
+    {
+        $start = $competence->start();
         $customerWork = $this->database->fetchAllAssociative(
             'SELECT t.user_id AS user_id, c.id AS customer_id, c.name AS customer_name, '
             . 'COALESCE(SUM(t.duration), 0) AS seconds '
@@ -92,24 +135,68 @@ final readonly class ImportedSourceReview
                 'total_cliente' => round($total / 3600, 4),
             ];
         }
-        $data = [];
-        foreach ($members as $member) {
-            $data[] = [
-                'kimai_user_id' => $member['id'],
-                'name' => $member['name'],
-                'hours_seconds' => $member['seconds'],
-                'peso' => $member['weight'],
-                'base_producao' => null,
-                'bruto' => null,
-                'liquido' => null,
-                'trabalhado' => json_encode(
-                    $workByMember[$member['id']] ?? [],
-                    JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE,
-                ),
-            ];
-        }
+        return $workByMember;
+    }
 
-        $income = $this->categoryIds('AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID');
+    /**
+     * Only fully reconciled paid invoices leave the review queue.
+     * @param array<int, true> $income
+     * @param array<int, float> $receivedByDocumentId
+     * @return array<string, mixed>
+     */
+    private function readUnconfirmedInvoices(string $financialMonth, array $income, array $receivedByDocumentId): array
+    {
+        $documents = $this->database->fetchAllAssociative(
+            "SELECT id, document_number, contact_name, amount, due_at, category_id, metadata "
+            . "FROM invoices WHERE transaction_of_month = :month AND type = 'invoice' "
+            . "AND category_type = 'income' AND archive = 0 ORDER BY id",
+            ['month' => $financialMonth],
+        );
+        $unconfirmed = [];
+        $unconfirmedCount = 0;
+        $unconfirmedAmount = 0.0;
+        foreach ($documents as $document) {
+            if (!isset($income[(int) $document['category_id']])) {
+                continue;
+            }
+            $id = (int) $document['id'];
+            $metadata = json_decode((string) ($document['metadata'] ?? ''), true);
+            $status = is_array($metadata) ? (string) ($metadata['status'] ?? 'unknown') : 'unknown';
+            $receivedAmount = max(0.0, $receivedByDocumentId[$id] ?? 0.0);
+            // A 'paid' flag and an imported customer receipt must agree.
+            // Partial receipts, unrelated expenses and status-only payments
+            // remain visible for human reconciliation.
+            if ($status === 'paid' && $receivedAmount + 0.01 >= (float) $document['amount']) {
+                continue;
+            }
+            ++$unconfirmedCount;
+            $unconfirmedAmount += (float) $document['amount'];
+            if (count($unconfirmed) < 100) {
+                $unconfirmed[] = [
+                    'id' => $id,
+                    'number' => (string) ($document['document_number'] ?? ''),
+                    'customer' => trim((string) ($document['contact_name'] ?? '')),
+                    'amount' => round((float) $document['amount'], 2),
+                    'status' => $status,
+                    'received_amount' => round($receivedAmount, 2),
+                    'due_date' => substr((string) ($document['due_at'] ?? ''), 0, 10),
+                ];
+            }
+        }
+        return [
+            'count' => $unconfirmedCount,
+            'amount' => round($unconfirmedAmount, 2),
+            'documents' => $unconfirmed,
+            'truncated' => $unconfirmedCount > count($unconfirmed),
+        ];
+    }
+
+    /**
+     * @param array<int, true> $income
+     * @return array<string, mixed>
+     */
+    private function readFinancialMovements(string $financialMonth, array $income): array
+    {
         $clientCosts = $this->categoryIds('AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID');
         $internal = $this->categoryIds('AKAUNTING_PARENT_DISPENDIOS_INTERNOS_CATEGORY_ID');
 
@@ -150,71 +237,18 @@ final readonly class ImportedSourceReview
             }
         }
 
-        $documents = $this->database->fetchAllAssociative(
-            "SELECT id, document_number, contact_name, amount, due_at, category_id, metadata "
-            . "FROM invoices WHERE transaction_of_month = :month AND type = 'invoice' "
-            . "AND category_type = 'income' AND archive = 0 ORDER BY id",
-            ['month' => $financialMonth],
-        );
-        $unconfirmed = [];
-        $unconfirmedCount = 0;
-        $unconfirmedAmount = 0.0;
-        foreach ($documents as $document) {
-            if (!isset($income[(int) $document['category_id']])) {
-                continue;
-            }
-            $id = (int) $document['id'];
-            $metadata = json_decode((string) ($document['metadata'] ?? ''), true);
-            $status = is_array($metadata) ? (string) ($metadata['status'] ?? 'unknown') : 'unknown';
-            $receivedAmount = max(0.0, $receivedByDocumentId[$id] ?? 0.0);
-            // A 'paid' flag and an imported customer receipt must agree.
-            // Partial receipts, unrelated expenses and status-only payments
-            // remain visible for human reconciliation.
-            if ($status === 'paid' && $receivedAmount + 0.01 >= (float) $document['amount']) {
-                continue;
-            }
-            ++$unconfirmedCount;
-            $unconfirmedAmount += (float) $document['amount'];
-            if (count($unconfirmed) < 100) {
-                $unconfirmed[] = [
-                    'id' => $id,
-                    'number' => (string) ($document['document_number'] ?? ''),
-                    'customer' => trim((string) ($document['contact_name'] ?? '')),
-                    'amount' => round((float) $document['amount'], 2),
-                    'status' => $status,
-                    'received_amount' => round($receivedAmount, 2),
-                    'due_date' => substr((string) ($document['due_at'] ?? ''), 0, 10),
-                ];
-            }
-        }
         ksort($costGroups);
         ksort($internalGroups);
-
         return [
-            'competence' => $workMonth,
-            'financial_month' => $financialMonth,
-            'publication_allowed' => false,
-            'data' => $data,
-            'hours' => [
-                'entries' => (int) ($work['entries'] ?? 0),
-                'members' => (int) ($work['members'] ?? 0),
-                'seconds' => (int) ($work['seconds'] ?? 0),
-                'by_member' => $members,
-            ],
-            'income_transactions' => ['count' => $incomeCount, 'amount' => round($incomeTotal, 2)],
-            'client_cost_transactions' => [
+            'received' => $receivedByDocumentId,
+            'income' => ['count' => $incomeCount, 'amount' => round($incomeTotal, 2)],
+            'client_costs' => [
                 'amount' => round($clientCostTotal, 2),
                 'by_customer' => $this->moneyGroups($costGroups),
             ],
-            'internal_expense_transactions' => [
+            'internal' => [
                 'amount' => round($internalTotal, 2),
                 'by_category' => $this->moneyGroups($internalGroups),
-            ],
-            'unconfirmed_invoices' => [
-                'count' => $unconfirmedCount,
-                'amount' => round($unconfirmedAmount, 2),
-                'documents' => $unconfirmed,
-                'truncated' => $unconfirmedCount > count($unconfirmed),
             ],
         ];
     }

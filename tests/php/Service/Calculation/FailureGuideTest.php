@@ -45,6 +45,14 @@ final class FailureGuideTest extends TestCase
         yield ['Table report_test.publication_write_attempts does not exist', 'REGISTRO_PUBLICACAO_AUSENTE'];
     }
 
+    public function testNumbersInMemberIdsAreNotMistakenForHttpStatusCodes(): void
+    {
+        self::assertSame('FALHA_INESPERADA', FailureGuide::diagnose('Cooperado Kimai #401 não encontrado.')->code);
+        self::assertSame('FALHA_INESPERADA', FailureGuide::diagnose('Contato Akaunting #429 não encontrado.')->code);
+        self::assertSame('API_ACESSO', FailureGuide::diagnose('HTTP 403: acesso recusado')->code);
+        self::assertSame('API_LIMITADA', FailureGuide::diagnose('HTTP 429: limite atingido')->code);
+    }
+
     public function testCustomerCodeGuideDoesNotAssumePatronageIsClientProduction(): void
     {
         $guide = FailureGuide::diagnose('Código de cliente inválido na movimentação do Akaunting.');

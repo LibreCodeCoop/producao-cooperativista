@@ -4,7 +4,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {duration, customerTotals, optionsFor, initialize} = require('../../public/js/timesheet-report.js');
+const {duration, customerTotals, optionsFor, requestedFilters, filteredUrl, applyGridFilters, clearGridFilters, initialize} = require('../../public/js/timesheet-report.js');
 const {buildTimesheetColumns, productionDetails, buildProductionColumns} = require('../../public/js/report-table.js');
 
 const rows = [
@@ -55,6 +55,31 @@ test('detailed columns escape descriptions, preserve numeric order and link only
     assert.match(prod[1].render(3600,'display',{kimai_user_id:1}), /cooperado=1/);
     assert.doesNotMatch(prod[1].render(3600,'display',{kimai_user_id:0}), /href=/);
     assert.match(productionDetails({kimai_user_id:1}, {competence:'2026-09'}), /Conferir todos os apontamentos/);
+});
+
+test('filter state is a pure function and rejects unsafe or malformed IDs', () => {
+    const url = 'https://app.example.test/relatorios/apontamentos?ano-mes=2026-09&cooperado=1&cliente=0&dtpage=4#relatorio';
+    assert.deepEqual(requestedFilters(url), {memberId:'1',customerId:'0'});
+    assert.deepEqual(requestedFilters(url.replace('cooperado=1','cooperado=1|11').replace('cliente=0','cliente=-1')),
+        {memberId:'',customerId:''});
+    assert.equal(filteredUrl(url, {memberId:'11',customerId:'22'}),
+        '/relatorios/apontamentos?ano-mes=2026-09&cooperado=11&cliente=22#relatorio');
+    assert.equal(filteredUrl(url.replace('dtpage=4','dtpage=4&dtsearch=sensitive'), {}, true),
+        '/relatorios/apontamentos?ano-mes=2026-09#relatorio');
+});
+
+test('DataTables filters target only member/customer columns and can be cleared independently', () => {
+    const calls=[];
+    const grid={
+        search(value){calls.push(['global',value]);},
+        column(i){return {search(...args){calls.push([i,...args]);}};},
+    };
+    applyGridFilters(grid,'1','22');
+    assert.deepEqual(calls, [[10,'^1$',true,false],[11,'^22$',true,false]]);
+    calls.length=0;
+    clearGridFilters(grid);
+    assert.deepEqual(calls[0],['global','']);
+    assert.deepEqual(calls.slice(1).map(x=>x[0]),[0,1,2,3,4,5,6,7,8,9,10,11]);
 });
 
 test('interactive filters match exact numeric IDs and totals track all searched rows', async () => {
