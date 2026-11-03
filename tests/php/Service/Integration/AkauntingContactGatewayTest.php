@@ -147,7 +147,7 @@ final class AkauntingContactGatewayTest extends TestCase
 
     public function testExistingFiscalContactBlocksApiCreationAndReleasesLock(): void
     {
-        $db = $this->createMock(Connection::class);
+        $db = $this->createStub(Connection::class);
         $locks = [];
         $db->method('fetchOne')->willReturnCallback(static function (string $sql) use (&$locks): int {
             $locks[] = $sql;
