@@ -44,7 +44,7 @@ class Tax extends ADocument
     public function saveMonthTaxes(): self
     {
         $aPagar = $this->pegaValorAPagar();
-        if ($aPagar === 0) {
+        if ($aPagar === 0.0) {
             return $this;
         }
         $this

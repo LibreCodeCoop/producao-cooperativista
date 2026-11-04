@@ -289,12 +289,26 @@ final class FrraFinancialContractTest extends KernelTestCase
         $first->getFrra()->getValues()->setFrra(100.0)->setUpdated();
         $first->getFrra()->save();
 
+        // A retry for the *same* competence must replace the monthly line,
+        // not create a second reservation for the following month.
+        $repeatFirst = $this->member($request);
+        $dates->setInicio(new DateTime('2026-08-01'));
+        $repeatFirst->getFrra()->getValues()->setFrra(100.0)->setUpdated();
+        $repeatFirst->getFrra()->save();
+        self::assertCount(1, $remote['items']['data']);
+        self::assertEqualsWithDelta(100.0, (float) $remote['amount'], 0.01);
+
         $next = $this->member($request);
         $dates->setInicio(new DateTime('2026-09-01'));
         $next->getFrra()->getValues()->setFrra(200.0)->setUpdated();
         $next->getFrra()->save();
 
-        self::assertSame(['POST', 'GET', 'GET', 'PATCH'], $methods);
+        $repeatNext = $this->member($request);
+        $dates->setInicio(new DateTime('2026-09-01'));
+        $repeatNext->getFrra()->getValues()->setFrra(200.0)->setUpdated();
+        $repeatNext->getFrra()->save();
+
+        self::assertSame(['POST', 'GET', 'GET', 'PATCH', 'GET', 'GET', 'PATCH', 'GET', 'GET', 'PATCH'], $methods);
         self::assertIsArray($remote);
         self::assertSame(self::ANNUAL_FRRA_NUMBER, $remote['document_number']);
         self::assertSame((int) getenv('AKAUNTING_FRRA_CATEGORY_ID'), (int) $remote['category_id']);
