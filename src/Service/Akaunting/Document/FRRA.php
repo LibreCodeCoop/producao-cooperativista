@@ -31,7 +31,7 @@ use UnexpectedValueException;
 class FRRA extends ProducaoCooperativista
 {
     #[\Override]
-    protected string $whoami = 'PDC';
+    protected string $whoami = 'FRRA';
 
     protected function setUp(): self
     {
@@ -52,9 +52,7 @@ class FRRA extends ProducaoCooperativista
                 $this->whoami . '_' .
                 $cooperado->getTaxNumber() .
                 '-' .
-                (clone $this->dates->getPrevisaoPagamentoFrra())
-                    ->modify('-2 month')
-                    ->format('Y-m')
+                $this->dates->getPrevisaoPagamentoFrra()->format('Y-m')
             );
         }
         return $this->documentNumber;
@@ -87,7 +85,7 @@ class FRRA extends ProducaoCooperativista
             );
 
         $this->beforeSave();
-        parent::save();
+        $this->persistDocument();
         return $this;
     }
 
@@ -115,7 +113,7 @@ class FRRA extends ProducaoCooperativista
             )
             ->setTaxes();
         $this->beforeSave();
-        parent::save();
+        $this->persistDocument();
         return $this;
     }
 

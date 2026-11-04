@@ -281,7 +281,18 @@ abstract class ADocument
         return $this;
     }
 
+    /** @psalm-suppress PossiblyUnusedReturnValue Fluent API is kept for subclasses and callers. */
     public function save(): self
+    {
+        return $this->persistDocument();
+    }
+
+    /**
+     * Persist the prepared document without invoking a subclass-specific
+     * calculation a second time. FRRA has a different category and item policy
+     * from the cooperative production document.
+     */
+    protected function persistDocument(): self
     {
         if ($this->action === self::ACTION_IGNORE) {
             return $this;
@@ -328,7 +339,7 @@ abstract class ADocument
                     // never update another company, supplier or document type.
                     $this->assertSameDocumentIdentity($existing);
                     $this->setId((int) $existing['id']);
-                    $this->save();
+                    $this->persistDocument();
                     return $this;
                 }
             } else {
