@@ -639,6 +639,93 @@ final class MovimentacaoTest extends TestCase
         self::assertEqualsWithDelta(200.0, array_sum(array_column($may, 'amount')) + array_sum(array_column($june, 'amount')), 0.001);
     }
 
+    public function testForecastIncludesDraftSentAndLaterPaidBalancesWithoutDoubleCounting(): void
+    {
+        $this->persistCategory(id: 45, name: 'Cliente', parentId: null, type: 'income');
+        $this->persistCategory(id: 20, name: 'Cliente > Serviço', parentId: 45, type: 'income');
+
+        foreach ([
+            [731, 'sent', 100.00],
+            [732, 'draft', 200.00],
+            [733, 'paid', 150.00],
+            [734, 'cancelled', 500.00],
+        ] as [$id, $status, $amount]) {
+            $invoice = new Invoice();
+            $invoice->fromArray([
+                'id' => $id,
+                'type' => 'invoice',
+                'issued_at' => '2026-05-03 00:00:00',
+                'due_at' => '2026-05-20 00:00:00',
+                'transaction_of_month' => '2026-05',
+                'amount' => $amount,
+                'discount_percentage' => null,
+                'currency_code' => 'BRL',
+                'document_number' => (string) $id,
+                'nfse' => null,
+                'tax_number' => '12345678000190',
+                'customer_reference' => '12345678000190',
+                'contact_id' => 12,
+                'contact_reference' => null,
+                'contact_name' => 'Cliente teste',
+                'contact_type' => 'customer',
+                'category_id' => 20,
+                'category_name' => 'Serviço',
+                'category_type' => 'income',
+                'archive' => 0,
+                'metadata' => ['status' => $status, 'items' => ['data' => [['price' => $amount]]]],
+            ]);
+            $this->entityManager->persist($invoice);
+        }
+
+        foreach ([
+            [911, '2026-05-08', 50.0],
+            [912, '2026-06-09', 100.0],
+        ] as [$id, $date, $amount]) {
+            $payment = new Transaction();
+            $payment->fromArray([
+                'id' => $id,
+                'type' => 'income',
+                'paid_at' => $date . ' 00:00:00',
+                'transaction_of_month' => substr($date, 0, 7),
+                'amount' => $amount,
+                'discount_percentage' => null,
+                'currency_code' => 'BRL',
+                'reference' => '733',
+                'nfse' => null,
+                'tax_number' => null,
+                'customer_reference' => '12345678000190',
+                'contact_id' => 12,
+                'contact_reference' => null,
+                'contact_name' => 'Cliente teste',
+                'contact_type' => 'customer',
+                'category_id' => 20,
+                'category_name' => 'Serviço',
+                'category_type' => 'income',
+                'archive' => 0,
+                'metadata' => ['document_id' => 733],
+            ]);
+            $this->entityManager->persist($payment);
+        }
+        $this->entityManager->flush();
+        $this->dates->setInicio(new DateTime('2026-04-01'));
+
+        $this->movimentacao->setForecastMode(true);
+        $forecast = $this->movimentacao->getEntradasClientes();
+        self::assertEqualsWithDelta(450.0, array_sum(array_column($forecast, 'amount')), 0.001);
+        self::assertEqualsWithDelta(400.0, array_sum(array_column(
+            array_filter($forecast, static fn (array $row): bool => $row['table'] === 'invoice_forecast'),
+            'amount'
+        )), 0.001);
+        self::assertCount(4, $forecast);
+
+        // A publication uses only amounts with a current-period receipt.
+        $this->movimentacao->setForecastMode(false);
+        $strict = $this->movimentacao->getEntradasClientes();
+        self::assertCount(1, $strict);
+        self::assertSame('invoice_transaction', current($strict)['table']);
+        self::assertEqualsWithDelta(50.0, array_sum(array_column($strict, 'amount')), 0.001);
+    }
+
     private function persistClientHierarchyRoots(): void
     {
         $this->persistCategory(

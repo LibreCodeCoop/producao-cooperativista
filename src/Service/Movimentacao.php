@@ -37,6 +37,7 @@ use Psr\Log\LoggerInterface;
 class Movimentacao
 {
     private array $movimentacao = [];
+    private bool $forecastMode = false;
     /** @var array<string, int|string> */
     private array $movementKeysBySource = [];
     private ?array $customerReferenceRequiredCategories = null;
@@ -59,6 +60,26 @@ class Movimentacao
     ) {
     }
 
+    /**
+     * Forecasts include unpaid invoice balances only in read-only previews.
+     * Financial publication never sets this flag and retains paid-only rules.
+     */
+    public function setForecastMode(bool $enabled): void
+    {
+        if ($this->forecastMode === $enabled) {
+            return;
+        }
+        $this->forecastMode = $enabled;
+        $this->movimentacao = [];
+        $this->movementKeysBySource = [];
+        $this->invalidateDerivedTotals();
+    }
+
+    public function isForecastMode(): bool
+    {
+        return $this->forecastMode;
+    }
+
     public function getMovimentacaoFinanceira(): array
     {
         return $this->loadMovimentacao(true);
@@ -78,6 +99,9 @@ class Movimentacao
         if ($calcularProducao && !empty($this->movimentacao)) {
             return $this->movimentacao;
         }
+        $excludeForecastInvoices = $this->forecastMode
+            ? "AND (i.type <> 'invoice' OR i.category_type <> 'income')"
+            : '';
         $sql = <<<SQL
             SELECT 'transaction' AS `table`,
                 t.id,
@@ -190,7 +214,64 @@ class Movimentacao
             WHERE i.transaction_of_month = :ano_mes
                 AND i.archive = 0
                 AND t.id IS NULL
+                $excludeForecastInvoices
             SQL;
+
+        if ($this->forecastMode) {
+            // Project only the part of a customer's invoice not received in
+            // this financial month. Receipts in later months do not erase the
+            // earlier forecast, and partial payments are never counted twice.
+            $sql .= <<<'SQL'
+
+            UNION ALL
+            SELECT 'invoice_forecast' AS `table`,
+                i.id,
+                i.type,
+                i.transaction_of_month,
+                i.discount_percentage,
+                CASE WHEN i.discount_percentage > 0 THEN 1 ELSE 0 END,
+                i.amount - COALESCE(receipts.paid_amount, 0) AS amount,
+                CASE WHEN i.amount > 0 THEN
+                    COALESCE(
+                        (
+                            SELECT SUM(price)
+                            FROM JSON_TABLE(
+                                i.metadata,
+                                '$.items.data[*]' COLUMNS (
+                                    price DECIMAL(30, 12) PATH '$.price'
+                                )
+                            ) price
+                        ), i.amount
+                    ) * (i.amount - COALESCE(receipts.paid_amount, 0)) / i.amount
+                ELSE 0 END AS bruto,
+                i.customer_reference,
+                i.contact_name,
+                i.contact_id,
+                i.contact_type,
+                i.category_id,
+                i.category_name,
+                i.category_type,
+                i.archive,
+                i.metadata,
+                0 AS base_producao
+            FROM invoices i
+            LEFT JOIN (
+                SELECT t.metadata->>'$.document_id' AS document_id,
+                    SUM(t.amount) AS paid_amount
+                FROM transactions t
+                WHERE t.transaction_of_month = :ano_mes
+                    AND t.archive = 0
+                    AND t.type = 'income'
+                    AND t.metadata->>'$.document_id' IS NOT NULL
+                GROUP BY t.metadata->>'$.document_id'
+            ) receipts ON receipts.document_id = i.id
+            WHERE i.transaction_of_month = :ano_mes
+                AND i.type = 'invoice'
+                AND i.category_type = 'income'
+                AND i.archive = 0
+                AND i.amount - COALESCE(receipts.paid_amount, 0) > 0.000001
+            SQL;
+        }
         $stmt = $this->entityManager->getConnection()->executeQuery($sql, [
             'ano_mes' => $this->dates->getInicioProximoMes()->format('Y-m')
         ]);
@@ -199,9 +280,15 @@ class Movimentacao
         $errors = [];
         $ignoredUnpaidInvoices = [];
         while ($row = $stmt->fetchAssociative()) {
-            // An issued document without a linked financial transaction is
-            // eligible as customer income only when Akaunting confirms payment.
-            // A sent/cancelled/draft document is not capital for distribution.
+            // Canceled documents are not expected revenue even in forecasts.
+            // Drafts, sent and unconfirmed paid invoices remain visible only
+            // in forecast mode, not as evidence of collected cash.
+            if ($row['table'] === 'invoice_forecast') {
+                $metadata = json_decode((string) ($row['metadata'] ?? '{}'), true);
+                if (in_array($metadata['status'] ?? null, ['cancelled', 'canceled', 'void', 'deleted'], true)) {
+                    continue;
+                }
+            }
             if ($row['table'] === 'invoice'
                 && $row['category_type'] === 'income'
                 && $this->isCustomerReferenceRequired($row)) {
@@ -406,7 +493,8 @@ class Movimentacao
             $metadata = json_decode((string) ($row['metadata'] ?? '{}'), true);
             $taxes = is_array($metadata) ? ($metadata['item_taxes']['data'] ?? []) : [];
             $taxTotal = is_array($taxes) ? array_sum(array_column($taxes, 'amount')) : 0.0;
-            if (($row['table'] ?? null) === 'invoice_transaction' && $taxTotal !== 0.0) {
+            if (in_array(($row['table'] ?? null), ['invoice_transaction', 'invoice_forecast'], true)
+                && $taxTotal !== 0.0) {
                 // Income and gross value were prorated to the received tranche.
                 // Prorate the document's total retained taxes by the same ratio.
                 $items = $metadata['items']['data'] ?? [];

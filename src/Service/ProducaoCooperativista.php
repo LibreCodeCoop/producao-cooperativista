@@ -453,6 +453,11 @@ class ProducaoCooperativista
      */
     public function updateProducao(?array $included = null): void
     {
+        if ($this->movimentacao->isForecastMode()) {
+            throw new \LogicException(
+                'A prévia inclui valores não recebidos. Revalide os pagamentos antes de publicar documentos.'
+            );
+        }
         $this->profiles->requireLibreCodeSettlement();
         $members = $this->getProducaoCooperativista();
         $work = $this->getTrabalhadoPorCliente();
