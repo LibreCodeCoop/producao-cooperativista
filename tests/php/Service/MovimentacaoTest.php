@@ -726,6 +726,88 @@ final class MovimentacaoTest extends TestCase
         self::assertEqualsWithDelta(50.0, array_sum(array_column($strict, 'amount')), 0.001);
     }
 
+    public function testUnclassifiedIncomeRemainsAuditableInForecastButCannotBePublished(): void
+    {
+        $this->persistCategory(id: 45, name: 'Cliente', parentId: null, type: 'income');
+        $this->persistCategory(id: 3, name: 'Cliente > Recorrência', parentId: 45, type: 'income');
+
+        foreach ([
+            [3470, null, 881.21],
+            [3471, '12345678000190', 1000.00],
+        ] as [$id, $reference, $amount]) {
+            $transaction = new Transaction();
+            $transaction->fromArray([
+                'id' => $id,
+                'type' => 'income',
+                'paid_at' => '2026-05-04 10:00:00',
+                'transaction_of_month' => '2026-05',
+                'amount' => $amount,
+                'discount_percentage' => null,
+                'currency_code' => 'BRL',
+                'reference' => 'REFERENCE-' . $id,
+                'nfse' => null,
+                'tax_number' => null,
+                'customer_reference' => $reference,
+                'contact_id' => 182,
+                'contact_reference' => null,
+                'contact_name' => 'Test income source',
+                'contact_type' => 'customer',
+                'category_id' => 3,
+                'category_name' => 'Cliente > Recorrência',
+                'category_type' => 'income',
+                'archive' => 0,
+                'metadata' => ['description' => 'Month 2026-05'],
+            ]);
+            $this->entityManager->persist($transaction);
+        }
+        $this->entityManager->flush();
+        $this->dates->setInicio(new DateTime('2026-04-01'));
+
+        $this->movimentacao->setForecastMode(true);
+        $forecast = $this->movimentacao->getEntradasClientes();
+        self::assertCount(1, $forecast);
+        self::assertEqualsWithDelta(1000.00, array_sum(array_column($forecast, 'amount')), 0.001);
+
+        $pending = $this->movimentacao->getUnclassifiedForecastIncome();
+        self::assertSame(1, $pending['count']);
+        self::assertSame(881.21, $pending['amount']);
+        self::assertSame('transaction', $pending['records'][0]['origin']);
+        self::assertSame(3470, $pending['records'][0]['id']);
+        self::assertSame('Cliente > Recorrência', $pending['records'][0]['category']);
+        self::assertSame(881.21, $pending['records'][0]['amount']);
+
+        $all = $this->movimentacao->getMovimentacaoParaRelatorio();
+        self::assertCount(2, $all);
+        self::assertEqualsWithDelta(1881.21, array_sum(array_column($all, 'amount')), 0.001);
+
+        $this->movimentacao->setForecastMode(false);
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Código de cliente inválido na movimentação do Akaunting');
+        $this->movimentacao->getMovimentacaoFinanceira();
+    }
+
+    public function testForecastStillRejectsMissingClientReferenceOnCustomerCosts(): void
+    {
+        $this->persistClientHierarchyRoots();
+        $this->persistCategory(
+            id: self::CLIENT_EXPENSE_CATEGORY_ID,
+            name: 'Cliente > Dispêndio',
+            parentId: (int) getenv('AKAUNTING_PARENT_DISPENDIOS_CLIENTE_CATEGORY_ID'),
+        );
+        $this->persistBill(
+            id: 1985,
+            categoryId: self::CLIENT_EXPENSE_CATEGORY_ID,
+            categoryName: 'Cliente > Dispêndio',
+            customerReference: null,
+            contactName: 'Fornecedor teste',
+        );
+
+        $this->movimentacao->setForecastMode(true);
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Código de cliente inválido na movimentação do Akaunting');
+        $this->movimentacao->getMovimentacaoFinanceira();
+    }
+
     private function persistClientHierarchyRoots(): void
     {
         $this->persistCategory(

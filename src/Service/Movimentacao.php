@@ -302,13 +302,20 @@ class Movimentacao
                 $this->isCustomerReferenceRequired($row)
                 && (empty($row['customer_reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['customer_reference']))
             ) {
-                // Return actionable identification rather than dumping full financial metadata.
-                $errors[] = [
-                    'origem' => $row['table'],
-                    'id' => $row['id'],
-                    'categoria' => $row['category_name'],
-                    'codigo_cliente' => $row['customer_reference'],
-                ];
+                if ($this->forecastMode && $row['type'] === 'income'
+                    && $row['category_type'] === 'income') {
+                    // The amount is reported separately, not assigned to an
+                    // invented customer or silently spread among members.
+                    // Publication remains strict and rejects this same row.
+                    $row['forecast_unclassified_income'] = true;
+                } else {
+                    $errors[] = [
+                        'origem' => $row['table'],
+                        'id' => $row['id'],
+                        'categoria' => $row['category_name'],
+                        'codigo_cliente' => $row['customer_reference'],
+                    ];
+                }
             }
             $row['percentual_desconto_fixo'] = (bool) $row['percentual_desconto_fixo'];
 
@@ -437,10 +444,41 @@ class Movimentacao
         return $entradas;
     }
 
+    /**
+     * Client income without a verified reference stays in the imported ledger,
+     * but cannot be attributed to members in a provisional forecast.
+     *
+     * @return array{count: int, amount: float, records: list<array{origin: string, id: int, amount: float, category: string}>}
+     */
+    public function getUnclassifiedForecastIncome(): array
+    {
+        $records = [];
+        $total = 0.0;
+        foreach ($this->getMovimentacaoFinanceira() as $row) {
+            if (($row['forecast_unclassified_income'] ?? false) !== true) {
+                continue;
+            }
+            $amount = (float) $row['amount'];
+            $total += $amount;
+            $records[] = [
+                'origin' => (string) $row['table'],
+                'id' => (int) $row['id'],
+                'amount' => round($amount, 2),
+                'category' => (string) ($row['category_name'] ?? ''),
+            ];
+        }
+
+        return ['count' => count($records), 'amount' => round($total, 2), 'records' => $records];
+    }
+
     public function getEntradasClientes(?bool $percentualDescontoFixo = null): array
     {
         $categoriasEntradasClientes = $this->categories->getChildrensCategories((int) getenv('AKAUNTING_PARENT_ENTRADAS_CLIENTES_CATEGORY_ID'));
-        $entradasClientes = array_filter($this->getEntradas(), fn ($i) => in_array($i['category_id'], $categoriasEntradasClientes));
+        $entradasClientes = array_filter(
+            $this->getEntradas(),
+            fn (array $row): bool => in_array($row['category_id'], $categoriasEntradasClientes)
+                && ($row['forecast_unclassified_income'] ?? false) !== true
+        );
         if (is_bool($percentualDescontoFixo)) {
             $entradasClientes = array_filter(
                 $entradasClientes,
