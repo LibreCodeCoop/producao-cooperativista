@@ -21,7 +21,7 @@ final class FieldStudioResponse
         $fields = [];
         foreach ([
             'transaction_of_month', 'discount_percentage', 'customer_cnpj',
-            'sector', 'archive', 'nfse', 'production_metadata_migrated',
+            'sector', 'archive', 'nfse',
         ] as $key) {
             $isSet = array_key_exists($key, $custom);
             $fields[$key] = [

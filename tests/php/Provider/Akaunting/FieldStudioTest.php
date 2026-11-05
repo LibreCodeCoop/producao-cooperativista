@@ -16,18 +16,16 @@ use PHPUnit\Framework\TestCase;
 final class FieldStudioTest extends TestCase
 {
     /** @return array<string, array{value:?string,is_set:bool}> */
-    private static function fields(array $values = [], bool $migrated = true): array
+    private static function fields(array $values = []): array
     {
         $result = [];
         foreach ([
             'transaction_of_month', 'discount_percentage', 'customer_cnpj',
-            'sector', 'archive', 'nfse', 'production_metadata_migrated',
+            'sector', 'archive', 'nfse',
         ] as $key) {
-            $isSet = array_key_exists($key, $values) || ($key === 'production_metadata_migrated' && $migrated);
             $result[$key] = [
-                'is_set' => $isSet,
-                'value' => $key === 'production_metadata_migrated' && $migrated
-                    ? '1' : ($values[$key] ?? null),
+                'is_set' => array_key_exists($key, $values),
+                'value' => $values[$key] ?? null,
             ];
         }
         return $result;
@@ -61,14 +59,13 @@ final class FieldStudioTest extends TestCase
         self::assertSame([], $result[11]);
     }
 
-    public function testUnmigratedRecordFailsClosed(): void
+    public function testRecordWithoutHistoricalMigrationMarkerIsAccepted(): void
     {
-        $this->expectException(DomainException::class);
-        $this->expectExceptionMessage('not migrated');
-        new FieldStudio()->fromRecords('transaction', [[
+        $result = new FieldStudio()->fromRecords('transaction', [[
             'id' => 91, 'company_id' => 1,
-            'field_studio' => self::fields(['transaction_of_month' => '2026-10'], false),
+            'field_studio' => self::fields(['transaction_of_month' => '2026-10']),
         ]], 1);
+        self::assertSame(['transaction_of_month' => '2026-10'], $result[91]);
     }
 
     public function testMissingSchemaFailsClosed(): void

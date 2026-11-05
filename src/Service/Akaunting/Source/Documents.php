@@ -200,12 +200,16 @@ class Documents
             if (!empty($row['sector'])) {
                 $row['customer_reference'] = $row['customer_reference'] . '|' . strtolower($row['sector']);
             }
-        } elseif (!empty($row['contact']['reference'])) {
+        } elseif ($row['type'] === 'invoice' && ($row['contact']['type'] ?? null) === 'customer'
+            && !empty($row['contact']['reference'])) {
             $row['customer_reference'] = $row['contact']['reference'];
-        } elseif (!empty($row['contact']['tax_number'])) {
+        } elseif ($row['type'] === 'invoice' && ($row['contact']['type'] ?? null) === 'customer'
+            && !empty($row['contact']['tax_number'])) {
             $row['customer_reference'] = $row['contact']['tax_number'];
         } else {
-            $row['customer_reference'] = getenv('CNPJ_COMPANY');
+            // A supplier's fiscal ID is not the client funding its cost.
+            // Do not invent the cooperative's own CNPJ for an unknown client.
+            $row['customer_reference'] = '';
         }
         return $row;
     }

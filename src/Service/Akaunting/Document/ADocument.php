@@ -267,7 +267,6 @@ abstract class ADocument
             'notes' => implode("\n", $notes),
             'custom_fields' => [
                 'transaction_of_month' => $this->financialMonth(),
-                'production_metadata_migrated' => '1',
             ],
             'contact_id' => $this->getContactId(),
             'contact_name' => $this->getContactName(),

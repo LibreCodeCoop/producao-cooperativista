@@ -105,7 +105,7 @@ final class FrraFinancialContractTest extends KernelTestCase
             self::assertSame('100', (string) $body['contact_id']);
             self::assertSame('BRL', $body['currency_code']);
             self::assertSame(substr($body['due_at'], 0, 7), $body['custom_fields']['transaction_of_month']);
-            self::assertSame('1', (string) $body['custom_fields']['production_metadata_migrated']);
+            self::assertArrayNotHasKey('production_metadata_migrated', $body['custom_fields']);
             self::assertCount(1, $body['items'], 'FRRA must not include Bruto, Auxílio, INSS or IRRF.');
             self::assertSame('FRRA', $body['items'][0]['name']);
             self::assertSame((string) new DocumentConfiguration()->getDocumentItemId('frra'), (string) $body['items'][0]['item_id']);

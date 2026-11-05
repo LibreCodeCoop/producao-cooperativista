@@ -101,7 +101,7 @@ final class ProductionBillHttpContractTest extends KernelTestCase
             self::assertEqualsWithDelta(2000.0, (float) $body['items'][0]['price'], 0.01);
             self::assertStringContainsString('Produção realizada no mês: 2026-07', $body['notes']);
             self::assertSame('2026-08', $body['custom_fields']['transaction_of_month']);
-            self::assertSame('1', (string) $body['custom_fields']['production_metadata_migrated']);
+            self::assertArrayNotHasKey('production_metadata_migrated', $body['custom_fields']);
 
             return new MockResponse(json_encode(['data' => [
                 ...$body,

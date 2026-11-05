@@ -19,7 +19,7 @@ class FieldStudio
 {
     private const array FIELDS = [
         'transaction_of_month', 'discount_percentage', 'customer_cnpj',
-        'sector', 'archive', 'nfse', 'production_metadata_migrated',
+        'sector', 'archive', 'nfse',
     ];
 
     /**
@@ -47,14 +47,6 @@ class FieldStudio
                     || !array_key_exists('is_set', $fields[$key])) {
                     throw new DomainException(sprintf('Field Studio schema incomplete: %s on %s.', $key, $type));
                 }
-            }
-            $marker = $fields['production_metadata_migrated'];
-            if (($marker['is_set'] ?? false) !== true || (string) ($marker['value'] ?? '') !== '1') {
-                throw new DomainException(sprintf(
-                    'Record %s #%d is not migrated to Field Studio; the competence cannot be processed.',
-                    $type,
-                    $id
-                ));
             }
             if (isset($result[$id])) {
                 throw new DomainException('Duplicate Akaunting record in Field Studio response.');
