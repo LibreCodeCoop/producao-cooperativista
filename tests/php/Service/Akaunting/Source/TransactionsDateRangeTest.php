@@ -25,16 +25,14 @@ final class TransactionsDateRangeTest extends TestCase
         $original = $selected->format('Y-m-d');
 
         $dataset = $this->createMock(Dataset::class);
-        $dataset->expects($this->exactly(2))->method('list')
+        $dataset->expects($this->once())->method('list')
             ->willReturnCallback(static function (string $endpoint, array $query) use ($expectedFrom, $expectedTo): array {
-                if ($endpoint === '/api/v1/field-studio/records') {
-                    return [];
-                }
                 self::assertSame('/api/transactions', $endpoint);
                 self::assertStringContainsString('paid_at>=' . $expectedFrom, $query['search']);
                 self::assertStringContainsString('paid_at<=' . $expectedTo, $query['search']);
                 return [];
             });
+        $dataset->expects($this->once())->method('recordIds')->willReturn([]);
         $source = $this->source($dataset);
         $source->setCompanyId(1)->setDate($selected);
         self::assertSame([], $source->getList());
@@ -46,15 +44,14 @@ final class TransactionsDateRangeTest extends TestCase
         $selected = new DateTime('first day of +1 year');
         $expectedTo = (clone $selected)->modify('last day of this month')->format('Y-m-d');
         $dataset = $this->createMock(Dataset::class);
-        $dataset->expects($this->exactly(2))->method('list')->willReturnCallback(
+        $dataset->expects($this->once())->method('list')->willReturnCallback(
             static function (string $endpoint, array $query) use ($expectedTo): array {
-                if ($endpoint !== '/api/v1/field-studio/records') {
-                    self::assertStringContainsString('paid_at<=' . $expectedTo, $query['search']);
-                }
+                self::assertStringContainsString('paid_at<=' . $expectedTo, $query['search']);
                 return [];
             }
         );
 
+        $dataset->expects($this->once())->method('recordIds')->willReturn([]);
         $source = $this->source($dataset);
         $source->setCompanyId(1)->setDate($selected);
         self::assertSame([], $source->getList());
@@ -63,11 +60,8 @@ final class TransactionsDateRangeTest extends TestCase
     public function testTwoPaymentsForOneHistoricalDocumentUseOneBatchAndCorrectMonth(): void
     {
         $dataset = $this->createMock(Dataset::class);
-        $dataset->expects($this->exactly(3))->method('list')->willReturnCallback(
+        $dataset->expects($this->exactly(2))->method('list')->willReturnCallback(
             static function (string $endpoint, array $query): array {
-                if ($endpoint === '/api/v1/field-studio/records') {
-                    return [];
-                }
                 if ($endpoint === '/api/transactions') {
                     return array_map(static fn (int $id): array => [
                         'id' => $id,
@@ -122,6 +116,7 @@ final class TransactionsDateRangeTest extends TestCase
             }
             return $out;
         });
+        $dataset->expects($this->once())->method('recordIds')->willReturn([]);
         $source = new Transactions(
             $manager,
             new NullLogger(),

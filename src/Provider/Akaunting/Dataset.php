@@ -18,6 +18,36 @@ class Dataset
     }
 
     /**
+     * Field Studio's exact-value search returns record IDs rather than
+     * document objects; keep this contract separate from the native listing.
+     *
+     * @return list<int>
+     */
+    public function recordIds(string $type, string $month, int $companyId, int $limit = 200): array
+    {
+        $response = $this->request->send('/api/v1/field-studio/records', query: [
+            'company_id' => $companyId,
+            'entity_type' => $type,
+            'field_key' => 'transaction_of_month',
+            'value' => $month,
+            'limit' => $limit,
+        ], method: 'GET');
+        $this->request->handleError($response);
+        $ids = $response['data'] ?? null;
+        if (!is_array($ids) || !array_is_list($ids)) {
+            throw new RuntimeException('Invalid Field Studio record ID response.');
+        }
+        $result = [];
+        foreach ($ids as $id) {
+            if (!is_int($id) || $id <= 0) {
+                throw new RuntimeException('Invalid Field Studio financial-month record ID.');
+            }
+            $result[] = $id;
+        }
+        return $result;
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     public function list(string $endpoint, array $query = []): array

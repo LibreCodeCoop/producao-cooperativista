@@ -38,13 +38,7 @@ final class FinancialMonthScope
             || $companyId < 1) {
             throw new DomainException('Invalid financial month lookup scope.');
         }
-        $ids = $dataset->list('/api/v1/field-studio/records', [
-            'company_id' => $companyId,
-            'entity_type' => $type,
-            'field_key' => 'transaction_of_month',
-            'value' => $financialMonth,
-            'limit' => self::MAX_IDS,
-        ]);
+        $ids = $dataset->recordIds($type, $financialMonth, $companyId, self::MAX_IDS);
         // The Field Studio endpoint currently has no cursor. Fail safely if
         // this cap is reached rather than silently dropping financial records.
         if (count($ids) >= self::MAX_IDS) {
@@ -60,10 +54,9 @@ final class FinancialMonthScope
         }
         $missing = [];
         foreach ($ids as $id) {
-            if ((!is_int($id) && !is_string($id)) || !ctype_digit((string) $id) || (int) $id <= 0) {
+            if ($id <= 0) {
                 throw new DomainException('Field Studio returned an invalid financial-month record ID.');
             }
-            $id = (int) $id;
             if (!isset($existing[$id])) {
                 $missing[$id] = true;
             }

@@ -94,7 +94,7 @@ class Documents
             'search' => implode(' ', $search),
             'include_field_studio' => '1',
         ]);
-        $list = (new FinancialMonthScope())->complete(
+        $list = new FinancialMonthScope()->complete(
             $this->dataset,
             $list,
             $this->getType(),

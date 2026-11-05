@@ -50,12 +50,8 @@ final class DocumentsEmptyListTest extends TestCase
     public function testNoDocumentsReturnsEmptyListWithoutUndefinedIndexNotice(): void
     {
         $dataset = $this->createMock(Dataset::class);
-        $dataset->expects($this->exactly(2))->method('list')->willReturnCallback(
-            static function (string $endpoint): array {
-                self::assertContains($endpoint, ['/api/documents', '/api/v1/field-studio/records']);
-                return [];
-            }
-        );
+        $dataset->expects($this->once())->method('list')->willReturn([]);
+        $dataset->expects($this->once())->method('recordIds')->willReturn([]);
         $dates = new Dates('br-national', 12, new DateTime('2026-10-01'));
         $documents = new Documents(
             $this->createStub(EntityManagerInterface::class),
