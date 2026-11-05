@@ -211,6 +211,9 @@ class MakeProducaoCommand extends AbstractBaseCommand
             $this->producaoCooperativista->dates->setInicio($inicio);
             $this->producaoCooperativista->dates->setDiasUteis($diasUteis);
             $this->movimentacao->setPercentualMaximo($percentualMaximo);
+            // A preview includes receivables at every active document status;
+            // only the explicit publication command uses paid-only capital.
+            $this->movimentacao->setForecastMode(!$input->getOption('atualiza-producao'));
 
             $phase = 'cálculo da produção';
             $this->reportPhase('Calculando produção elegível, horas e pesos.');

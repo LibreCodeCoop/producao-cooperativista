@@ -23,9 +23,9 @@
 
 {% block body %}
     {% set glossary = {
-        'total_notas_clientes': 'Recebimentos elegíveis dos clientes na competência, com link para os documentos de origem.',
-        'total_notas_percentual_fixo': 'Recebimentos de contratos com desconto administrativo fixo, excluídos da base móvel.',
-        'total_notas_percentual_movel': 'Recebimentos classificados com desconto administrativo móvel.',
+        'total_notas_clientes': 'Prévia das receitas de clientes na competência, incluindo faturas ainda não recebidas. Não representa disponibilidade para pagamento.',
+        'total_notas_percentual_fixo': 'Receitas previstas de contratos com desconto administrativo fixo, excluídas da base móvel.',
+        'total_notas_percentual_movel': 'Receitas previstas com desconto administrativo móvel.',
         'total_percentual_desconto_fixo': 'Desconto contratual aplicado apenas aos recebimentos com percentual fixo.',
         'total_sobras_clientes_percentual_fixo': 'Ajuste residual dos recebimentos com desconto fixo e respectivas retenções.',
         'total_dispendios_clientes_percentual_movel': 'Custos atribuídos aos clientes, reconciliáveis com os lançamentos de saída.',
@@ -37,8 +37,8 @@
         'valor_seguranca': 'Aplicação do percentual de referência sobre a base móvel líquida dos custos por cliente.',
         'taxa_administrativa': 'Valor que cobre pelo menos os dispêndios internos e observa a regra condicional entre piso, referência e teto.',
         'percentual_administrativo': 'Razão efetiva entre taxa administrativa e base móvel; pode superar a referência quando o piso de custos exigir.',
-        'base_producao': 'Soma dos recebimentos após custos alocados por documento e desconto aplicável, antes do rateio por trabalho.',
-        'reserva': 'Parcela gerencial da taxa administrativa acima dos dispêndios internos; não é automaticamente o Fundo de Reserva legal.',
+        'base_producao': 'Base projetada das receitas previstas, após custos atribuídos e desconto aplicável, antes do rateio por trabalho.',
+        'reserva': 'Parcela gerencial prevista da taxa administrativa acima dos dispêndios internos; não é automaticamente o Fundo de Reserva legal.',
         'total_sobras_do_mes': 'Saldo gerencial apurado da competência, distinto das sobras líquidas anuais destinadas pela assembleia.',
         'total_sobras_distribuidas': 'Combinação do saldo mensal apurado com os documentos de distribuição já registrados.',
         'total_horas_trabalhadas': 'Tempo efetivamente registrado na origem de apontamentos de trabalho.',
@@ -49,7 +49,7 @@
         'ano_mes_trabalhado': 'Competência do trabalho que originou o cálculo.'
     } %}
     {% set groups = [
-        {'title': '1. Recebimentos', 'description': 'Identifique as entradas elegíveis e separe contratos fixos dos móveis.', 'keys': ['total_notas_clientes', 'receita', 'total_notas_percentual_fixo', 'total_notas_percentual_movel', 'total_percentual_desconto_fixo', 'total_sobras_clientes_percentual_fixo']},
+        {'title': '1. Receitas previstas', 'description': 'Inclui faturas em rascunho, enviadas e recebimentos confirmados; separe contratos fixos dos móveis.', 'keys': ['total_notas_clientes', 'receita', 'total_notas_percentual_fixo', 'total_notas_percentual_movel', 'total_percentual_desconto_fixo', 'total_sobras_clientes_percentual_fixo']},
         {'title': '2. Custos e base móvel', 'description': 'Confira custos por cliente, despesas internas e a base que suporta a taxa administrativa.', 'keys': ['total_dispendios_clientes_percentual_movel', 'total_notas_para_percentual_movel_sem_custo_cliente', 'total_dispendios_internos']},
         {'title': '3. Taxa administrativa', 'description': 'Acompanhe o piso dos custos, o limite de referência, o percentual efetivo e a decisão condicional.', 'keys': ['taxa_minima', 'taxa_maxima', 'percentual_seguranca', 'valor_seguranca', 'taxa_administrativa', 'percentual_administrativo']},
         {'title': '4. Produção, reserva e saldo', 'description': 'Entenda a base destinada ao trabalho, a reserva gerencial e o fechamento do mês.', 'keys': ['base_producao', 'reserva', 'total_sobras_do_mes', 'total_sobras_distribuidas']},
@@ -90,6 +90,52 @@
             Este resultado usa um ou mais parâmetros informados na requisição, que podem ser diferentes da política configurada no servidor. Não utilize esta simulação para autorizar pagamentos.
         </div>
     {% endif %}
+    <div class="calc-notice calc-notice-warning" role="note">
+        <strong>Previsão, não autorização de pagamento.</strong>
+        Esta memória inclui faturas em rascunho, enviadas e ainda sem pagamento, além de recebimentos.
+        A validação financeira e a confirmação dos pagamentos devem ocorrer antes da emissão de documentos
+        de distribuição. Valores previstos podem mudar após a conciliação.
+    </div>
+
+    {% if source_review is not empty %}
+        {% set pending = source_review.unconfirmed_invoices %}
+        {% if pending.count > 0 %}
+            <section class="calc-notice calc-notice-warning" id="pending-invoice-review" aria-labelledby="pending-invoice-title">
+                <h2 id="pending-invoice-title">Faturas que precisam de conferência antes do pagamento</h2>
+                <p>
+                    {{ pending.count }} fatura(s) sem recebimento totalmente confirmado nesta competência,
+                    no valor nominal de <strong>R$ {{ pending.amount|number_format(2, ',', '.') }}</strong>.
+                    Estes documentos entram na previsão, mas não comprovam dinheiro recebido.
+                </p>
+                <ul>
+                    {% for document in pending.documents|default([])|slice(0, 10) %}
+                        {% set statusLabel = {
+                            'draft': 'Rascunho',
+                            'sent': 'Enviada',
+                            'overdue': 'Vencida',
+                            'partial': 'Parcialmente recebida',
+                            'paid': 'Marcada como paga; conferir recebimento da competência'
+                        }[document.status]|default('Situação a conferir') %}
+                        <li>
+                            <strong>{{ document.number|default('#' ~ document.id) }}</strong>:
+                            {{ statusLabel }} — R$ {{ document.amount|number_format(2, ',', '.') }}
+                            (recebido na competência: R$ {{ document.received_amount|number_format(2, ',', '.') }}).
+                        </li>
+                    {% endfor %}
+                </ul>
+                <a href="/relatorios/faturas-conferencia?ano-mes={{ competencia }}">
+                    Conferir todas as faturas e seus vínculos no Akaunting
+                </a>
+                <p>O valor nominal pode incluir documentos repetidos ou ainda não validados; a conferência é obrigatória.</p>
+            </section>
+        {% endif %}
+    {% else %}
+        <div class="calc-notice calc-notice-warning" role="note">
+            Não foi possível verificar os estados das faturas importadas.
+            Confira os registros no Akaunting antes de qualquer pagamento.
+        </div>
+    {% endif %}
+
     <div class="calc-notice" role="note">
         <strong>Leitura importante:</strong> o percentual de segurança é uma referência gerencial configurada pela cooperativa, não uma alíquota legal. A “reserva” mensal não equivale automaticamente ao Fundo de Reserva nem ao FATES estatutários. As sobras do exercício dependem da contabilidade e da deliberação assemblear.
     </div>
@@ -146,7 +192,7 @@
     {% if data is not empty %}
         <section class="calc-summary" aria-label="Indicadores principais">
             {% for key, caption in {
-                'total_notas_clientes': 'Recebimentos de clientes',
+                'total_notas_clientes': 'Receitas previstas de clientes',
                 'total_dispendios_internos': 'Dispêndios internos',
                 'base_producao': 'Base de produção',
                 'total_sobras_do_mes': 'Saldo gerencial do mês'

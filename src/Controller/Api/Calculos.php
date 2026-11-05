@@ -67,6 +67,7 @@ class Calculos extends AbstractController
                 $this->request->query->getInt('percentual-maximo', (int) getenv('PERCENTUAL_MAXIMO'))
             );
 
+            $this->movimentacao->setForecastMode(true);
             $this->producao->getProducaoCooperativista();
 
             $response = $this->producao->exportData();

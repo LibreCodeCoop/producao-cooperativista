@@ -25,7 +25,7 @@ function element() {
 function fixture({previewError = false, economicFailure = false, malformed = false, importSuccess = true,
     publishSuccess = true, gridSuccess = true, withdrawalGoal = null,
     importError = 'Falha na importação', initialWorkData = true,
-    initialStagingData = true, pendingWrite = null} = {}) {
+    initialStagingData = true, pendingWrite = null, pendingInvoiceCount = 0} = {}) {
     const items = new Map();
     for (const id of ['production-wizard','form-gera-producao','messages',
         'import-button','use-existing','import-availability-status',
@@ -165,7 +165,9 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
                         {code:'BASE_ECONOMICA',resolution:'Confira receitas elegíveis.'} :
                         {error:{message:'Erro da fonte fiscal'}} :
                         malformed ? {metadata:{competence:'2026-07'},data:rows} :
-                            {metadata:{competence:'2026-08',revision,withdrawal_goal:withdrawalGoal},data:rows};
+                            {metadata:{competence:'2026-08',revision,
+                                withdrawal_goal:withdrawalGoal,
+                                forecast_only:true,pending_invoice_count:pendingInvoiceCount},data:rows};
                 },
             };
         },
@@ -323,6 +325,28 @@ test('import and review are the only two stages, with a sortable shared grid', a
         '/relatorios/producao?ano-mes=2026-08','/relatorios/calculos?ano-mes=2026-08',
         '/relatorios/invoices?ano-mes=2026-08',
     ]);
+});
+
+test('unconfirmed customer invoices allow a forecast but block financial publication', async () => {
+    const f=fixture({pendingInvoiceCount:3});
+    await f.preview();
+    assert.equal(f.step(),2);
+    assert.match(f.get('metric-net').textContent,/107,35/);
+    assert.match(f.get('publication-summary').textContent,/3 fatura\(s\)/);
+    assert.equal(f.get('pending-invoices-link').hidden,false);
+    assert.match(f.get('pending-invoices-link').href,/faturas-conferencia/);
+    f.setConsent(true);
+    assert.equal(f.get('submit').disabled,true);
+    await f.click('submit');
+    assert.equal(f.calls.submit.length,0);
+});
+
+test('unknown payment review never silently authorizes publication', async () => {
+    const f=fixture({pendingInvoiceCount:null});
+    await f.preview();
+    assert.match(f.get('publication-summary').textContent,/publicação bloqueada/);
+    f.setConsent(true);
+    assert.equal(f.get('submit').disabled,true);
 });
 
 test('net withdrawal reference is displayed without changing selection or actual payout', async () => {

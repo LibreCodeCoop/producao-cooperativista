@@ -87,19 +87,21 @@ class Calculos extends AbstractController
             $this->movimentacao->setPercentualMaximo(
                 $this->request->query->getInt('percentual-maximo', (int) getenv('PERCENTUAL_MAXIMO'))
             );
+            // Financial memory is a forecast; the publishing command keeps
+            // its paid-only selection and separate financial review.
+            $this->movimentacao->setForecastMode(true);
             $data = $this->producao->exportData();
         } catch (\Throwable $th) {
             $guide = FailureGuide::diagnose($th->getMessage());
             $erros = [$guide->summary . ' ' . $guide->instructions];
-            if ($guide->code === 'BASE_ECONOMICA') {
-                try {
-                    // Read the staged inputs without calculating a payable
-                    // distribution or altering the finance database.
-                    $sourceReview = $this->sourceReview->read(Competencia::fromString($requested));
-                } catch (\Throwable) {
-                    // Keep the diagnostic visible if the sources are unavailable.
-                }
-            }
+        }
+        try {
+            // On success: expose invoice statuses beside the full forecast.
+            // On failure: retain an auditable summary of the imported sources.
+            $sourceReview = $this->sourceReview->read(Competencia::fromString($requested));
+        } catch (\Throwable) {
+            // Never hide a forecast or its original diagnostic when status
+            // reconciliation is temporarily unavailable.
         }
 
         return $this->render('calculos.index.html.twig', [

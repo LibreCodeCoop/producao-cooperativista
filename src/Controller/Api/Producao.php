@@ -26,7 +26,9 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
+use App\Domain\Competencia;
 use App\Service\Movimentacao;
+use App\Service\Calculation\ImportedSourceReview;
 use App\Service\Calculation\NetWithdrawalGoal;
 use App\Service\Calculation\ProductionPublicationSelection;
 use App\Service\Calculation\ProductionValueExplanations;
@@ -51,6 +53,7 @@ class Producao extends AbstractController
         private ProductionPublicationSelection $selection,
         private ProductionValueExplanations $valueExplanations,
         private NetWithdrawalGoal $withdrawalGoal,
+        private ImportedSourceReview $sourceReview,
     ) {
         $this->request = $requestStack->getCurrentRequest();
     }
@@ -76,6 +79,7 @@ class Producao extends AbstractController
                 $this->request->query->getInt('percentual-maximo', (int) getenv('PERCENTUAL_MAXIMO'))
             );
 
+            $this->movimentacao->setForecastMode(true);
             $list = $this->producao->getProducaoCooperativista();
             $trabalhadoPorCliente = $this->producao->getTrabalhadoPorCliente();
             $snapshot = $this->selection->snapshot($list, $inicio->format('Y-m'));
@@ -123,6 +127,17 @@ class Producao extends AbstractController
                 // Never interrupt the existing settlement for a what-if goal.
                 $goal = ['mode' => 'unavailable'];
             }
+            $pendingInvoices = null;
+            try {
+                // Only the finance review is authoritative for outstanding
+                // invoice statuses. A failure keeps the preview readable, but
+                // never produces permission to publish.
+                $review = $this->sourceReview->read(Competencia::fromString($inicio->format('Y-m')));
+                $pendingInvoices = (int) $review['unconfirmed_invoices']['count'];
+            } catch (\Throwable) {
+                // Unknown is distinct from zero pending documents.
+            }
+
             $response = [
                 'data' => array_values($output),
                 'metadata' => [
@@ -130,6 +145,9 @@ class Producao extends AbstractController
                     'revision' => $snapshot['revision'],
                     'competence' => $inicio->format('Y-m'),
                     'withdrawal_goal' => $goal,
+                    'forecast_only' => true,
+                    'payment_confirmed' => false,
+                    'pending_invoice_count' => $pendingInvoices,
                     'date' => $this->producao->dates->getInicioProximoMes()->format('Y-m')
                 ],
             ];

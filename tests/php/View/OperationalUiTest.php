@@ -303,6 +303,48 @@ final class OperationalUiTest extends TestCase
         self::assertStringContainsString('não consulta o extrato bancário em tempo real', $html);
     }
 
+    public function testForecastMemoryDisplaysUnpaidInvoiceStatusesNextToCalculatedAmounts(): void
+    {
+        $html = $this->twig()->render('calculos.index.html.twig', [
+            'competencia' => '2026-09',
+            'financial_month' => '2026-10',
+            'source_review' => [
+                'financial_month' => '2026-10',
+                'unconfirmed_invoices' => [
+                    'count' => 2,
+                    'amount' => 375.00,
+                    'documents' => [
+                        ['id' => 731, 'number' => 'INV-731', 'amount' => 150.00,
+                            'received_amount' => 0.00, 'status' => 'draft'],
+                        ['id' => 732, 'number' => 'INV-732', 'amount' => 225.00,
+                            'received_amount' => 50.00, 'status' => 'sent'],
+                    ],
+                ],
+            ],
+            'simulation' => false,
+            'data' => [
+                'total_notas_clientes' => [
+                    'label' => 'Receita prevista',
+                    'valor' => 375.00,
+                    'formula' => '150 + 225',
+                    'color' => [240, 240, 240],
+                    'font_color' => [20, 20, 20],
+                ],
+            ],
+            'erros' => [],
+        ]);
+
+        self::assertStringContainsString('Previsão, não autorização de pagamento', $html);
+        self::assertStringContainsString('Faturas que precisam de conferência antes do pagamento', $html);
+        self::assertStringContainsString('INV-731', $html);
+        self::assertStringContainsString('INV-732', $html);
+        self::assertStringContainsString('Rascunho', $html);
+        self::assertStringContainsString('Enviada', $html);
+        self::assertStringContainsString('Receitas previstas de clientes', $html);
+        self::assertStringContainsString('Conferir todas as faturas', $html);
+        self::assertStringNotContainsString('Não foi possível concluir a apuração', $html);
+    }
+
     public function testReportsExposeSourceReconciliationWithoutPretendingToCalculatePayouts(): void
     {
         $source = [
