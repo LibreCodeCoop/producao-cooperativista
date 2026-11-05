@@ -103,7 +103,10 @@ class Transactions
         foreach ($list as $row) {
             $linked = $linkedDocs[(int) ($row['document_id'] ?? 0)] ?? false;
             $transaction = $this->fromArray(
-                $row, $existing[$row['id']] ?? new Transaction(), $linked, $structured[(int) $row['id']]
+                $row,
+                $existing[$row['id']] ?? new Transaction(),
+                $linked,
+                $structured[(int) $row['id']]
             );
             $this->list[] = $transaction;
         }

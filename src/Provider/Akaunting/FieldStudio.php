@@ -52,7 +52,8 @@ class FieldStudio
             if (($marker['is_set'] ?? false) !== true || (string) ($marker['value'] ?? '') !== '1') {
                 throw new DomainException(sprintf(
                     'Record %s #%d is not migrated to Field Studio; the competence cannot be processed.',
-                    $type, $id
+                    $type,
+                    $id
                 ));
             }
             if (isset($result[$id])) {

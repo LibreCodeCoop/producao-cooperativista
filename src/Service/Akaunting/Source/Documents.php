@@ -98,7 +98,9 @@ class Documents
         $structured = $this->fieldStudio->fromRecords($this->getType(), $list, $this->getCompanyId());
         foreach ($list as $row) {
             $invoice = $this->fromArray(
-                $row, $existing[$row['id']] ?? new Invoice(), $structured[(int) $row['id']]
+                $row,
+                $existing[$row['id']] ?? new Invoice(),
+                $structured[(int) $row['id']]
             );
             $this->list[$this->getType()][] = $invoice;
         }
@@ -110,7 +112,9 @@ class Documents
     }
 
     public function fromArray(
-        array $array, ?Invoice $existingInvoice = null, ?array $structured = null
+        array $array,
+        ?Invoice $existingInvoice = null,
+        ?array $structured = null
     ): Invoice {
         $structured ??= $this->fieldStudio->fromRecords($array['type'], [$array], $this->getCompanyId())[(int) $array['id']];
         $array = array_merge($array, $structured);
