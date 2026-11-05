@@ -1,7 +1,128 @@
 {% extends "layout/index.html.twig" %}
 
-{% block title %}Zerar banco local{% endblock title %}
+{% block title %}Reconstruir dados do ETL{% endblock %}
 
 {% block body %}
-    <pre>{{ response }}</pre>
+    {% set reset_available = staging_configured %}
+    <nav class="breadcrumbs" aria-label="Localização">
+        <a href="/acoes/make-producao">Fechamento</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">Reconstruir dados do ETL</span>
+    </nav>
+
+    <header class="page-heading page-heading-compact">
+        <p class="eyebrow">Manutenção · Ação restrita</p>
+        <h1>Reconstruir dados intermediários do ETL</h1>
+        <p class="page-lead">Remova os dados importados do banco de transformação para reconstruir a base a partir das fontes.</p>
+    </header>
+
+    <section class="surface reset-environment" aria-label="Ambiente e fontes financeiras">
+        <h2>Ambiente e fontes</h2>
+        <p><strong>Ambiente de execução:</strong> {{ {
+            'production': 'Produção', 'staging': 'Homologação', 'development': 'Desenvolvimento'
+        }[execution_environment|default('production')] }}.
+        <strong>Origem consultada:</strong> {{ source_profile|default('staging') == 'production' ?
+            'Sistemas de produção' : 'Fontes configuradas neste ambiente' }}.</p>
+        {% if execution_environment|default('production') != 'production' %}
+            <form method="post" action="/acoes/origem-dados" class="reset-form">
+                <input type="hidden" name="_token" value="{{ token }}">
+                <input type="hidden" name="version" value="{{ config_version|default(0) }}">
+                <label for="source-profile">Fontes para a próxima importação</label>
+                <select id="source-profile" name="profile">
+                    <option value="staging"{{ source_profile|default('staging') == 'staging' ? ' selected' : '' }}>Fontes configuradas neste ambiente</option>
+                    <option value="production"
+                            {{ source_profile == 'production' ? 'selected' : '' }}
+                            {{ not production_profile_ready|default(false) ? 'disabled' : '' }}>
+                        Sistemas de produção ({{ production_profile_ready|default(false) ? 'somente leitura' : 'não configurados' }})
+                    </option>
+                </select>
+                <button type="submit" class="button button-secondary"
+                        {{ not source_switch_possible|default(false) ? 'disabled' : '' }}>Trocar fontes</button>
+            </form>
+            {% if not source_switch_possible|default(false) %}
+                <p class="field-help">Limpe a base intermediária antes de trocar as fontes. A aplicação não mistura registros de origens diferentes.</p>
+            {% endif %}
+            {% if not production_profile_ready|default(false) %}
+                <p class="field-help">Para usar as fontes de produção neste ambiente, configure as credenciais separadas do perfil de produção no servidor.</p>
+            {% endif %}
+        {% else %}
+            <p class="field-help">Este ambiente de produção não permite trocar suas fontes nesta tela.</p>
+        {% endif %}
+    </section>
+
+    <div class="reset-layout">
+        <section class="surface reset-explainer" aria-labelledby="reset-explainer-heading">
+            <h2 id="reset-explainer-heading">O que essa operação faz?</h2>
+            <div class="reset-facts">
+                <div class="reset-fact">
+                    <span class="fact-icon fact-icon-danger" aria-hidden="true">−</span>
+                    <div>
+                        <h3>Remove dados importados</h3>
+                        <p>Limpa os registros do banco intermediário utilizados pelo ETL.</p>
+                    </div>
+                </div>
+                <div class="reset-fact">
+                    <span class="fact-icon fact-icon-safe" aria-hidden="true">✓</span>
+                    <div>
+                        <h3>Preserva as fontes e a estrutura</h3>
+                        <p>Não remove tabelas, migrações, logs nem registros do Akaunting ou do Kimai.</p>
+                    </div>
+                </div>
+                <div class="reset-fact">
+                    <span class="fact-icon fact-icon-next" aria-hidden="true">↻</span>
+                    <div>
+                        <h3>Exige nova importação</h3>
+                        <p>Depois de limpar, importe novamente os dados <strong>antes de calcular a produção</strong>.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="information-note">
+                <strong>Quando utilizar</strong>
+                <p>Quando horas ou lançamentos financeiros forem alterados, excluídos ou reclassificados na origem e os relatórios ainda mostrarem dados antigos.</p>
+            </div>
+        </section>
+
+        <section class="surface reset-operation" aria-labelledby="reset-operation-heading">
+            <div class="operation-heading">
+                <h2 id="reset-operation-heading">Confirmar limpeza</h2>
+                <span class="operation-tag">Ação destrutiva</span>
+            </div>
+
+            {% if not reset_available %}
+                <div class="status-note status-note-warning" role="status">
+                    <strong>Operação indisponível nesta instalação</strong>
+                    <p>
+                        O banco intermediário ainda não foi confirmado pelo administrador.
+                    </p>
+                </div>
+            {% endif %}
+
+            <form method="post" action="{{ url }}?retorno={{ retorno|url_encode }}" class="reset-form">
+                <input type="hidden" name="_token" value="{{ token }}">
+                <div class="form-field">
+                    <label for="confirmacao">Confirmação obrigatória</label>
+                    <p class="field-help" id="confirmation-help">Digite ZERAR exatamente como indicado.</p>
+                    <input id="confirmacao" name="confirmacao" required pattern="ZERAR"
+                           minlength="5" maxlength="5" spellcheck="false" autocomplete="off"
+                           aria-describedby="confirmation-help" placeholder="ZERAR"
+                           {% if not reset_available %}disabled{% endif %}>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="button button-danger" {% if not reset_available %}disabled{% endif %}>Limpar dados intermediários</button>
+                    <a href="/acoes/make-producao?ano-mes={{ retorno|url_encode }}" class="button button-secondary">Voltar à importação</a>
+                </div>
+            </form>
+
+            {% if response %}
+                <div class="result-message{% if response_is_error|default(false) %} result-message-error{% endif %}"
+                     role="{% if response_is_error|default(false) %}alert{% else %}status{% endif %}">
+                    <strong>Resultado da operação</strong>
+                    <p>{{ response }}</p>
+                </div>
+            {% endif %}
+
+
+        </section>
+    </div>
 {% endblock %}

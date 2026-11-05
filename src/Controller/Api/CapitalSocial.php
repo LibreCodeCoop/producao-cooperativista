@@ -26,31 +26,33 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
-use App\Service\Cooperado;
+use App\Service\ProducaoCooperativista;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Service\Calculation\ApiProblemResponder;
 
 class CapitalSocial extends AbstractController
 {
     public function __construct(
-        private Cooperado $cooperado,
+        private ProducaoCooperativista $producao,
+        private ApiProblemResponder $apiErrors,
     ) {
     }
 
     #[Route('/api/v1/capital-social', methods: ['GET'])]
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         try {
-            $capitalSocial = $this->cooperado->getCapitalSocial();
+            $id = $request->query->get('contact_id');
+            $until = $request->query->get('ate');
+            if ($id !== null && (!is_string($id) || !ctype_digit($id) || (int) $id <= 0)) {
+                throw new \InvalidArgumentException('Identificador de cooperado inválido.');
+            }
+            $capitalSocial = $this->producao->getCapitalSocial($id !== null ? (int) $id : null, is_string($until) ? $until : null);
         } catch (\Throwable $th) {
-            return new JsonResponse(
-                [
-                    'error' => $th->getMessage(),
-                ],
-                Response::HTTP_FORBIDDEN
-            );
+            return $this->apiErrors->fromThrowable($th, 'CapitalSocial');
         }
 
         $response = [

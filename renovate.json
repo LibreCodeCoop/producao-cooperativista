@@ -1,0 +1,54 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "docker:pinDigests"
+  ],
+  "enabledManagers": [
+    "dockerfile",
+    "nvm",
+    "github-actions"
+  ],
+  "dependencyDashboard": false,
+  "automerge": false,
+  "prConcurrentLimit": 5,
+  "packageRules": [
+    {
+      "description": "PHP runtime upgrades must pass all compatibility checks before manual review.",
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchPackageNames": [
+        "php"
+      ],
+      "groupName": "PHP Docker runtime"
+    },
+    {
+      "description": "The Dockerfile COPY --from reference is not updated reliably by Dependabot.",
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/mlocati/php-extension-installer"
+      ],
+      "groupName": "PHP extension installer"
+    },
+    {
+      "description": "Dependabot updates action references; disable Renovate updates to those same uses fields.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Dependabot GitHub Actions does not reliably track CI service Docker images.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDepTypes": [
+        "service"
+      ],
+      "enabled": true
+    }
+  ]
+}

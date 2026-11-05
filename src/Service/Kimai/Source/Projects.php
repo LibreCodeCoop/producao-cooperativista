@@ -31,7 +31,9 @@ use DateTime;
 use App\Provider\Kimai;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\HttpClient\HttpClient;
+use App\Service\Import\BatchPersistence;
+use App\Service\Import\ExistingEntityIndex;
+use App\Service\Import\KimaiDetailsLoader;
 
 class Projects
 {
@@ -39,7 +41,10 @@ class Projects
     private array $list = [];
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private ExistingEntityIndex $entityIndex,
+        private BatchPersistence $batchPersistence,
+        private KimaiDetailsLoader $detailsLoader,
     ) {
     }
 
@@ -55,17 +60,29 @@ class Projects
 
     public function getFromApi(): array
     {
-        $this->list = $this->doRequestKimai('/projects');
-        $this->populateWithExtraFields();
+        $this->list = $this->detailsLoader->enrich(
+            $this->doRequestKimai('/projects'),
+            'projects',
+            ['timeBudget']
+        );
+        foreach ($this->list as &$project) {
+            $project['time_budget'] = $project['timeBudget'];
+        }
+        unset($project);
         return $this->list;
     }
 
     public function saveList(array $list): void
     {
+        $existing = $this->entityIndex->byId(
+            $this->entityManager,
+            Project::class,
+            array_column($list, 'id')
+        );
+        $entities = [];
         foreach ($list as $row) {
-            $project = $this->entityManager->getRepository(Project::class)->find($row['id']);
-            if (!$project instanceof Project) {
-                $project = new Project();
+            $project = $existing[$row['id']] ?? new Project();
+            if (!isset($existing[$row['id']])) {
                 $project->setId($row['id']);
             }
             $project
@@ -80,9 +97,9 @@ class Projects
                 ->setColor($row['color'])
                 ->setGlobalActivities($row['globalActivities'])
                 ->setTimeBudget($row['time_budget']);
-            $this->entityManager->persist($project);
-            $this->entityManager->flush();
+            $entities[] = $project;
         }
+        $this->batchPersistence->save($this->entityManager, $entities);
     }
 
     private function convertDate($date): ?DateTime
@@ -96,23 +113,4 @@ class Projects
         return $date;
     }
 
-    private function populateWithExtraFields(): void
-    {
-        $client = HttpClient::create();
-        foreach ($this->list as $key => $project) {
-            $this->logger->debug('Dados extras do projeto: {name}', ['name' => $project['name']]);
-            $result = $client->request(
-                'GET',
-                rtrim(getenv('KIMAI_API_BASE_URL'), '/') . '/projects/' . $project['id'],
-                [
-                    'headers' => [
-                        'Authorization' => 'Bearer ' . getenv('KIMAI_API_TOKEN'),
-                    ],
-                ]
-            );
-            $allFields = $result->toArray();
-            $this->logger->debug('{json}', ['json' => $allFields]);
-            $this->list[$key]['time_budget'] = $allFields['timeBudget'];
-        }
-    }
 }

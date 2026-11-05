@@ -26,6 +26,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Domain\Competencia;
+use App\Service\Config\CompetenceDefaults;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -40,17 +42,17 @@ class Producao extends AbstractController
     public function __construct(
         RequestStack $requestStack,
         private UrlGeneratorInterface $urlGenerator,
+        private CompetenceDefaults $competences,
     ) {
         $this->request = $requestStack->getCurrentRequest();
     }
 
-    #[Route('/producao', methods: ['GET'])]
+    #[Route('/relatorios/producao', methods: ['GET'])]
     public function index(): Response
     {
-        $inicio = \DateTime::createFromFormat('Y-m', $this->request->query->getString('ano-mes'));
-        if (!$inicio instanceof \DateTime) {
-            $inicio = new \DateTime();
-            $inicio->modify('-2 month');
+        $requested = $this->request->query->getString('ano-mes');
+        if ($requested === '') {
+            $inicio = \DateTime::createFromFormat('!Y-m', $this->competences->reportMonth());
             return new RedirectResponse(
                 $this->urlGenerator->generate(
                     'app_producao_index',
@@ -62,14 +64,33 @@ class Producao extends AbstractController
             );
         }
 
+        try {
+            $inicio = Competencia::fromString($requested)->start();
+        } catch (\InvalidArgumentException $error) {
+            return new Response($error->getMessage(), Response::HTTP_BAD_REQUEST);
+        }
+
+        $kimaiApi = rtrim((string) getenv('KIMAI_API_BASE_URL'), '/');
+        $kimaiTimesheet = preg_match('~^https://[a-z0-9.-]+(?::[0-9]+)?/api$~iD', $kimaiApi)
+            ? substr($kimaiApi, 0, -4) . '/en/timesheet/' : null;
+
         return $this->render('producao.index.html.twig', [
+            'kimai_timesheet_url' => $kimaiTimesheet,
             'url' => $this->urlGenerator->generate(
                 'app_api_producao_index',
                 [
                     'ano-mes' => $inicio->format('Y-m')
                 ],
             ),
+            'competencia' => $inicio->format('Y-m'),
+            'productionMode' => true,
+            'workflow_asset_version' => substr(
+                (string) hash_file('sha256', $this->getParameter('kernel.project_dir')
+                    . '/public/js/report-table.js'),
+                0,
+                12,
+            ),
+            'filterColumns' => ['metadata', 'kimai_user_id', 'hours_seconds'],
         ]);
-        return $response;
     }
 }

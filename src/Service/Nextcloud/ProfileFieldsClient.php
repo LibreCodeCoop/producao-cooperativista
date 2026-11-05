@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Service\Nextcloud;
 
 use Psr\Log\LoggerInterface;
+use App\Service\Config\SourceEnvironment;
 use RuntimeException;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class ProfileFieldsClient
@@ -16,8 +18,10 @@ class ProfileFieldsClient
     /** @var array<string, array<string, mixed>> */
     private array $fieldsByUserUid = [];
 
-    /** @var array<string, array<string, mixed>> */
-    private array $fieldsByTaxNumber = [];
+    /** @var array<string, array<string,mixed>>|null */
+    private ?array $cachedDefinitions = null;
+    /** @var array<string,bool> */
+    private array $existingUsers = [];
 
     public function __construct(
         private HttpClientInterface $httpClient,
@@ -30,6 +34,215 @@ class ProfileFieldsClient
         return $this->getBaseUrl() !== ''
             && $this->getAuthUser() !== ''
             && $this->getAuthToken() !== '';
+    }
+
+    /**
+     * Confirm the Kimai username is a real Nextcloud user before creating
+     * profile values; Profile Fields can otherwise store orphaned UIDs.
+     */
+    public function userExists(string $userUid): bool
+    {
+        if (!$this->isConfigured() || trim($userUid) === '') {
+            return false;
+        }
+        if (array_key_exists($userUid, $this->existingUsers)) {
+            return $this->existingUsers[$userUid];
+        }
+        $record = $this->requestOcs(
+            '/ocs/v2.php/cloud/users/' . rawurlencode($userUid),
+            allowNotFound: true,
+        );
+        return $this->existingUsers[$userUid] = (($record['id'] ?? null) === $userUid);
+    }
+
+    /**
+     * Minimal user identity fetched from Nextcloud OCS, never the editable
+     * Profile Fields values or the raw OCS response.
+     *
+     * @return array{uid:string,display_name:string,email:string,enabled:bool}
+     */
+    public function userSummary(string $uid): array
+    {
+        $uid = trim($uid);
+        if ($uid === '' || mb_strlen($uid) > 128 || !$this->isConfigured()) {
+            throw new \DomainException('Conta Nextcloud não disponível para conferência.');
+        }
+        $record = $this->requestOcs('/ocs/v2.php/cloud/users/' . rawurlencode($uid), allowNotFound: true);
+        if (($record['id'] ?? null) !== $uid) {
+            throw new \DomainException('Conta não localizada no Nextcloud.');
+        }
+
+        return [
+            'uid' => $uid,
+            'display_name' => trim((string) ($record['displayname'] ?? $record['display-name'] ?? '')),
+            'email' => trim((string) ($record['email'] ?? '')),
+            'enabled' => (bool) ($record['enabled'] ?? false),
+        ];
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    public function activeDefinitions(): array
+    {
+        if ($this->cachedDefinitions !== null) {
+            return $this->cachedDefinitions;
+        }
+        $definitions = [];
+        foreach ($this->requestOcs('/ocs/v2.php/apps/profile_fields/api/v1/definitions') as $item) {
+            if (!is_array($item) || !($item['active'] ?? false)) {
+                continue;
+            }
+            $id = (int) ($item['id'] ?? 0);
+            $key = $item['field_key'] ?? null;
+            if ($id > 0 && is_string($key) && $key !== '') {
+                $definitions[$key] = [
+                    'id' => $id,
+                    'type' => (string) ($item['type'] ?? ''),
+                    'label' => (string) ($item['label'] ?? $key),
+                    'edit_policy' => (string) ($item['edit_policy'] ?? ''),
+                    'exposure_policy' => (string) ($item['exposure_policy'] ?? ''),
+                    'sort_order' => (int) ($item['sort_order'] ?? 0),
+                ];
+            }
+        }
+        return $this->cachedDefinitions = $definitions;
+    }
+
+    /** @return array{uid: string, values: array<string, mixed>}|null */
+    public function findByKimaiId(int $kimaiId): ?array
+    {
+        if ($kimaiId <= 0) {
+            throw new \InvalidArgumentException('ID do usuário Kimai inválido.');
+        }
+        $result = $this->lookup('kimai_user_id', (string) $kimaiId);
+        if ($result === []) {
+            return null;
+        }
+        $uid = trim((string) ($result['user_uid'] ?? ''));
+        if ($uid === '') {
+            return null;
+        }
+
+        $fields = [];
+        foreach ($result['fields'] ?? [] as $key => $field) {
+            if (is_string($key) && is_array($field)) {
+                $fields[$key] = $this->normalizeValue($field['value'] ?? null);
+            }
+        }
+        // Reuse the values embedded in the exact unique lookup response.
+        $this->fieldsByUserUid[$uid] = $fields;
+        return ['uid' => $uid, 'values' => $fields];
+    }
+
+    public function findUserUidByLink(string $key, int $value): ?string
+    {
+        if (!in_array($key, ['kimai_user_id', 'akaunting_contact_id'], true) || $value <= 0) {
+            throw new \InvalidArgumentException('Identificador de vínculo não permitido.');
+        }
+        $match = $this->lookup($key, (string) $value);
+        $uid = trim((string) ($match['user_uid'] ?? ''));
+        return $uid !== '' ? $uid : null;
+    }
+
+    /** @return list<string> */
+    public function searchUserUids(string $query): array
+    {
+        $query = trim($query);
+        if (mb_strlen($query) < 2 || mb_strlen($query) > 60) {
+            return [];
+        }
+        $response = $this->requestOcs(
+            '/ocs/v2.php/cloud/users?search=' . rawurlencode($query) . '&limit=12',
+        );
+        $users = $response['users'] ?? [];
+        if (!is_array($users)) {
+            return [];
+        }
+        return array_values(array_filter($users, static fn (mixed $uid): bool => is_string($uid) && $uid !== ''));
+    }
+
+    /** Create only two admin-only, hidden reference fields. */
+    public function ensureLinkDefinitions(): void
+    {
+        SourceEnvironment::assertWritable();
+        $definitions = $this->activeDefinitions();
+        foreach (['kimai_user_id' => 'Usuário Kimai', 'akaunting_contact_id' => 'Contato Akaunting'] as $key => $label) {
+            if (isset($definitions[$key])) {
+                $definition = $definitions[$key];
+                if ($definition['type'] !== 'text') {
+                    throw new \DomainException('Campo de vínculo com tipo incompatível no Profile Fields.');
+                }
+                if ($definition['edit_policy'] !== 'admins' || $definition['exposure_policy'] !== 'hidden') {
+                    $this->requestOcs('/ocs/v2.php/apps/profile_fields/api/v1/definitions/' . $definition['id'], 'PUT', [
+                        'json' => [
+                            'label' => $definition['label'],
+                            'type' => 'text',
+                            'editPolicy' => 'admins',
+                            'exposurePolicy' => 'hidden',
+                            'sortOrder' => $definition['sort_order'],
+                            'active' => true,
+                        ],
+                    ]);
+                }
+                continue;
+            }
+            $this->requestOcs('/ocs/v2.php/apps/profile_fields/api/v1/definitions', 'POST', [
+                'json' => [
+                    'fieldKey' => $key,
+                    'label' => $label,
+                    'type' => 'text',
+                    'editPolicy' => 'admins',
+                    'exposurePolicy' => 'hidden',
+                    'active' => true,
+                ],
+            ]);
+        }
+        $this->cachedDefinitions = null;
+    }
+
+    /** @return array<int|string, mixed> */
+    private function lookup(string $key, string $value): array
+    {
+        if (!$this->isConfigured()) {
+            return [];
+        }
+        return $this->requestOcs(
+            '/ocs/v2.php/apps/profile_fields/api/v1/users/lookup',
+            method: 'POST',
+            options: ['json' => ['fieldKey' => $key, 'fieldValue' => $value]],
+            allowNotFound: true,
+        );
+    }
+
+    public function updateUserField(string $userUid, string $fieldKey, string|int|float $value): void
+    {
+        SourceEnvironment::assertWritable();
+        $allowed = [
+            $this->getTaxNumberFieldKey() => 'text',
+            $this->getWeightFieldKey() => 'number',
+            $this->getDependentsFieldKey() => 'number',
+            'kimai_user_id' => 'text',
+            'akaunting_contact_id' => 'text',
+        ];
+        if (!isset($allowed[$fieldKey])) {
+            throw new \InvalidArgumentException('Este campo não é permitido no painel.');
+        }
+        if (!$this->userExists($userUid)) {
+            throw new \DomainException('Usuário Kimai sem conta correspondente no Nextcloud. Vincule as contas antes de editar.');
+        }
+        $definition = $this->activeDefinitions()[$fieldKey] ?? null;
+        if ($definition === null || $definition['type'] !== $allowed[$fieldKey]) {
+            throw new \DomainException('Definição do campo não encontrada ou com tipo incompatível no Profile Fields.');
+        }
+
+        $this->requestOcs(
+            '/ocs/v2.php/apps/profile_fields/api/v1/users/' . rawurlencode($userUid)
+                . '/values/' . $definition['id'],
+            method: 'PUT',
+            options: ['json' => ['value' => $value]],
+        );
+        unset($this->fieldsByUserUid[$userUid]);
     }
 
     /**
@@ -73,87 +286,37 @@ class ProfileFieldsClient
     }
 
     /**
+     * @param array<string, mixed> $user
      * @return array<string, mixed>
      */
-    public function getFieldsForTaxNumber(string $taxNumber): array
+    public function enrichUser(array $user, bool $requireExplicitLink = false): array
     {
-        $taxNumber = trim($taxNumber);
-        if (!$this->isConfigured() || $taxNumber === '') {
-            return [];
-        }
-
-        if (isset($this->fieldsByTaxNumber[$taxNumber])) {
-            return $this->fieldsByTaxNumber[$taxNumber];
-        }
-
-        $lookup = $this->requestOcs(
-            '/ocs/v2.php/apps/profile_fields/api/v1/users/lookup',
-            method: 'POST',
-            options: [
-                'json' => [
-                    'fieldKey' => $this->getTaxNumberFieldKey(),
-                    'fieldValue' => $taxNumber,
-                ],
-            ],
-            allowNotFound: true,
-        );
-
-        $fields = [];
-        $lookupFields = $lookup['fields'] ?? null;
-        if (is_array($lookupFields)) {
-            foreach ($lookupFields as $fieldKey => $field) {
-                if (!is_string($fieldKey) || !is_array($field)) {
-                    continue;
+        // Fiscal identity and financial contact are NEVER taken from Kimai.
+        // The only authority for these fields is the exact Profile Fields link.
+        unset($user['tax_number'], $user['akaunting_contact_id']);
+        $id = (int) ($user['id'] ?? 0);
+        if ($id > 0 && isset($this->activeDefinitions()['kimai_user_id'])) {
+            $linked = $this->findByKimaiId($id);
+            if ($linked !== null) {
+                $user = $this->applyFieldsToUser($user, $linked['values']);
+                $financialId = filter_var(
+                    $linked['values']['akaunting_contact_id'] ?? null,
+                    FILTER_VALIDATE_INT,
+                    ['options' => ['min_range' => 1]],
+                );
+                if ($financialId !== false && $financialId !== null) {
+                    $user['akaunting_contact_id'] = $financialId;
                 }
-
-                $fields[$fieldKey] = $this->normalizeValue($field['value'] ?? null);
+                return $user;
             }
         }
-
-        $this->fieldsByTaxNumber[$taxNumber] = $fields;
-
-        return $fields;
-    }
-
-    /**
-     * @param array<string, mixed> $user
-     * @return array<string, mixed>
-     */
-    public function enrichUser(array $user): array
-    {
-        $taxNumber = trim((string) ($user['tax_number'] ?? ''));
-        if ($taxNumber === '') {
-            return $user;
+        if ($requireExplicitLink) {
+            throw new \DomainException(
+                'PROFILE_SOURCE: cooperado participante sem kimai_user_id explícito no Nextcloud Profile Fields. '
+                . 'Solicite ao administrador que vincule as contas antes de importar.'
+            );
         }
-
-        $fields = $this->resolveFieldsForUser($user, $taxNumber);
-        if ($fields === []) {
-            return $user;
-        }
-
-        return $this->applyFieldsToUser($user, $fields);
-    }
-
-    /**
-     * @param array<string, mixed> $user
-     * @return array<string, mixed>
-     */
-    private function resolveFieldsForUser(array $user, string $taxNumber): array
-    {
-        $fields = $this->getFieldsForTaxNumber($taxNumber);
-        if ($fields !== []) {
-            return $fields;
-        }
-
-        $userUid = $this->getUserUid($user);
-        if ($userUid !== '') {
-            $this->logger->debug('Profile Fields lookup by tax number returned no result; falling back to user UID lookup.', [
-                'tax_number' => $taxNumber,
-                'user_uid' => $userUid,
-            ]);
-        }
-
-        return $this->getFieldsForUser($userUid);
+        return $user;
     }
 
     /**
@@ -165,7 +328,17 @@ class ProfileFieldsClient
     {
         $this->applyTrimmedScalarField($user, $fields, $this->getTaxNumberFieldKey(), 'tax_number');
         $this->applyNumericField($user, $fields, $this->getWeightFieldKey(), 'peso', static fn ($value): float => (float) $value);
-        $this->applyNumericField($user, $fields, $this->getDependentsFieldKey(), 'dependents', static fn ($value): int => (int) $value);
+        $dependents = $fields[$this->getDependentsFieldKey()] ?? null;
+        if ($dependents !== null) {
+            $value = is_scalar($dependents) ? trim((string) $dependents) : '';
+            if (preg_match('/^(?:0|[1-9][0-9]*)$/D', $value) !== 1
+                || filter_var($value, FILTER_VALIDATE_INT) === false) {
+                throw new \DomainException(
+                    'Número de dependentes inválido no Nextcloud Profile Fields. Confira o cadastro.'
+                );
+            }
+            $user['dependents'] = (int) $value;
+        }
 
         return $user;
     }
@@ -188,7 +361,7 @@ class ProfileFieldsClient
 
     /**
      * @param array<string, mixed> $user
-     * @param callable(scalar): int|float $caster
+     * @param pure-callable(scalar):(int|float) $caster
      */
     private function applyNumericField(array &$user, array $fields, string $fieldKey, string $userKey, callable $caster): void
     {
@@ -196,14 +369,6 @@ class ProfileFieldsClient
         if (is_scalar($fieldValue) && is_numeric((string) $fieldValue)) {
             $user[$userKey] = $caster($fieldValue);
         }
-    }
-
-    /**
-     * @param array<string, mixed> $user
-     */
-    private function getUserUid(array $user): string
-    {
-        return trim((string) ($user['kimai_username'] ?? $user['username'] ?? ''));
     }
 
     private function getDefinitionFieldKey(int $definitionId): ?string
@@ -250,10 +415,47 @@ class ProfileFieldsClient
             ],
         ], $options);
 
-        $response = $this->httpClient->request($method, $url, $options);
-
-        $statusCode = $response->getStatusCode();
-        $payload = $response->toArray(false);
+        // The exact link lookup is an idempotent read-only POST. Retry only
+        // transport interruptions, not other POSTs, 404s or HTTP conflicts.
+        // The bounded retries recover transient ADA connectivity stalls without
+        // ever falling back to guessing identity from a username or stale data.
+        $retryableLookup = $method === 'POST'
+            && $path === '/ocs/v2.php/apps/profile_fields/api/v1/users/lookup';
+        if ($retryableLookup) {
+            $options['timeout'] = 12;
+            $options['max_duration'] = 15;
+        }
+        $startedAt = microtime(true);
+        $maxAttempts = $retryableLookup ? 3 : 1;
+        for ($attempt = 1; ; ++$attempt) {
+            try {
+                $response = $this->httpClient->request($method, $url, $options);
+                $statusCode = $response->getStatusCode();
+                $payload = ($statusCode === 404 && $allowNotFound) ? [] : $response->toArray(false);
+                break;
+            } catch (TransportExceptionInterface $error) {
+                if (!$retryableLookup) {
+                    throw $error;
+                }
+                // Keep logs free of user IDs, values, tokens and response bodies.
+                $context = [
+                    'attempt' => $attempt,
+                    'max_attempts' => $maxAttempts,
+                    'elapsed_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+                    'error_class' => $error::class,
+                ];
+                if ($attempt >= $maxAttempts) {
+                    $this->logger->error('Nextcloud Profile Fields: consulta técnica esgotou as tentativas.', $context);
+                    throw new \Symfony\Component\HttpClient\Exception\TransportException(
+                        'NEXTCLOUD_PROFILE_FIELDS_LOOKUP_UNAVAILABLE',
+                        0,
+                        $error,
+                    );
+                }
+                $this->logger->warning('Nextcloud Profile Fields: consulta de vínculo temporariamente interrompida; repetindo leitura.', $context);
+                usleep($attempt * 150_000);
+            }
+        }
 
         if ($statusCode === 404 && $allowNotFound) {
             return [];
@@ -268,6 +470,9 @@ class ProfileFieldsClient
         }
 
         $metaStatusCode = (int) ($payload['ocs']['meta']['statuscode'] ?? 100);
+        if ($metaStatusCode === 404 && $allowNotFound) {
+            return [];
+        }
         if ($metaStatusCode >= 400) {
             throw new RuntimeException(sprintf(
                 'Falha ao consultar a API Profile Fields (%d): %s',

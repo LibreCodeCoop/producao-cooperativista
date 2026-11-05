@@ -1,0 +1,60 @@
+# SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Styles
+
+# Every PR must verify source formatting and the compiled CSS committed to Git.
+# No path allowlist: new SCSS entrypoints must also be covered.
+on: pull_request
+
+permissions:
+  contents: read
+
+concurrency:
+  group: styles-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  scss-quality:
+    name: SCSS formatting and lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --include=dev --ignore-scripts --no-audit --no-fund
+
+      - name: Check SCSS formatting
+        run: npm run scss:format:check
+
+      - name: Lint SCSS
+        run: npm run scss:lint
+
+  generated-css:
+    name: Generated CSS matches SCSS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --include=dev --ignore-scripts --no-audit --no-fund
+
+      - name: Test out-of-sync detection
+        run: node --test tests/js/check-generated-css.test.cjs
+
+      - name: Verify tracked CSS without rewriting it
+        run: npm run css:check

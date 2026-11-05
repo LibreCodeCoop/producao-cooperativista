@@ -30,14 +30,21 @@ use UnexpectedValueException;
 
 class FRRA extends ProducaoCooperativista
 {
-    protected string $whoami = 'PDC';
+    #[\Override]
+    protected string $whoami = 'FRRA';
+
+    #[\Override]
+    protected function financialMonth(): string
+    {
+        return $this->dates->getPrevisaoPagamentoFrra()->format('Y-m');
+    }
 
     protected function setUp(): self
     {
         $this->getValues()->setLockFrra(true);
         try {
             $this->getDueAt();
-        } catch (UnexpectedValueException $e) {
+        } catch (UnexpectedValueException) {
             $this->changeDueAt($this->dates->getPrevisaoPagamentoFrra());
         }
         return parent::setUp();
@@ -51,9 +58,7 @@ class FRRA extends ProducaoCooperativista
                 $this->whoami . '_' .
                 $cooperado->getTaxNumber() .
                 '-' .
-                (clone $this->dates->getPrevisaoPagamentoFrra())
-                    ->modify('-2 month')
-                    ->format('Y-m')
+                $this->dates->getPrevisaoPagamentoFrra()->format('Y-m')
             );
         }
         return $this->documentNumber;
@@ -72,7 +77,7 @@ class FRRA extends ProducaoCooperativista
 
     private function update(): self
     {
-        $description = sprintf('Referente ao ano/mês: %s', $this->dates->getInicioProximoMes()->format('Y-m'));
+        $description = sprintf('Referente ao ano/mês: %s', $this->dates->getInicio()->format('Y-m'));
 
         $values = $this->getValues();
         $currentFrra = $values->getFrra();
@@ -86,7 +91,7 @@ class FRRA extends ProducaoCooperativista
             );
 
         $this->beforeSave();
-        parent::save();
+        $this->persistDocument();
         return $this;
     }
 
@@ -114,7 +119,7 @@ class FRRA extends ProducaoCooperativista
             )
             ->setTaxes();
         $this->beforeSave();
-        parent::save();
+        $this->persistDocument();
         return $this;
     }
 

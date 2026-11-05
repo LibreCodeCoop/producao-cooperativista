@@ -30,16 +30,20 @@ use UnexpectedValueException;
 
 class IrpfRetidoNaNota extends Tax
 {
+    #[\Override]
     protected string $whoami = 'IRPF_RETIDO';
+    #[\Override]
     protected string $readableName = 'IRPF retido na nota';
+    #[\Override]
     protected string $type = 'invoice';
+    #[\Override]
     protected int $quantity = 1;
 
     protected function setUp(): self
     {
         try {
             $this->getDueAt();
-        } catch (UnexpectedValueException $e) {
+        } catch (UnexpectedValueException) {
             $this->changeDueAt(\DateTime::createFromFormat('m', (string) getenv('AKAUNTING_RESGATE_SALDO_IRPF_MES_PADRAO')));
         }
         return parent::setUp();
@@ -48,7 +52,7 @@ class IrpfRetidoNaNota extends Tax
     public function saveMonthTaxes(): self
     {
         $total = $this->getTotalRetainedOfMonth();
-        if ($total === 0) {
+        if ($total === 0.0) {
             return $this;
         }
         $this

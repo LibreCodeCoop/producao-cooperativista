@@ -1,54 +1,103 @@
 <?php
 
 /**
- * @copyright Copyright (c) 2023, Vitor Mattos <vitor@php.rio>
- *
- * @author Vitor Mattos <vitor@php.rio>
- *
+ * @copyright Copyright (c) 2026, LibreCode contributors
  * @license GNU AGPL version 3 or any later version
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 declare(strict_types=1);
 
 namespace App\Provider\Akaunting;
 
+use RuntimeException;
+
 class Dataset
 {
-    public function __construct(
-        private Request $request,
-    ) {
-
+    public function __construct(private Request $request)
+    {
     }
+
+    /**
+     * Field Studio's exact-value search returns record IDs rather than
+     * document objects; keep this contract separate from the native listing.
+     *
+     * @return list<int>
+     */
+    public function recordIds(string $type, string $month, int $companyId, int $limit = 200): array
+    {
+        $response = $this->request->send('/api/v1/field-studio/records', query: [
+            'company_id' => $companyId,
+            'entity_type' => $type,
+            'field_key' => 'transaction_of_month',
+            'value' => $month,
+            'limit' => $limit,
+        ], method: 'GET');
+        $this->request->handleError($response);
+        $ids = $response['data'] ?? null;
+        if (!is_array($ids) || !array_is_list($ids)) {
+            throw new RuntimeException('Invalid Field Studio record ID response.');
+        }
+        $result = [];
+        foreach ($ids as $id) {
+            if (!is_int($id) || $id <= 0) {
+                throw new RuntimeException('Invalid Field Studio financial-month record ID.');
+            }
+            $result[] = $id;
+        }
+        return $result;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
     public function list(string $endpoint, array $query = []): array
     {
-        $list = [];
-        while (true) {
-            $response = $this->request->send(
-                endpoint: $endpoint,
-                query: $query,
-                method: 'GET',
-            );
+        $all = [];
+        $visited = [];
+        // Akaunting may return links.next containing only ?page=N, dropping
+        // the company scope and date/type filters. Keep these fixed across
+        // the complete read without overriding the API's pagination cursor.
+        $scope = array_diff_key($query, ['page' => true]);
+        $page = 0;
+        while ($endpoint !== '') {
+            if (++$page > 1000 || isset($visited[$endpoint])) {
+                throw new RuntimeException('Paginação circular ou excessiva na API do Akaunting. Verifique links.next.');
+            }
+            $visited[$endpoint] = true;
+            $response = $this->request->send(endpoint: $endpoint, query: $query, method: 'GET');
+            $this->request->handleError($response);
 
-            $list = array_merge($list, $response['data']);
-            if (is_null($response['links']['next'])) {
+            if (!isset($response['data']) || !is_array($response['data']) || !array_is_list($response['data'])) {
+                throw new RuntimeException(sprintf(
+                    'Resposta inesperada da API do Akaunting na página %d: campo data ausente ou inválido. Verifique autenticação, URL e versão da API.',
+                    $page
+                ));
+            }
+            $all = array_merge($all, $response['data']);
+            $next = $response['links']['next'] ?? null;
+            if ($next === null || $next === '') {
                 break;
             }
-            $endpoint = $response['links']['next'];
+            if (!is_string($next)) {
+                throw new RuntimeException('Resposta da API do Akaunting possui link de próxima página inválido.');
+            }
+            $endpoint = $next;
+            $nextParams = [];
+            $nextQuery = parse_url($next, PHP_URL_QUERY);
+            if (is_string($nextQuery)) {
+                parse_str($nextQuery, $nextParams);
+            }
+            $query = [];
+            foreach ($scope as $key => $value) {
+                if (array_key_exists($key, $nextParams)) {
+                    if ($nextParams[$key] != $value) {
+                        throw new RuntimeException('A paginação do Akaunting alterou os filtros ou a empresa da consulta.');
+                    }
+                    continue;
+                }
+                $query[$key] = $value;
+            }
         }
-        return $list;
+        return $all;
     }
 }

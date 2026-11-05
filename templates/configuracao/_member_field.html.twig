@@ -1,0 +1,22 @@
+<form method="post" class="member-editor-field" data-source="{{ source }}" data-field="{{ item.field }}" action="/configuracao/cooperado/{{ member.id }}/{{ source }}">
+    <input type="hidden" name="_token" value="{{ token }}">
+    <input type="hidden" name="expected" value="{{ item.expected }}">
+    <input type="hidden" name="field" value="{{ item.field }}">
+    <input type="hidden" name="competencia" value="{{ month }}">
+    <div class="member-editor-field-label">
+        <label for="editor-{{ member.id }}-{{ source }}-{{ item.field }}">{{ item.label }}</label>
+        {% if source == 'nextcloud' and item.field == 'weight' %}
+            <details class="member-editor-help">
+                <summary aria-label="Como funciona o peso de participação" title="Como funciona o peso de participação">?</summary>
+                <p>Multiplicador das horas: maior que zero e até 5. Aceita 1, 1,5 ou 0,75, com até quatro casas decimais. Não use porcentagem.</p>
+            </details>
+        {% endif %}
+    </div>
+    <div class="member-editor-field-controls">
+        <input id="editor-{{ member.id }}-{{ source }}-{{ item.field }}"
+               name="value" type="{{ item.kind }}" value="{{ item.value }}"
+               {% if item.field == 'weight' %}inputmode="decimal"{% elseif item.field == 'tax_number' %}inputmode="numeric"{% endif %}
+               autocomplete="off" required>
+        <button type="submit" class="button button-primary">Salvar</button>
+    </div>
+</form>

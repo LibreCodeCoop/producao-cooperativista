@@ -28,6 +28,7 @@ namespace App\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
@@ -38,13 +39,19 @@ class CapitalSocial extends AbstractController
     ) {
     }
 
-    #[Route('/capital-social', methods: ['GET'])]
-    public function index(): Response
+    #[Route('/relatorios/capital-social', methods: ['GET'])]
+    public function index(Request $request): Response
     {
         return $this->render('capitalSocial.index.html.twig', [
             'url' => $this->urlGenerator->generate(
-                'app_api_capitalsocial_index'
-            )
+                'app_api_capitalsocial_index',
+                [
+                    'contact_id' => $request->query->get('contact_id'),
+                    'ate' => $request->query->get('ate'),
+                ]
+            ),
+            'ate' => $request->query->get('ate'),
+            'contact_id' => $request->query->get('contact_id'),
         ]);
     }
 }

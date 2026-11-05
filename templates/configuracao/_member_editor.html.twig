@@ -1,0 +1,142 @@
+<section class="member-editor-panel" data-member-editor-panel>
+    {% set link = links|default({}) %}
+    {% set can_manage = can_manage|default(false) %}
+    <header class="member-editor-heading">
+        <p class="section-kicker">Cadastro · {{ month }}</p>
+        <h2 id="member-editor-title">{{ member.alias }}</h2>
+        <span class="member-editor-status{{ link.linked|default(false) ? ' is-ready' : ' is-warning' }}">
+            {{ link.linked|default(false) ? 'Vínculos registrados' : 'Vínculo pendente' }}
+        </span>
+    </header>
+
+    {% if can_manage %}
+        <form method="post" class="member-link-form" action="/configuracao/cooperado/{{ member.id }}/vincular" autocomplete="off">
+            <input type="hidden" name="_token" value="{{ token }}">
+            <section class="member-nextcloud-hub" aria-labelledby="member-nextcloud-title-{{ member.id }}">
+                <div class="member-link-section-heading">
+                    <div>
+                        <h3 id="member-nextcloud-title-{{ member.id }}">Conta Nextcloud</h3>
+                        <p class="member-editor-description">Pesquise e escolha uma conta para conferir a identidade. A busca não grava o vínculo.</p>
+                    </div>
+                    <span class="member-link-system-tag">Cadastro principal</span>
+                </div>
+                <div class="member-link-fields">
+                    <div>
+                        <label for="member-uid-{{ member.id }}">Pesquisar conta Nextcloud</label>
+                        <input id="member-uid-{{ member.id }}" type="search" data-link-source="nextcloud"
+                               value="{{ link.uid|default('') is not empty ? link.uid : member.username }}"
+                               placeholder="Nome ou login Nextcloud" autocomplete="off">
+                        <input type="hidden" name="nextcloud_uid" value="{{ link.uid|default('') }}">
+                        <div class="member-link-search-status" data-link-status="nextcloud" role="status" aria-live="polite">
+                            {{ link.uid|default('') is not empty ? 'Conta vinculada. Digite para procurar outra.' : 'Sugestão de pesquisa baseada no login do Kimai. Selecione um resultado para confirmar a identidade.' }}
+                        </div>
+                        <div class="member-link-search-results" data-link-results="nextcloud" role="group" aria-label="Contas Nextcloud encontradas"></div>
+                    </div>
+                </div>
+                {{ include('configuracao/_identity_inspection.html.twig', {source: 'nextcloud', title: 'Identidade no Nextcloud'}) }}
+            </section>
+            <h3 class="member-link-overview">Vínculos desta conta</h3>
+            <div class="member-link-layout">
+                <section class="member-link-panel member-link-identity" aria-labelledby="member-links-title-{{ member.id }}">
+                    <div class="member-link-section-heading">
+                        <h4 id="member-links-title-{{ member.id }}">Kimai</h4>
+                        {% if link.needs_fields|default(false) %}
+                            <button type="button" class="button member-link-prepare" data-links-prepare>Preparar campos</button>
+                        {% else %}
+                            <span class="member-link-state{{ link.kimai_linked|default(false) ? ' is-linked' : '' }}">
+                                {{ link.kimai_linked|default(false) ? 'Vinculado' : 'Pendente' }}
+                            </span>
+                        {% endif %}
+                    </div>
+                    <p class="member-editor-description member-link-description">Confirme a identidade para registrar apenas o vínculo técnico, mesmo se a conta estiver inativa. Nenhum acesso é reativado.</p>
+                    <div class="member-link-fields">
+                        <div>
+                            <label for="member-kimai-{{ member.id }}">ID do usuário Kimai</label>
+                            <input id="member-kimai-{{ member.id }}" type="number" name="kimai_user_id"
+                                   value="{{ link.kimai_id|default(member.id) }}" min="1" step="1" required>
+                            {% if not link.kimai_linked|default(false) %}
+                                <small class="member-contact-pending">Obtido do Kimai · ainda não vinculado no Nextcloud</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {{ include('configuracao/_identity_inspection.html.twig', {source: 'kimai', title: 'Identidade no Kimai'}) }}
+                    {% if not link.kimai_linked|default(false) %}
+                        <div class="member-kimai-confirm">
+                            <p>Confira se esta conta Nextcloud pertence ao cooperado do Kimai. A confirmação libera a edição dos dados cadastrais, sem exigir contato financeiro.</p>
+                            <button type="button" class="button button-secondary" data-kimai-confirm>
+                                Confirmar vínculo Kimai–Nextcloud
+                            </button>
+                        </div>
+                    {% endif %}
+                </section>
+
+                <section class="member-link-panel member-link-accounting" aria-labelledby="member-accounting-title-{{ member.id }}">
+                    <div class="member-link-section-heading">
+                        <h4 id="member-accounting-title-{{ member.id }}">Akaunting</h4>
+                        <span class="member-link-state{{ link.contact_id|default('') is not empty ? ' is-linked' : '' }}">
+                            {{ link.contact_id|default('') is not empty ? 'Vinculado' : 'Pendente' }}
+                        </span>
+                    </div>
+                    <p class="member-editor-description member-link-description">Contato financeiro vinculado à mesma conta Nextcloud.</p>
+                    <div class="member-link-fields">
+                        <div>
+                            <label for="member-contact-{{ member.id }}">Pesquisar contato existente</label>
+                            <input id="member-contact-{{ member.id }}" type="search" data-link-source="akaunting"
+                                   value="{{ link.contact_id|default('') is not empty ? '#' ~ link.contact_id : member.alias }}"
+                                   placeholder="Nome correto ou ID do contato" autocomplete="off">
+                            <input type="hidden" name="akaunting_contact_id" value="{{ link.contact_id|default('') }}">
+                            <div class="member-link-search-status" data-link-status="akaunting" role="status" aria-live="polite">
+                                {{ link.contact_id|default('') is not empty ? 'Contato vinculado. Digite para procurar outro.' : 'Pesquise pelo nome do Kimai ou pelo ID e selecione um contato existente.' }}
+                            </div>
+                            <div class="member-link-search-results" data-link-results="akaunting" role="group" aria-label="Contatos Akaunting encontrados"></div>
+                        </div>
+                    </div>
+                    {{ include('configuracao/_identity_inspection.html.twig', {source: 'akaunting', title: 'Identidade no Akaunting'}) }}
+                    {% if link.contact_id|default('') is empty %}
+                        <div class="member-contact-provision" data-contact-provision>
+                            <h4>Criar novo contato</h4>
+                            <p class="member-editor-description">Somente se ainda não existir no Akaunting.</p>
+                            <button type="button" class="button button-secondary member-contact-verify" data-contact-provision-open>
+                                Verificar antes de criar
+                            </button>
+                            <div data-contact-provision-panel>
+                                <p data-contact-provision-status role="status" aria-live="polite"></p>
+                                <div data-contact-provision-existing hidden></div>
+                                <div data-contact-provision-new hidden>
+                                    <label for="member-new-contact-name-{{ member.id }}">Nome do novo contato</label>
+                                    <input id="member-new-contact-name-{{ member.id }}" type="text"
+                                           data-contact-provision-name autocomplete="off" maxlength="120"
+                                           value="{{ member.alias }}">
+                                    <label class="member-contact-confirmation">
+                                        <input type="checkbox" data-contact-provision-confirm>
+                                        Conferi a identidade do cooperado
+                                    </label>
+                                    <button type="button" class="button button-secondary"
+                                            data-contact-provision-create disabled>Criar no Akaunting</button>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </section>
+            </div>
+            <div class="member-link-actions">
+                <p data-link-save-help>Para registrar o Kimai sem contato financeiro, use o botão Confirmar vínculo Kimai–Nextcloud. Para salvar ambos, selecione também um contato existente. Nenhuma conta será reativada.</p>
+                <button type="submit" class="button button-primary" data-links-save>Salvar vínculos</button>
+            </div>
+        </form>
+    {% endif %}
+    <section class="member-fields-main">
+        <h3>Dados cadastrais no Nextcloud</h3>
+        {% if services.nextcloud.error %}
+            <p class="member-editor-source-error" role="note">{{ services.nextcloud.error }}</p>
+        {% endif %}
+        {% for item in services.nextcloud.fields %}
+            {% if can_manage %}
+                {{ include('configuracao/_member_field.html.twig', {source:'nextcloud', item:item}) }}
+            {% elseif item.field != 'tax_number' %}
+                <p class="member-editor-description"><strong>{{ item.label }}:</strong> {{ item.value is not empty ? item.value : 'Não informado' }}</p>
+            {% endif %}
+        {% endfor %}
+    </section>
+
+</section>

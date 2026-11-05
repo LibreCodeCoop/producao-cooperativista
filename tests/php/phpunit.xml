@@ -5,7 +5,7 @@
   timeoutForMediumTests="900"
   timeoutForLargeTests="900"
   displayDetailsOnTestsThatTriggerWarnings="true"
-  xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.3/phpunit.xsd"
+  xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/13.4/phpunit.xsd"
   cacheDirectory=".phpunit.cache"
   >
   <php>

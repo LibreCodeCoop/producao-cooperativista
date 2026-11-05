@@ -30,14 +30,16 @@ use UnexpectedValueException;
 
 class Cofins extends Tax
 {
+    #[\Override]
     protected string $whoami = 'COFINS';
+    #[\Override]
     protected string $readableName = 'COFINS';
 
     protected function setUp(): self
     {
         try {
             $this->getDueAt();
-        } catch (UnexpectedValueException $e) {
+        } catch (UnexpectedValueException) {
             $this->changeDueAt($this->dates->getDataPagamento());
         }
         return parent::setUp();

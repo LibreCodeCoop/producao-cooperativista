@@ -1,0 +1,815 @@
+// SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+'use strict';
+
+(function (scope) {
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, character => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        })[character]);
+    }
+
+    function columnTitle(name) {
+        const label = String(name).replace(/_/g, ' ');
+        return label.charAt(0).toUpperCase() + label.slice(1);
+    }
+
+    function nestedTableHtml(value) {
+        let records = value;
+        if (typeof value === 'string') {
+            try {
+                records = JSON.parse(value);
+            } catch {
+                return null;
+            }
+        }
+        if (!Array.isArray(records) || !records.length ||
+            !records.every(row => row && typeof row === 'object' && !Array.isArray(row))) {
+            return null;
+        }
+        const columns = [...new Set(records.flatMap(row => Object.keys(row)))];
+        if (!columns.length) {
+            return null;
+        }
+
+        const heading = columns.map(key => '<th>' + escapeHtml(columnTitle(key)) + '</th>').join('');
+        const body = records.map(row => '<tr>' + columns.map(key =>
+            '<td>' + escapeHtml(row[key]) + '</td>'
+        ).join('') + '</tr>').join('');
+        return '<table border="1"><thead><tr>' + heading +
+            '</tr></thead><tbody>' + body + '</tbody></table>';
+    }
+
+    function safeLink(url, label, internal = false) {
+        if (typeof url !== 'string' || !url || typeof label !== 'string') return null;
+        let href;
+        if (internal) {
+            if (!url.startsWith('/') || url.startsWith('//') || /[\\\x00-\x1f]/.test(url)) return null;
+            href = url;
+        } else {
+            try {
+                const parsed = new URL(url);
+                if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
+                href = parsed.href;
+            } catch {
+                return null;
+            }
+        }
+        return '<a href="' + escapeHtml(href) + '"' +
+            (internal ? '' : ' target="_blank" rel="noopener noreferrer"') +
+            '>' + escapeHtml(label) + '</a>';
+    }
+
+    const MONEY_COLUMNS = new Set([
+        'base_producao', 'bruto', 'liquido', 'auxilio', 'frra', 'inss',
+        'irpf', 'base_irpf', 'liquid_discount',
+    ]);
+    const brl = new Intl.NumberFormat('pt-BR', {
+        style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2,
+    });
+    const decimalExport = new Intl.NumberFormat('en-US', {
+        useGrouping: false, minimumFractionDigits: 2, maximumFractionDigits: 2,
+    });
+    const percentFormat = new Intl.NumberFormat('pt-BR', {
+        maximumFractionDigits: 2,
+    });
+
+    // A missing financial value is not zero: Number(null), Number('') and
+    // Number(false) otherwise silently fabricate R$ 0,00 in the UI.
+    function numericValue(value) {
+        if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+        if (typeof value !== 'string' ||
+            !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value.trim())) return null;
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+    }
+
+    function advanceTotal(raw) {
+        let entries = raw;
+        if (typeof raw === 'string') {
+            try {
+                entries = JSON.parse(raw);
+            } catch {
+                return null;
+            }
+        }
+        if (!Array.isArray(entries)) return null;
+        let sum = 0;
+        for (const entry of entries) {
+            const amount = numericValue(entry?.amount);
+            if (amount === null) return null;
+            sum += amount;
+        }
+        return Number.isFinite(sum) ? sum : null;
+    }
+
+    const FINANCIAL_FACT_FIELDS = [
+        ['Base da produção', 'base_producao'], ['Auxílio', 'auxilio'],
+        ['FRRA', 'frra'], ['Bruto', 'bruto'], ['INSS', 'inss'],
+        ['Base IRPF', 'base_irpf'], ['IRPF', 'irpf'],
+        ['Desconto líquido', 'liquid_discount'],
+        ['Adiantamentos', 'adiantamento'], ['Líquido', 'liquido'],
+    ];
+
+    function financialFacts(record, sourceOnly = false) {
+        return FINANCIAL_FACT_FIELDS.filter(([,key]) => sourceOnly ||
+            (record[key] !== undefined && record[key] !== null && record[key] !== ''))
+            .map(([label, key]) => ({
+                key, label,
+                value: sourceOnly ? null : key === 'adiantamento'
+                    ? advanceTotal(record[key]) : numericValue(record[key]),
+                explanation: sourceOnly ? null : record.explanations?.[key] || null,
+            }));
+    }
+
+    function workEntries(raw) {
+        let rows = raw;
+        if (typeof raw === 'string') {
+            try {
+                rows = JSON.parse(raw);
+            } catch {
+                return [];
+            }
+        }
+        if (!Array.isArray(rows)) return [];
+        return rows.filter(item => item && typeof item === 'object' && !Array.isArray(item))
+            .map(item => {
+                const percent = numericValue(item.percentual_trabalhado);
+                const clientHours = numericValue(item.total_cliente);
+                return {
+                    name: String(item.nome || '—'),
+                    worked: String(item.trabalhado || '—'),
+                    clientDuration: clientHours === null ? '—' : duration(clientHours * 3600),
+                    participation: percent === null ? '—' : percentFormat.format(percent) + '%',
+                };
+            });
+    }
+
+    function duration(seconds) {
+        const n = Number(seconds);
+        if (!Number.isFinite(n) || n < 0) return '—';
+        const whole = Math.round(n);
+        return Math.floor(whole / 3600) + ':' +
+            String(Math.floor((whole % 3600) / 60)).padStart(2, '0') + ':' +
+            String(whole % 60).padStart(2, '0');
+    }
+
+    function productionDetails(record, options = {}) {
+        const sourceOnly = options.sourceOnly === true;
+        const work = workEntries(record.trabalhado || '[]').map(item =>
+            '<tr><td>' + escapeHtml(item.name) + '</td>' +
+            '<td>' + escapeHtml(item.worked) + '</td>' +
+            '<td>' + escapeHtml(item.clientDuration) + '</td>' +
+            '<td>' + escapeHtml(item.participation) + '</td></tr>'
+        ).join('');
+        const facts = financialFacts(record, sourceOnly).map(({label, value, explanation}) => {
+            if (sourceOnly) {
+                return '<div><dt>' + escapeHtml(label) + '</dt><dd>A apurar</dd></div>';
+            }
+            const amount = value === null ? '—' : escapeHtml(brl.format(value));
+            const help = explanation && typeof explanation.detail === 'string'
+                ? '<details class="finance-help' + (explanation.attention ? ' is-warning' : '') +
+                    '"><summary aria-label="Como é calculado ' + escapeHtml(label) +
+                    '" title="Entender ' + escapeHtml(label) + '">?</summary><div>' +
+                    '<strong>' + escapeHtml(explanation.summary || label) + '</strong><p>' +
+                    escapeHtml(explanation.detail) + '</p></div></details>' : '';
+            return '<div><dt>' + escapeHtml(label) + help + '</dt><dd>' + amount + '</dd></div>';
+        }).join('');
+        const workLink = options.competence && Number.isSafeInteger(Number(record.kimai_user_id)) && Number(record.kimai_user_id) > 0
+            ? safeLink('/relatorios/apontamentos?ano-mes=' +
+                encodeURIComponent(options.competence) + '&cooperado=' +
+                encodeURIComponent(String(record.kimai_user_id)), 'Conferir todos os apontamentos', true) : null;
+        return '<div class="production-row-details"><div><h4>Horas por cliente</h4>' +
+            (workLink ? '<p>' + workLink + '</p>' : '') +
+            (work ? '<div class="production-detail-scroll"><table><thead><tr><th>Cliente</th>' +
+            '<th>Horas do cooperado</th><th>Tempo total do cliente</th>' +
+            '<th>' + (sourceOnly ? 'Participação nas horas' : 'Participação no cliente') +
+            '</th></tr></thead>' +
+            '<tbody>' + work + '</tbody></table></div>' : '<p>Sem horas de clientes detalhadas.</p>') +
+            '</div><div><h4>Composição financeira</h4>' +
+            (sourceOnly ? '<p class="production-help">Ainda não calculada. Valores a apurar não são zero.</p>' : '') +
+            '<dl>' + facts + '</dl></div></div>';
+    }
+
+    function buildTimesheetColumns(options = {}) {
+        const cell = (key, title, extra = {}) => ({
+            data: key, name: key, title, defaultContent: '', ...extra,
+            render: (value, type, row) => {
+                if (key === 'duracao_segundos') {
+                    return type === 'display' || type === 'export'
+                        ? (value === null || value === '' ? '—' : escapeHtml(duration(Number(value))))
+                        : value === null || value === '' ? -1 : Number(value);
+                }
+                if (key === 'inicio' || key === 'fim') {
+                    if (type !== 'display') return value ?? '';
+                    if (!value) return key === 'fim' ? 'Sem término' : '—';
+                    const match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2})/.exec(value);
+                    return match ? escapeHtml(match[3] + '/' + match[2] + '/' + match[1] + ' ' + match[4])
+                        : escapeHtml(value);
+                }
+                if (key === 'atividade_id') return type === 'display' ? '#' + escapeHtml(value) : value;
+                if (key === 'faturavel') return Number(value) === 1 ? 'Sim' : 'Não';
+                if (key === 'apontamento_id') {
+                    if (type !== 'display') return value;
+                    const id = Number(value);
+                    if (!Number.isSafeInteger(id) || id <= 0) return '—';
+                    const base = options.kimaiBase;
+                    const link = safeLink(typeof base === 'string' && base.endsWith('/en/timesheet/')
+                        ? base + id + '/edit' : '', '#' + id);
+                    return link || '#' + escapeHtml(id);
+                }
+                return type === 'display' ? escapeHtml(value ?? '') : value ?? '';
+            },
+        });
+        return [
+            cell('nome', 'Cooperado'),
+            cell('cliente', 'Cliente'),
+            cell('projeto', 'Projeto'),
+            cell('atividade_id', 'Atividade (ID)'),
+            cell('inicio', 'Início'),
+            cell('fim', 'Fim'),
+            cell('duracao_segundos', 'Duração'),
+            cell('descricao', 'Descrição', {className: 'timesheet-description'}),
+            cell('faturavel', 'Faturável'),
+            cell('apontamento_id', 'Registro Kimai'),
+            cell('member_id', 'ID cooperado', {visible: false}),
+            cell('customer_id', 'ID cliente', {visible: false}),
+        ];
+    }
+
+    function buildProductionColumns(options = {}) {
+        const cell = (key, title) => ({
+            data: key, title, name: key, defaultContent: '',
+            render: (value, type, row) => {
+                if (key === 'name' && type === 'display') {
+                    const id = Number(row?.kimai_user_id);
+                    if (!Number.isSafeInteger(id) || id <= 0) return escapeHtml(value);
+                    const href = '/configuracao/cooperado/' + id + '/editar?competencia=' +
+                        encodeURIComponent(options.competence || '');
+                    return '<a class="production-member-link" data-member-editor-open href="' +
+                        escapeHtml(href) + '" title="Conferir cadastro e editar fontes">' +
+                        escapeHtml(value) + '<span aria-hidden="true">↗</span></a>';
+                }
+                return renderCell(value, type, key, row, options);
+            },
+        });
+        const columns = [
+            cell('name', 'Cooperado'),
+            {
+                data: 'hours_seconds', title: 'Horas', name: 'hours_seconds', defaultContent: '',
+                render: (value, type, row) => {
+                    if (type !== 'display' && type !== 'export') return Number(value || 0);
+                    const label = duration(value);
+                    if (type !== 'display' || !options.competence || !Number.isSafeInteger(Number(row?.kimai_user_id)) || Number(row?.kimai_user_id) <= 0) {
+                        return escapeHtml(label);
+                    }
+                    return safeLink('/relatorios/apontamentos?ano-mes=' +
+                        encodeURIComponent(options.competence) + '&cooperado=' +
+                        encodeURIComponent(String(row.kimai_user_id)), label, true) || escapeHtml(label);
+                },
+            },
+            cell('peso', 'Peso'),
+            cell('base_producao', 'Base de produção'),
+            cell('bruto', 'Bruto'),
+            cell('liquido', 'Líquido'),
+            {
+                data: null, title: 'Detalhes', name: 'detalhes',
+                orderable: false, searchable: false, defaultContent: '',
+                render: (_value, type) => type === 'display'
+                    ? '<button type="button" data-production-details class="production-detail-button" aria-expanded="false">Abrir</button>'
+                    : '',
+            },
+        ];
+        if (options.financialReview) {
+            columns.push({
+                data: null, title: 'Não publicar', name: 'decisao',
+                orderable: false, searchable: false, defaultContent: '',
+                render: (_value, type, row) => {
+                    if (type !== 'display') return '';
+                    const id = Number(row.kimai_user_id);
+                    if (!Number.isSafeInteger(id) || id <= 0) return '';
+                    return '<label class="production-exclude-label" title="Ativar para não publicar agora">' +
+                        '<input type="checkbox" role="switch" data-omit-user-id="' + id +
+                        '" aria-label="Não publicar agora: ' + escapeHtml(row.name || '') + '"' +
+                        (options.omitted?.has(id) ? ' checked' : '') +
+                        '><span class="visually-hidden">Não publicar agora</span></label>';
+                },
+            });
+        }
+        return columns;
+    }
+
+    function renderCell(value, type, column, row = null, options = {}) {
+        // Monetary allocations do not exist until a financial preview succeeds.
+        // Source-only inspection must not render null as zero or export invented cents.
+        if (options.pendingInvoices && column === 'status_documento') {
+            const statusLabels = {
+                draft: 'Em rascunho', sent: 'Marcada como enviada', partial: 'Parcialmente recebida',
+                overdue: 'Vencida', paid: 'Marcada como paga',
+                canceled: 'Cancelada', cancelled: 'Cancelada',
+            };
+            const code = String(value ?? '');
+            const label = statusLabels[code] || 'Conferir no Akaunting';
+            if (type !== 'display') return label;
+            const style = ['draft', 'sent', 'partial', 'overdue'].includes(code) ? code : 'other';
+            return '<span class="production-invoice-status production-invoice-status--' +
+                style + '">' + escapeHtml(label) + '</span>';
+        }
+        if (options.pendingInvoices && column === 'valor') {
+            const amount = numericValue(value);
+            return amount !== null
+                ? type === 'display' ? escapeHtml(brl.format(amount)) : amount : '';
+        }
+        if (options.capitalSocialSummary && ['integralizado', 'devolvido', 'total'].includes(column)) {
+            const amount = numericValue(value);
+            if (amount === null) return '';
+            const rounded = Math.round(amount * 100) / 100;
+            if (type === 'display') {
+                return '<span class="money-cell">' + escapeHtml(brl.format(rounded)) + '</span>';
+            }
+            return type === 'export' ? decimalExport.format(rounded) : rounded;
+        }
+        // Invoices and movements are distinct reports, but both use links
+        // instead of a redundant URL column in their read-only tables.
+        if (type === 'display' && options.pendingInvoices && column === 'numero_documento') {
+            return safeLink(row?.URL, String(value ?? '')) || escapeHtml(value);
+        }
+        if (options.financialMovements) {
+            if ((column === 'bruto' || column === 'amount') &&
+                numericValue(value) !== null) {
+                const cents = Math.round(numericValue(value) * 100);
+                const amount = cents / 100;
+                if (type === 'display') return '<span class="money-cell">' +
+                    escapeHtml(brl.format(amount)) + '</span>';
+                return type === 'export' ? decimalExport.format(amount) : amount;
+            }
+            if (type === 'display') {
+                const href = column === 'id' ? safeLink(row?.URL, String(value ?? '')) :
+                    column === 'contact_name' ? safeLink(row?.contact_url, String(value ?? '')) :
+                        column === 'category_name'
+                            ? safeLink(row?.category_url, String(value ?? ''), true) : null;
+                if (href !== null) return href;
+            }
+        }
+        if (options.sourceOnly && options.productionMode && MONEY_COLUMNS.has(column)) {
+            return type === 'display'
+                ? '<span class="money-cell" title="Ainda não calculado">A apurar</span>'
+                : '';
+        }
+        if (type === 'export' && options.productionMode && MONEY_COLUMNS.has(column)) {
+            return numericValue(value) !== null
+                ? decimalExport.format(numericValue(value)) : '';
+        }
+        if (type !== 'display') {
+            return value ?? '';
+        }
+        if (options.productionMode && column === 'peso') {
+            const imported = value === null || value === '' || value === undefined ? '—' : String(value).replace('.', ',');
+            return '<span title="Peso da última importação">' + escapeHtml(imported) + '</span>';
+        }
+        if (options.productionMode && MONEY_COLUMNS.has(column) && numericValue(value) !== null) {
+            return '<span class="money-cell">' + escapeHtml(brl.format(numericValue(value))) + '</span>';
+        }
+        const link = column === 'URL'
+            ? safeLink(value, String(row?.type || 'Abrir no Akaunting'))
+            : column === 'nome' ? safeLink(row?.nome_url, String(value ?? ''), true) : null;
+        if (link !== null) return link;
+        return nestedTableHtml(value) ?? escapeHtml(value);
+    }
+
+    function buildColumns(rows, excluded = ['metadata', 'nome_url'], options = {}) {
+        // nome_url is a link target, never a standalone report column, even
+        // when a page supplies its own list of excluded fields.
+        const hiddenColumns = new Set([...excluded, 'nome_url']);
+        const keys = [...new Set(rows.flatMap(row =>
+            row && typeof row === 'object' && !Array.isArray(row) ? Object.keys(row) : []
+        ))];
+        const capitalLabels = {
+            pendencias: 'Alertas identificados',
+            situacao: 'Verificação automática',
+        };
+        const pendingLabels = {
+            numero_documento: 'Fatura',
+            status_documento: 'Situação da fatura',
+            recebimento: 'Recebimento registrado',
+            o_que_conferir: 'O que fazer',
+            URL: 'Abrir no Akaunting',
+        };
+        return keys.filter(key => !hiddenColumns.has(key)).map(key => ({
+            data: key,
+            title: options.pendingInvoices ? pendingLabels[key] || columnTitle(key)
+                : options.capitalSocialSummary ? capitalLabels[key] || columnTitle(key)
+                    : columnTitle(key),
+            defaultContent: '',
+            render: (value, type, row) => renderCell(value, type, key, row, options),
+        }));
+    }
+
+    function stateUrl(href, filters, globalSearch, page, length = 10, order = null) {
+        const url = new URL(href);
+        for (const [key, value] of Object.entries(filters)) {
+            if (value) {
+                url.searchParams.set(key, value);
+            } else {
+                url.searchParams.delete(key);
+            }
+        }
+        if (globalSearch) {
+            url.searchParams.set('dtsearch', globalSearch);
+        } else {
+            url.searchParams.delete('dtsearch');
+        }
+        if (Number.isSafeInteger(page) && page > 0) {
+            url.searchParams.set('dtpage', String(page));
+        } else {
+            url.searchParams.delete('dtpage');
+        }
+        if (length !== 10 && [25, 50, 100].includes(length)) {
+            url.searchParams.set('dtlength', String(length));
+        } else {
+            url.searchParams.delete('dtlength');
+        }
+        if (order && !(order[0] === 0 && order[1] === 'asc')) {
+            url.searchParams.set('dtorder', order.join(':'));
+        } else {
+            url.searchParams.delete('dtorder');
+        }
+        return url.pathname + url.search + url.hash;
+    }
+
+    function setupFilters(api, columns, doc, location, history, cleanups = []) {
+        const params = new URLSearchParams(location.search);
+        const inputs = new Map();
+        let restoring = true;
+        const save = () => {
+            if (restoring) {
+                return;
+            }
+            const filters = Object.fromEntries([...inputs].map(([key, input]) => [key, input.value]));
+            const url = stateUrl(
+                location.href, filters, api.search(), api.page(),
+                api.page?.len?.() ?? 10, api.order?.()?.[0] ?? null,
+            );
+            if (url !== location.pathname + location.search + location.hash) {
+                history.replaceState({}, '', url);
+            }
+        };
+
+        // An ID link is an exact drill-down, not a substring search (16
+        // must not accidentally match category 160).
+        const matchFilter = (key, value) => key === 'id' && /^\d+$/.test(value)
+            ? {term: '^' + value + '$', regex: true}
+            : {term: value, regex: false};
+        api.columns().every(function (index) {
+            const column = this;
+            const footer = column.footer();
+            if (!footer || columns[index].searchable === false) {
+                return;
+            }
+            const input = doc.createElement('input');
+            input.name = columns[index].data;
+            input.placeholder = columns[index].title;
+            input.value = params.get(input.name) || '';
+            footer.replaceChildren(input);
+            inputs.set(input.name, input);
+            if (input.value) {
+                const match = matchFilter(input.name, input.value);
+                column.search(match.term, match.regex, false);
+            }
+            input.addEventListener('keyup', () => {
+                const match = matchFilter(input.name, input.value);
+                if (column.search() !== match.term) {
+                    column.search(match.term, match.regex, false).draw();
+                }
+                save();
+            });
+        });
+
+        const search = params.get('dtsearch');
+        if (search) {
+            api.search(search);
+        }
+        if ([...inputs.values()].some(input => input.value) || search) {
+            api.draw(false);
+        }
+        const page = params.get('dtpage');
+        if (page && /^\d{1,5}$/.test(page) && Number(page) > 0) {
+            api.page(Number(page)).draw(false);
+        }
+        const length = params.get('dtlength');
+        if (['25', '50', '100'].includes(length) && api.page?.len) {
+            api.page.len(Number(length));
+            api.draw(false);
+        }
+        const match = /^(\d{1,2}):(asc|desc)$/.exec(params.get('dtorder') || '');
+        if (match && api.order) {
+            const index = Number(match[1]);
+            if (columns[index] && columns[index].orderable !== false) {
+                api.order([[index, match[2]]]).draw(false);
+            }
+        }
+        restoring = false;
+
+        const globalInput = doc.querySelector('#example_wrapper .dt-search input') ||
+            doc.querySelector('#example_filter input');
+        globalInput?.addEventListener('input', save);
+        // DataTables scrollX mirrors tfoot into its own scroll footer. DOM
+        // listeners on the original footer are not copied to that visible clone.
+        // Delegation keeps filtering functional after sorting and redraws.
+        const onFooterInput = event => {
+            const target = event.target;
+            const index = columns.findIndex(column =>
+                column.data === target?.name && column.searchable !== false
+            );
+            if (index < 0 || !target?.closest?.('tfoot') ||
+                !target.closest('#example_wrapper')) {
+                return;
+            }
+            const column = api.column(index);
+            const match = matchFilter(target.name, target.value);
+            if (column.search() !== match.term) {
+                column.search(match.term, match.regex, false).draw();
+            }
+            save();
+        };
+        doc.addEventListener?.('input', onFooterInput);
+        cleanups.push(() => doc.removeEventListener?.('input', onFooterInput));
+        api.on?.('search.dt page.dt length.dt order.dt', save);
+    }
+
+    function apiErrorDetails(payload) {
+        const raw = payload?.error;
+        if (raw === null || raw === undefined || raw === '' ||
+            (Array.isArray(raw) && raw.length === 0)) {
+            return '';
+        }
+        const errors = Array.isArray(raw) ? raw : [raw];
+        const messages = errors.map(error =>
+            typeof error === 'string' ? error : error?.message || 'Falha no cálculo do relatório.'
+        );
+        if (typeof payload.resolution === 'string' && payload.resolution) {
+            messages.push(payload.resolution);
+        }
+        if (typeof payload.request_id === 'string' && payload.request_id) {
+            messages.push('Identificador da falha: ' + payload.request_id);
+        }
+        return messages.join('\n');
+    }
+
+    function showError(target, message) {
+        if (target) {
+            target.textContent = String(message);
+        }
+    }
+
+    const REPORT_REQUEST_OPTIONS = {
+        credentials: 'same-origin',
+        headers: {Accept: 'application/json'},
+        cache: 'no-store',
+    };
+
+    // Source-only fallback is read-only and is allowed only for a confirmed
+    // economic-base failure; it must never masquerade as payable amounts.
+    async function loadReportData(table, request, providedPayload = null, sourceOnly = false) {
+        if (!table.dataset.url || typeof request !== 'function') {
+            throw new Error('A URL da API do relatório não está disponível.');
+        }
+        const response = providedPayload ? null : await request(table.dataset.url, REPORT_REQUEST_OPTIONS);
+        let payload = providedPayload;
+        let fallback = false;
+        if (response && !response.ok) {
+            let failure = null;
+            try {
+                failure = await response.json();
+            } catch {
+                // A non-JSON proxy failure has no recoverable source code.
+            }
+            if (failure?.code === 'BASE_ECONOMICA' &&
+                table.dataset.productionMode === 'yes' && table.dataset.sourceUrl) {
+                const source = await request(table.dataset.sourceUrl, REPORT_REQUEST_OPTIONS);
+                if (!source.ok) {
+                    throw new Error('Não foi possível consultar os dados importados (HTTP ' +
+                        source.status + ').');
+                }
+                payload = await source.json();
+                if (payload?.publication_allowed !== false ||
+                    payload?.competence !== table.dataset.competencia) {
+                    throw new Error('A origem retornou uma competência diferente da consultada.');
+                }
+                sourceOnly = true;
+                fallback = true;
+            } else {
+                const details = apiErrorDetails(failure);
+                throw new Error('Não foi possível carregar o relatório (HTTP ' + response.status +
+                    ').' + (details ? '\n' + details : ''));
+            }
+        }
+        if (!payload) payload = await response.json();
+        const details = apiErrorDetails(payload);
+        if (details) throw new Error(details);
+        if (!Array.isArray(payload?.data)) {
+            throw new Error('A API retornou um formato de relatório inválido.');
+        }
+        return {payload, sourceOnly, fallback};
+    }
+
+    function sourceFallbackMessage(payload) {
+        return 'Competência do trabalho: ' + payload.competence +
+            '. Mês financeiro: ' + payload.financial_month + '. ' +
+            payload.hours.entries + ' apontamentos de ' + payload.hours.members +
+            ' cooperados disponíveis. O cálculo da distribuição está pendente de conciliação; ' +
+            'os valores financeiros aparecem como A apurar. ' +
+            'A conferência das horas permanece disponível.';
+    }
+
+    function pendingInvoiceSummary(payload) {
+        const total = Number(payload.metadata?.total ?? payload.data.length);
+        const amount = numericValue(payload.metadata?.amount);
+        if (!Number.isSafeInteger(total) || total < 0 || amount === null) {
+            return 'Confira a situação das faturas e o que fazer em cada caso.';
+        }
+        const drafts = payload.data.filter(row => row.status_documento === 'draft').length;
+        const sent = payload.data.filter(row => row.status_documento === 'sent').length;
+        const statuses = [];
+        if (drafts) statuses.push(drafts + ' em rascunho');
+        if (sent) statuses.push(sent + (sent === 1 ? ' marcada como enviada' : ' marcadas como enviadas'));
+        const breakdown = !payload.metadata?.truncated && statuses.length
+            ? ' Situação: ' + statuses.join(', ') + '.' : '';
+        return total + (total === 1 ? ' fatura para conferir, valor nominal de ' :
+            ' faturas para conferir, valor nominal de ') +
+            brl.format(amount) + '.' + breakdown + ' ' +
+            (payload.metadata?.truncated ? 'Lista limitada às primeiras 100. ' : '') +
+            'O total não representa necessariamente valores em atraso ou a receber. ' +
+            'Os dados refletem a última importação, não a posição bancária atual.';
+    }
+
+    async function initializeReportTable(doc = scope.document, options = {}) {
+        const table = doc?.getElementById('example');
+        if (!table) {
+            return null;
+        }
+        const errors = doc.getElementById('erros');
+        const request = options.fetch || scope.fetch?.bind(scope);
+        const DataTableConstructor = options.DataTable || scope.DataTable;
+        const location = options.location || scope.location;
+        const history = options.history || scope.history;
+
+        try {
+            table.reportTableCleanup?.();
+            const excluded = JSON.parse(table.dataset.filterColumns || '["metadata"]');
+            if (!Array.isArray(excluded) || !excluded.every(item => typeof item === 'string')) {
+                throw new Error('A configuração das colunas do relatório está inválida.');
+            }
+            const result = await loadReportData(table, request, options.payload || null,
+                options.sourceOnly === true);
+            const {payload, sourceOnly} = result;
+            if (result.fallback) {
+                const status = doc.getElementById('production-report-status');
+                if (status) {
+                    status.hidden = false;
+                    status.textContent = sourceFallbackMessage(payload);
+                }
+            }
+            if (table.dataset.pendingInvoices === 'yes') {
+                const summary = doc.getElementById('pending-invoice-summary');
+                if (summary) summary.textContent = pendingInvoiceSummary(payload);
+            }
+            if (!payload.data.length) {
+                showError(errors, 'Nenhum registro encontrado para os filtros informados.');
+                return null;
+            }
+            const reportOptions = {
+                productionMode: table.dataset.productionMode === 'yes',
+                competence: table.dataset.competencia || '',
+                financialReview: typeof options.financialReview === 'boolean'
+                    ? options.financialReview : table.dataset.financialReview === 'yes',
+                sourceOnly,
+                pendingInvoices: table.dataset.pendingInvoices === 'yes',
+                financialMovements: table.dataset.financialMovements === 'yes',
+                capitalSocialSummary: table.dataset.capitalSocialSummary === 'yes',
+                omitted: options.omitted,
+                timesheetDetails: table.dataset.timesheetDetails === 'yes',
+                kimaiBase: table.dataset.kimaiBase || '',
+            };
+            const productionMode = table.dataset.productionMode === 'yes';
+            const columns = reportOptions.timesheetDetails ? buildTimesheetColumns(reportOptions)
+                : productionMode ? buildProductionColumns(reportOptions)
+                    : buildColumns(payload.data, excluded, reportOptions);
+            if (!columns.length || !table.tFoot?.rows[0]) {
+                throw new Error('Não foi possível montar as colunas do relatório.');
+            }
+            if (typeof DataTableConstructor !== 'function') {
+                throw new Error('O componente de tabela não foi carregado. Recarregue a página.');
+            }
+
+            const cleanups = [];
+            const cleanup = () => {
+                for (const fn of cleanups) fn();
+                if (table.reportTableCleanup === cleanup) delete table.reportTableCleanup;
+            };
+            table.reportTableCleanup = cleanup;
+            const row = table.tFoot.rows[0];
+            row.replaceChildren(...columns.map(() => doc.createElement('th')));
+            const selected = new DataTableConstructor('#example', {
+                scrollX: true,
+                data: payload.data,
+                columns,
+                pageLength: 10,
+                lengthMenu: [10, 25, 50, 100],
+                order: [[reportOptions.timesheetDetails ? 4 : 0, 'asc']],
+                fixedHeader: { header: false, footer: true },
+                layout: {
+                    topStart: {
+                        buttons: reportOptions.timesheetDetails ? [
+                            'pageLength', 'colvis',
+                            ...['copy', 'csv', 'excel', 'pdf', 'print'].map(extend => ({
+                                extend, exportOptions: {columns: ':visible', orthogonal: 'export',
+                                    modifier: {search: 'applied'}},
+                            })),
+                        ] : productionMode ? [
+                            'pageLength', 'colvis',
+                            ...['copy', 'csv', 'excel', 'pdf', 'print'].map(extend => ({
+                                extend, exportOptions: {columns: [0, 1, 2, 3, 4, 5], orthogonal: 'export'},
+                            })),
+                        ] : ['pageLength', 'colvis', 'copy', 'csv', 'excel', 'pdf', 'print'],
+                    },
+                },
+                language: {
+                    search: reportOptions.timesheetDetails ? 'Buscar nos apontamentos:' : 'Buscar cooperados e valores:',
+                    buttons: {
+                        pageLength: {'_':'Exibir %d registros','-1':'Exibir todos'},
+                        colvis:'Colunas', copy:'Copiar', csv:'CSV',
+                        excel:'Excel', pdf:'PDF', print:'Imprimir',
+                    },
+                    emptyTable: 'Nenhum registro nesta competência.',
+                    zeroRecords: 'Nenhum registro corresponde aos filtros.',
+                    info: 'Exibindo _START_ a _END_ de _TOTAL_ registros',
+                    infoEmpty: 'Nenhum registro',
+                    lengthMenu: 'Exibir _MENU_ registros',
+                    paginate: {first: 'Primeira', previous: 'Anterior', next: 'Próxima', last: 'Última'},
+                },
+                initComplete: function () {
+                    setupFilters(this.api(), columns, doc, location, history, cleanups);
+                },
+            });
+            if (productionMode && typeof table.addEventListener === 'function') {
+                const onDetailsClick = event => {
+                    const button = event.target?.closest?.('[data-production-details]');
+                    if (!button) return;
+                    const row = selected.row(button.closest('tr'));
+                    if (!row || !row.child) return;
+                    if (row.child.isShown()) {
+                        row.child.hide();
+                        button.setAttribute('aria-expanded', 'false');
+                        button.textContent = 'Abrir';
+                    } else {
+                        row.child(productionDetails(row.data(), reportOptions)).show();
+                        button.setAttribute('aria-expanded', 'true');
+                        button.textContent = 'Fechar';
+                    }
+                };
+                table.addEventListener('click', onDetailsClick);
+                cleanups.push(() => table.removeEventListener?.('click', onDetailsClick));
+            }
+            if (reportOptions.financialReview) {
+                const onDecisionChange = event => {
+                    const checkbox = event.target?.closest?.('[data-omit-user-id]');
+                    if (!checkbox) return;
+                    const id = Number(checkbox.dataset.omitUserId);
+                    if (Number.isSafeInteger(id) && id > 0) {
+                        options.onDecisionChange?.(id, checkbox.checked);
+                    }
+                };
+                table.addEventListener('change', onDecisionChange);
+                cleanups.push(() => table.removeEventListener?.('change', onDecisionChange));
+                selected.on('draw.dt', () => {
+                    for (const checkbox of table.querySelectorAll('[data-omit-user-id]')) {
+                        checkbox.checked = options.omitted?.has(Number(checkbox.dataset.omitUserId)) || false;
+                    }
+                });
+            }
+            return selected;
+        } catch (error) {
+            showError(errors, error.message || 'Não foi possível carregar o relatório.');
+            return null;
+        }
+    }
+
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = {
+            escapeHtml, columnTitle, nestedTableHtml, safeLink, renderCell, buildColumns,
+            stateUrl, setupFilters, apiErrorDetails, initializeReportTable,
+            duration, productionDetails, buildProductionColumns, buildTimesheetColumns,
+            numericValue, advanceTotal, financialFacts, workEntries,
+            loadReportData, pendingInvoiceSummary, sourceFallbackMessage,
+        };
+    } else {
+        scope.ReportTable = {initializeReportTable, duration};
+        scope.addEventListener('DOMContentLoaded', () => {
+            if (scope.document?.getElementById('example')?.dataset?.manualInit !== 'yes') {
+                void initializeReportTable();
+            }
+        });
+    }
+})(typeof window === 'undefined' ? {} : window);

@@ -33,16 +33,18 @@ use App\Service\Akaunting\Document\ADocument;
 
 class Tax extends ADocument
 {
+    #[\Override]
     protected string $whoami = 'TAX';
     protected string $readableName = 'Tax';
     protected int $quantity = 1;
+    #[\Override]
     protected string $type = 'bill';
     protected float $totalBrutoNotasClientes;
 
     public function saveMonthTaxes(): self
     {
         $aPagar = $this->pegaValorAPagar();
-        if ($aPagar === 0) {
+        if ($aPagar === 0.0) {
             return $this;
         }
         $this
@@ -110,7 +112,7 @@ class Tax extends ADocument
             FROM invoices i ,
                 JSON_TABLE(i.metadata, '$.item_taxes.data[*]' COLUMNS (
                     id INTEGER PATH '$.tax_id',
-                    amount DOUBLE PATH '$.amount'
+                    amount DECIMAL(30, 12) PATH '$.amount'
                 )) jt
             WHERE jt.id = :tax_id
             AND i.transaction_of_month = :ano_mes

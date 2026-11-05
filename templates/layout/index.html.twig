@@ -1,12 +1,61 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
     <head>
-        <title>{% block title %}Report{% endblock %}</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="color-scheme" content="light dark">
+        {# This script must run before the CSS to prevent a light-theme flash. #}
+        <script src="/js/theme.js"></script>
+        {% set brandName = app_brand is defined ? app_brand.name : "LibreCode" %}
+        {% set brandLogo = app_brand is defined ? app_brand.logoUrl : "https://librecode.coop/assets/images/logo/librecode.png" %}
+        {% set brandDisplayMode = app_brand is defined ? app_brand.displayMode : "logo_and_text" %}
+        <title>{% block title %}Fechamento{% endblock %} | {{ brandName }}</title>
         <link rel="icon" href="/img/favico.ico">
-        <script type="text/javascript" language="javascript" src="//code.jquery.com/jquery-3.7.0.js"></script>
+        <link rel="stylesheet" href="/css/app.css">
+        <link rel="stylesheet" href="/css/member-editor.css?v=20261103-historical-link-search">
+        <script src="/js/member-editor.js?v=20261103-business-logic-isolation" defer></script>
+        <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
         {% block head %}{% endblock %}
+        {# Page styles and DataTables load first; theme overrides load last. #}
+        <link rel="stylesheet" href="/css/theme.css">
     </head>
     <body>
-    {% block body %}{% endblock %}
+        <a class="skip-link" href="#main-content">Ir para o conteúdo</a>
+        <header class="app-header">
+            <div class="container header-inner">
+                <a class="brand" href="/acoes/make-producao" aria-label="{{ brandName }}: abrir fechamento da produção cooperativista">
+                    {% if brandDisplayMode != 'text_only' %}
+                        <img class="brand-logo" src="{{ brandLogo }}" alt="{{ brandDisplayMode == 'logo_only' ? brandName : '' }}" width="74" height="44">
+                    {% endif %}
+                    {% if brandDisplayMode != 'logo_only' %}
+                        <span class="brand-text">
+                            <strong>{{ brandName }}</strong>
+                            <small>Produção cooperativista</small>
+                        </span>
+                    {% endif %}
+                </a>
+                <div class="header-actions">
+                    {% set currentPath = app is defined and app.request is defined ? app.request.pathInfo : '' %}
+                    <nav aria-label="Navegação principal">
+                        <a class="header-nav-link" href="/acoes/make-producao"{% if currentPath == '/' or currentPath starts with '/acoes/' %} aria-current="page"{% endif %}>Fechamento</a>
+                        <a class="header-nav-link" href="/relatorios"{% if currentPath starts with '/relatorios' %} aria-current="page"{% endif %}>Relatórios</a>
+                        <a class="header-nav-link" href="/configuracao/cooperados"{% if currentPath starts with '/configuracao' %} aria-current="page"{% endif %}>Configuração</a>
+                    </nav>
+                    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Ativar tema escuro" title="Ativar tema escuro">
+                        <span id="theme-toggle-icon" class="theme-toggle-icon" aria-hidden="true">☾</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+        <main class="container page-content" id="main-content">
+            {% block body %}{% endblock %}
+        </main>
+        {{ include('layout/components/member_editor_dialog.html.twig') }}
+        <footer class="app-footer">
+            <div class="container">
+                <span>{{ brandName }} · Produção cooperativista</span>
+                <span>Controle e conciliação de dados</span>
+            </div>
+        </footer>
     </body>
 </html>

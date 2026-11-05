@@ -1,10 +1,35 @@
 {% extends "layout/index.html.twig" %}
-
-{% block title %}Produção{% endblock title %}
-
+{% block title %}Produção por cooperado{% endblock %}
+{% block head %}
+    <link rel="stylesheet" href="/css/production-workflow.css">
+{% endblock %}
 {% block body %}
-    <div>
-    Esta tabela retorna as <strong>produções de um mês</strong> específico. Para trocar o mês, altere o <strong>ano-mes</strong> na URL desta página.
+    <nav class="breadcrumbs" aria-label="Localização">
+        <a href="/acoes/make-producao">Fechamento</a><span aria-hidden="true">/</span><span aria-current="page">Produção</span>
+    </nav>
+    <header class="page-heading page-heading-compact">
+        <p class="eyebrow">Conferência mensal · Cooperados</p>
+        <h1>Produção por cooperado</h1>
+        <p class="page-lead">Confira os apontamentos importados e, quando houver apuração válida, os valores de produção em reais. O peso exibido é o da última importação. Clique no cooperado para conferir seu cadastro; os valores ainda não calculados aparecerão como A apurar.</p>
+    </header>
+    <div class="production-report-tools">
+        <form method="get" action="/relatorios/producao" class="production-month-picker">
+            <label for="report-competence">Competência do trabalho</label>
+            <input type="month" id="report-competence" name="ano-mes" value="{{ competencia }}" required>
+            <button type="submit" class="button button-primary">Consultar</button>
+        </form>
+        <nav aria-label="Próximas etapas" class="production-report-nav">
+            <a href="/relatorios/calculos?ano-mes={{ competencia }}">Memória de cálculo</a>
+            <a href="/relatorios/invoices?ano-mes={{ competencia }}">Entradas e saídas</a>
+            <a href="/relatorios/faturas-conferencia?ano-mes={{ competencia }}">Faturas para conferir</a>
+            <a href="/relatorios/trabalhado-summarized?ano-mes={{ competencia }}">Horas por cooperado</a>
+            <a href="/relatorios/apontamentos?ano-mes={{ competencia }}">Apontamentos detalhados</a>
+            {% if kimai_timesheet_url|default(null) %}
+                <a href="{{ kimai_timesheet_url }}" target="_blank" rel="noopener noreferrer" title="Abrir a lista de apontamentos no Kimai; selecionar cooperado e período no sistema de origem">Apontamentos no Kimai</a>
+            {% endif %}
+            <a href="/acoes/make-producao?ano-mes={{ competencia }}">Voltar ao processamento</a>
+        </nav>
     </div>
-    {{ include('layout/components/datatable.html.twig') }}
+    <p class="production-help" id="production-report-status" role="status" hidden></p>
+    {{ include('layout/components/datatable.html.twig', {sourceReviewUrl: '/api/v1/producao/fontes?ano-mes=' ~ competencia}) }}
 {% endblock %}

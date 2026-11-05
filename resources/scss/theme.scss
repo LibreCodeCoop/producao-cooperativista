@@ -1,0 +1,455 @@
+/* Shared appearance layer. Loaded after each page stylesheet and DataTables. */
+:root {
+    --table-stripe: #f0f4f5;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --canvas: #101b22;
+    --surface: #1b2a34;
+    --text: #eaf3f7;
+    --muted: #b1c3ce;
+    --line: #405762;
+    --brand: #82dccc;
+    --brand-deep: #b8f2e8;
+    --brand-soft: #24413e;
+    --danger: #ff9d99;
+    --danger-soft: #482b2d;
+    --warning-bg: #3b3020;
+    --warning-border: #a98656;
+    --shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+    --table-stripe: #20343e;
+}
+
+/* Standard table stripes and controls should match the rest of the application. */
+table.dataTable > tbody > tr:not(.selected) {
+    background-color: var(--surface);
+}
+table.dataTable > tbody > tr:nth-child(even):not(.selected) {
+    background-color: var(--table-stripe);
+}
+
+/* All screens use the same header control, including audit reports and settings. */
+.header-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 12px;
+
+    nav {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+}
+.theme-toggle {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+
+    &:hover {
+        background: var(--brand-soft);
+        border-color: var(--brand);
+    }
+
+    &:focus-visible {
+        outline: 3px solid var(--brand);
+        outline-offset: 2px;
+    }
+}
+.theme-toggle-icon {
+    display: inline-block;
+    font-size: 19px;
+    line-height: 1;
+}
+
+@media (max-width: 900px) {
+    .header-inner {
+        flex-wrap: wrap;
+        gap: 12px;
+        padding-block: 12px;
+    }
+    .header-actions {
+        justify-content: flex-start;
+    }
+}
+@media (max-width: 620px) {
+    .header-inner {
+        align-items: flex-start;
+    }
+    .header-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+:root[data-theme="dark"] {
+    /* Neutral surfaces, navigation, notes and forms. */
+    .skip-link,
+    .app-header,
+    .app-footer,
+    .report-link,
+    .button-secondary,
+    .calc-summary-item,
+    .calc-table-scroll,
+    .settings-secondary {
+        background: var(--surface);
+        color: var(--text);
+        border-color: var(--line);
+    }
+    /* Brand mark and primary actions retain white-on-teal contrast. */
+    .brand-mark {
+        background: #287b70;
+        color: #fff;
+    }
+    .report-link:hover,
+    .button-secondary:hover,
+    .settings-secondary:hover {
+        background: #27413d;
+        border-color: #68a99d;
+        color: var(--text);
+    }
+    .header-nav-link {
+        background: var(--brand-soft);
+        color: var(--brand-deep);
+
+        &:hover {
+            background: #315751;
+        }
+    }
+    .report-number,
+    .fact-icon-safe {
+        background: var(--brand-soft);
+        color: var(--brand-deep);
+    }
+    .action-link {
+        background: #203b36;
+        color: var(--text);
+        border-color: #426d62;
+
+        &:hover {
+            background: #294c43;
+        }
+
+        &-danger {
+            background: #3a272c;
+            border-color: #785257;
+        }
+
+        &-danger:hover {
+            background: var(--danger-soft);
+        }
+    }
+    .fact-icon-next {
+        background: #263c55;
+        color: #b5d3ff;
+    }
+    .information-note {
+        background: #203e3a;
+
+        p {
+            color: #bed7d2;
+        }
+    }
+    .technical-details summary {
+        color: var(--brand-deep);
+    }
+    .operation-tag {
+        color: #ffd0ca;
+    }
+    .status-note-warning {
+        color: #ffdda6;
+    }
+    .result-message {
+        background: #1d4037;
+        border-color: #507e70;
+
+        &-error {
+            background: var(--danger-soft);
+            border-color: #94605e;
+        }
+    }
+    code {
+        background: #293f49;
+        color: #e2f3f5;
+    }
+    :focus-visible {
+        outline-color: #a4f6e7;
+    }
+    .form-field input:disabled,
+    :is(input, select, textarea):disabled {
+        background: #26343b;
+        color: #a7b6bf;
+    }
+    .form-field input:focus {
+        outline-color: #316e65;
+    }
+
+    /* Inputs include Symfony forms, DataTables search, per-column filters and month pickers. */
+    :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, textarea),
+    .dt-container .dt-input {
+        background: #12232c;
+        color: var(--text);
+        border-color: #627c88;
+    }
+    input::placeholder {
+        color: #b5c4cb;
+        opacity: 1;
+    }
+    .page-content {
+        form button:not(.button) {
+            background: #26776f;
+            border-color: #4b9b8e;
+            color: #fff;
+
+            &:hover {
+                background: #328c80;
+            }
+        }
+    }
+    .button-danger:disabled {
+        background: #475157;
+        color: #bec7cb;
+    }
+
+    /* DataTables 2.x and Buttons. Preserve selected-row styles and exports. */
+    .dt-container,
+    .dt-container .dt-layout-row,
+    table.dataTable,
+    table.dataTable :is(th, td) {
+        color: var(--text);
+    }
+    table.dataTable :is(thead th, tfoot th, tbody td) {
+        border-color: var(--line);
+    }
+    .dt-container {
+        .dt-buttons .dt-button,
+        .dt-paging .dt-paging-button {
+            color: var(--text) !important;
+            border: 1px solid var(--line) !important;
+            background: #263c46 !important;
+            box-shadow: none;
+        }
+
+        .dt-buttons .dt-button:hover:not(.disabled),
+        .dt-paging .dt-paging-button:hover:not(.disabled) {
+            background: #36535e !important;
+            color: #fff !important;
+        }
+
+        .dt-paging .dt-paging-button.current {
+            background: #33594f !important;
+            border-color: #83cdbd !important;
+            color: #fff !important;
+        }
+    }
+    .dt-button-collection {
+        background: var(--surface);
+        color: var(--text);
+        border: 1px solid var(--line);
+
+        .dt-button {
+            background: #263c46;
+            color: var(--text);
+            border-color: var(--line);
+
+            &:hover {
+                background: #36535e;
+            }
+        }
+    }
+    table.dataTable > tbody > tr.selected > * {
+        box-shadow: inset 0 0 0 9999px #305e70;
+        color: #fff;
+    }
+
+    /* Audit calculation report: leave its purposeful, per-indicator colors unchanged. */
+    .calc-help-link {
+        background: var(--brand-soft);
+        border-color: #5b8d85;
+        color: var(--brand-deep);
+    }
+    .calc-notice {
+        background: #203d39;
+        color: var(--text);
+
+        &-warning {
+            background: #423321;
+            color: #ffe2b8;
+        }
+
+        &-error {
+            background: #482a2b;
+            color: #ffd7d2;
+        }
+    }
+    .calc-instructions {
+        color: var(--muted);
+    }
+    .calc-report {
+        thead th {
+            background: #293e49;
+            color: #e2eff4;
+        }
+
+        .calc-formula {
+            color: #d4e3e8;
+        }
+
+        .calc-definition {
+            background: #142630;
+            border-color: #7695a1;
+            color: var(--text);
+        }
+    }
+    .calc-definition::after {
+        background: #213842;
+        border-color: #6b9698;
+        color: #eef7f8;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    }
+    .calc-report .active,
+    .calc-report tbody th[data-highlight-key]:focus-visible {
+        outline-color: #9fdbee;
+    }
+    .calc-help-content {
+        :is(p, li) {
+            color: var(--muted);
+        }
+
+        section:target {
+            background: #24403b;
+        }
+    }
+
+    /* Source configuration and operational feedback. */
+    .settings-section-heading p,
+    .settings-source p,
+    .settings-actions p,
+    .settings-filter-actions p,
+    .settings-muted {
+        color: var(--muted);
+    }
+    .settings-edit-field label,
+    .settings-month label,
+    .settings-members .settings-column-label {
+        color: var(--text);
+    }
+    .settings-primary {
+        background: #26776f;
+        border-color: #4b9b8e;
+        color: #fff;
+
+        &:hover {
+            background: #328c80;
+        }
+    }
+    .settings-note {
+        background: #203c3c;
+        color: #dcefed;
+        border-color: #507b7b;
+    }
+    .settings-alert {
+        &.settings-error {
+            background: #493126;
+            color: #ffe0c6;
+            border-color: #9a6d51;
+        }
+
+        &.settings-success {
+            background: #254332;
+            color: #d3f7dc;
+            border-color: #59886b;
+        }
+
+        &.settings-notice {
+            background: #243c4a;
+            color: #e1f0ff;
+            border-color: #6189a0;
+        }
+    }
+    .settings-summary span {
+        background: #263e44;
+    }
+    .settings-members tbody tr.settings-selected td {
+        box-shadow: inset 0 0 0 1px #4e9c90;
+    }
+    #settings-table-error:not(:empty) {
+        color: #ffb6ac;
+    }
+    .settings-link,
+    .settings-shortcuts a {
+        color: var(--brand);
+    }
+    .settings-chip {
+        &-ok {
+            background: #244d39;
+            color: #c6efcf;
+        }
+
+        &-warn {
+            background: #4c3922;
+            color: #ffe2b8;
+        }
+    }
+    .settings-edit-field {
+        border-color: var(--line);
+    }
+
+    /* Processing notices are defined inline in the existing Twig view. */
+    .alert {
+        background: #4b2d2d;
+        color: #ffe1df;
+
+        &.info {
+            background: #253f53;
+            color: #d6edff;
+        }
+
+        &.warning {
+            background: #4b3921;
+            color: #ffe6b5;
+        }
+
+        &.success {
+            background: #234336;
+            color: #d1f2df;
+        }
+    }
+}
+
+@media print {
+    :root[data-theme="dark"] {
+        color-scheme: light;
+    }
+    :root[data-theme="dark"] body {
+        background: white;
+        color: black;
+    }
+    .theme-toggle {
+        display: none !important;
+    }
+}
+
+:root[data-theme="dark"] {
+    .header-nav-link[aria-current="page"] {
+        background: #2b8075;
+        color: #fff;
+
+        &:hover {
+            background: #347f76;
+            color: #fff;
+        }
+    }
+}

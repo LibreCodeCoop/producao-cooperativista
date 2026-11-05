@@ -1,0 +1,78 @@
+{% extends "layout/index.html.twig" %}
+{% block title %}Integrações e regras{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/css/settings-panel.css">
+<script defer src="/js/admin-settings.js"></script>
+{% endblock %}
+{% block body %}
+<nav class="breadcrumbs" aria-label="Localização">
+    <a href="/acoes/make-producao">Fechamento</a><span>/</span><a href="/configuracao/cooperados">Configuração</a>
+    <span>/</span><span aria-current="page">Integrações e regras</span>
+</nav>
+<header class="page-heading page-heading-compact">
+    <h1>Configuração</h1>
+    <p class="page-lead">Administre os parâmetros utilizados na apuração e nas integrações.</p>
+</header>
+{{ include('configuracao/_menu.html.twig', {active: 'integracoes'}) }}
+<div id="admin-settings" data-token="{{ token }}" data-version="{{ version }}">
+    <p class="settings-note">As alterações são aplicadas nas próximas requisições. Confira conexões e apurações antes de publicar. Credenciais só aparecem depois de clicar em Mostrar.</p>
+    {% for id, requirement in requirements %}
+        <details class="surface admin-settings-group" {% if loop.first %}open{% endif %}>
+            <summary>
+                <span><strong>{{ requirement.title }}</strong><small>{{ requirement.purpose }}</small></span>
+                <span class="admin-settings-count">{{ requirement.configuredCount }} / {{ requirement.fields|length }} informados</span>
+            </summary>
+            <form data-admin-settings-group="{{ id }}" method="post" action="/configuracao/integracoes/salvar" autocomplete="off">
+                <input type="hidden" name="_token" value="{{ token }}">
+                <div class="admin-settings-fields">
+                    {% for field in requirement.fields %}
+                        <div class="admin-settings-field">
+                            {% set friendlyNames = {
+                                'APP_BRAND_DISPLAY_MODE': 'Exibição no cabeçalho',
+                                'PRODUCAO_FECHAMENTO_DEFASAGEM_MESES': 'Meses entre o trabalho e o fechamento',
+                                'PRODUCAO_META_LIQUIDA_MENSAL': 'Meta líquida mensal (R$)',
+                                'PRODUCAO_META_HORAS_REFERENCIA': 'Horas mensais de referência'
+                            } %}
+                            <label for="config-{{ field.key }}"><strong>{{ friendlyNames[field.key]|default(field.key) }}</strong>
+                                {% if field.critical %}<small>Alteração crítica — revise antes de salvar</small>{% endif %}
+                                {% if field.key in ['PRODUCAO_META_LIQUIDA_MENSAL', 'PRODUCAO_META_HORAS_REFERENCIA'] %}
+                                    <small>Referência para simulação, sem alterar o rateio ou pagamentos.</small>
+                                {% elseif field.key == 'PRODUCAO_FECHAMENTO_DEFASAGEM_MESES' %}
+                                    <small>Hoje: horas no mês M; faturamento em M+1; fechamento em M+2.</small>
+                                {% endif %}
+                            </label>
+                            <div class="admin-settings-input">
+                                {% if field.key == 'APP_BRAND_DISPLAY_MODE' %}
+                                    <select id="config-{{ field.key }}" name="{{ field.key }}"
+                                            data-config-input data-initial-value="{{ field.value }}" data-critical="no">
+                                        <option value="logo_and_text"{% if field.value == 'logo_and_text' %} selected{% endif %}>Logo e texto</option>
+                                        <option value="logo_only"{% if field.value == 'logo_only' %} selected{% endif %}>Somente logo</option>
+                                        <option value="text_only"{% if field.value == 'text_only' %} selected{% endif %}>Somente texto</option>
+                                    </select>
+                                {% elseif field.json %}
+                                    <textarea id="config-{{ field.key }}" name="{{ field.key }}" rows="2" data-config-input data-critical="{{ field.critical ? 'yes' : 'no' }}">{{ field.value }}</textarea>
+                                {% else %}
+                                    <input id="config-{{ field.key }}" name="{{ field.key }}" type="{{ field.secret ? 'password' : 'text' }}" value="{{ field.value }}"
+                                           data-config-input data-secret="{{ field.secret ? 'yes' : 'no' }}"
+                                           data-critical="{{ field.critical ? 'yes' : 'no' }}" spellcheck="false"
+                                           placeholder="{{ field.secret and field.present ? 'Configurado — clique em Mostrar' : 'Não configurado' }}">
+                                {% endif %}
+                                {% if field.secret %}
+                                    <button type="button" class="admin-settings-reveal" data-reveal-key="{{ field.key }}"
+                                            aria-label="Mostrar segredo de {{ field.key }}" aria-pressed="false">
+                                        <span aria-hidden="true">👁</span> Mostrar
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="admin-settings-actions">
+                    <button type="submit" class="button dashboard-primary-action" disabled>Salvar alterações</button>
+                    <output class="admin-settings-feedback" aria-live="polite"></output>
+                </div>
+            </form>
+        </details>
+    {% endfor %}
+</div>
+{% endblock %}
