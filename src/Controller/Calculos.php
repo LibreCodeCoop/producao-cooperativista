@@ -115,6 +115,9 @@ class Calculos extends AbstractController
             'competencia' => $inicio->format('Y-m'),
             'financial_month' => Competencia::fromString($requested)->financialMonth(),
             'source_review' => $sourceReview ?? null,
+            'unclassified_income' => isset($data)
+                ? $this->movimentacao->getUnclassifiedForecastIncome()
+                : null,
             'simulation' => $simulation,
             'erros' => $erros ?? [],
         ]);

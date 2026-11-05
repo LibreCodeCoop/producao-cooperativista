@@ -86,7 +86,9 @@
         });
         // Missing review metadata never means that all payments are cleared.
         return {rows, revision: payload.metadata.revision,
-            pendingInvoiceCount: count(payload.metadata.pending_invoice_count)};
+            pendingInvoiceCount: count(payload.metadata.pending_invoice_count),
+            unclassifiedIncomeCount: count(payload.metadata.unclassified_income_count),
+            unclassifiedIncomeAmount: finiteNumber(payload.metadata.unclassified_income_amount)};
     }
 
     function validSourceRow(row) {
@@ -402,6 +404,14 @@
                 money(groups.excludedNetCents / 100) +
                 '). Seleção total, inclusive cooperados ocultos por filtros.';
             const pending = preview.pendingInvoiceCount;
+            const unclassified = preview.unclassifiedIncomeCount;
+            const missingReferenceWarning = unclassified === null
+                ? ' Não foi possível verificar as receitas sem identificação; publicação bloqueada.'
+                : unclassified > 0
+                    ? ' Há ' + unclassified + ' receita(s) sem identificação de cliente (' +
+                        money(preview.unclassifiedIncomeAmount || 0) +
+                        ') fora da previsão por cooperado; publicação bloqueada.'
+                    : '';
             const warning = pending === null
                 ? ' Não foi possível verificar os recebimentos; publicação bloqueada.'
                 : pending > 0
@@ -410,16 +420,21 @@
             el('publication-summary').textContent = competence() + ': ' +
                 included + ' documento(s) individuais previsto(s). ' +
                 groups.excluded.length + ' não publicado(s) agora. ' +
-                'Os valores não serão redistribuídos e nenhum pagamento bancário será executado.' + warning;
+                'Os valores não serão redistribuídos e nenhum pagamento bancário será executado.' +
+                warning + missingReferenceWarning;
             const pendingLink = el('pending-invoices-link');
             if (pendingLink) {
-                pendingLink.hidden = pending === 0;
-                pendingLink.href = '/relatorios/faturas-conferencia?ano-mes=' + encodeURIComponent(competence());
-                pendingLink.textContent = pending === null
-                    ? 'Conferir os recebimentos no Akaunting'
-                    : pending + ' fatura(s) para conferência financeira';
+                pendingLink.hidden = pending === 0 && unclassified === 0;
+                pendingLink.href = unclassified !== 0
+                    ? '/relatorios/calculos?ano-mes=' + encodeURIComponent(competence()) + '#unclassified-income'
+                    : '/relatorios/faturas-conferencia?ano-mes=' + encodeURIComponent(competence());
+                pendingLink.textContent = unclassified !== 0
+                    ? 'Conferir receitas sem identificação de cliente'
+                    : pending === null
+                        ? 'Conferir os recebimentos no Akaunting'
+                        : pending + ' fatura(s) para conferência financeira';
             }
-            publishButton.disabled = !preview || !included || pending !== 0 ||
+            publishButton.disabled = !preview || !included || pending !== 0 || unclassified !== 0 ||
                 !el('publication-confirmation').checked || loading || processing || finished || needsImport;
         };
         const invalidateApproval = () => {
@@ -760,6 +775,7 @@
         el('publication-confirmation').addEventListener('change', updateSummary);
         publishButton.addEventListener('click', async () => {
             if (!preview || preview.pendingInvoiceCount !== 0 ||
+                preview.unclassifiedIncomeCount !== 0 ||
                 finished || loading || processing || needsImport ||
                 !el('publication-confirmation').checked ||
                 selectedMembers(preview.rows, omitted).included.length === 0) return;

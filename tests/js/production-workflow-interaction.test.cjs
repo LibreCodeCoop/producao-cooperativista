@@ -25,7 +25,8 @@ function element() {
 function fixture({previewError = false, economicFailure = false, malformed = false, importSuccess = true,
     publishSuccess = true, gridSuccess = true, withdrawalGoal = null,
     importError = 'Falha na importação', initialWorkData = true,
-    initialStagingData = true, pendingWrite = null, pendingInvoiceCount = 0} = {}) {
+    initialStagingData = true, pendingWrite = null, pendingInvoiceCount = 0,
+    unclassifiedIncomeCount = 0, unclassifiedIncomeAmount = 0} = {}) {
     const items = new Map();
     for (const id of ['production-wizard','form-gera-producao','messages',
         'import-button','use-existing','import-availability-status',
@@ -167,7 +168,9 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
                         malformed ? {metadata:{competence:'2026-07'},data:rows} :
                             {metadata:{competence:'2026-08',revision,
                                 withdrawal_goal:withdrawalGoal,
-                                forecast_only:true,pending_invoice_count:pendingInvoiceCount},data:rows};
+                                forecast_only:true,pending_invoice_count:pendingInvoiceCount,
+                                unclassified_income_count:unclassifiedIncomeCount,
+                                unclassified_income_amount:unclassifiedIncomeAmount},data:rows};
                 },
             };
         },
@@ -339,6 +342,29 @@ test('unconfirmed customer invoices allow a forecast but block financial publica
     assert.equal(f.get('submit').disabled,true);
     await f.click('submit');
     assert.equal(f.calls.submit.length,0);
+});
+
+test('missing customer reference keeps forecast visible but prohibits publishing', async () => {
+    const f=fixture({unclassifiedIncomeCount:1,unclassifiedIncomeAmount:881.21});
+    await f.preview();
+    assert.equal(f.step(),2);
+    assert.match(f.get('metric-net').textContent,/107,35/);
+    assert.match(f.get('publication-summary').textContent,/1 receita\(s\)/);
+    assert.match(f.get('publication-summary').textContent,/881,21/);
+    assert.equal(f.get('pending-invoices-link').hidden,false);
+    assert.match(f.get('pending-invoices-link').href,/#unclassified-income$/);
+    f.setConsent(true);
+    assert.equal(f.get('submit').disabled,true);
+    await f.click('submit');
+    assert.equal(f.calls.submit.length,0);
+});
+
+test('unknown customer-reference verification cannot authorize a write', async () => {
+    const f=fixture({unclassifiedIncomeCount:null});
+    await f.preview();
+    assert.match(f.get('publication-summary').textContent,/identificação/);
+    f.setConsent(true);
+    assert.equal(f.get('submit').disabled,true);
 });
 
 test('unknown payment review never silently authorizes publication', async () => {

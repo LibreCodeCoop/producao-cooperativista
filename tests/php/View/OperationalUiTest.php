@@ -345,6 +345,47 @@ final class OperationalUiTest extends TestCase
         self::assertStringNotContainsString('Não foi possível concluir a apuração', $html);
     }
 
+    public function testForecastShowsUnclassifiedIncomeWithoutSuppressingCalculation(): void
+    {
+        $html = $this->twig()->render('calculos.index.html.twig', [
+            'competencia' => '2026-08',
+            'financial_month' => '2026-09',
+            'simulation' => false,
+            'source_review' => null,
+            'unclassified_income' => [
+                'count' => 1,
+                'amount' => 881.21,
+                'records' => [
+                    [
+                        'origin' => 'transaction',
+                        'id' => 3470,
+                        'amount' => 881.21,
+                        'category' => 'Cliente > Externo > Recorrência',
+                    ],
+                ],
+            ],
+            'data' => [
+                'total_notas_clientes' => [
+                    'label' => 'Receitas previstas de clientes',
+                    'valor' => 43665.16,
+                    'formula' => '43665.16',
+                    'color' => [240, 240, 240],
+                    'font_color' => [20, 20, 20],
+                ],
+            ],
+            'erros' => [],
+        ]);
+
+        self::assertStringContainsString('id="unclassified-income"', $html);
+        self::assertStringContainsString('a memória é parcial', $html);
+        self::assertStringContainsString('R$ 881,21', $html);
+        self::assertStringContainsString('Lançamento transaction #3470', $html);
+        self::assertStringContainsString('ano-mes=2026-08&amp;id=3470', $html);
+        self::assertStringContainsString('R$ 43.665,16', $html);
+        self::assertStringNotContainsString('Não foi possível concluir a apuração', $html);
+        self::assertStringContainsString('A publicação permanece bloqueada', $html);
+    }
+
     public function testReportsExposeSourceReconciliationWithoutPretendingToCalculatePayouts(): void
     {
         $source = [

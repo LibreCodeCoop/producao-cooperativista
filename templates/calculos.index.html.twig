@@ -97,6 +97,35 @@
         de distribuição. Valores previstos podem mudar após a conciliação.
     </div>
 
+    {% if unclassified_income.count|default(0) > 0 %}
+        <section class="calc-notice calc-notice-warning" id="unclassified-income"
+            aria-labelledby="unclassified-income-title">
+            <h2 id="unclassified-income-title">Receitas pendentes de identificação do cliente</h2>
+            <p>
+                <strong>R$ {{ unclassified_income.amount|number_format(2, ',', '.') }}</strong>
+                em {{ unclassified_income.count }} lançamento(s) foram mantidos nos dados importados,
+                mas não foram atribuídos a cooperados nesta previsão.
+                Por isso, <strong>a memória é parcial</strong>: os valores individuais podem mudar
+                após a classificação e a reimportação.
+            </p>
+            <ul>
+                {% for movement in unclassified_income.records %}
+                    <li>
+                        <a href="/relatorios/invoices?ano-mes={{ competencia }}&amp;id={{ movement.id }}">
+                            Lançamento {{ movement.origin }} #{{ movement.id }}
+                        </a>:
+                        R$ {{ movement.amount|number_format(2, ',', '.') }}
+                        — categoria {{ movement.category }}.
+                    </li>
+                {% endfor %}
+            </ul>
+            <p>
+                Confira a natureza de cada receita no Akaunting. Não atribua um CPF/CNPJ fictício
+                nem altere a categoria automaticamente. A publicação permanece bloqueada até a conciliação.
+            </p>
+        </section>
+    {% endif %}
+
     {% if source_review is not empty %}
         {% set pending = source_review.unconfirmed_invoices %}
         {% if pending.count > 0 %}

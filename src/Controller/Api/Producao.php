@@ -138,6 +138,8 @@ class Producao extends AbstractController
                 // Unknown is distinct from zero pending documents.
             }
 
+            $unclassifiedIncome = $this->movimentacao->getUnclassifiedForecastIncome();
+
             $response = [
                 'data' => array_values($output),
                 'metadata' => [
@@ -148,6 +150,8 @@ class Producao extends AbstractController
                     'forecast_only' => true,
                     'payment_confirmed' => false,
                     'pending_invoice_count' => $pendingInvoices,
+                    'unclassified_income_count' => $unclassifiedIncome['count'],
+                    'unclassified_income_amount' => $unclassifiedIncome['amount'],
                     'date' => $this->producao->dates->getInicioProximoMes()->format('Y-m')
                 ],
             ];
