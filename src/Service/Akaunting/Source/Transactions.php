@@ -37,6 +37,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use App\Service\Import\BatchPersistence;
 use App\Service\Import\ExistingEntityIndex;
+use App\Service\Import\FinancialMonthScope;
 use App\Service\Import\AssociatedDocumentResolver;
 
 /**
@@ -94,6 +95,14 @@ class Transactions
             'search' => implode(' ', $search),
             'include_field_studio' => '1',
         ]);
+        $list = (new FinancialMonthScope())->complete(
+            $this->dataset,
+            $list,
+            'transaction',
+            $begin->format('Y-m'),
+            $this->getCompanyId(),
+            $this->getCategoryId()
+        );
         $this->list = [];
         $existing = $this->entityIndex->byId($this->entityManager, Transaction::class, array_column($list, 'id'));
         // Always resolve the current source documents through bounded API

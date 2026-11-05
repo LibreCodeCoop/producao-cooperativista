@@ -37,6 +37,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use App\Service\Import\BatchPersistence;
 use App\Service\Import\ExistingEntityIndex;
+use App\Service\Import\FinancialMonthScope;
 
 /**
  * @method self setCompanyId(int $value)
@@ -93,6 +94,13 @@ class Documents
             'search' => implode(' ', $search),
             'include_field_studio' => '1',
         ]);
+        $list = (new FinancialMonthScope())->complete(
+            $this->dataset,
+            $list,
+            $this->getType(),
+            $begin->format('Y-m'),
+            $this->getCompanyId()
+        );
         $this->list[$this->getType()] = [];
         $existing = $this->entityIndex->byId($this->entityManager, Invoice::class, array_column($list, 'id'));
         $structured = $this->fieldStudio->fromRecords($this->getType(), $list, $this->getCompanyId());
