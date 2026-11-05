@@ -35,7 +35,7 @@ final class FieldStudioTest extends TestCase
 
     public function testStructuredApiValuesOverrideContradictoryFreeText(): void
     {
-        $result = (new FieldStudio())->fromRecords('invoice', [[
+        $result = new FieldStudio()->fromRecords('invoice', [[
             'id' => 10, 'type' => 'invoice', 'company_id' => 1,
             'notes' => "Transação do mês: 2026-12\nCNPJ cliente: 99999999000199",
             'field_studio' => self::fields([
@@ -65,7 +65,7 @@ final class FieldStudioTest extends TestCase
     {
         $this->expectException(DomainException::class);
         $this->expectExceptionMessage('not migrated');
-        (new FieldStudio())->fromRecords('transaction', [[
+        new FieldStudio()->fromRecords('transaction', [[
             'id' => 91, 'company_id' => 1,
             'field_studio' => self::fields(['transaction_of_month' => '2026-10'], false),
         ]], 1);
@@ -77,7 +77,7 @@ final class FieldStudioTest extends TestCase
         unset($fields['transaction_of_month']);
         $this->expectException(DomainException::class);
         $this->expectExceptionMessage('schema incomplete');
-        (new FieldStudio())->fromRecords('bill', [[
+        new FieldStudio()->fromRecords('bill', [[
             'id' => 91, 'type' => 'bill', 'company_id' => 1, 'field_studio' => $fields,
         ]], 1);
     }
@@ -86,7 +86,7 @@ final class FieldStudioTest extends TestCase
     {
         $this->expectException(DomainException::class);
         $this->expectExceptionMessage('Missing Field Studio API data');
-        (new FieldStudio())->fromRecords('transaction', [[
+        new FieldStudio()->fromRecords('transaction', [[
             'id' => 91, 'company_id' => 1, 'paid_at' => '2026-10-02',
         ]], 1);
     }
@@ -95,7 +95,7 @@ final class FieldStudioTest extends TestCase
     {
         $this->expectException(DomainException::class);
         $this->expectExceptionMessage('Invalid structured financial month');
-        (new FieldStudio())->fromRecords('invoice', [[
+        new FieldStudio()->fromRecords('invoice', [[
             'id' => 91, 'type' => 'invoice', 'company_id' => 1,
             'field_studio' => self::fields(['transaction_of_month' => '2026-13']),
         ]], 1);
@@ -104,7 +104,7 @@ final class FieldStudioTest extends TestCase
     public function testCrossCompanyRecordIsRejected(): void
     {
         $this->expectException(DomainException::class);
-        (new FieldStudio())->fromRecords('invoice', [[
+        new FieldStudio()->fromRecords('invoice', [[
             'id' => 91, 'type' => 'invoice', 'company_id' => 2,
             'field_studio' => self::fields(),
         ]], 1);
@@ -112,6 +112,6 @@ final class FieldStudioTest extends TestCase
 
     public function testEmptyBatchRequiresNoMetadata(): void
     {
-        self::assertSame([], (new FieldStudio())->fromRecords('invoice', [], 1));
+        self::assertSame([], new FieldStudio()->fromRecords('invoice', [], 1));
     }
 }

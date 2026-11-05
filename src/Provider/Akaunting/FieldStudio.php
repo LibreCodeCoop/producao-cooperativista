@@ -17,7 +17,7 @@ use DomainException;
  */
 class FieldStudio
 {
-    private const FIELDS = [
+    private const array FIELDS = [
         'transaction_of_month', 'discount_percentage', 'customer_cnpj',
         'sector', 'archive', 'nfse', 'production_metadata_migrated',
     ];
