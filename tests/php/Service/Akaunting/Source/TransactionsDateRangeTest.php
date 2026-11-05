@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Service\Akaunting\Source;
 
 use App\Provider\Akaunting\Dataset;
-use App\Provider\Akaunting\ParseText;
+use App\Provider\Akaunting\FieldStudio;
 use App\Service\Akaunting\Source\Transactions;
 use App\Service\Import\BatchPersistence;
 use App\Service\Import\ExistingEntityIndex;
@@ -91,7 +91,7 @@ final class TransactionsDateRangeTest extends TestCase
                     'id' => 73,
                     'type' => 'invoice',
                     'company_id' => 1,
-                    'notes' => "Transação do mês: 2026-04\nCNPJ cliente: 12345678000190",
+                    'notes' => "Transação do mês: 2026-12\nCNPJ cliente: 12345678000190",
                     'contact' => ['reference' => null, 'tax_number' => '12345678000190'],
                 ]];
             }
@@ -103,14 +103,25 @@ final class TransactionsDateRangeTest extends TestCase
         $manager = $this->createMock(EntityManagerInterface::class);
         $manager->expects($this->once())->method('getRepository')->willReturn($repository);
 
+        $studio = $this->createStub(FieldStudio::class);
+        $studio->method('fromRecords')->willReturnCallback(static function (string $type, array $records): array {
+            $out = [];
+            foreach ($records as $record) {
+                $id = (int) $record['id'];
+                $out[$id] = $type === 'invoice'
+                    ? ['transaction_of_month' => '2026-04', 'customer' => '12345678000190']
+                    : [];
+            }
+            return $out;
+        });
         $source = new Transactions(
             $manager,
             new NullLogger(),
-            new ParseText(),
+            $studio,
             $dataset,
             new BatchPersistence(),
             new ExistingEntityIndex(),
-            new AssociatedDocumentResolver($dataset, new ParseText()),
+            new AssociatedDocumentResolver($dataset, $studio),
         );
         $source->setDate(new DateTime('2026-05-01'));
         $payments = $source->getList();
@@ -151,14 +162,23 @@ final class TransactionsDateRangeTest extends TestCase
 
     private function source(Dataset $dataset): Transactions
     {
+        $studio = $this->createStub(FieldStudio::class);
+        $studio->method('fromRecords')->willReturnCallback(static function (string $type, array $records): array {
+            $out = [];
+            foreach ($records as $record) {
+                $id = (int) $record['id'];
+                $out[$id] = [];
+            }
+            return $out;
+        });
         return new Transactions(
             $this->createStub(EntityManagerInterface::class),
             new NullLogger(),
-            $this->createStub(ParseText::class),
+            $studio,
             $dataset,
             new BatchPersistence(),
             new ExistingEntityIndex(),
-            new AssociatedDocumentResolver($dataset, new ParseText()),
+            new AssociatedDocumentResolver($dataset, $studio),
         );
     }
 }

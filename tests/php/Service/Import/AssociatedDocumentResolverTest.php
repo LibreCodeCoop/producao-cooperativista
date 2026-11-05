@@ -10,7 +10,7 @@ declare(strict_types=1);
 namespace App\Tests\Service\Import;
 
 use App\Provider\Akaunting\Dataset;
-use App\Provider\Akaunting\ParseText;
+use App\Provider\Akaunting\FieldStudio;
 use App\Provider\Akaunting\Request;
 use App\Service\Import\AssociatedDocumentResolver;
 use DomainException;
@@ -47,7 +47,18 @@ final class AssociatedDocumentResolverTest extends TestCase
     {
         $client = new MockHttpClient($handle);
         $dataset = new Dataset(new Request(new NullLogger(), $client));
-        return new AssociatedDocumentResolver($dataset, new ParseText());
+        $studio = $this->createStub(FieldStudio::class);
+        $studio->method('fromRecords')->willReturnCallback(static function (string $type, array $records): array {
+            $result = [];
+            foreach ($records as $record) {
+                $id = (int) $record['id'];
+                $result[$id] = $id === 71
+                    ? ['customer' => '11111111000111', 'transaction_of_month' => '2026-04']
+                    : [];
+            }
+            return $result;
+        });
+        return new AssociatedDocumentResolver($dataset, $studio);
     }
 
     /** @return list<array{document_id:int}> */
@@ -70,7 +81,7 @@ final class AssociatedDocumentResolverTest extends TestCase
                 return new MockResponse(json_encode(['data' => [
                     [
                         'id' => 71, 'company_id' => 1, 'type' => 'invoice',
-                        'notes' => "Transação do mês: 2026-04\nCNPJ cliente: 11111111000111",
+                        'notes' => "Transação do mês: 2026-12\nCNPJ cliente: 11111111000111",
                         'contact' => ['reference' => null, 'tax_number' => '11111111000111'],
                     ],
                     [
@@ -96,10 +107,7 @@ final class AssociatedDocumentResolverTest extends TestCase
         self::assertSame('11111111000111', $documents[71]['customer_reference']);
         self::assertSame('33333333000133', $documents[72]['customer_reference']);
         self::assertSame('22222222000122', $documents[73]['customer_reference']);
-        self::assertStringContainsString(
-            'Transação do mês: 2026-04',
-            json_decode($documents[71]['metadata'], true, 512, JSON_THROW_ON_ERROR)['notes']
-        );
+        self::assertSame('2026-04', $documents[71]['field_values']['transaction_of_month']);
     }
 
     public function testUnknownCustomerNeverBecomesCooperativeCnpj(): void

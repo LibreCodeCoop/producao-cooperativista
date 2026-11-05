@@ -6,7 +6,7 @@ namespace App\Tests\Service\Akaunting\Source;
 
 use App\Helper\Dates;
 use App\Provider\Akaunting\Dataset;
-use App\Provider\Akaunting\ParseText;
+use App\Provider\Akaunting\FieldStudio;
 use App\Service\Akaunting\Source\Documents;
 use App\Service\Import\BatchPersistence;
 use App\Service\Import\ExistingEntityIndex;
@@ -25,7 +25,7 @@ final class DocumentsEmptyListTest extends TestCase
         $documents = new Documents(
             $this->createStub(EntityManagerInterface::class),
             new NullLogger(),
-            $this->createStub(ParseText::class),
+            $this->createStub(FieldStudio::class),
             $dataset,
             $dates,
             new BatchPersistence(),
