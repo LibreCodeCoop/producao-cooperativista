@@ -14,12 +14,12 @@
         "symfony/browser-kit": "^8.1.9",
         "symfony/css-selector": "^8.1.6",
         "symfony/dotenv": "^8.1.6",
-        "symfony/framework-bundle": "^8.1.9",
-        "symfony/http-client": "^8.1.9",
+        "symfony/framework-bundle": "^8.1.11",
+        "symfony/http-client": "^8.1.11",
         "symfony/monolog-bundle": "^4.1.0",
         "symfony/runtime": "^8.1.9",
         "symfony/twig-bundle": "^8.1.9",
-        "symfony/yaml": "^8.1.9",
+        "symfony/yaml": "^8.1.11",
         "twig/twig": "^3.30.0"
     },
     "require-dev": {
