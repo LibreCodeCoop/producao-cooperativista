@@ -18,6 +18,7 @@ use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use NumberFormatter;
 use PHPUnit\Framework\Attributes\DataProvider;
+use App\Tests\Support\FieldStudioResponse;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -90,7 +91,7 @@ final class FrraFinancialContractTest extends KernelTestCase
         $requests = [];
         $http = new MockHttpClient(static function (string $method, string $url, array $options) use (&$requests): MockResponse {
             self::assertSame('POST', $method);
-            self::assertSame('https://accounting.example.test/api/documents', $url);
+            self::assertSame('https://accounting.example.test/api/documents?include_field_studio=1', $url);
             $body = $options['body'];
             if (is_string($body)) {
                 parse_str($body, $body);
@@ -103,6 +104,8 @@ final class FrraFinancialContractTest extends KernelTestCase
             self::assertSame(self::CPF, $body['contact_tax_number']);
             self::assertSame('100', (string) $body['contact_id']);
             self::assertSame('BRL', $body['currency_code']);
+            self::assertSame(substr($body['due_at'], 0, 7), $body['custom_fields']['transaction_of_month']);
+            self::assertSame('1', (string) $body['custom_fields']['production_metadata_migrated']);
             self::assertCount(1, $body['items'], 'FRRA must not include Bruto, Auxílio, INSS or IRRF.');
             self::assertSame('FRRA', $body['items'][0]['name']);
             self::assertSame((string) new DocumentConfiguration()->getDocumentItemId('frra'), (string) $body['items'][0]['item_id']);
@@ -123,6 +126,7 @@ final class FrraFinancialContractTest extends KernelTestCase
                     'tax_number' => self::CPF,
                 ],
                 'items' => ['data' => $body['items']],
+                'field_studio' => FieldStudioResponse::fromRequest($body),
             ]], JSON_THROW_ON_ERROR), ['http_code' => 201]);
         });
         $member = $this->member(new Request(new NullLogger(), $http));
@@ -155,7 +159,7 @@ final class FrraFinancialContractTest extends KernelTestCase
             }
 
             self::assertSame('POST', $method);
-            self::assertSame('https://accounting.example.test/api/documents', $url);
+            self::assertSame('https://accounting.example.test/api/documents?include_field_studio=1', $url);
             $body = $options['body'];
             if (is_string($body)) {
                 parse_str($body, $body);
@@ -180,6 +184,7 @@ final class FrraFinancialContractTest extends KernelTestCase
                     'reference' => null, 'tax_number' => $body['contact_tax_number'],
                 ],
                 'items' => ['data' => $body['items']],
+                'field_studio' => FieldStudioResponse::fromRequest($body),
             ]], JSON_THROW_ON_ERROR), ['http_code' => 201]);
         });
 
@@ -277,6 +282,7 @@ final class FrraFinancialContractTest extends KernelTestCase
                     'reference' => null, 'tax_number' => self::CPF,
                 ],
                 'items' => ['data' => $items],
+                'field_studio' => FieldStudioResponse::fromRequest($body),
             ];
             return new MockResponse(json_encode(['data' => $remote], JSON_THROW_ON_ERROR), [
                 'http_code' => $method === 'POST' ? 201 : 200,

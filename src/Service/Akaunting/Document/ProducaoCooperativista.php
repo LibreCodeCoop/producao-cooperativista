@@ -40,6 +40,12 @@ class ProducaoCooperativista extends ADocument
      */
     private array $liquidDiscounts = [];
 
+    #[\Override]
+    protected function financialMonth(): string
+    {
+        return $this->dates->getInicioProximoMes()->format('Y-m');
+    }
+
     public function save(): self
     {
         $this->somaItensExtras();

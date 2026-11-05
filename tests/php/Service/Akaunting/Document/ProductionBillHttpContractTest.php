@@ -17,6 +17,7 @@ use App\Service\Cooperado;
 use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use NumberFormatter;
+use App\Tests\Support\FieldStudioResponse;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -83,7 +84,7 @@ final class ProductionBillHttpContractTest extends KernelTestCase
         $requests = [];
         $http = new MockHttpClient(static function (string $method, string $url, array $options) use (&$requests): MockResponse {
             self::assertSame('POST', $method);
-            self::assertSame('https://accounting.example.test/api/documents', $url);
+            self::assertSame('https://accounting.example.test/api/documents?include_field_studio=1', $url);
             $body = $options['body'];
             if (is_string($body)) {
                 parse_str($body, $body);
@@ -99,6 +100,8 @@ final class ProductionBillHttpContractTest extends KernelTestCase
             self::assertSame('Bruto produção', $body['items'][0]['name']);
             self::assertEqualsWithDelta(2000.0, (float) $body['items'][0]['price'], 0.01);
             self::assertStringContainsString('Produção realizada no mês: 2026-07', $body['notes']);
+            self::assertSame('2026-08', $body['custom_fields']['transaction_of_month']);
+            self::assertSame('1', (string) $body['custom_fields']['production_metadata_migrated']);
 
             return new MockResponse(json_encode(['data' => [
                 ...$body,
@@ -115,6 +118,7 @@ final class ProductionBillHttpContractTest extends KernelTestCase
                     'tax_number' => '12345678000190',
                 ],
                 'items' => ['data' => $body['items']],
+                'field_studio' => FieldStudioResponse::fromRequest($body),
             ]], JSON_THROW_ON_ERROR), ['http_code' => 201]);
         });
         $request = new Request(new NullLogger(), $http);

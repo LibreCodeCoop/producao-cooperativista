@@ -229,6 +229,15 @@ abstract class ADocument
         return $this->documentConfiguration->getDocumentItemId($code);
     }
 
+    /**
+     * The financial month is not necessarily the payment due month.
+     * Subclasses may use their own accounting period.
+     */
+    protected function financialMonth(): string
+    {
+        return $this->getDueAt()->format('Y-m');
+    }
+
     public function toArray(): array
     {
         $notes = [];
@@ -256,6 +265,10 @@ abstract class ADocument
             'currency_code' => $this->getCurrencyCode(),
             'currency_rate' => $this->getCurrencyRate(),
             'notes' => implode("\n", $notes),
+            'custom_fields' => [
+                'transaction_of_month' => $this->financialMonth(),
+                'production_metadata_migrated' => '1',
+            ],
             'contact_id' => $this->getContactId(),
             'contact_name' => $this->getContactName(),
             'contact_tax_number' => $this->getContactTaxNumber(),
@@ -302,7 +315,8 @@ abstract class ADocument
                 // Save new
                 $response = $this->request->send(
                     endpoint: '/api/documents',
-                    body: $this->toArray()
+                    body: $this->toArray(),
+                    query: ['include_field_studio' => '1']
                 );
                 // If already exists a document with the same documentNumber...
                 if (isset($response['errors']['document_number'])) {
@@ -349,6 +363,7 @@ abstract class ADocument
                 $response = $this->request->send(
                     endpoint: '/api/documents/' . $this->getId(),
                     body: $this->toArray(),
+                    query: ['include_field_studio' => '1'],
                     method: 'PATCH'
                 );
             }
@@ -464,6 +479,7 @@ abstract class ADocument
                 'search' => implode(' ', [
                     'type:bill',
                 ]),
+                'include_field_studio' => '1',
             ],
             method: 'GET'
         );

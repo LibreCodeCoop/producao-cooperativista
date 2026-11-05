@@ -33,6 +33,12 @@ class FRRA extends ProducaoCooperativista
     #[\Override]
     protected string $whoami = 'FRRA';
 
+    #[\Override]
+    protected function financialMonth(): string
+    {
+        return $this->dates->getPrevisaoPagamentoFrra()->format('Y-m');
+    }
+
     protected function setUp(): self
     {
         $this->getValues()->setLockFrra(true);
