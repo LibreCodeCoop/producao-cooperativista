@@ -250,7 +250,7 @@ final class DocumentSaveSafetyTest extends TestCase
             $request->expects($this->once())->method('send')->with(
                 '/api/documents/48',
                 [],
-                ['search' => 'type:bill'],
+                ['search' => 'type:bill', 'include_field_studio' => '1'],
                 'GET'
             )->willReturn(['data' => [
                 'id' => 48, 'document_number' => 'OUTRO', 'company_id' => 1,
