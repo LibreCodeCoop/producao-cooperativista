@@ -32,7 +32,7 @@ use Exception;
 use App\Helper\Dates;
 use App\Helper\MagicGetterSetterTrait;
 use App\Provider\Akaunting\Dataset;
-use App\Provider\Akaunting\ParseText;
+use App\Provider\Akaunting\FieldStudio;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use App\Service\Import\BatchPersistence;
@@ -57,7 +57,7 @@ class Documents
     public function __construct(
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
-        private ParseText $parseText,
+        private FieldStudio $fieldStudio,
         private Dataset $dataset,
         private Dates $dates,
         private BatchPersistence $batchPersistence,
@@ -91,11 +91,15 @@ class Documents
         $list = $this->dataset->list('/api/documents', [
             'company_id' => $this->getCompanyId(),
             'search' => implode(' ', $search),
+            'include_field_studio' => '1',
         ]);
         $this->list[$this->getType()] = [];
         $existing = $this->entityIndex->byId($this->entityManager, Invoice::class, array_column($list, 'id'));
+        $structured = $this->fieldStudio->fromRecords($this->getType(), $list, $this->getCompanyId());
         foreach ($list as $row) {
-            $invoice = $this->fromArray($row, $existing[$row['id']] ?? new Invoice());
+            $invoice = $this->fromArray(
+                $row, $existing[$row['id']] ?? new Invoice(), $structured[(int) $row['id']]
+            );
             $this->list[$this->getType()][] = $invoice;
         }
         $this->logger->info('Dados de {tipo} salvos com sucesso. Total: {total}', [
@@ -105,9 +109,11 @@ class Documents
         return $this->list[$this->getType()] ?? [];
     }
 
-    public function fromArray(array $array, ?Invoice $existingInvoice = null): Invoice
-    {
-        $array = array_merge($array, $this->parseText->do((string) $array['notes']));
+    public function fromArray(
+        array $array, ?Invoice $existingInvoice = null, ?array $structured = null
+    ): Invoice {
+        $structured ??= $this->fieldStudio->fromRecords($array['type'], [$array], $this->getCompanyId())[(int) $array['id']];
+        $array = array_merge($array, $structured);
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->calculateFixedDiscountPercentage($array);
         $array = $this->defineCustomerReference($array);

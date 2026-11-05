@@ -32,7 +32,7 @@ use Doctrine\DBAL\ParameterType;
 use Exception;
 use App\Helper\MagicGetterSetterTrait;
 use App\Provider\Akaunting\Dataset;
-use App\Provider\Akaunting\ParseText;
+use App\Provider\Akaunting\FieldStudio;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use App\Service\Import\BatchPersistence;
@@ -58,7 +58,7 @@ class Transactions
     public function __construct(
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
-        private ParseText $parseText,
+        private FieldStudio $fieldStudio,
         private Dataset $dataset,
         private BatchPersistence $batchPersistence,
         private ExistingEntityIndex $entityIndex,
@@ -92,15 +92,19 @@ class Transactions
         $list = $this->dataset->list('/api/transactions', [
             'company_id' => $this->getCompanyId(),
             'search' => implode(' ', $search),
+            'include_field_studio' => '1',
         ]);
         $this->list = [];
         $existing = $this->entityIndex->byId($this->entityManager, Transaction::class, array_column($list, 'id'));
         // Always resolve the current source documents through bounded API
         // filters; a previously imported month must never change attribution.
         $linkedDocs = $this->associatedDocumentResolver->resolve($list, $this->getCompanyId());
+        $structured = $this->fieldStudio->fromRecords('transaction', $list, $this->getCompanyId());
         foreach ($list as $row) {
             $linked = $linkedDocs[(int) ($row['document_id'] ?? 0)] ?? false;
-            $transaction = $this->fromArray($row, $existing[$row['id']] ?? new Transaction(), $linked);
+            $transaction = $this->fromArray(
+                $row, $existing[$row['id']] ?? new Transaction(), $linked, $structured[(int) $row['id']]
+            );
             $this->list[] = $transaction;
         }
         $this->logger->info('Dados de transactions salvos com sucesso. Total: {total}', [
@@ -113,9 +117,11 @@ class Transactions
         array $array,
         ?Transaction $existingTransaction = null,
         array|false|null $associatedDocument = null,
+        ?array $structured = null,
     ): Transaction {
         $array = $this->getDataFromAssociatedDocument($array, $associatedDocument);
-        $array = array_merge($array, $this->parseText->do((string) $array['description']));
+        $structured ??= $this->fieldStudio->fromRecords('transaction', [$array], $this->getCompanyId())[(int) $array['id']];
+        $array = array_merge($array, $structured);
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
@@ -161,7 +167,6 @@ class Transactions
 
     private function getDataFromAssociatedDocument(array $item, array|false|null $associatedDocument = null): array
     {
-        $item['invoice_notes'] = null;
         if (empty($item['document_id'])) {
             return $item;
         }
@@ -181,12 +186,16 @@ class Transactions
         if (!$row) {
             return $item;
         }
-        if (json_validate($row['metadata'])) {
-            $metadata = json_decode($row['metadata'], true);
-            if (isset($metadata['notes']) && is_string($metadata['notes'])) {
-                $item = array_merge($item, $this->parseText->do($metadata['notes']));
+        if (!isset($row['field_values'])) {
+            $metadata = json_decode((string) ($row['metadata'] ?? '{}'), true);
+            $type = $metadata['type'] ?? null;
+            if (!in_array($type, ['invoice', 'bill'], true)) {
+                throw new \DomainException('Linked document type is unavailable for structured metadata.');
             }
+            $id = (int) $item['document_id'];
+            $row['field_values'] = $this->fieldStudio->fromRecords($type, [$metadata], $this->getCompanyId())[$id];
         }
+        $item = array_merge($item, $row['field_values']);
         if (empty($item['customer_reference'])) {
             $item['customer_reference'] = $row['customer_reference'];
         }

@@ -10,16 +10,15 @@ declare(strict_types=1);
 namespace App\Service\Import;
 
 use App\Provider\Akaunting\Dataset;
-use App\Provider\Akaunting\ParseText;
+use App\Provider\Akaunting\FieldStudio;
 use DomainException;
 
 /**
  * Resolve source documents as a bounded API batch, regardless of which
  * competencies were previously loaded into the ETL database.
  *
- * Notes on a document may contain an approved "Transação do mês" field;
- * using only staged documents silently changes the financial period when
- * the same competence is imported in a different order.
+ * Read structured metadata from the source document, never from staged
+ * free-text notes. A linked document can belong to an earlier competence.
  */
 final readonly class AssociatedDocumentResolver
 {
@@ -28,13 +27,13 @@ final readonly class AssociatedDocumentResolver
     /** @psalm-suppress PossiblyUnusedMethod Symfony DI constructor. */
     public function __construct(
         private Dataset $dataset,
-        private ParseText $parser,
+        private FieldStudio $fieldStudio,
     ) {
     }
 
     /**
      * @param list<array<string, mixed>> $transactions Akaunting API rows
-     * @return array<int, array{id:int, customer_reference:string, metadata:string}>
+     * @return array<int, array{id:int, customer_reference:string, metadata:string, field_values:array}>
      */
     public function resolve(array $transactions, int $companyId): array
     {
@@ -57,7 +56,9 @@ final readonly class AssociatedDocumentResolver
                 $documents = $this->dataset->list('/api/documents', [
                     'company_id' => $companyId,
                     'search' => $search,
+                    'include_field_studio' => '1',
                 ]);
+                $fields = $this->fieldStudio->fromRecords($type, $documents, $companyId);
                 foreach ($documents as $document) {
                     $id = (int) ($document['id'] ?? 0);
                     if (!isset($remaining[$id])
@@ -71,7 +72,8 @@ final readonly class AssociatedDocumentResolver
                     }
                     $resolved[$id] = [
                         'id' => $id,
-                        'customer_reference' => $this->customerReference($document),
+                        'customer_reference' => $this->customerReference($document, $fields[$id]),
+                        'field_values' => $fields[$id],
                         'metadata' => json_encode($document, JSON_THROW_ON_ERROR),
                     ];
                     unset($remaining[$id]);
@@ -92,14 +94,13 @@ final readonly class AssociatedDocumentResolver
     }
 
     /** @param array<string, mixed> $document */
-    private function customerReference(array $document): string
+    private function customerReference(array $document, array $fields): string
     {
         $reference = trim((string) ($document['customer_reference'] ?? ''));
         if ($reference !== '') {
             return $reference;
         }
 
-        $fields = $this->parser->do((string) ($document['notes'] ?? ''));
         if (!empty($fields['customer'])) {
             $reference = (string) $fields['customer'];
             if (!empty($fields['sector'])) {
