@@ -98,6 +98,23 @@
         <section id="erros" class="calc-notice calc-notice-error" role="alert" aria-live="polite">
             <h2>Não foi possível concluir a apuração</h2>
             <ul>{% for erro in erros %}<li>{{ erro }}</li>{% endfor %}</ul>
+            {% if source_review is not empty and data is empty %}
+                {% set eligible_receipts = source_review.income_transactions.amount %}
+                {% set client_costs = source_review.client_cost_transactions.amount %}
+                {% set internal_costs = source_review.internal_expense_transactions.amount %}
+                <p>
+                    <strong>Dados importados do mês financeiro {{ source_review.financial_month }}:</strong>
+                    recebimentos classificados de R$ {{ eligible_receipts|number_format(2, ',', '.') }},
+                    custos de clientes de R$ {{ client_costs|number_format(2, ',', '.') }}
+                    e diferença preliminar de R$ {{ (eligible_receipts - client_costs)|number_format(2, ',', '.') }}.
+                    Despesas internas identificadas: R$ {{ internal_costs|number_format(2, ',', '.') }}.
+                </p>
+                <p>
+                    Há {{ source_review.unconfirmed_invoices.count }} faturas de clientes que exigem conferência
+                    nesta competência. <a href="#source-review">Ver fontes e vínculos para conciliação</a>.
+                    Esta leitura não constitui base aprovada para distribuição ou pagamento.
+                </p>
+            {% endif %}
         </section>
     {% endif %}
 

@@ -327,6 +327,11 @@ final class OperationalUiTest extends TestCase
         self::assertStringContainsString('Mês financeiro das movimentações:', $html);
         self::assertStringContainsString('2026-10', $html);
         self::assertStringContainsString('Fontes importadas disponíveis para conferência', $html);
+        self::assertStringContainsString('Dados importados do mês financeiro', $html);
+        self::assertStringContainsString('diferença preliminar de R$ -2.007,63', $html);
+        self::assertStringContainsString('Despesas internas identificadas: R$ 11.818,04', $html);
+        self::assertStringContainsString('Ver fontes e vínculos para conciliação', $html);
+        self::assertStringContainsString('não constitui base aprovada para distribuição ou pagamento', $html);
         self::assertStringContainsString('214', $html);
         self::assertStringContainsString('78.279,48', $html);
         self::assertStringContainsString('A apurar', $html);
