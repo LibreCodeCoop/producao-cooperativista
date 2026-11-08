@@ -93,6 +93,7 @@ class Categories
             throw new Exception('Akaunting returned no categories: refusing to reconcile an empty source.');
         }
 
+        /** @var array<int, Category> $sourceById */
         $sourceById = [];
         foreach ($sourceCategories as $category) {
             $sourceById[$category->getId()] = $category;

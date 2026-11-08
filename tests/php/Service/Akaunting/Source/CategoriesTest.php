@@ -33,11 +33,11 @@ final class CategoriesTest extends TestCase
         $connection->expects($this->once())->method('beginTransaction');
         $connection->expects($this->once())->method('commit');
         $manager->method('getConnection')->willReturn($connection);
-        $repository = $this->createMock(EntityRepository::class);
+        $repository = $this->createStub(EntityRepository::class);
         $repository->method('findAll')->willReturn([]);
-        $manager->method('getRepository')->with(Category::class)->willReturn($repository);
+        $manager->expects($this->once())->method('getRepository')->with(Category::class)->willReturn($repository);
 
-        $dataset = $this->createMock(Dataset::class);
+        $dataset = $this->createStub(Dataset::class);
         $dataset->method('list')->willReturn([
             ['id' => 10, 'name' => 'Cliente', 'parent_id' => null, 'type' => 'income', 'enabled' => 1],
             ['id' => 11, 'name' => 'Cliente interno', 'parent_id' => 10, 'type' => 'income', 'enabled' => 1],
@@ -69,11 +69,11 @@ final class CategoriesTest extends TestCase
             );
         $connection->expects($this->exactly(2))->method('fetchOne')->willReturn(0);
         $manager->method('getConnection')->willReturn($connection);
-        $repository = $this->createMock(EntityRepository::class);
+        $repository = $this->createStub(EntityRepository::class);
         $repository->method('findAll')->willReturn([$retired]);
-        $manager->method('getRepository')->with(Category::class)->willReturn($repository);
+        $manager->expects($this->once())->method('getRepository')->with(Category::class)->willReturn($repository);
 
-        $dataset = $this->createMock(Dataset::class);
+        $dataset = $this->createStub(Dataset::class);
         $dataset->method('list')->willReturn([
             ['id' => 45, 'name' => 'Cliente > Externo', 'parent_id' => 36, 'type' => 'income', 'enabled' => 0],
             ['id' => 19, 'name' => 'Cliente > Externo > Serviço', 'parent_id' => 45, 'type' => 'income', 'enabled' => 1],
@@ -101,11 +101,11 @@ final class CategoriesTest extends TestCase
         $connection->expects($this->never())->method('commit');
         $connection->expects($this->once())->method('fetchOne')->willReturn(1);
         $manager->method('getConnection')->willReturn($connection);
-        $repository = $this->createMock(EntityRepository::class);
+        $repository = $this->createStub(EntityRepository::class);
         $repository->method('findAll')->willReturn([$retired]);
         $manager->method('getRepository')->willReturn($repository);
 
-        $dataset = $this->createMock(Dataset::class);
+        $dataset = $this->createStub(Dataset::class);
         $dataset->method('list')->willReturn([
             ['id' => 19, 'name' => 'Cliente > Externo > Serviço', 'parent_id' => 45, 'type' => 'income', 'enabled' => 1],
         ]);
@@ -121,7 +121,7 @@ final class CategoriesTest extends TestCase
         $manager = $this->createMock(EntityManagerInterface::class);
         $manager->expects($this->never())->method('getConnection');
         $manager->expects($this->never())->method('flush');
-        $dataset = $this->createMock(Dataset::class);
+        $dataset = $this->createStub(Dataset::class);
         $dataset->method('list')->willReturn([]);
         $categories = new Categories(new NullLogger(), $manager, $dataset, new BatchPersistence());
 
