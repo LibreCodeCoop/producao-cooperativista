@@ -30,4 +30,23 @@ final class CategoryHierarchyTest extends TestCase
 
         $this->assertSame([1, 2, 3], $hierarchy->descendants(1));
     }
+    public function testCustomerRevenueAndCustomerCostsStayInSeparateBranchesAfterReconciliation(): void
+    {
+        $hierarchy = new CategoryHierarchy([
+            36 => null,
+            45 => 36,
+            3 => 45,
+            19 => 45,
+            28 => null,
+            46 => 36,
+            59 => 46,
+        ]);
+
+        self::assertSame([45, 3, 19], $hierarchy->descendants(45));
+        self::assertSame([28], $hierarchy->descendants(28));
+        self::assertSame([46, 59], $hierarchy->descendants(46));
+        self::assertNotContains(28, $hierarchy->descendants(45));
+        self::assertNotContains(20, $hierarchy->descendants(45));
+    }
+
 }

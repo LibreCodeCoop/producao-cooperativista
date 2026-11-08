@@ -88,8 +88,38 @@ class Categories
 
     public function saveList(): self
     {
-        $this->getList();
-        $this->batchPersistence->save($this->entityManager, $this->list);
+        $sourceCategories = $this->getList();
+        if ($sourceCategories === []) {
+            throw new Exception('Akaunting returned no categories: refusing to retire cached categories.');
+        }
+
+        $this->batchPersistence->save($this->entityManager, $sourceCategories);
+
+        // A source-side soft deletion removes a category from the public API,
+        // but its imported row must remain for historical financial documents.
+        // Tombstone only the local category classification, never the documents.
+        $sourceIds = [];
+        foreach ($sourceCategories as $category) {
+            $sourceIds[$category->getId()] = true;
+        }
+        $retired = 0;
+        foreach ($this->entityManager->getRepository(Category::class)->findAll() as $category) {
+            if (isset($sourceIds[$category->getId()])) {
+                continue;
+            }
+            $metadata = $category->getMetadata();
+            if (($metadata['source_retired'] ?? false) === true) {
+                continue;
+            }
+            $category->setMetadata([...$metadata, 'source_retired' => true]);
+            ++$retired;
+        }
+        if ($retired > 0) {
+            $this->entityManager->flush();
+            $this->logger->info('Categorias antigas preservadas somente para histórico: {total}', [
+                'total' => $retired,
+            ]);
+        }
         $this->categoryHierarchy = null;
         return $this;
     }
@@ -113,7 +143,11 @@ class Categories
         if (!empty($this->list)) {
             return $this->list;
         }
-        $this->list = $this->entityManager->getRepository(Category::class)->findAll();
+        $stored = $this->entityManager->getRepository(Category::class)->findAll();
+        $this->list = array_values(array_filter(
+            $stored,
+            static fn (Category $category): bool => ($category->getMetadata()['source_retired'] ?? false) !== true
+        ));
         if (empty($this->list)) {
             throw new Exception('Sem categorias');
         }
