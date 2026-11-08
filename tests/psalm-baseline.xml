@@ -473,9 +473,6 @@
       <code><![CDATA[__construct]]></code>
       <code><![CDATA[saveRow]]></code>
     </PossiblyUnusedMethod>
-    <PossiblyUnusedReturnValue>
-      <code><![CDATA[Category[]]]></code>
-    </PossiblyUnusedReturnValue>
     <UnusedProperty>
       <code><![CDATA[$companyId]]></code>
     </UnusedProperty>

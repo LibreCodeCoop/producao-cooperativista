@@ -90,36 +90,67 @@ class Categories
     {
         $sourceCategories = $this->getList();
         if ($sourceCategories === []) {
-            throw new Exception('Akaunting returned no categories: refusing to retire cached categories.');
+            throw new Exception('Akaunting returned no categories: refusing to reconcile an empty source.');
         }
 
-        $this->batchPersistence->save($this->entityManager, $sourceCategories);
-
-        // A source-side soft deletion removes a category from the public API,
-        // but its imported row must remain for historical financial documents.
-        // Tombstone only the local category classification, never the documents.
-        $sourceIds = [];
+        $sourceById = [];
         foreach ($sourceCategories as $category) {
-            $sourceIds[$category->getId()] = true;
+            $sourceById[$category->getId()] = $category;
         }
-        $retired = 0;
-        foreach ($this->entityManager->getRepository(Category::class)->findAll() as $category) {
-            if (isset($sourceIds[$category->getId()])) {
-                continue;
+
+        $connection = $this->entityManager->getConnection();
+        $connection->beginTransaction();
+        try {
+            $this->batchPersistence->save($this->entityManager, $sourceCategories);
+
+            // Category IDs are accounting classifications, not fiscal receipt IDs.
+            // Migrate references before removing a category retired at the source.
+            // Unknown retirements with references are blocked for manual review.
+            foreach ($this->entityManager->getRepository(Category::class)->findAll() as $category) {
+                $oldId = $category->getId();
+                if (isset($sourceById[$oldId])) {
+                    continue;
+                }
+
+                $newId = $oldId === 20 && isset($sourceById[19]) ? 19 : null;
+                if ($newId !== null) {
+                    foreach (['invoices', 'transactions'] as $table) {
+                        $connection->executeStatement(
+                            'UPDATE ' . $table . ' SET category_id = ?, category_name = ?, category_type = ? WHERE category_id = ?',
+                            [
+                                $newId,
+                                $sourceById[$newId]->getName(),
+                                $sourceById[$newId]->getType(),
+                                $oldId,
+                            ],
+                        );
+                    }
+                }
+
+                foreach (['invoices', 'transactions'] as $table) {
+                    $references = (int) $connection->fetchOne(
+                        'SELECT COUNT(*) FROM ' . $table . ' WHERE category_id = ?',
+                        [$oldId],
+                    );
+                    if ($references > 0) {
+                        throw new Exception(sprintf(
+                            'Cannot remove source-retired category %d: %d records in %s require reconciliation.',
+                            $oldId,
+                            $references,
+                            $table,
+                        ));
+                    }
+                }
+                $this->entityManager->remove($category);
             }
-            $metadata = $category->getMetadata();
-            if (($metadata['source_retired'] ?? false) === true) {
-                continue;
-            }
-            $category->setMetadata([...$metadata, 'source_retired' => true]);
-            ++$retired;
-        }
-        if ($retired > 0) {
+
             $this->entityManager->flush();
-            $this->logger->info('Categorias antigas preservadas somente para histórico: {total}', [
-                'total' => $retired,
-            ]);
+            $connection->commit();
+        } catch (\Throwable $exception) {
+            $connection->rollBack();
+            throw $exception;
         }
+
         $this->categoryHierarchy = null;
         return $this;
     }
@@ -143,11 +174,7 @@ class Categories
         if (!empty($this->list)) {
             return $this->list;
         }
-        $stored = $this->entityManager->getRepository(Category::class)->findAll();
-        $this->list = array_values(array_filter(
-            $stored,
-            static fn (Category $category): bool => ($category->getMetadata()['source_retired'] ?? false) !== true
-        ));
+        $this->list = $this->entityManager->getRepository(Category::class)->findAll();
         if (empty($this->list)) {
             throw new Exception('Sem categorias');
         }
