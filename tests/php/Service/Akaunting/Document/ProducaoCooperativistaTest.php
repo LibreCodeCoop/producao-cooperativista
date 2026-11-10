@@ -281,6 +281,46 @@ final class ProducaoCooperativistaTest extends TestCase
         $this->assertEqualsWithDelta(20.0, $b->getValues()->getAdiantamento()[0]['amount'], 0.001);
     }
 
+    public function testAdvancesRespectFinancialMonthAndArchivedFlag(): void
+    {
+        $categoryId = (int) getenv('AKAUNTING_ADIANTAMENTO_CATEGORY_ID');
+        foreach ([
+            ['id' => 1111, 'amount' => 70.0, 'month' => '2026-05', 'archive' => 0],
+            ['id' => 1112, 'amount' => 8000.0, 'month' => '2026-05', 'archive' => 1],
+            ['id' => 1113, 'amount' => 200.0, 'month' => '2026-06', 'archive' => 0],
+            ['id' => 1114, 'amount' => 150.0, 'month' => '2026-04', 'archive' => 0],
+        ] as $advance) {
+            $this->persistBill(
+                id: $advance['id'],
+                amount: $advance['amount'],
+                notes: 'Adiantamento',
+                categoryId: $categoryId,
+                categoryName: 'Cooperado > Produção > Adiantamento',
+                itemDescription: 'Adiantamento de teste',
+                contactName: 'Cooperado de teste'
+            );
+            $this->entityManager->getConnection()->executeStatement(
+                'UPDATE invoices SET tax_number = :cpf, transaction_of_month = :month, archive = :archive WHERE id = :id',
+                [
+                    'cpf' => self::COOPERADO_CPF,
+                    'month' => $advance['month'],
+                    'archive' => $advance['archive'],
+                    'id' => $advance['id'],
+                ]
+            );
+        }
+
+        $document = $this->createDocumentForCooperado('A', self::COOPERADO_CPF);
+        $advances = $document->getAdiantamentosParaCooperados([self::COOPERADO_CPF]);
+
+        $this->assertCount(1, $advances[self::COOPERADO_CPF]);
+        $this->assertSame('BILL-1111', $advances[self::COOPERADO_CPF][0]['document_number']);
+        $this->assertEqualsWithDelta(70.0, (float) $advances[self::COOPERADO_CPF][0]['amount'], 0.001);
+
+        $document->atualizaAdiantamentos($advances[self::COOPERADO_CPF]);
+        $this->assertCount(1, $document->getValues()->getAdiantamento());
+    }
+
     private function createDocumentForCooperado(string $name, string $taxNumber): ProducaoCooperativista
     {
         $cooperado = new Cooperado(

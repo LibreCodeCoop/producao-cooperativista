@@ -511,7 +511,8 @@ class ProducaoCooperativista extends ADocument
                 'i.tax_number',
                 $select->createNamedParameter($taxNumbers, \Doctrine\DBAL\ArrayParameterType::STRING)
             ))
-            ->andWhere($select->expr()->gte(
+            ->andWhere($select->expr()->eq('i.archive', $select->createNamedParameter(0, ParameterType::INTEGER)))
+            ->andWhere($select->expr()->eq(
                 'i.transaction_of_month',
                 $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))
             ));
