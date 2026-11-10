@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\Akaunting\Document;
 
+use App\Entity\Producao\Invoice;
 use App\Helper\Dates;
 use App\Provider\Akaunting\Request;
 use App\Service\Akaunting\DocumentConfiguration;
@@ -77,6 +78,41 @@ final class ProductionBillHttpContractTest extends KernelTestCase
         $member->setAkauntingContactId(100);
         $member->getProducaoCooperativista()->getValues()->setBaseProducao(2000);
         return $member;
+    }
+
+    public function testPreviewOfExistingDraftDoesNotReadOrWriteRemoteAkaunting(): void
+    {
+        $draft = new Invoice();
+        $draft->fromArray([
+            'id' => 994902,
+            'type' => 'bill',
+            'issued_at' => '2026-08-01 00:00:00',
+            'due_at' => '2026-08-04 00:00:00',
+            'transaction_of_month' => '2026-08',
+            'amount' => 100,
+            'currency_code' => 'BRL',
+            'document_number' => 'PDC_12345678000190-2026-08',
+            'tax_number' => '12345678000190',
+            'contact_id' => 100,
+            'contact_name' => 'Cooperativa Prestadora Exemplo',
+            'contact_type' => 'vendor',
+            'category_id' => 44,
+            'category_name' => 'Produção',
+            'category_type' => 'expense',
+            'metadata' => ['status' => 'draft'],
+        ]);
+        $this->em->persist($draft);
+        $this->em->flush();
+        $database = $this->em->getConnection();
+        $before = $database->fetchAssociative('SELECT * FROM invoices WHERE id = 994902');
+
+        $http = new MockHttpClient(static function (): never {
+            throw new \LogicException('A read-only preview must not query Akaunting');
+        });
+        $member = $this->member(new Request(new NullLogger(), $http));
+        self::assertSame(2000.0, $member->getProducaoCooperativista()->getValues()->getBaseProducao());
+        self::assertSame($before, $database->fetchAssociative('SELECT * FROM invoices WHERE id = 994902'));
+        $database->executeStatement('DELETE FROM invoices WHERE id = 994902');
     }
 
     public function testProductionBillIsSentAndPersistedWithBusinessCorrectFields(): void

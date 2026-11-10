@@ -114,7 +114,9 @@ class ProducaoCooperativista extends ADocument
         } catch (UnexpectedValueException) {
             $this->changeDueAt($this->dates->getDataPagamento());
         }
-        return parent::setUp();
+        // A preview must only read the imported snapshot. Reconcile with Akaunting
+        // when save() explicitly prepares a document for publication.
+        return $this;
     }
 
     /**

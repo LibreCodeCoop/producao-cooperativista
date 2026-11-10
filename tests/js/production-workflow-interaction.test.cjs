@@ -26,7 +26,8 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
     publishSuccess = true, gridSuccess = true, withdrawalGoal = null,
     importError = 'Falha na importação', initialWorkData = true,
     initialStagingData = true, pendingWrite = null, pendingInvoiceCount = 0,
-    unclassifiedIncomeCount = 0, unclassifiedIncomeAmount = 0} = {}) {
+    unclassifiedIncomeCount = 0, unclassifiedIncomeAmount = 0,
+    mismatchedPreview = false} = {}) {
     const items = new Map();
     for (const id of ['production-wizard','form-gera-producao','messages',
         'import-button','use-existing','import-availability-status',
@@ -108,9 +109,9 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
     ]);
     const rows = [
         {kimai_user_id: 5, name: 'Pessoa A', peso: 1.5,
-            base_producao: 100.3200001, liquido: 75.23, hours_seconds: 7200},
+            base_producao: 100.3200001, bruto: 130.45, liquido: 75.23, hours_seconds: 7200},
         {kimai_user_id: 8, name: 'Pessoa B', peso: 2,
-            base_producao: 50.15, liquido: 32.12, hours_seconds: 3600},
+            base_producao: 50.15, bruto: 60.23, liquido: 32.12, hours_seconds: 3600},
     ];
     const revision = 'c'.repeat(64);
     const reportTable = {
@@ -168,9 +169,12 @@ function fixture({previewError = false, economicFailure = false, malformed = fal
                         malformed ? {metadata:{competence:'2026-07'},data:rows} :
                             {metadata:{competence:'2026-08',revision,
                                 withdrawal_goal:withdrawalGoal,
-                                forecast_only:true,pending_invoice_count:pendingInvoiceCount,
+                                forecast_only:true,payment_confirmed:false,
+                                pending_invoice_count:pendingInvoiceCount,
                                 unclassified_income_count:unclassifiedIncomeCount,
-                                unclassified_income_amount:unclassifiedIncomeAmount},data:rows};
+                                unclassified_income_amount:unclassifiedIncomeAmount},
+                                data:mismatchedPreview ? rows.map((row,i) => i === 1
+                                    ? {...row,kimai_user_id:99} : row) : rows};
                 },
             };
         },
@@ -316,8 +320,8 @@ test('import and review are the only two stages, with a sortable shared grid', a
     await f.preview();
     assert.equal(f.step(),2);
     assert.equal(f.indicators[1].disabled,false);
-    assert.equal(f.calls.fetch.length,2,'Source inspection and financial preview are independent');
-    assert.equal(f.calls.mount.length,1);
+    assert.equal(f.calls.fetch.length,3,'Read-only review and explicit publication preview use the same financial API');
+    assert.equal(f.calls.mount.length,2);
     assert.equal(f.calls.mount[0].payload.data.length,2);
     assert.equal(f.calls.mount[0].omitted.size,0);
     assert.equal(f.get('metric-members').textContent,'2');
@@ -480,15 +484,51 @@ test('failed import offers an exact, readable correction link and hides it for n
         'Do not send operators to edit a profile for an unrelated network failure.');
 });
 
+test('imported review renders the canonical forecast rows without authorizing publication', async () => {
+    const f = fixture();
+    await f.click('use-existing');
+
+    assert.deepEqual(f.calls.fetch.map(call => call.url), [
+        '/api/v1/producao/fontes?ano-mes=2026-08',
+        '/api/v1/producao?ano-mes=2026-08',
+    ]);
+    assert.equal(f.calls.mount.length, 1);
+    assert.equal(f.calls.sourceMount.length, 0);
+    assert.equal(f.calls.mount[0].sourceOnly, false);
+    assert.deepEqual(f.calls.mount[0].payload.data, f.rows);
+    assert.equal(f.calls.mount[0].payload.data[0].bruto, 130.45);
+    assert.match(f.get('metric-base').textContent, /150,47/);
+    assert.match(f.get('metric-net').textContent, /107,35/);
+    assert.equal(f.get('source-financial-status').hidden, true);
+    assert.equal(f.get('production-publication-controls').hidden, true);
+    f.setConsent(true);
+    assert.equal(f.get('submit').disabled, true);
+    await f.click('submit');
+    assert.equal(f.calls.submit.length, 0);
+});
+
+test('a missing calculated member cannot be silently hidden in the imported review', async () => {
+    const f = fixture({mismatchedPreview:true});
+    await f.click('use-existing');
+
+    assert.equal(f.step(), 2);
+    assert.equal(f.calls.mount.length, 0);
+    assert.equal(f.calls.sourceMount.length, 1);
+    assert.equal(f.calls.sourceMount[0].sourceOnly, true);
+    assert.match(f.get('source-financial-status').textContent, /não corresponde aos cooperados/);
+    assert.ok(f.calls.sourceMount[0].payload.data.every(row => row.bruto === null));
+    assert.equal(f.get('submit').disabled, true);
+});
+
 test('source inspection opens directly without the financial error or a page jump', async () => {
     const f=fixture({previewError:true,economicFailure:true});
     await f.click('use-existing');
     assert.equal(f.step(),2);
-    assert.equal(f.calls.fetch.length,1,'The financial API must not be called');
+    assert.equal(f.calls.fetch.length,2,'Unavailable financial data must fall back to imported records');
     assert.equal(f.calls.fetch[0].url,'/api/v1/producao/fontes?ano-mes=2026-08');
     assert.equal(f.calls.notices.length,0,'No warning at the bottom of the page');
     assert.equal(f.get('imported-data-review').scrolls.length,1,'Focus the requested audit section');
-    assert.equal(f.get('source-financial-status').hidden,true);
+    assert.equal(f.get('source-financial-status').hidden,false);
     assert.equal(f.get('imported-data-review').hidden,false);
     assert.equal(f.get('calculated-review').hidden,false,'The same member table remains visible');
     assert.equal(f.calls.sourceMount.length,1);
@@ -510,7 +550,7 @@ test('source inspection opens directly without the financial error or a page jum
 
     await f.click('calculate-financial-preview');
     assert.equal(f.step(),2,'Economic deficits may not hide the imported evidence');
-    assert.equal(f.calls.fetch.length,2,'The staged data can be reused for a financial error');
+    assert.equal(f.calls.fetch.length,3,'The staged data can be reused for a financial error');
     assert.equal(f.calls.sourceMount.length,1,'Do not reset the source table');
     assert.deepEqual([...f.calls.sourceMount[0].omitted],[8],
         'The decision survives an unavailable financial calculation');
@@ -532,10 +572,10 @@ test('source omission selections carry to calculated preview without authorizing
     const f=fixture();
     await f.click('use-existing');
     f.decide(8,true);
-    assert.equal(f.calls.mount.length,0);
+    assert.equal(f.calls.mount.length,1,'Read-only review already shows the calculated table');
     assert.equal(f.get('submit').disabled,true);
     await f.click('calculate-financial-preview');
-    assert.equal(f.calls.mount.length,1);
+    assert.equal(f.calls.mount.length,2);
     assert.equal(f.calls.mount[0].omitted.has(8),true,
         'Manual omissions must survive moving from source review to calculated preview');
     assert.match(f.get('selection-summary').textContent,/1 não publicados agora/);
@@ -554,7 +594,7 @@ test('successful source import shows audit state when finance cannot be calculat
     assert.equal(f.step(),2);
     assert.equal(f.get('import-status').dataset.state,'completed');
     assert.match(f.get('import-status-text').textContent,/Dados de origem disponíveis/);
-    assert.equal(f.calls.fetch.length,1,'Import cannot automatically calculate a blocked financial preview');
+    assert.equal(f.calls.fetch.length,2,'Import can attempt a read-only preview without publishing');
     assert.equal(f.calls.notices.length,0);
     assert.equal(f.get('submit').disabled,true);
 });
@@ -589,12 +629,12 @@ test('editing via member modal invalidates review and requires reimporting origi
     f.indicators[1].trigger('click');
     assert.equal(f.step(),1);
     await f.preview();
-    assert.equal(f.calls.fetch.length,2,'Cannot bypass reimport within this session');
+    assert.equal(f.calls.fetch.length,3,'Cannot bypass reimport within this session');
     await f.click('import-button');
     assert.equal(f.step(),2);
     assert.equal(f.get('use-existing').disabled,false);
     await f.click('calculate-financial-preview');
-    assert.equal(f.calls.destroy,1);
+    assert.equal(f.calls.destroy,3);
 });
 
 test('step buttons allow returning to import and review without re-fetching or retaining approval', async () => {
@@ -612,7 +652,7 @@ test('step buttons allow returning to import and review without re-fetching or r
     f.indicators[1].trigger('click');
     assert.equal(f.step(), 2);
     assert.deepEqual([...f.calls.mount[0].omitted], [8]);
-    assert.equal(f.calls.fetch.length, 2);
+    assert.equal(f.calls.fetch.length, 3);
     assert.equal(f.get('submit').disabled, true);
 });
 
@@ -624,7 +664,7 @@ test('returning to import and reviewing again resets decisions and approval', as
     f.indicators[0].trigger('click');
     assert.equal(f.step(),1);
     await f.preview();
-    assert.equal(f.calls.destroy,1);
+    assert.equal(f.calls.destroy,3);
     assert.equal(f.calls.mount.at(-1).omitted.size,0);
     assert.equal(f.get('publication-confirmation').checked,false);
     assert.equal(f.get('submit').disabled,true);

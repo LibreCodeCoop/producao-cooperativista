@@ -156,6 +156,12 @@
         return payload;
     }
 
+    function matchingPreviewRows(source, calculated) {
+        if (calculated.rows.length !== source.data.length) return false;
+        const durations = new Map(source.data.map(row => [Number(row.kimai_user_id), Number(row.hours_seconds)]));
+        return calculated.rows.every(row => durations.has(row.id) && durations.get(row.id) === row.seconds);
+    }
+
     function sourceReviewText(source) {
         const lines = [
             'Horas trabalhadas: ' + source.competence,
@@ -199,7 +205,7 @@
                 lines.push('  ' + item.label + ' · ' + money(item.amount));
             }
         }
-        lines.push('', 'Valores monetários por cooperado serão apresentados após o cálculo financeiro.');
+        lines.push('', 'Valores previstos por cooperado dependem da apuração financeira da mesma competência.');
         return lines.join('\n');
     }
 
@@ -473,12 +479,13 @@
         };
         doc.addEventListener?.('member-source-changed', weightChanged);
 
-        const showSourceReview = async (payload, financialProblem = null, reuseTable = false) => {
+        const showSourceReview = async (payload, financialProblem = null, reuseTable = false, calculated = null) => {
             if (!grid || typeof grid.initializeReportTable !== 'function') {
                 throw new Error('A tabela de cooperados não carregou. Recarregue a página.');
             }
             show(2);
-            if (!reuseTable || tableMode !== 'source' || !table) {
+            const desiredMode = calculated ? 'source-calculated' : 'source';
+            if (!reuseTable || tableMode !== desiredMode || !table) {
                 if (table?.destroy) table.destroy();
                 table = null;
                 tableMode = null;
@@ -487,7 +494,8 @@
                     reportTable.dataset.competencia = competence();
                 }
                 const mounted = await grid.initializeReportTable(doc, {
-                    ...options, payload, omitted, sourceOnly: true, financialReview: true,
+                    ...options, payload: calculated?.payload ?? payload, omitted,
+                    sourceOnly: !calculated, financialReview: true,
                     onDecisionChange: (id, checked) => {
                         if (!payload.data.some(row => row.kimai_user_id === id)) return;
                         if (checked) omitted.add(id);
@@ -498,7 +506,7 @@
                 });
                 if (!mounted) throw new Error('Não foi possível montar a tabela de cooperados.');
                 table = mounted;
-                tableMode = 'source';
+                tableMode = desiredMode;
             }
             sourceReview = payload;
             if (sourceReviewPanel) sourceReviewPanel.hidden = false;
@@ -523,8 +531,10 @@
             el('review-competence').textContent = competence();
             el('metric-members').textContent = String(payload.hours.members);
             el('metric-hours').textContent = hours(payload.hours.seconds);
-            el('metric-base').textContent = 'A apurar';
-            el('metric-net').textContent = 'A apurar';
+            el('metric-base').textContent = calculated
+                ? money(cents(calculated.rows, 'base') / 100) : 'A apurar';
+            el('metric-net').textContent = calculated
+                ? money(cents(calculated.rows, 'net') / 100) : 'A apurar';
             const issue = el('source-financial-status');
             if (issue) {
                 issue.hidden = !financialProblem;
@@ -539,9 +549,13 @@
                             ', não necessariamente um saldo em atraso. ' +
                             'Consulte a situação e o próximo passo no relatório de faturas. ' +
                             'A conferência das horas continua disponível.'
-                        : 'Não foi possível concluir o cálculo de retirada. Os dados importados ' +
-                            'permanecem disponíveis para conferência. Consulte o relatório de ' +
-                            'movimentações e os logs técnicos antes de tentar publicar.';
+                        : financialProblem.code === 'PREVIEW_INCONSISTENT'
+                            ? 'A prévia financeira não corresponde aos cooperados, horas ou valores ' +
+                                'dos dados importados. A tabela mostra apenas as fontes. ' +
+                                'Confira a competência e reimporte antes de publicar.'
+                            : 'Não foi possível concluir o cálculo de retirada. Os dados importados ' +
+                                'permanecem disponíveis para conferência. Consulte o relatório de ' +
+                                'movimentações e os logs técnicos antes de tentar publicar.';
             }
             invalidateApproval();
             syncNavigation();
@@ -550,13 +564,40 @@
         };
 
         const loadSourceReview = async financialProblem => {
-            const url = wizard.dataset.sourcesUrl + '?ano-mes=' + encodeURIComponent(competence());
-            const response = await request(url, {
+            const selected = competence();
+            const requestOptions = {
                 credentials: 'same-origin', headers: {Accept: 'application/json'}, cache: 'no-store',
-            });
-            if (!response.ok) throw new Error('Não foi possível consultar os lançamentos importados.');
-            const payload = validateSourceReview(await response.json(), competence());
-            await showSourceReview(payload, financialProblem);
+            };
+            const sourceResponse = await request(wizard.dataset.sourcesUrl + '?ano-mes=' +
+                encodeURIComponent(selected), requestOptions);
+            if (!sourceResponse.ok) throw new Error('Não foi possível consultar os lançamentos importados.');
+            const source = validateSourceReview(await sourceResponse.json(), selected);
+            let calculated = null;
+            if (!financialProblem) {
+                try {
+                    // Use the identical calculated payload rendered by the standalone report.
+                    const response = await request(wizard.dataset.previewUrl + '?ano-mes=' +
+                        encodeURIComponent(selected), requestOptions);
+                    if (response.ok) {
+                        const payload = await response.json();
+                        const valid = validatePreview(payload, selected);
+                        if (payload.metadata?.forecast_only !== true ||
+                            payload.metadata?.payment_confirmed !== false ||
+                            !matchingPreviewRows(source, valid) ||
+                            !payload.data.every(row => finiteNumber(row?.bruto) !== null)) {
+                            financialProblem = {code: 'PREVIEW_INCONSISTENT'};
+                        } else {
+                            calculated = {payload, rows: valid.rows};
+                        }
+                    } else {
+                        const problem = await response.json().catch(() => ({}));
+                        financialProblem = {code: problem?.code || 'PREVIEW_FAILED'};
+                    }
+                } catch {
+                    financialProblem = {code: 'PREVIEW_FAILED'};
+                }
+            }
+            await showSourceReview(source, financialProblem, false, calculated);
             return true;
         };
 
