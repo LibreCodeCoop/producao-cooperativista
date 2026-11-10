@@ -21,7 +21,7 @@ final class FieldStudioTest extends TestCase
         $result = [];
         foreach ([
             'transaction_of_month', 'discount_percentage', 'customer_cnpj',
-            'sector', 'archive', 'nfse',
+            'sector', 'archive', 'nfse', 'production_treatment',
         ] as $key) {
             $result[$key] = [
                 'is_set' => array_key_exists($key, $values),
@@ -104,6 +104,37 @@ final class FieldStudioTest extends TestCase
         new FieldStudio()->fromRecords('invoice', [[
             'id' => 91, 'type' => 'invoice', 'company_id' => 2,
             'field_studio' => self::fields(),
+        ]], 1);
+    }
+
+    public function testProductionTreatmentIsValidatedAndIndependentOfLegacyArchive(): void
+    {
+        $result = new FieldStudio()->fromRecords('invoice', [[
+            'id' => 90, 'type' => 'invoice', 'company_id' => 1,
+            'field_studio' => self::fields([
+                'archive' => '1', 'production_treatment' => 'incluir_pendente',
+            ]),
+        ]], 1);
+        self::assertSame('sim', $result[90]['archive']);
+        self::assertSame('incluir_pendente', $result[90]['production_treatment']);
+    }
+
+    public function testUiPortugueseOptionIsNormalizedToStableBusinessValue(): void
+    {
+        $result = new FieldStudio()->fromRecords('invoice', [[
+            'id' => 90, 'type' => 'invoice', 'company_id' => 1,
+            'field_studio' => self::fields(['production_treatment' => 'Incluir mesmo sem pagamento']),
+        ]], 1);
+        self::assertSame('incluir_pendente', $result[90]['production_treatment']);
+    }
+
+    public function testInvalidProductionTreatmentFailsClosed(): void
+    {
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Invalid production treatment');
+        new FieldStudio()->fromRecords('transaction', [[
+            'id' => 90, 'company_id' => 1,
+            'field_studio' => self::fields(['production_treatment' => 'unexpected']),
         ]], 1);
     }
 

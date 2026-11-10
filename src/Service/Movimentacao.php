@@ -30,6 +30,8 @@ use App\Helper\Dates;
 use App\Service\Akaunting\Source\Categories;
 use App\Service\Calculation\AdministrativeRate;
 use App\Service\Calculation\CustomerCostAllocator;
+use App\Service\Calculation\IncomeAppropriationLedger;
+use App\Service\Calculation\DecimalAllocation;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Psr\Log\LoggerInterface;
@@ -57,6 +59,7 @@ class Movimentacao
         public Dates $dates,
         private Categories $categories,
         private CustomerCostAllocator $customerCostAllocator,
+        private ?IncomeAppropriationLedger $appropriationLedger = null,
     ) {
     }
 
@@ -99,9 +102,9 @@ class Movimentacao
         if ($calcularProducao && !empty($this->movimentacao)) {
             return $this->movimentacao;
         }
-        $excludeForecastInvoices = $this->forecastMode
-            ? "AND (i.type <> 'invoice' OR i.category_type <> 'income')"
-            : '';
+        // An open invoice is never treated as received merely because it was issued.
+        $excludeForecastInvoices = "AND (i.type <> 'invoice' OR i.category_type <> 'income'
+            OR JSON_UNQUOTE(JSON_EXTRACT(i.metadata, '$.status')) = 'paid')";
         $sql = <<<SQL
             SELECT 'transaction' AS `table`,
                 t.id,
@@ -217,10 +220,9 @@ class Movimentacao
                 $excludeForecastInvoices
             SQL;
 
-        if ($this->forecastMode) {
-            // Project only the part of a customer's invoice not received in
-            // this financial month. Receipts in later months do not erase the
-            // earlier forecast, and partial payments are never counted twice.
+        // Only individually authorized receivables enter a publishable forecast.
+        // The same query runs for preview and publication to prevent drift.
+        {
             $sql .= <<<'SQL'
 
             UNION ALL
@@ -269,6 +271,8 @@ class Movimentacao
                 AND i.type = 'invoice'
                 AND i.category_type = 'income'
                 AND i.archive = 0
+                AND JSON_UNQUOTE(JSON_EXTRACT(i.metadata, '$.production_treatment')) = 'incluir_pendente'
+                AND JSON_UNQUOTE(JSON_EXTRACT(i.metadata, '$.status')) NOT IN ('paid', 'cancelled', 'canceled', 'void', 'deleted')
                 AND i.amount - COALESCE(receipts.paid_amount, 0) > 0.000001
             SQL;
         }
@@ -279,7 +283,25 @@ class Movimentacao
         $sourceKeys = [];
         $errors = [];
         $ignoredUnpaidInvoices = [];
+        $allocatedInThisRun = [];
         while ($row = $stmt->fetchAssociative()) {
+            // The appropriation journal has precedence over payment dates and imported months.
+            // Later bank payments for a fully allocated invoice are not new production.
+            if ($this->appropriationLedger !== null) {
+                $identity = IncomeAppropriationLedger::identity($row);
+                $key = $identity !== null ? $identity['type'] . ':' . $identity['id'] : null;
+                $row = $this->appropriationLedger->remaining(
+                    $row,
+                    $key !== null ? ($allocatedInThisRun[$key] ?? 0) : 0,
+                );
+                if ($row === null) {
+                    continue;
+                }
+                if ($key !== null) {
+                    $allocatedInThisRun[$key] = ($allocatedInThisRun[$key] ?? 0)
+                        + DecimalAllocation::cents((float) $row['amount']);
+                }
+            }
             // Canceled documents are not expected revenue even in forecasts.
             // Drafts, sent and unconfirmed paid invoices remain visible only
             // in forecast mode, not as evidence of collected cash.
@@ -298,8 +320,17 @@ class Movimentacao
                     continue;
                 }
             }
+            $isStandaloneGeneralIncome = $row['table'] === 'transaction'
+                && $row['type'] === 'income'
+                && $row['category_type'] === 'income'
+                && (empty($row['customer_reference'])
+                    || !$this->isCustomerReferenceRequired($row));
+            if ($isStandaloneGeneralIncome) {
+                $row['general_income'] = true;
+            }
             if (
-                $this->isCustomerReferenceRequired($row)
+                !$isStandaloneGeneralIncome
+                && $this->isCustomerReferenceRequired($row)
                 && (empty($row['customer_reference']) || !preg_match('/^\d+(\|\S+)?$/', $row['customer_reference']))
             ) {
                 if ($this->forecastMode && $row['type'] === 'income'
@@ -477,6 +508,7 @@ class Movimentacao
         $entradasClientes = array_filter(
             $this->getEntradas(),
             fn (array $row): bool => in_array($row['category_id'], $categoriasEntradasClientes)
+                && ($row['general_income'] ?? false) !== true
                 && ($row['forecast_unclassified_income'] ?? false) !== true
         );
         if (is_bool($percentualDescontoFixo)) {
@@ -487,6 +519,33 @@ class Movimentacao
             );
         }
         return $entradasClientes;
+    }
+
+    /**
+     * Cash income without a contract client is allocated across general weighted work.
+     * Capital contributions are not economic income for distribution.
+     *
+     * @return array<int|string, array<string, mixed>>
+     */
+    public function getEntradasGerais(): array
+    {
+        $capitalCategory = (int) getenv('AKAUNTING_CAPITAL_SOCIAL_CATEGORY_ID');
+        if ($capitalCategory <= 0) {
+            throw new \DomainException('Configure a categoria de capital social antes de apurar receitas gerais.');
+        }
+        $capitalCategories = $this->categories->getChildrensCategories($capitalCategory);
+        $capitalCategories[] = $capitalCategory;
+        return array_filter(
+            $this->getEntradas(),
+            static fn (array $row): bool => ($row['general_income'] ?? false) === true
+                && !in_array((int) $row['category_id'], $capitalCategories, true)
+        );
+    }
+
+    /** @return array<int|string, array<string, mixed>> */
+    public function getEntradasDistribuiveis(): array
+    {
+        return $this->getEntradasClientes() + $this->getEntradasGerais();
     }
 
     public function getTotalBrutoNotasClientes(): float
@@ -501,7 +560,7 @@ class Movimentacao
 
     public function getBaseProducao(): float
     {
-        $baseProducao = array_sum(array_column($this->getEntradasClientes(), 'base_producao'));
+        $baseProducao = array_sum(array_column($this->getEntradasDistribuiveis(), 'base_producao'));
         return $baseProducao;
     }
 
@@ -586,7 +645,7 @@ class Movimentacao
 
     public function totalNotasPercentualMovel(): float
     {
-        $entradasClientes = $this->getEntradasClientes();
+        $entradasClientes = $this->getEntradasDistribuiveis();
         // Remove as notas que tem percentual administrativo fixo
         $entradasComPercentualMovel = array_filter($entradasClientes, fn ($i) => $i['percentual_desconto_fixo'] === false);
         // Soma todas as notas sem perecentual administrativo fixo
@@ -765,7 +824,7 @@ class Movimentacao
             return $this->totalNotasClientes;
         }
 
-        $this->totalNotasClientes = array_reduce($this->getEntradasClientes(), fn ($total, $i) => $total + $i['amount'], 0);
+        $this->totalNotasClientes = array_reduce($this->getEntradasDistribuiveis(), fn ($total, $i) => $total + $i['amount'], 0);
         return $this->totalNotasClientes;
     }
 
@@ -787,7 +846,7 @@ class Movimentacao
 
     private function calculaBaseProducao(): self
     {
-        $entradasClientes = $this->getEntradasClientes();
+        $entradasClientes = $this->getEntradasDistribuiveis();
 
         if (count($entradasClientes)) {
             $current = current($entradasClientes);
@@ -798,7 +857,8 @@ class Movimentacao
 
         $percentualAdministrativo = $this->percentualAdministrativo();
         $custosPorCliente = $this->getCustosPorCliente();
-        $custosAlocados = $this->customerCostAllocator->allocate($entradasClientes, $custosPorCliente);
+        $clientRows = array_filter($entradasClientes, static fn (array $row): bool => ($row['general_income'] ?? false) !== true);
+        $custosAlocados = $this->customerCostAllocator->allocate($clientRows, $custosPorCliente);
 
         foreach ($entradasClientes as $key => $row) {
             $base = (float) $row['amount'] - ($custosAlocados[$key] ?? 0.0);

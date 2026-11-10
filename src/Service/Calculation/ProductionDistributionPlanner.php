@@ -35,11 +35,19 @@ final readonly class ProductionDistributionPlanner
         $fixed = [];
         $fixedAmount = 0.0;
         $variableAmount = 0.0;
+        $generalAmount = 0.0;
         foreach ($incomes as $income) {
             $customer = (string) ($income['customer_reference'] ?? '');
             $value = $income['base_producao'] ?? null;
-            if ($customer === '' || !is_numeric($value) || !is_finite((float) $value) || (float) $value < 0) {
+            $general = ($income['general_income'] ?? false) === true;
+            if (($customer === '' && !$general)
+                || ($general && ($income['percentual_desconto_fixo'] ?? false) === true)
+                || !is_numeric($value) || !is_finite((float) $value) || (float) $value < 0) {
                 throw new DomainException('Receita elegível com cliente ausente ou valor inválido. Confira a apuração da competência.');
+            }
+            if ($general) {
+                $generalAmount += (float) $value;
+                continue;
             }
             if (($income['percentual_desconto_fixo'] ?? false) === true) {
                 $fixedCustomers[$customer] = true;
@@ -92,12 +100,24 @@ final readonly class ProductionDistributionPlanner
             $amounts[$member] = ($amounts[$member] ?? 0) + $amount;
         }
 
+        if ($generalAmount > 0) {
+            // Every cooperator's weighted work participates, even those on fixed-discount contracts.
+            // General sponsorship does not inherit a customer's budget/underwork cap.
+            $generalWeights = $this->allocator->weightsFromRows($work, 'Receita geral');
+            foreach ($this->allocator->allocate($generalAmount, $generalWeights, 'Receita geral') as $member => $amount) {
+                $amounts[$member] = ($amounts[$member] ?? 0) + $amount;
+            }
+            // These are the same worked hours, not an additional set of hours.
+            // Reuse general weights for surplus allocation without counting work twice.
+            $variableWeights = $generalWeights;
+        }
+
         return new ProductionDistributionPlan(
             $amounts,
             $variableWeights,
             $fixedAmount,
-            $variableAmount,
-            $toDistribute,
+            $variableAmount + $generalAmount,
+            $toDistribute + $generalAmount,
         );
     }
 }

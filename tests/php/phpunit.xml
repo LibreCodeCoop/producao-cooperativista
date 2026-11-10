@@ -14,6 +14,8 @@
     <env name="DATABASE_URL" value="pdo-mysql://root:root@mysql/report" />
     <env name="DATABASE_AKAUNTING_URL" value="pdo-mysql://root:root@akaunting.mysql/akaunting" />
     <env name="AKAUNTING_COMPANY_ID" value="1" />
+    <env name="AKAUNTING_CAPITAL_SOCIAL_CATEGORY_ID" value="25" />
+    <env name="AKAUNTING_CAPITAL_SOCIAL_ITEM_ID" value="11" />
     <env name="AKAUNTING_FRRA_MES_PADRAO" value="12" />
     <env name="AKAUNTING_RESGATE_SALDO_IRPF_MES_PADRAO" value="12" />
     <env name="AKAUNTING_DISTRIBUICAO_SOBRAS_CATEGORY_ID" value="35" />

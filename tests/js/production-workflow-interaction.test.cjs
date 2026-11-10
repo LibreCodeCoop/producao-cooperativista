@@ -334,17 +334,18 @@ test('import and review are the only two stages, with a sortable shared grid', a
     ]);
 });
 
-test('unconfirmed customer invoices allow a forecast but block financial publication', async () => {
+test('unconfirmed invoices are informational: preview and server approve only selected receivables', async () => {
     const f=fixture({pendingInvoiceCount:3});
     await f.preview();
     assert.equal(f.step(),2);
     assert.match(f.get('metric-net').textContent,/107,35/);
     assert.match(f.get('publication-summary').textContent,/3 fatura\(s\)/);
+    assert.match(f.get('publication-summary').textContent,/Somente faturas marcadas explicitamente/);
     assert.equal(f.get('pending-invoices-link').hidden,false);
     assert.match(f.get('pending-invoices-link').href,/faturas-conferencia/);
     f.setConsent(true);
-    assert.equal(f.get('submit').disabled,true);
-    await f.click('submit');
+    assert.equal(f.get('submit').disabled,false);
+    // The backend recalculates from paid receipts plus invoices explicitly marked by the user.
     assert.equal(f.calls.submit.length,0);
 });
 

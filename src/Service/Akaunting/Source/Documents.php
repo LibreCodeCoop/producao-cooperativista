@@ -224,7 +224,11 @@ class Documents
 
     private function convertFields(array $row): array
     {
-        $row['archive'] = strtolower($row['archive'] ?? 'não') === 'sim' ? 1 : 0;
+        // The single selector overrides the former boolean; old records keep their archived state.
+        $decision = (string) ($row['production_treatment'] ?? '');
+        $row['archive'] = $decision !== ''
+            ? (int) ($decision === 'ignorar')
+            : (int) (strtolower($row['archive'] ?? 'não') === 'sim');
         $row['category_name'] = $row['category']['name'];
         $row['category_type'] = $row['category']['type'];
         $row['contact_name'] = $row['contact']['name'];

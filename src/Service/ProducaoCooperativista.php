@@ -30,6 +30,7 @@ use App\Helper\Colors;
 use App\Helper\Dates;
 use App\Provider\Akaunting\Request;
 use App\Service\Calculation\CustomerCostAllocator;
+use App\Service\Calculation\IncomeAppropriationLedger;
 use App\Service\Calculation\WeightedAllocator;
 use App\Service\Calculation\ProductionDistributionPlanner;
 use App\Service\Import\SourcePipeline;
@@ -72,6 +73,7 @@ class ProducaoCooperativista
         private ProfileRegistry $profiles,
         private PublicationRouter $publisher,
         private CapitalSocial $capitalSocialSource,
+        private ?IncomeAppropriationLedger $appropriationLedger = null,
     ) {
     }
 
@@ -451,7 +453,7 @@ class ProducaoCooperativista
     /**
      * @param array<string, Cooperado>|null $included Validated review selection; null means full CLI publication.
      */
-    public function updateProducao(?array $included = null): void
+    public function updateProducao(?array $included = null, string $revision = ''): void
     {
         if ($this->movimentacao->isForecastMode()) {
             throw new \LogicException(
@@ -468,7 +470,20 @@ class ProducaoCooperativista
                 static fn (array $row): bool => isset($members[(string) ($row['tax_number'] ?? '')]),
             ));
         }
+        // Reserve every underlying source before remote Akaunting writes.
+        // An ambiguous write intentionally leaves a reservation for manual reconciliation.
+        if ($this->appropriationLedger !== null) {
+            $this->appropriationLedger->reserve(
+                $this->movimentacao->getEntradasDistribuiveis(),
+                $this->dates->getInicio()->format('Y-m'),
+                $revision,
+            );
+        }
         $this->publisher->publish($members, $work);
+        $this->appropriationLedger?->confirm(
+            $this->dates->getInicio()->format('Y-m'),
+            $revision,
+        );
     }
 
     /**
@@ -566,7 +581,7 @@ class ProducaoCooperativista
         }
 
         $plan = $this->distributionPlanner->plan(
-            $this->movimentacao->getEntradasClientes(),
+            $this->movimentacao->getEntradasDistribuiveis(),
             $this->getTrabalhadoPorCliente(),
         );
         foreach ($plan->variableWeights as $taxNumber => $weight) {

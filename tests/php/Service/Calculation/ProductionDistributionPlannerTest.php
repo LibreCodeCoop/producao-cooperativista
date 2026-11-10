@@ -63,6 +63,30 @@ final class ProductionDistributionPlannerTest extends TestCase
         self::assertSame(['alice' => 4000.0, 'bob' => 2000.0], $result->variableWeights);
     }
 
+    public function testGeneralSponsorshipIsSharedAcrossAllWeightedWorkIncludingFixedContract(): void
+    {
+        $incomes = [
+            ['customer_reference' => 'client-a', 'base_producao' => 100, 'percentual_desconto_fixo' => true],
+            ['customer_reference' => '', 'general_income' => true, 'base_producao' => 300, 'percentual_desconto_fixo' => false],
+        ];
+        $work = [
+            $this->work('client-a', 'alice', 3600, 2, 3600),
+            $this->work('client-a', 'bob', 3600, 1, 3600),
+        ];
+        $plan = $this->planner->plan($incomes, $work);
+        self::assertEqualsWithDelta(400.0, array_sum($plan->amounts), 0.001);
+        self::assertEqualsWithDelta(266.67, $plan->amounts['alice'], 0.001);
+        self::assertEqualsWithDelta(133.33, $plan->amounts['bob'], 0.001);
+    }
+
+    public function testGeneralIncomeCannotImpersonateFixedDiscountCustomer(): void
+    {
+        $this->expectException(DomainException::class);
+        $this->planner->plan([
+            ['customer_reference' => '', 'general_income' => true, 'base_producao' => 100, 'percentual_desconto_fixo' => true],
+        ], [$this->work('client-a', 'alice', 3600, 1, 3600)]);
+    }
+
     public function testReplayingIdenticalInputAndDifferentOrderingProducesSameValues(): void
     {
         $incomes = [

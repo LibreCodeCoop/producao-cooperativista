@@ -19,7 +19,7 @@ class FieldStudio
 {
     private const array FIELDS = [
         'transaction_of_month', 'discount_percentage', 'customer_cnpj',
-        'sector', 'archive', 'nfse',
+        'sector', 'archive', 'nfse', 'production_treatment',
     ];
 
     /**
@@ -43,6 +43,9 @@ class FieldStudio
                 throw new DomainException(sprintf('Missing Field Studio API data for %s #%d.', $type, $id));
             }
             foreach (self::FIELDS as $key) {
+                if ($key === 'production_treatment' && !isset($fields[$key])) {
+                    continue;
+                }
                 if (!isset($fields[$key]) || !is_array($fields[$key])
                     || !array_key_exists('is_set', $fields[$key])) {
                     throw new DomainException(sprintf('Field Studio schema incomplete: %s on %s.', $key, $type));
@@ -62,9 +65,9 @@ class FieldStudio
         $values = [];
         foreach ([
             'transaction_of_month', 'discount_percentage', 'customer_cnpj',
-            'sector', 'archive', 'nfse',
+            'sector', 'archive', 'nfse', 'production_treatment',
         ] as $key) {
-            $field = $fields[$key];
+            $field = $fields[$key] ?? ['is_set' => false];
             if (($field['is_set'] ?? false) !== true) {
                 continue;
             }
@@ -103,6 +106,20 @@ class FieldStudio
                         throw new DomainException('Invalid structured archive flag.');
                     }
                     $values['archive'] = $value === '1' ? 'sim' : 'nao';
+                    break;
+                case 'production_treatment':
+                    $options = [
+                        'automatico' => 'automatico',
+                        'incluir_pendente' => 'incluir_pendente',
+                        'ignorar' => 'ignorar',
+                        'Automático (quando recebido)' => 'automatico',
+                        'Incluir mesmo sem pagamento' => 'incluir_pendente',
+                        'Ignorar na produção' => 'ignorar',
+                    ];
+                    if (!isset($options[$value])) {
+                        throw new DomainException('Invalid production treatment selection.');
+                    }
+                    $values['production_treatment'] = $options[$value];
                     break;
                 case 'nfse':
                     if (!preg_match('/^[0-9]+$/D', $value)) {

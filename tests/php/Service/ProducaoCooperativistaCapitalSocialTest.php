@@ -21,9 +21,11 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
 {
     private Connection $connection;
+    private string|false $originalCompanyId;
 
     protected function setUp(): void
     {
+        $this->originalCompanyId = getenv('AKAUNTING_COMPANY_ID');
         putenv('AKAUNTING_COMPANY_ID=1');
         self::bootKernel();
         $this->connection = static::getContainer()->get('doctrine.dbal.akaunting_connection');
@@ -47,7 +49,9 @@ final class ProducaoCooperativistaCapitalSocialTest extends KernelTestCase
         foreach (['document_items', 'documents', 'transactions', 'contacts', 'categories'] as $table) {
             $this->connection->executeStatement('DROP TABLE IF EXISTS ' . $table);
         }
-        putenv('AKAUNTING_COMPANY_ID');
+        putenv($this->originalCompanyId === false
+            ? 'AKAUNTING_COMPANY_ID'
+            : 'AKAUNTING_COMPANY_ID=' . $this->originalCompanyId);
         parent::tearDown();
     }
 

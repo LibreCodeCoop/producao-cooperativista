@@ -82,7 +82,9 @@ class Producao extends AbstractController
             $this->movimentacao->setForecastMode(true);
             $list = $this->producao->getProducaoCooperativista();
             $trabalhadoPorCliente = $this->producao->getTrabalhadoPorCliente();
-            $snapshot = $this->selection->snapshot($list, $inicio->format('Y-m'));
+            $snapshot = $this->selection->snapshot(
+                $list, $inicio->format('Y-m'), $this->movimentacao->getEntradasDistribuiveis(),
+            );
             $output = [];
             foreach ($list as $cooperado) {
                 $array = $cooperado->getProducaoCooperativista()->getValues()->toArray();
@@ -139,6 +141,10 @@ class Producao extends AbstractController
             }
 
             $unclassifiedIncome = $this->movimentacao->getUnclassifiedForecastIncome();
+            $approvedPending = array_filter(
+                $this->movimentacao->getEntradasDistribuiveis(),
+                static fn (array $row): bool => ($row['table'] ?? '') === 'invoice_forecast',
+            );
 
             $response = [
                 'data' => array_values($output),
@@ -150,6 +156,8 @@ class Producao extends AbstractController
                     'forecast_only' => true,
                     'payment_confirmed' => false,
                     'pending_invoice_count' => $pendingInvoices,
+                    'approved_pending_invoice_count' => count($approvedPending),
+                    'general_income_count' => count($this->movimentacao->getEntradasGerais()),
                     'unclassified_income_count' => $unclassifiedIncome['count'],
                     'unclassified_income_amount' => $unclassifiedIncome['amount'],
                     'date' => $this->producao->dates->getInicioProximoMes()->format('Y-m')

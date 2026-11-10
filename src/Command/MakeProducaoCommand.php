@@ -220,10 +220,26 @@ class MakeProducaoCommand extends AbstractBaseCommand
             $this->producaoCooperativista->getProducaoCooperativista();
 
             if ($input->getOption('atualiza-producao')) {
+                // Income appropriation is source-wide. Do not mark a source as fully
+                // allocated when some cooperators' bills are deliberately withheld.
+                if ($excluded !== '') {
+                    foreach ($this->movimentacao->getEntradasDistribuiveis() as $income) {
+                        if (($income['table'] ?? '') === 'invoice_forecast'
+                            || ($income['general_income'] ?? false) === true) {
+                            throw new \DomainException(
+                                'Receitas antecipadas ou gerais exigem publicação integral dos cooperados. '
+                                . 'Desmarque as exclusões ou revise a apropriação antes de publicar.'
+                            );
+                        }
+                    }
+                }
                 $phase = 'validação da seleção de cooperados';
                 $revision = trim((string) ($input->getOption('expected-revision') ?? ''));
+                if ($revision === '') {
+                    throw new \DomainException('Publicação exige prévia conferida e revisão financeira válida.');
+                }
                 $included = null;
-                if ($revision !== '') {
+                {
                     if ($this->publicationSelection === null) {
                         throw new \RuntimeException('Serviço de conferência financeira indisponível.');
                     }
@@ -234,11 +250,12 @@ class MakeProducaoCommand extends AbstractBaseCommand
                         $inicio->format('Y-m'),
                         $revision,
                         $excludedIds,
+                        $this->movimentacao->getEntradasDistribuiveis(),
                     );
                 }
                 $phase = 'gravação dos documentos no Akaunting';
                 $this->reportPhase('Gravando documentos no Akaunting.');
-                $this->producaoCooperativista->updateProducao($included);
+                $this->producaoCooperativista->updateProducao($included, $revision);
             }
 
             if ($input->getOption('csv')) {

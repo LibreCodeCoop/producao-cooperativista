@@ -672,7 +672,7 @@ final class MovimentacaoTest extends TestCase
                 'category_name' => 'Serviço',
                 'category_type' => 'income',
                 'archive' => 0,
-                'metadata' => ['status' => $status, 'items' => ['data' => [['price' => $amount]]]],
+                'metadata' => ['status' => $status, 'production_treatment' => in_array($id, [731, 732], true) ? 'incluir_pendente' : 'automatico', 'items' => ['data' => [['price' => $amount]]]],
             ]);
             $this->entityManager->persist($invoice);
         }
@@ -711,22 +711,22 @@ final class MovimentacaoTest extends TestCase
 
         $this->movimentacao->setForecastMode(true);
         $forecast = $this->movimentacao->getEntradasClientes();
-        self::assertEqualsWithDelta(450.0, array_sum(array_column($forecast, 'amount')), 0.001);
-        self::assertEqualsWithDelta(400.0, array_sum(array_column(
+        self::assertEqualsWithDelta(350.0, array_sum(array_column($forecast, 'amount')), 0.001);
+        self::assertEqualsWithDelta(300.0, array_sum(array_column(
             array_filter($forecast, static fn (array $row): bool => $row['table'] === 'invoice_forecast'),
             'amount'
         )), 0.001);
-        self::assertCount(4, $forecast);
+        self::assertCount(3, $forecast);
 
-        // A publication uses only amounts with a current-period receipt.
+        // Explicitly selected receivables enter the same preview and publication; automatic invoices still require receipts.
         $this->movimentacao->setForecastMode(false);
         $strict = $this->movimentacao->getEntradasClientes();
-        self::assertCount(1, $strict);
-        self::assertSame('invoice_transaction', current($strict)['table']);
-        self::assertEqualsWithDelta(50.0, array_sum(array_column($strict, 'amount')), 0.001);
+        self::assertCount(3, $strict);
+        self::assertSame(1, count(array_filter($strict, static fn (array $row): bool => $row['table'] === 'invoice_transaction')));
+        self::assertEqualsWithDelta(350.0, array_sum(array_column($strict, 'amount')), 0.001);
     }
 
-    public function testUnclassifiedIncomeRemainsAuditableInForecastButCannotBePublished(): void
+    public function testGeneralIncomeWithoutCustomerReferenceIsDistributedWithoutInventingCnpj(): void
     {
         $this->persistCategory(id: 45, name: 'Cliente', parentId: null, type: 'income');
         $this->persistCategory(id: 3, name: 'Cliente > Recorrência', parentId: 45, type: 'income');
@@ -768,22 +768,18 @@ final class MovimentacaoTest extends TestCase
         self::assertCount(1, $forecast);
         self::assertEqualsWithDelta(1000.00, array_sum(array_column($forecast, 'amount')), 0.001);
 
-        $pending = $this->movimentacao->getUnclassifiedForecastIncome();
-        self::assertSame(1, $pending['count']);
-        self::assertSame(881.21, $pending['amount']);
-        self::assertSame('transaction', $pending['records'][0]['origin']);
-        self::assertSame(3470, $pending['records'][0]['id']);
-        self::assertSame('Cliente > Recorrência', $pending['records'][0]['category']);
-        self::assertSame(881.21, $pending['records'][0]['amount']);
+        $general = $this->movimentacao->getEntradasGerais();
+        self::assertCount(1, $general);
+        self::assertEqualsWithDelta(881.21, array_sum(array_column($general, 'amount')), 0.001);
+        self::assertSame(0, $this->movimentacao->getUnclassifiedForecastIncome()['count']);
+        self::assertEqualsWithDelta(1881.21, array_sum(array_column($this->movimentacao->getEntradasDistribuiveis(), 'amount')), 0.001);
 
         $all = $this->movimentacao->getMovimentacaoParaRelatorio();
         self::assertCount(2, $all);
         self::assertEqualsWithDelta(1881.21, array_sum(array_column($all, 'amount')), 0.001);
 
         $this->movimentacao->setForecastMode(false);
-        $this->expectException(Exception::class);
-        $this->expectExceptionMessage('Código de cliente inválido na movimentação do Akaunting');
-        $this->movimentacao->getMovimentacaoFinanceira();
+        self::assertCount(1, $this->movimentacao->getEntradasGerais());
     }
 
     public function testForecastStillRejectsMissingClientReferenceOnCustomerCosts(): void

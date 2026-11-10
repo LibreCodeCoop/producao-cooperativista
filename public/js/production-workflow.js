@@ -87,6 +87,8 @@
         // Missing review metadata never means that all payments are cleared.
         return {rows, revision: payload.metadata.revision,
             pendingInvoiceCount: count(payload.metadata.pending_invoice_count),
+            approvedPendingInvoiceCount: count(payload.metadata.approved_pending_invoice_count) ?? 0,
+            generalIncomeCount: count(payload.metadata.general_income_count) ?? 0,
             unclassifiedIncomeCount: count(payload.metadata.unclassified_income_count),
             unclassifiedIncomeAmount: finiteNumber(payload.metadata.unclassified_income_amount)};
     }
@@ -421,7 +423,8 @@
             const warning = pending === null
                 ? ' Não foi possível verificar os recebimentos; publicação bloqueada.'
                 : pending > 0
-                    ? ' Há ' + pending + ' fatura(s) sem recebimento totalmente confirmado; publicação bloqueada.'
+                    ? ' Há ' + pending + ' fatura(s) sem recebimento confirmado no Akaunting. ' +
+                      'Somente faturas marcadas explicitamente para incluir mesmo sem pagamento entram na apuração.'
                     : ' Nenhuma pendência de recebimento identificada na competência.';
             el('publication-summary').textContent = competence() + ': ' +
                 included + ' documento(s) individuais previsto(s). ' +
@@ -440,8 +443,16 @@
                         ? 'Conferir os recebimentos no Akaunting'
                         : pending + ' fatura(s) para conferência financeira';
             }
-            publishButton.disabled = !preview || !included || pending !== 0 || unclassified !== 0 ||
-                !el('publication-confirmation').checked || loading || processing || finished || needsImport;
+            const requiresWholePublication = (preview.approvedPendingInvoiceCount || 0) > 0 ||
+                (preview.generalIncomeCount || 0) > 0;
+            const incompleteException = requiresWholePublication && groups.excluded.length > 0;
+            if (incompleteException) {
+                el('publication-summary').textContent +=
+                    ' Receitas antecipadas ou gerais exigem publicar todos os cooperados para impedir apropriação parcial indevida.';
+            }
+            publishButton.disabled = !preview || !included || pending === null || unclassified !== 0 ||
+                incompleteException || !el('publication-confirmation').checked ||
+                loading || processing || finished || needsImport;
         };
         const invalidateApproval = () => {
             el('publication-confirmation').checked = false;
@@ -815,7 +826,7 @@
         }
         el('publication-confirmation').addEventListener('change', updateSummary);
         publishButton.addEventListener('click', async () => {
-            if (!preview || preview.pendingInvoiceCount !== 0 ||
+            if (!preview || preview.pendingInvoiceCount === null ||
                 preview.unclassifiedIncomeCount !== 0 ||
                 finished || loading || processing || needsImport ||
                 !el('publication-confirmation').checked ||

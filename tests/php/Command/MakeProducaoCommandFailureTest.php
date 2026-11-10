@@ -60,13 +60,11 @@ final class MakeProducaoCommandFailureTest extends TestCase
         $this->assertStringContainsString('Peso inválido', $tester->getDisplay());
     }
 
-    public function testAkauntingWriteFailureIsReportedWithItsPhase(): void
+    public function testPublicationWithoutReviewCannotWriteToAkaunting(): void
     {
         [$production, $movements, $logger] = $this->dependencies();
         $production->method('getProducaoCooperativista')->willReturn([]);
-        $production->expects($this->once())
-            ->method('updateProducao')
-            ->willThrowException(new RuntimeException('HTTP 503'));
+        $production->expects($this->never())->method('updateProducao');
         $logger->expects($this->once())->method('error');
 
         $tester = new CommandTester(new MakeProducaoCommand($production, $movements, $logger));
@@ -77,8 +75,7 @@ final class MakeProducaoCommandFailureTest extends TestCase
         ]);
 
         $this->assertSame(Command::FAILURE, $status);
-        $this->assertStringContainsString('Akaunting', $tester->getDisplay());
-        $this->assertStringContainsString('HTTP 503', $tester->getDisplay());
+        $this->assertStringContainsString('prévia conferida', $tester->getDisplay());
     }
 
     public function testInvalidDownloadOptionNeverTriggersAnImport(): void
@@ -158,15 +155,15 @@ final class MakeProducaoCommandFailureTest extends TestCase
         self::assertStringNotContainsString('--database', $tester->getDisplay());
     }
 
-    public function testWebPublishOptionIsExplicitAndNeverEquivalentToPreview(): void
+    public function testWebPublishNeedsFinancialRevisionAndCannotWriteWithoutIt(): void
     {
         [$production, $movements, $logger] = $this->dependencies();
         $logger->expects($this->atLeastOnce())->method('info');
         $production->method('getProducaoCooperativista')->willReturn([]);
-        $production->expects($this->once())->method('updateProducao');
+        $production->expects($this->never())->method('updateProducao');
 
         $tester = new CommandTester(new MakeProducaoCommand($production, $movements, $logger));
-        self::assertSame(Command::SUCCESS, $tester->execute(
+        self::assertSame(Command::FAILURE, $tester->execute(
             CalculationCommandOptions::forWeb('2026-08', '0', true)
         ));
     }

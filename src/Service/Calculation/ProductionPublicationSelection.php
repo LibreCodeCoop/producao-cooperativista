@@ -31,7 +31,7 @@ final readonly class ProductionPublicationSelection
      * @param array<string, Cooperado> $members
      * @return array{revision: string, ids: array<string, int>}
      */
-    public function snapshot(array $members, string $competence): array
+    public function snapshot(array $members, string $competence, array $incomeRows = []): array
     {
         $taxToId = [];
         $seenIds = [];
@@ -74,8 +74,22 @@ final readonly class ProductionPublicationSelection
             ];
         }
         ksort($fingerprint, SORT_NUMERIC);
+        $sources = [];
+        foreach ($incomeRows as $row) {
+            $identity = IncomeAppropriationLedger::identity($row);
+            if ($identity === null) {
+                throw new DomainException('Receita da prévia sem origem contábil reconhecida.');
+            }
+            $key = $identity['type'] . ':' . $identity['id'] . ':' . ($row['table'] ?? '');
+            $sources[$key] = [
+                'amount' => DecimalAllocation::decimal($row['amount']),
+                'base' => DecimalAllocation::decimal($row['base_producao']),
+                'treatment' => (string) (json_decode((string) ($row['metadata'] ?? '{}'), true)['production_treatment'] ?? ''),
+            ];
+        }
+        ksort($sources, SORT_STRING);
         return [
-            'revision' => hash('sha256', json_encode([$competence, $fingerprint], JSON_THROW_ON_ERROR)),
+            'revision' => hash('sha256', json_encode([$competence, $fingerprint, $sources], JSON_THROW_ON_ERROR)),
             'ids' => $ids,
         ];
     }
@@ -85,12 +99,18 @@ final readonly class ProductionPublicationSelection
      * @param list<int> $excludedIds
      * @return array<string, Cooperado>
      */
-    public function included(array $members, string $competence, string $expectedRevision, array $excludedIds): array
-    {
+    public function included(
+        array $members,
+        string $competence,
+        string $expectedRevision,
+        array $excludedIds,
+        array $incomeRows = [],
+    ): array {
+
         if ($members === []) {
             throw new DomainException('Não há cooperados com produção para publicar nesta competência.');
         }
-        $snapshot = $this->snapshot($members, $competence);
+        $snapshot = $this->snapshot($members, $competence, $incomeRows);
         if ($expectedRevision === '' || !hash_equals($snapshot['revision'], $expectedRevision)) {
             throw new DomainException(
                 'A apuração mudou desde a conferência. Atualize a prévia e revise novamente antes de publicar.'
