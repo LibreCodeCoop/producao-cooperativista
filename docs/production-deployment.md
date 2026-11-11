@@ -61,6 +61,26 @@ Composer installation above disables scripts; subsequent cache:clear runs
 explicitly as www-data. The entrypoint repairs the disposable cache on
 startup. Do not recursively change ownership of financial data or logs.
 
+**Required for code-only deployments:** Composer's `classmap-authoritative`
+setting means adding a new `src/` class without refreshing
+`vendor/composer/autoload_classmap.php` causes HTTP 500 even though the class
+file exists. The PHP entrypoint now runs `composer dump-autoload` with
+`--optimize --classmap-authoritative --no-scripts --no-plugins` as `www-data`
+before FPM starts, without modifying financial records. A failed refresh
+stops startup rather than serving incomplete class mappings. Rebuild the PHP
+image after changing the entrypoint, because the script is baked into the
+image. Do not deploy a bare `docker compose restart php` using an old image.
+
+After startup, verify the class map with:
+
+```sh
+docker compose exec -T -u www-data php php -r 'require "vendor/autoload.php"; exit(class_exists("App\Service\Calculation\IncomeAppropriationLedger") ? 0 : 1);'
+```
+
+Then validate an authenticated read-only request to
+`/api/v1/producao?ano-mes=2026-09` and confirm that it returns HTTP 200.
+This is separate from publishing the production or creating payables.
+
 Do not run automatic migration, ETL reset, external import, or write-to-Akaunting commands merely to deploy UI changes. Migration execution and financial publication require separate validation and authorization. A PHP worker restart after cache clear ensures old in-memory opcode caches cannot continue serving the previous code.
 
 Verify that an anonymous HTTPS request returns `401`, a request authenticated through HTTP Basic Auth renders the dashboard, the ETL reset form is protected, and `/css/app.css` loads successfully after authentication. Both the HTML and all static assets require HTTP Basic Auth.

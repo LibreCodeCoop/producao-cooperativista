@@ -44,3 +44,6 @@ jobs:
 
       - name: Verify PHP version and calendar runtime
         run: sh tests/ci/check-php-runtime.sh "${{ steps.runtime.outputs.php }}" librecode-pdc-ci:php-fpm
+
+      - name: Verify authoritative Composer autoload refresh on startup
+        run: sh tests/ci/check-entrypoint-autoload.test.sh librecode-pdc-ci:php-fpm
