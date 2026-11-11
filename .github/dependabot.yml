@@ -30,6 +30,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # Stylelint 18 is incompatible with stylelint-config-recommended-scss 17.x.
+      # Revisit this when the upstream SCSS preset supports Stylelint 18.
+      - dependency-name: "stylelint"
+        versions: ["18.x"]
 
   - package-ecosystem: github-actions
     directory: /
