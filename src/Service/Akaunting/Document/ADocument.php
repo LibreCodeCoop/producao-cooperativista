@@ -410,6 +410,7 @@ abstract class ADocument
             );
         }
         $this->assertSameDocumentIdentity($existing);
+        $this->assertProtectedProductionDocument($existing);
     }
 
     /**
@@ -434,6 +435,40 @@ abstract class ADocument
             throw new \RuntimeException(
                 'Documento tem situação não habilitada para atualização. Confira o estado no Akaunting.'
             );
+        }
+    }
+
+    /**
+     * Historical PDC documents can retain accumulated FRRA even when their
+     * number appears to refer to the month being closed. Never update them.
+     * Also reject same-number bills whose original work month differs.
+     */
+    private function assertProtectedProductionDocument(array $existing): void
+    {
+        if (!str_starts_with($this->getDocumentNumber(), 'PDC_')) {
+            return;
+        }
+        $notes = (string) ($existing['notes'] ?? '');
+        $expected = 'Produção realizada no mês: ' . $this->dates->getInicio()->format('Y-m');
+        if (!str_contains($notes, $expected)) {
+            throw new \DomainException(
+                'Documento de produção existente pertence a outra competência ou não identifica o mês trabalhado. '
+                . 'Não será alterado.'
+            );
+        }
+        $items = $existing['items']['data'] ?? null;
+        if (!is_array($items)) {
+            throw new \DomainException(
+                'Documento de produção existente sem itens verificáveis. Atualização bloqueada para proteger FRRA.'
+            );
+        }
+        foreach ($items as $item) {
+            if (is_array($item) && strtoupper(trim((string) ($item['name'] ?? ''))) === 'FRRA') {
+                throw new \DomainException(
+                    'Documento de produção existente contém FRRA acumulado. '
+                    . 'Seu valor não será alterado por outro fechamento.'
+                );
+            }
         }
     }
 
@@ -508,6 +543,7 @@ abstract class ADocument
                 'Documento tem situação não reconhecida durante a reconciliação.'
             );
         }
+        $this->assertProtectedProductionDocument($remote);
         foreach ($remote as $property => $value) {
             $property = $this->camelize($property);
             $methodName = 'set' . ucfirst($property);

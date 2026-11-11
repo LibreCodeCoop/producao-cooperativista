@@ -2,7 +2,17 @@
 
 ## Competências distintas
 
-A competência da produção (mês de trabalho no Kimai) utiliza a competência financeira do mês seguinte. O campo **Competência financeira (YYYY-MM)** no Akaunting indica em qual fechamento financeiro a receita ou o dispêndio participa. Não altera a data bancária, a data de emissão da NFS-e, seu período de prestação de serviços nem o vencimento da fatura.
+O fechamento separa **três competências diferentes**: (1) o mês trabalhado no Kimai; (2) o mês seguinte, de receitas e movimentações financeiras; (3) o mês subsequente, previsto para pagamento aos cooperados. Exemplo: trabalho em **setembro/2026**, receitas de **outubro/2026**, repasses em **novembro/2026**. A tela de fechamento deve receber **setembro/2026**, não outubro ou novembro.
+
+O campo **Competência financeira (YYYY-MM)** no Akaunting indica em qual período a receita ou o dispêndio participa. Não altera a data bancária, a data de emissão da NFS-e, seu período de prestação de serviços nem o vencimento da fatura. A conta a pagar do cooperado gerada pelo novo fechamento usa a competência financeira do **mês de pagamento**, distinta da competência das receitas que a originaram.
+
+### Preservação dos documentos de FRRA
+
+Existem rascunhos históricos `PDC_<documento>-YYYY-MM` que acumulam parcelas mensais de FRRA e estão previstos para liquidação em dezembro. **Não atualize, cancele, renumere ou edite seus valores** para fechar meses de trabalho anteriores. O sufixo desses documentos históricos não identifica, de forma confiável, a competência do trabalho original; consulte a observação `Produção realizada no mês` e as linhas `FRRA`.
+
+Desde o fechamento do trabalho de setembro/2026, o número dos novos documentos de produção tem formato versionado e explícito: `PDC_<documento>-TRAB-2026-09-FIN-2026-10-PAG-2026-11`. A versão evita colisões com os documentos históricos e continua estável se o fechamento for executado posteriormente. Competências anteriores conservam o formato antigo para não criar números novos em reprocessamentos históricos. Documentos existentes com competência divergente ou linhas de FRRA acumulado são **bloqueados para atualização**, mesmo quando número e contato coincidirem.
+
+A obrigação de FRRA do mês trabalhado é apurada separadamente do repasse individual. A publicação utiliza o documento específico `FRRA_...` para a provisão anual, sem alterar os rascunhos históricos de produção que já contêm FRRA. Antes de publicar, confronte a provisão esperada com valores já registrados para evitar qualquer duplicidade fiscal ou financeira.
 
 O campo **Tratamento na produção cooperativista** é um seletor único, aplicável às faturas, transações e contas a pagar, com três opções:
 

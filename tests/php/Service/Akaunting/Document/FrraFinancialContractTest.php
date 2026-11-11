@@ -197,10 +197,14 @@ final class FrraFinancialContractTest extends KernelTestCase
             self::assertCount(2, $writes, 'Individual production needs its own document and tax liability.');
             $production = $writes[0];
             $taxLiability = $writes[1];
-            self::assertSame('PDC_' . self::CPF . '-2026-10', $production['document_number']);
+            self::assertSame('PDC_' . self::CPF . '-TRAB-2026-09-FIN-2026-10-PAG-2026-11', $production['document_number']);
             self::assertSame((int) getenv('AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'), (int) $production['category_id']);
             self::assertSame((string) 100, (string) $production['contact_id']);
             self::assertSame('bill', $production['type']);
+            self::assertSame('2026-11', $production['custom_fields']['transaction_of_month'],
+                'A conta a pagar aos cooperados corresponde ao mês de pagamento, não ao mês das receitas.');
+            self::assertStringContainsString('Produção realizada no mês: 2026-09', $production['notes']);
+            self::assertStringContainsString('Competência: 2026-10', $production['notes']);
 
             $items = [];
             foreach ($production['items'] as $item) {
@@ -232,7 +236,7 @@ final class FrraFinancialContractTest extends KernelTestCase
             );
             self::assertCount(2, $rows);
             self::assertSame((int) getenv('AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'), (int) $rows[0]['category_id']);
-            self::assertSame('PDC_' . self::CPF . '-2026-10', $rows[0]['document_number']);
+            self::assertSame('PDC_' . self::CPF . '-TRAB-2026-09-FIN-2026-10-PAG-2026-11', $rows[0]['document_number']);
             self::assertEqualsWithDelta(8600.0, (float) $rows[0]['amount'] + (float) $items['INSS']['price'] + (float) $items['IRRF']['price'] - (float) $items['Ajuda de custo']['price'], 0.01);
         } finally {
             $this->em->getConnection()->executeStatement('DELETE FROM invoices WHERE id IN (994903, 994904)');
@@ -330,8 +334,8 @@ final class FrraFinancialContractTest extends KernelTestCase
     {
         return [
             'January' => ['2026-01-01', 'PDC_' . self::CPF . '-2026-02'],
-            'September' => ['2026-09-01', 'PDC_' . self::CPF . '-2026-10'],
-            'November' => ['2026-11-01', 'PDC_' . self::CPF . '-2026-12'],
+            'September' => ['2026-09-01', 'PDC_' . self::CPF . '-TRAB-2026-09-FIN-2026-10-PAG-2026-11'],
+            'November' => ['2026-11-01', 'PDC_' . self::CPF . '-TRAB-2026-11-FIN-2026-12-PAG-2027-01'],
         ];
     }
 

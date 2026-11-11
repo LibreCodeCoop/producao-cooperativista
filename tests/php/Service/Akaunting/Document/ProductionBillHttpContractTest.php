@@ -59,10 +59,11 @@ final class ProductionBillHttpContractTest extends KernelTestCase
         parent::tearDown();
     }
 
-    private function member(Request $http): Cooperado
+    private function member(Request $http, string $workMonth = '2026-07-01'): Cooperado
     {
         $dates = static::getContainer()->get(Dates::class);
-        $dates->setInicio(new DateTime('2026-07-01'));
+        $dates->setInicio(new DateTime($workMonth));
+        $dates->setEvaluationTime(new DateTime('2026-10-20'));
         $member = new Cooperado(
             entityManager: $this->em,
             dates: $dates,
@@ -70,8 +71,8 @@ final class ProductionBillHttpContractTest extends KernelTestCase
             documents: static::getContainer()->get(Documents::class),
             request: $http,
             documentConfiguration: new DocumentConfiguration(),
-            anoFiscal: 2026,
-            mes: 7,
+            anoFiscal: (int) substr($workMonth, 0, 4),
+            mes: (int) substr($workMonth, 5, 2),
         );
         $member->setName('Cooperativa Prestadora Exemplo');
         $member->setTaxNumber('12345678000190');
@@ -167,6 +168,141 @@ final class ProductionBillHttpContractTest extends KernelTestCase
         self::assertSame('PDC_12345678000190-2026-08', $record['document_number']);
         self::assertSame('bill', $record['type']);
         self::assertEqualsWithDelta(2000.0, (float) $record['amount'], 0.001);
+    }
+
+    /** @return array<string, array{string, list<array<string, mixed>>, string}> */
+    public static function protectedHistoricalBillCases(): array
+    {
+        return [
+            'matching work period with accumulated FRRA' => [
+                'Produção realizada no mês: 2026-07',
+                [['name' => 'FRRA', 'description' => 'Referente ao ano/mês: 2026-06', 'price' => 980]],
+                'FRRA acumulado',
+            ],
+            'document number reused across different work periods' => [
+                'Produção realizada no mês: 2026-05',
+                [['name' => 'Bruto produção', 'description' => '', 'price' => 980]],
+                'outra competência',
+            ],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('protectedHistoricalBillCases')]
+    public function testProtectedLegacyFrraBillCannotBeModifiedByProductionPublication(
+        string $remoteNotes,
+        array $remoteItems,
+        string $expectedMessage,
+    ): void {
+        $legacyNumber = 'PDC_12345678000190-2026-08';
+        $this->em->getConnection()->executeStatement('DELETE FROM invoices WHERE id = 994905');
+        $draft = new Invoice();
+        $draft->fromArray([
+            'id' => 994905,
+            'type' => 'bill',
+            'issued_at' => '2026-08-01 00:00:00',
+            'due_at' => '2026-12-08 00:00:00',
+            'transaction_of_month' => '2026-12',
+            'amount' => 980.0,
+            'currency_code' => 'BRL',
+            'document_number' => $legacyNumber,
+            'tax_number' => '12345678000190',
+            'contact_id' => 100,
+            'contact_name' => 'Cooperativa Prestadora Exemplo',
+            'contact_type' => 'vendor',
+            'category_id' => 11,
+            'category_name' => 'Produção',
+            'category_type' => 'expense',
+            'metadata' => ['status' => 'draft', 'notes' => 'Produção realizada no mês: 2026-07'],
+        ]);
+        $this->em->persist($draft);
+        $this->em->flush();
+        $before = $this->em->getConnection()->fetchAssociative('SELECT * FROM invoices WHERE id = 994905');
+        $calls = [];
+        $http = new MockHttpClient(static function (string $method, string $url) use (
+            &$calls,
+            $legacyNumber,
+            $remoteNotes,
+            $remoteItems,
+        ): MockResponse {
+            $calls[] = $method;
+            if ($method !== 'GET') {
+                throw new \LogicException('Protected FRRA documents must never receive any write');
+            }
+            self::assertStringContainsString('/api/documents/994905', $url);
+            return new MockResponse(json_encode(['data' => [
+                'id' => 994905, 'company_id' => 1, 'type' => 'bill',
+                'document_number' => $legacyNumber, 'status' => 'draft',
+                'contact_id' => 100, 'notes' => $remoteNotes,
+                'items' => ['data' => $remoteItems],
+            ]], JSON_THROW_ON_ERROR));
+        });
+        try {
+            $member = $this->member(new Request(new NullLogger(), $http));
+            $this->expectException(\DomainException::class);
+            $this->expectExceptionMessage($expectedMessage);
+            $member->getProducaoCooperativista()->save();
+        } finally {
+            self::assertSame(['GET'], $calls);
+            self::assertSame($before, $this->em->getConnection()->fetchAssociative('SELECT * FROM invoices WHERE id = 994905'));
+            $this->em->getConnection()->executeStatement('DELETE FROM invoices WHERE id = 994905');
+        }
+    }
+
+    public function testSeptemberPublicationKeepsOldFrraDraftUntouchedAndUsesNovemberPaymentMonth(): void
+    {
+        $legacyNumber = 'PDC_12345678000190-2026-10';
+        $newNumber = 'PDC_12345678000190-TRAB-2026-09-FIN-2026-10-PAG-2026-11';
+        $db = $this->em->getConnection();
+        $db->executeStatement('DELETE FROM invoices WHERE id IN (994906, 994907)');
+        $draft = new Invoice();
+        $draft->fromArray([
+            'id' => 994906, 'type' => 'bill',
+            'issued_at' => '2026-09-07 00:00:00', 'due_at' => '2026-12-08 00:00:00',
+            'transaction_of_month' => '2026-12', 'amount' => 1550.0,
+            'currency_code' => 'BRL', 'document_number' => $legacyNumber,
+            'tax_number' => '12345678000190', 'contact_id' => 100,
+            'contact_name' => 'Cooperativa Prestadora Exemplo', 'contact_type' => 'vendor',
+            'category_id' => 11, 'category_name' => 'Produção', 'category_type' => 'expense',
+            'metadata' => ['status' => 'draft', 'notes' => 'Produção realizada no mês: 2026-07'],
+        ]);
+        $this->em->persist($draft);
+        $this->em->flush();
+        $original = $db->fetchAssociative('SELECT * FROM invoices WHERE id = 994906');
+        $calls = [];
+        $http = new MockHttpClient(static function (string $method, string $url, array $options) use (&$calls, $newNumber): MockResponse {
+            $calls[] = $method;
+            self::assertSame('POST', $method);
+            self::assertStringContainsString('/api/documents?include_field_studio=1', $url);
+            $body = $options['body'];
+            if (is_string($body)) {
+                parse_str($body, $body);
+            }
+            self::assertSame($newNumber, $body['document_number']);
+            self::assertSame('2026-11', $body['custom_fields']['transaction_of_month']);
+            self::assertStringContainsString('Produção realizada no mês: 2026-09', $body['notes']);
+            self::assertStringContainsString('Competência: 2026-10', $body['notes']);
+            self::assertStringStartsWith('2026-11-', $body['due_at']);
+            return new MockResponse(json_encode(['data' => [
+                ...$body, 'id' => 994907, 'company_id' => 1, 'status' => 'draft',
+                'amount' => (float) $body['amount'],
+                'category' => ['name' => 'Produção', 'type' => 'expense'],
+                'contact' => ['name' => 'Cooperativa Prestadora Exemplo', 'type' => 'vendor', 'reference' => null,
+                    'tax_number' => '12345678000190'],
+                'items' => ['data' => $body['items']],
+                'field_studio' => FieldStudioResponse::fromRequest($body),
+            ]], JSON_THROW_ON_ERROR), ['http_code' => 201]);
+        });
+        try {
+            $member = $this->member(new Request(new NullLogger(), $http), '2026-09-01');
+            $member->getProducaoCooperativista()->save();
+            self::assertSame(['POST'], $calls);
+            self::assertSame($original, $db->fetchAssociative('SELECT * FROM invoices WHERE id = 994906'));
+            $created = $db->fetchAssociative('SELECT document_number, transaction_of_month FROM invoices WHERE id = 994907');
+            self::assertSame($newNumber, $created['document_number']);
+            self::assertSame('2026-11', $created['transaction_of_month']);
+        } finally {
+            $db->executeStatement('DELETE FROM invoices WHERE id IN (994906, 994907)');
+        }
     }
 
     public function testDuplicatePaidDocumentIsRejectedAfterExactReadbackWithoutSecondWrite(): void

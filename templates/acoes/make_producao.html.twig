@@ -41,7 +41,7 @@
         <section data-workflow-step="1" aria-labelledby="import-title">
             <p class="section-kicker">Etapa 1 de 2</p>
             <h2 id="import-title">Importar dados</h2>
-            <p>Defina a competência das horas trabalhadas. Na configuração atual, a apuração é feita dois meses após o trabalho. A importação atualiza apenas os dados intermediários do ETL.</p>
+            <p>Selecione o <strong>mês trabalhado</strong>. O sistema usa as movimentações do mês seguinte e prepara o repasse para o segundo mês posterior: por exemplo, <strong>setembro</strong> trabalhado → <strong>outubro</strong> financeiro → <strong>novembro</strong> pagamento. A importação atualiza apenas os dados intermediários do ETL; rascunhos históricos de FRRA permanecem intocados.</p>
             {% if imported_competence|default(null) and imported_competence != inicio_ano ~ '-' ~ inicio_mes %}
                 <div class="information-note">
                     <strong>Última competência importada: {{ imported_competence }}</strong>

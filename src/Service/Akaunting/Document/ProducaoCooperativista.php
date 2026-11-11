@@ -36,6 +36,25 @@ class ProducaoCooperativista extends ADocument
     protected string $whoami = 'PDC';
 
     /**
+     * Historical PDC numbers were based only on the financial month. That
+     * namespace also contains accumulated FRRA obligations from prior work
+     * months. Preserve it for old competencies; new settlements use a clearly
+     * versioned identity that cannot collide with those protected drafts.
+     */
+    private const string NUMBERING_V2_FROM_WORK_MONTH = '2026-09';
+
+    private function usesSettlementIdentity(): bool
+    {
+        return $this->dates->getInicio()->format('Y-m') >= self::NUMBERING_V2_FROM_WORK_MONTH;
+    }
+
+    private function nominalPaymentMonth(): string
+    {
+        return (clone $this->dates->getInicioProximoMes())
+            ->modify('first day of next month')->format('Y-m');
+    }
+
+    /**
      * @var array<int, array{category_id: int, category_name: string, amount: float, document_number: string, due_at: ?string}>
      */
     private array $liquidDiscounts = [];
@@ -43,7 +62,12 @@ class ProducaoCooperativista extends ADocument
     #[\Override]
     protected function financialMonth(): string
     {
-        return $this->dates->getInicioProximoMes()->format('Y-m');
+        // The *income* feeding this production is from the following month.
+        // The resulting cooperator payable belongs to the payment month, not
+        // to the earlier income month. Keep old documents' month untouched.
+        return $this->usesSettlementIdentity()
+            ? $this->getDueAt()->format('Y-m')
+            : $this->dates->getInicioProximoMes()->format('Y-m');
     }
 
     public function save(): self
@@ -325,12 +349,15 @@ class ProducaoCooperativista extends ADocument
     protected function getDocumentNumber(): string
     {
         if (empty($this->documentNumber)) {
-            $this->setDocumentNumber(
-                'PDC_' .
-                $this->getCooperado()->getTaxNumber() .
-                '-' .
-                $this->dates->getInicioProximoMes()->format('Y-m')
-            );
+            $number = 'PDC_' . $this->getCooperado()->getTaxNumber();
+            if ($this->usesSettlementIdentity()) {
+                $number .= '-TRAB-' . $this->dates->getInicio()->format('Y-m')
+                    . '-FIN-' . $this->dates->getInicioProximoMes()->format('Y-m')
+                    . '-PAG-' . $this->nominalPaymentMonth();
+            } else {
+                $number .= '-' . $this->dates->getInicioProximoMes()->format('Y-m');
+            }
+            $this->setDocumentNumber($number);
         }
         return $this->documentNumber;
     }
