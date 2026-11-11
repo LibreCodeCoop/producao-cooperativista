@@ -83,7 +83,9 @@ class Producao extends AbstractController
             $list = $this->producao->getProducaoCooperativista();
             $trabalhadoPorCliente = $this->producao->getTrabalhadoPorCliente();
             $snapshot = $this->selection->snapshot(
-                $list, $inicio->format('Y-m'), $this->movimentacao->getEntradasDistribuiveis(),
+                $list,
+                $inicio->format('Y-m'),
+                $this->movimentacao->getEntradasDistribuiveis(),
             );
             $output = [];
             foreach ($list as $cooperado) {

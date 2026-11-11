@@ -201,8 +201,11 @@ final class FrraFinancialContractTest extends KernelTestCase
             self::assertSame((int) getenv('AKAUNTING_PRODUCAO_COOPERATIVISTA_CATEGORY_ID'), (int) $production['category_id']);
             self::assertSame((string) 100, (string) $production['contact_id']);
             self::assertSame('bill', $production['type']);
-            self::assertSame('2026-11', $production['custom_fields']['transaction_of_month'],
-                'A conta a pagar aos cooperados corresponde ao mês de pagamento, não ao mês das receitas.');
+            self::assertSame(
+                '2026-11',
+                $production['custom_fields']['transaction_of_month'],
+                'A conta a pagar aos cooperados corresponde ao mês de pagamento, não ao mês das receitas.'
+            );
             self::assertStringContainsString('Produção realizada no mês: 2026-09', $production['notes']);
             self::assertStringContainsString('Competência: 2026-10', $production['notes']);
 

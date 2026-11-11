@@ -238,7 +238,6 @@ class MakeProducaoCommand extends AbstractBaseCommand
                 if ($revision === '') {
                     throw new \DomainException('Publicação exige prévia conferida e revisão financeira válida.');
                 }
-                $included = null;
                 {
                     if ($this->publicationSelection === null) {
                         throw new \RuntimeException('Serviço de conferência financeira indisponível.');

@@ -26,6 +26,7 @@ final class IncomeAppropriationLedger
     /** @var array<string, array{confirmed:int, reserved:bool}>|null */
     private ?array $previous = null;
 
+    /** @psalm-suppress PossiblyUnusedMethod Injected by Symfony DI. */
     public function __construct(
         #[Autowire(service: 'doctrine.dbal.main_connection')]
         private readonly Connection $db,
@@ -194,7 +195,8 @@ final class IncomeAppropriationLedger
                 if ($prior['reserved'] || $prior['confirmed'] + $item['cents'] > $item['face']) {
                     throw new DomainException(sprintf(
                         'Receita %s #%d já apropriada ou acima do valor original.',
-                        $item['type'], $item['id']
+                        $item['type'],
+                        $item['id']
                     ));
                 }
                 $this->db->insert('production_income_appropriations', [
@@ -206,7 +208,7 @@ final class IncomeAppropriationLedger
                     'source_total_cents' => $item['face'],
                     'revision' => $revision,
                     'state' => 'reserved',
-                    'created_at' => (new DateTimeImmutable())->format('Y-m-d H:i:s'),
+                    'created_at' => new DateTimeImmutable()->format('Y-m-d H:i:s'),
                 ]);
             }
             $this->db->commit();
@@ -224,7 +226,7 @@ final class IncomeAppropriationLedger
             . 'WHERE company_id = :company AND competence = :competence AND revision = :revision AND state = :reserved',
             [
                 'state' => 'confirmed',
-                'at' => (new DateTimeImmutable())->format('Y-m-d H:i:s'),
+                'at' => new DateTimeImmutable()->format('Y-m-d H:i:s'),
                 'company' => $this->company(),
                 'competence' => $competence,
                 'revision' => $revision,
