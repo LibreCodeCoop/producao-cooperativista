@@ -20,3 +20,7 @@ cookies.json
 clover.xml
 config/reference.php
 docker-compose.override.yml
+# HTTP Basic Auth hashes are private server configuration
+.htpasswd
+
+/node_modules/

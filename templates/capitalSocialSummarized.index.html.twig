@@ -1,10 +1,33 @@
 {% extends "layout/index.html.twig" %}
 
-{% block title %}Capital Social - analítico{% endblock title %}
+{% block title %}Capital social - resumo{% endblock title %}
 
 {% block body %}
-
-Os itens desta lista vem de transações ou faturas com categoria "<b>Cliente > Interno > Cooperado > Capital Social</b>" ou itens de fatura do tipo "<b>Capital social</b>"
-
-    {{ include('layout/components/datatable.html.twig') }}
+    <header class="page-heading">
+        <p class="eyebrow">Triagem dos lançamentos · posição ainda não conciliada</p>
+        <h1>Capital social por cooperado</h1>
+        <p class="page-lead">Saldo identificado no Akaunting: integralizações e retenções menos devoluções. Esta é uma posição preliminar baseada em lançamentos classificados, e não um saldo societário ou contábil já conciliado.</p>
+        <p>A coluna <strong>Verificação automática</strong> informa apenas o resultado dos testes sobre os registros importados. <strong>“Sem alertas automáticos; saldo não conciliado”</strong> não comprova integralização histórica nem dispensa a conciliação. <strong>“Alertas identificados”</strong> indica registros a revisar; um saldo negativo aponta possível histórico incompleto, não dívida do cooperado.</p>
+    </header>
+    <form method="get" class="surface" aria-label="Selecionar data da posição de capital">
+        <label for="capital-ate">Data de corte (opcional)</label>
+        <input id="capital-ate" name="ate" type="date" value="{{ ate|default('') }}">
+        <button type="submit">Atualizar posição</button>
+    </form>
+    <section class="surface" aria-labelledby="capital-reconciliation-guide">
+        <h2 id="capital-reconciliation-guide">Como conciliar os saldos documentalmente</h2>
+        <p>Para cada cooperado, a contabilidade e a administração devem confrontar a posição calculada com:</p>
+        <ol>
+            <li>Saldo inicial e histórico individual no livro ou ficha de capital, incluindo subscrições, integralizações, retenções e devoluções.</li>
+            <li>Faturas, comprovantes de pagamento e retenções vinculadas aos lançamentos exibidos ao clicar no nome do cooperado.</li>
+            <li>Razão contábil e balancete da conta de capital social, na mesma data de corte.</li>
+            <li>Atas e deliberações que fundamentem alterações de quotas ou capitalização de sobras, quando existirem.</li>
+        </ol>
+        <p>Registre para cada divergência a origem, o documento de suporte e a providência. Somente uma conferência documentada, com responsável e data, poderá atestar o saldo. <strong>Este relatório ainda não registra nem concede uma aprovação de conciliação documental.</strong></p>
+    </section>
+    <section class="surface" aria-label="Resumo de capital social">
+        {% set capitalSocialSummary = true %}
+        {% set filterColumns = ['metadata', 'nome_url'] %}
+        {{ include('layout/components/datatable.html.twig') }}
+    </section>
 {% endblock %}

@@ -32,9 +32,12 @@ use Exception;
 use App\Helper\Dates;
 use App\Helper\MagicGetterSetterTrait;
 use App\Provider\Akaunting\Dataset;
-use App\Provider\Akaunting\ParseText;
+use App\Provider\Akaunting\FieldStudio;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use App\Service\Import\BatchPersistence;
+use App\Service\Import\ExistingEntityIndex;
+use App\Service\Import\FinancialMonthScope;
 
 /**
  * @method self setCompanyId(int $value)
@@ -46,7 +49,7 @@ use Psr\Log\LoggerInterface;
 class Documents
 {
     use MagicGetterSetterTrait;
-    private ?DateTime $date;
+    private ?DateTime $date = null;
     private string $type;
     private int $companyId;
     /** @var Invoice[][] */
@@ -55,16 +58,18 @@ class Documents
     public function __construct(
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
-        private ParseText $parseText,
+        private FieldStudio $fieldStudio,
         private Dataset $dataset,
         private Dates $dates,
+        private BatchPersistence $batchPersistence,
+        private ExistingEntityIndex $entityIndex,
     ) {
         $this->type = 'invoice';
         $this->companyId = (int) getenv('AKAUNTING_COMPANY_ID');
     }
 
     /**
-     * @return Invoice[][]
+     * @return Invoice[]
      */
     public function getList(): array
     {
@@ -87,9 +92,24 @@ class Documents
         $list = $this->dataset->list('/api/documents', [
             'company_id' => $this->getCompanyId(),
             'search' => implode(' ', $search),
+            'include_field_studio' => '1',
         ]);
+        $list = new FinancialMonthScope()->complete(
+            $this->dataset,
+            $list,
+            $this->getType(),
+            $begin->format('Y-m'),
+            $this->getCompanyId()
+        );
+        $this->list[$this->getType()] = [];
+        $existing = $this->entityIndex->byId($this->entityManager, Invoice::class, array_column($list, 'id'));
+        $structured = $this->fieldStudio->fromRecords($this->getType(), $list, $this->getCompanyId());
         foreach ($list as $row) {
-            $invoice = $this->fromArray($row);
+            $invoice = $this->fromArray(
+                $row,
+                $existing[$row['id']] ?? new Invoice(),
+                $structured[(int) $row['id']]
+            );
             $this->list[$this->getType()][] = $invoice;
         }
         $this->logger->info('Dados de {tipo} salvos com sucesso. Total: {total}', [
@@ -99,16 +119,23 @@ class Documents
         return $this->list[$this->getType()] ?? [];
     }
 
-    public function fromArray(array $array): Invoice
-    {
-        $array = array_merge($array, $this->parseText->do((string) $array['notes']));
+    public function fromArray(
+        array $array,
+        ?Invoice $existingInvoice = null,
+        ?array $structured = null
+    ): Invoice {
+        $structured ??= $this->fieldStudio->fromRecords($array['type'], [$array], $this->getCompanyId())[(int) $array['id']];
+        $array = array_merge($array, $structured);
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->calculateFixedDiscountPercentage($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
-        $entity = $this->entityManager->find(Invoice::class, $array['id']);
-        if (!$entity instanceof Invoice) {
-            $entity = new Invoice();
+        $entity = $existingInvoice;
+        if ($entity === null) {
+            $entity = $this->entityManager->find(Invoice::class, $array['id']);
+            if (!$entity instanceof Invoice) {
+                $entity = new Invoice();
+            }
         }
         $entity->fromArray($array);
         return $entity;
@@ -124,12 +151,18 @@ class Documents
     public function saveList(): self
     {
         $this->getList();
-        foreach ($this->list as $list) {
-            foreach ($list as $row) {
-                $this->saveRow($row);
-            }
-        }
+        $this->batchPersistence->save($this->entityManager, $this->documentsFromList());
         return $this;
+    }
+
+    /**
+     * @return \Generator<Invoice>
+     */
+    private function documentsFromList(): \Generator
+    {
+        foreach ($this->list as $list) {
+            yield from $list;
+        }
     }
 
     public function saveRow(Invoice $invoice): self
@@ -175,19 +208,27 @@ class Documents
             if (!empty($row['sector'])) {
                 $row['customer_reference'] = $row['customer_reference'] . '|' . strtolower($row['sector']);
             }
-        } elseif (!empty($row['contact']['reference'])) {
+        } elseif ($row['type'] === 'invoice' && ($row['contact']['type'] ?? null) === 'customer'
+            && !empty($row['contact']['reference'])) {
             $row['customer_reference'] = $row['contact']['reference'];
-        } elseif (!empty($row['contact']['tax_number'])) {
+        } elseif ($row['type'] === 'invoice' && ($row['contact']['type'] ?? null) === 'customer'
+            && !empty($row['contact']['tax_number'])) {
             $row['customer_reference'] = $row['contact']['tax_number'];
         } else {
-            $row['customer_reference'] = getenv('CNPJ_COMPANY');
+            // A supplier's fiscal ID is not the client funding its cost.
+            // Do not invent the cooperative's own CNPJ for an unknown client.
+            $row['customer_reference'] = '';
         }
         return $row;
     }
 
     private function convertFields(array $row): array
     {
-        $row['archive'] = strtolower($row['archive'] ?? 'não') === 'sim' ? 1 : 0;
+        // The single selector overrides the former boolean; old records keep their archived state.
+        $decision = (string) ($row['production_treatment'] ?? '');
+        $row['archive'] = $decision !== ''
+            ? (int) ($decision === 'ignorar')
+            : (int) (strtolower($row['archive'] ?? 'não') === 'sim');
         $row['category_name'] = $row['category']['name'];
         $row['category_type'] = $row['category']['type'];
         $row['contact_name'] = $row['contact']['name'];

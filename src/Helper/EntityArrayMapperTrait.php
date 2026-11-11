@@ -4,16 +4,21 @@ namespace App\Helper;
 
 use DateTime;
 use ReflectionClass;
+use ReflectionNamedType;
 
 trait EntityArrayMapperTrait
 {
     public function fromArray(array $attributes): void
     {
+        $reflectionClass = new ReflectionClass($this);
         foreach ($attributes as $name => $value) {
             $property = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $name))));
-            if (property_exists($this, $property)) {
-                $reflectionClass = new ReflectionClass($this);
-                $propertyType = $reflectionClass->getProperty($property)->getType()->getName();
+            if ($reflectionClass->hasProperty($property)) {
+                $reflectionType = $reflectionClass->getProperty($property)->getType();
+                if (!$reflectionType instanceof ReflectionNamedType) {
+                    throw new \UnexpectedValueException(sprintf('Campo %s da entidade %s sem tipo simples.', $property, $reflectionClass->getName()));
+                }
+                $propertyType = $reflectionType->getName();
                 if ($propertyType === 'DateTime' && is_string($value)) {
                     $value = new DateTime($value);
                 }
@@ -37,7 +42,6 @@ trait EntityArrayMapperTrait
         $reflectionClass = new ReflectionClass($this);
 
         foreach ($reflectionClass->getProperties() as $property) {
-            $property->setAccessible(true);
             $value = $property->getValue($this);
 
             if ($value instanceof DateTime) {

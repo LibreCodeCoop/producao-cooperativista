@@ -32,12 +32,36 @@ use UnexpectedValueException;
 
 class ProducaoCooperativista extends ADocument
 {
+    #[\Override]
     protected string $whoami = 'PDC';
+
+    /**
+     * The payable's accounting month and the PDC number are intentionally
+     * separate: work in September uses October income and is paid in November.
+     * Legacy work months retain their original accounting-month behavior.
+     */
+    private const string PAYMENT_MONTH_FROM_WORK_MONTH = '2026-09';
+
+    private function usesPaymentMonthAccounting(): bool
+    {
+        return $this->dates->getInicio()->format('Y-m') >= self::PAYMENT_MONTH_FROM_WORK_MONTH;
+    }
 
     /**
      * @var array<int, array{category_id: int, category_name: string, amount: float, document_number: string, due_at: ?string}>
      */
     private array $liquidDiscounts = [];
+
+    #[\Override]
+    protected function financialMonth(): string
+    {
+        // The *income* feeding this production is from the following month.
+        // The resulting cooperator payable belongs to the payment month, not
+        // to the earlier income month. Keep old documents' month untouched.
+        return $this->usesPaymentMonthAccounting()
+            ? $this->getDueAt()->format('Y-m')
+            : $this->dates->getInicioProximoMes()->format('Y-m');
+    }
 
     public function save(): self
     {
@@ -104,43 +128,24 @@ class ProducaoCooperativista extends ADocument
     {
         try {
             $this->getDueAt();
-        } catch (UnexpectedValueException $e) {
+        } catch (UnexpectedValueException) {
             $this->changeDueAt($this->dates->getDataPagamento());
         }
-        return parent::setUp();
+        // A preview must only read the imported snapshot. Reconcile with Akaunting
+        // when save() explicitly prepares a document for publication.
+        return $this;
     }
 
-    public function updateLiquidDiscounts(): self
+    /**
+     * @param list<array<string, mixed>>|null $rows Shared bill data preloaded once per calculation.
+     */
+    public function updateLiquidDiscounts(?array $rows = null): self
     {
         $this->liquidDiscounts = [];
         $this->values->setLiquidDiscount(0);
 
-        $categoryIds = $this->getLiquidDiscountCategoryIds();
-        if (empty($categoryIds)) {
-            return $this;
-        }
-
-        $select = $this->entityManager->getConnection()->createQueryBuilder();
-        $select->select('i.id')
-            ->addSelect('i.category_id')
-            ->addSelect('i.category_name')
-            ->addSelect('i.document_number')
-            ->addSelect('i.due_at')
-            ->addSelect('i.metadata')
-            ->from('invoices', 'i')
-            ->where("i.type = 'bill'")
-            ->andWhere($select->expr()->eq('i.transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))))
-            ->orderBy('i.category_id', 'ASC')
-            ->addOrderBy('i.id', 'DESC');
-
-        $categoryParameters = array_map(
-            fn (int $categoryId): string => $select->createNamedParameter($categoryId, ParameterType::INTEGER),
-            $categoryIds
-        );
-        $select->andWhere($select->expr()->in('i.category_id', $categoryParameters));
-
-        $rows = $select->executeQuery()->fetchAllAssociative();
-        if (empty($rows)) {
+        $rows ??= $this->getLiquidDiscountRows();
+        if (!$rows) {
             return $this;
         }
 
@@ -189,6 +194,43 @@ class ProducaoCooperativista extends ADocument
     }
 
     /**
+     * Fetch eligible discount bills once and pass the same rows to each cooperado.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getLiquidDiscountRows(): array
+    {
+        $categoryIds = $this->getLiquidDiscountCategoryIds();
+        if (!$categoryIds) {
+            return [];
+        }
+
+        $select = $this->entityManager->getConnection()->createQueryBuilder();
+        $select->select('i.id')
+            ->addSelect('i.category_id')
+            ->addSelect('i.category_name')
+            ->addSelect('i.document_number')
+            ->addSelect('i.due_at')
+            ->addSelect('i.metadata')
+            ->from('invoices', 'i')
+            ->where("i.type = 'bill'")
+            ->andWhere($select->expr()->eq(
+                'i.transaction_of_month',
+                $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))
+            ))
+            ->orderBy('i.category_id', 'ASC')
+            ->addOrderBy('i.id', 'DESC');
+
+        $categoryParameters = array_map(
+            fn (int $categoryId): string => $select->createNamedParameter($categoryId, ParameterType::INTEGER),
+            $categoryIds
+        );
+        $select->andWhere($select->expr()->in('i.category_id', $categoryParameters));
+
+        return $select->executeQuery()->fetchAllAssociative();
+    }
+
+    /**
      * @return int[]
      */
     private function getLiquidDiscountCategoryIds(): array
@@ -199,7 +241,7 @@ class ProducaoCooperativista extends ADocument
         }
 
         $categoryIds = $this->getDescendantCategoryIds($liquidDiscountParentId);
-        $categoryIds = array_map('intval', $categoryIds);
+        $categoryIds = array_map(intval(...), $categoryIds);
         $categoryIds = array_filter($categoryIds, fn (int $id): bool => $id > 0);
         return array_values(array_unique($categoryIds));
     }
@@ -278,24 +320,46 @@ class ProducaoCooperativista extends ADocument
 
     private function parseMoneyValue(string $value): float
     {
-        $value = trim($value);
-        $value = preg_replace('/[^0-9,.-]/', '', $value) ?? '';
-        $value = str_replace('.', '', $value);
-        $value = str_replace(',', '.', $value);
-        return (float) $value;
+        // Never silently turn a decimal dot into a thousands separator:
+        // "1592.65" used to be interpreted as 159265.
+        $normalized = preg_replace('/\s+/u', '', trim($value));
+        $normalized = preg_replace('/^R\$/i', '', $normalized ?? '') ?? '';
+
+        if (!preg_match('/\A-?(?:[0-9]+(?:,[0-9]{1,2})?|[0-9]{1,3}(?:\.[0-9]{3})+(?:,[0-9]{1,2})?)\z/', $normalized)) {
+            throw new \InvalidArgumentException(
+                'Valor monetário de desconto líquido inválido. Use vírgula para centavos e ponto apenas para milhares.'
+            );
+        }
+
+        $amount = (float) str_replace(',', '.', str_replace('.', '', $normalized));
+        if (!is_finite($amount)) {
+            throw new \InvalidArgumentException('Valor monetário de desconto líquido fora do intervalo permitido.');
+        }
+
+        return $amount;
     }
 
     protected function getDocumentNumber(): string
     {
         if (empty($this->documentNumber)) {
+            // The identifier follows the *income month*, not the payout
+            // month. Historical FRRA drafts were renumbered separately;
+            // the compatibility guard in ADocument still blocks any collision.
             $this->setDocumentNumber(
-                'PDC_' .
-                $this->getCooperado()->getTaxNumber() .
-                '-' .
-                $this->dates->getInicioProximoMes()->format('Y-m')
+                'PDC_' . $this->getCooperado()->getTaxNumber()
+                . '-' . $this->dates->getInicioProximoMes()->format('Y-m')
             );
         }
         return $this->documentNumber;
+    }
+
+    /**
+     * The identifier used by the publisher, exposed for read-only reconciliation.
+     * This does not call the Akaunting API or create a document.
+     */
+    public function getPreviewDocumentNumber(): string
+    {
+        return $this->getDocumentNumber();
     }
 
     private function populateProducaoCooperativistaWithDefault(): self
@@ -389,7 +453,7 @@ class ProducaoCooperativista extends ADocument
         }
 
         $parts = array_values(array_filter(
-            array_map('trim', explode('>', $discount['category_name'])),
+            array_map(trim(...), explode('>', $discount['category_name'])),
             fn (string $part): bool => $part !== ''
         ));
         $itemName = array_pop($parts);
@@ -421,29 +485,64 @@ class ProducaoCooperativista extends ADocument
         return implode(', ', $parts);
     }
 
-    public function atualizaAdiantamentos(): self
+    /**
+     * @param list<array<string, mixed>>|null $rows Advance rows for this cooperado, if preloaded.
+     */
+    public function atualizaAdiantamentos(?array $rows = null): self
     {
         $taxNumber = $this->getCooperado()->getTaxNumber();
-
-        $select = $this->entityManager->getConnection()->createQueryBuilder();
-        $select->select('i.amount')
-            ->addSelect('i.document_number')
-            ->addSelect('i.due_at')
-            ->from('invoices', 'i')
-            ->where("i.type = 'bill'")
-            ->andWhere("JSON_UNQUOTE(JSON_EXTRACT(i.metadata, '$.status')) = 'paid'")
-            ->andWhere($select->expr()->eq('i.category_id', $select->createNamedParameter((int) getenv('AKAUNTING_ADIANTAMENTO_CATEGORY_ID'), ParameterType::INTEGER)))
-            ->andWhere($select->expr()->eq('i.tax_number', $select->createNamedParameter($taxNumber)))
-            ->andWhere($select->expr()->gte('i.transaction_of_month', $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))));
-
-        $stmt = $select->executeQuery();
-        while ($row = $stmt->fetchAssociative()) {
+        $rows ??= $this->getAdiantamentosParaCooperados([$taxNumber])[$taxNumber] ?? [];
+        $this->values->setAdiantamento([]);
+        foreach ($rows as $row) {
             $this->values->setAdiantamento(array_merge(
                 $this->values->getAdiantamento(),
                 [$row]
             ));
         }
+
         return $this;
+    }
+
+    /**
+     * Batch-fetch paid advances for the relevant cooperados.
+     *
+     * @param list<string> $taxNumbers
+     * @return array<string, list<array<string, mixed>>>
+     */
+    public function getAdiantamentosParaCooperados(array $taxNumbers): array
+    {
+        if (!$taxNumbers) {
+            return [];
+        }
+
+        $select = $this->entityManager->getConnection()->createQueryBuilder();
+        $select->select('i.amount')
+            ->addSelect('i.document_number')
+            ->addSelect('i.due_at')
+            ->addSelect('i.tax_number')
+            ->from('invoices', 'i')
+            ->where("i.type = 'bill'")
+            ->andWhere("JSON_UNQUOTE(JSON_EXTRACT(i.metadata, '$.status')) = 'paid'")
+            ->andWhere($select->expr()->eq(
+                'i.category_id',
+                $select->createNamedParameter((int) getenv('AKAUNTING_ADIANTAMENTO_CATEGORY_ID'), ParameterType::INTEGER)
+            ))
+            ->andWhere($select->expr()->in(
+                'i.tax_number',
+                $select->createNamedParameter($taxNumbers, \Doctrine\DBAL\ArrayParameterType::STRING)
+            ))
+            ->andWhere($select->expr()->eq('i.archive', $select->createNamedParameter(0, ParameterType::INTEGER)))
+            ->andWhere($select->expr()->eq(
+                'i.transaction_of_month',
+                $select->createNamedParameter($this->dates->getInicioProximoMes()->format('Y-m'))
+            ));
+
+        $byCooperado = [];
+        foreach ($select->executeQuery()->fetchAllAssociative() as $row) {
+            $byCooperado[(string) $row['tax_number']][] = $row;
+        }
+
+        return $byCooperado;
     }
 
     private function aplicaAdiantamentos(): self

@@ -1,15 +1,11 @@
 ```mermaid
 classDiagram
-    namespace Providers {
-        class Akaunting
-        class Kimai
-    }
-
     namespace Akaunting {
-        class ParseText
-        class FetchList
         class Request
+        class Dataset
+        class FieldStudio
     }
 
-    FetchList --|> Request
+    Dataset --> Request
+    FieldStudio --> Request
 ```

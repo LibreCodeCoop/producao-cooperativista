@@ -67,7 +67,7 @@ class GetUsersCommand extends AbstractBaseCommand
             $output->write($this->toCsv($list));
         }
         if ($input->getOption('database')) {
-            $this->users->saveList($list);
+            $this->users->saveList();
         }
         return Command::SUCCESS;
     }

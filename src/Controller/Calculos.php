@@ -26,8 +26,12 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Domain\Competencia;
 use App\Service\Movimentacao;
+use App\Service\Calculation\ImportedSourceReview;
+use App\Service\Calculation\FailureGuide;
 use App\Service\ProducaoCooperativista;
+use App\Service\Config\CompetenceDefaults;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -42,45 +46,62 @@ class Calculos extends AbstractController
     public function __construct(
         RequestStack $requestStack,
         private UrlGeneratorInterface $urlGenerator,
+        private CompetenceDefaults $competences,
         private ProducaoCooperativista $producao,
         private Movimentacao $movimentacao,
+        private ImportedSourceReview $sourceReview,
     ) {
         $this->request = $requestStack->getCurrentRequest();
     }
 
-    #[Route('/calculos', methods: ['GET'])]
+    #[Route('/relatorios/calculos', methods: ['GET'])]
     public function index(): Response
     {
-        $inicio = \DateTime::createFromFormat('Y-m', $this->request->query->getString('ano-mes'));
-        if (!$inicio instanceof \DateTime) {
-            $inicio = new \DateTime();
-            $inicio->modify('-2 month');
-            return new RedirectResponse(
-                $this->urlGenerator->generate(
-                    'app_calculos_index',
-                    [
-                        'ano-mes' => $inicio->format('Y-m')
-                    ],
-                    $this->urlGenerator::ABSOLUTE_URL
-                )
-            );
+        $requested = $this->request->query->getString('ano-mes');
+        if ($requested === '') {
+            $inicio = \DateTime::createFromFormat('!Y-m', $this->competences->reportMonth());
+            return new RedirectResponse($this->urlGenerator->generate('app_calculos_index', [
+                'ano-mes' => $inicio->format('Y-m'),
+            ]));
         }
-        $this->producao->dates->setDiaUtilPagamento(
-            $this->request->query->getInt('dia-util-pagamento', (int) getenv('DIA_UTIL_PAGAMENTO'))
-        );
-
-        $this->producao->dates->setInicio($inicio);
-
-        $diasUteis = $this->request->query->getInt('dias-uteis');
-        $this->producao->dates->setDiasUteis($diasUteis);
-
-        $this->movimentacao->setPercentualMaximo(
-            $this->request->query->getInt('percentual-maximo', (int) getenv('PERCENTUAL_MAXIMO'))
-        );
         try {
+            $inicio = Competencia::fromString($requested)->start();
+        } catch (\InvalidArgumentException $error) {
+            return new Response($error->getMessage(), Response::HTTP_BAD_REQUEST);
+        }
+        $simulation = array_any(
+            ['percentual-maximo', 'dia-util-pagamento', 'dias-uteis'],
+            fn (string $key): bool => $this->request->query->has($key),
+        );
+
+        try {
+            $this->producao->dates->setDiaUtilPagamento(
+                $this->request->query->getInt('dia-util-pagamento', (int) getenv('DIA_UTIL_PAGAMENTO'))
+            );
+
+            $this->producao->dates->setInicio($inicio);
+
+            $diasUteis = $this->request->query->getInt('dias-uteis');
+            $this->producao->dates->setDiasUteis($diasUteis);
+
+            $this->movimentacao->setPercentualMaximo(
+                $this->request->query->getInt('percentual-maximo', (int) getenv('PERCENTUAL_MAXIMO'))
+            );
+            // Financial memory is a forecast; the publishing command keeps
+            // its paid-only selection and separate financial review.
+            $this->movimentacao->setForecastMode(true);
             $data = $this->producao->exportData();
         } catch (\Throwable $th) {
-            $erros = [$th->getMessage()];
+            $guide = FailureGuide::diagnose($th->getMessage());
+            $erros = [$guide->summary . ' ' . $guide->instructions];
+        }
+        try {
+            // On success: expose invoice statuses beside the full forecast.
+            // On failure: retain an auditable summary of the imported sources.
+            $sourceReview = $this->sourceReview->read(Competencia::fromString($requested));
+        } catch (\Throwable) {
+            // Never hide a forecast or its original diagnostic when status
+            // reconciliation is temporarily unavailable.
         }
 
         return $this->render('calculos.index.html.twig', [
@@ -91,7 +112,20 @@ class Calculos extends AbstractController
                 ],
             ),
             'data' => $data ?? [],
+            'competencia' => $inicio->format('Y-m'),
+            'financial_month' => Competencia::fromString($requested)->financialMonth(),
+            'source_review' => $sourceReview ?? null,
+            'unclassified_income' => isset($data)
+                ? $this->movimentacao->getUnclassifiedForecastIncome()
+                : null,
+            'simulation' => $simulation,
             'erros' => $erros ?? [],
         ]);
     }
+    #[Route('/relatorios/calculos/ajuda', methods: ['GET'])]
+    public function ajuda(): Response
+    {
+        return $this->render('calculos.ajuda.html.twig');
+    }
+
 }

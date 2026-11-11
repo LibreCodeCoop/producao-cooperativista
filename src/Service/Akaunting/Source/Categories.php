@@ -29,9 +29,11 @@ namespace App\Service\Akaunting\Source;
 use App\Entity\Producao\Category;
 use App\Helper\MagicGetterSetterTrait;
 use App\Provider\Akaunting\Dataset;
+use App\Service\Calculation\CategoryHierarchy;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Psr\Log\LoggerInterface;
+use App\Service\Import\BatchPersistence;
 
 class Categories
 {
@@ -39,11 +41,13 @@ class Categories
     private int $companyId;
     /** @var Category[] */
     private array $list = [];
+    private ?CategoryHierarchy $categoryHierarchy = null;
 
     public function __construct(
         private LoggerInterface $logger,
         private EntityManagerInterface $entityManager,
         private Dataset $dataset,
+        private BatchPersistence $batchPersistence,
     ) {
         $this->companyId = (int) getenv('AKAUNTING_COMPANY_ID');
     }
@@ -84,10 +88,71 @@ class Categories
 
     public function saveList(): self
     {
-        $this->getList();
-        foreach ($this->list as $row) {
-            $this->saveRow($row);
+        $sourceCategories = $this->getList();
+        if ($sourceCategories === []) {
+            throw new Exception('Akaunting returned no categories: refusing to reconcile an empty source.');
         }
+
+        /** @var array<int, Category> $sourceById */
+        $sourceById = [];
+        foreach ($sourceCategories as $category) {
+            $sourceById[$category->getId()] = $category;
+        }
+
+        $connection = $this->entityManager->getConnection();
+        $connection->beginTransaction();
+        try {
+            $this->batchPersistence->save($this->entityManager, $sourceCategories);
+
+            // Category IDs are accounting classifications, not fiscal receipt IDs.
+            // Migrate references before removing a category retired at the source.
+            // Unknown retirements with references are blocked for manual review.
+            foreach ($this->entityManager->getRepository(Category::class)->findAll() as $category) {
+                $oldId = $category->getId();
+                if (isset($sourceById[$oldId])) {
+                    continue;
+                }
+
+                $newId = $oldId === 20 && isset($sourceById[19]) ? 19 : null;
+                if ($newId !== null) {
+                    foreach (['invoices', 'transactions'] as $table) {
+                        $connection->executeStatement(
+                            'UPDATE ' . $table . ' SET category_id = ?, category_name = ?, category_type = ? WHERE category_id = ?',
+                            [
+                                $newId,
+                                $sourceById[$newId]->getName(),
+                                $sourceById[$newId]->getType(),
+                                $oldId,
+                            ],
+                        );
+                    }
+                }
+
+                foreach (['invoices', 'transactions'] as $table) {
+                    $references = (int) $connection->fetchOne(
+                        'SELECT COUNT(*) FROM ' . $table . ' WHERE category_id = ?',
+                        [$oldId],
+                    );
+                    if ($references > 0) {
+                        throw new Exception(sprintf(
+                            'Cannot remove source-retired category %d: %d records in %s require reconciliation.',
+                            $oldId,
+                            $references,
+                            $table,
+                        ));
+                    }
+                }
+                $this->entityManager->remove($category);
+            }
+
+            $this->entityManager->flush();
+            $connection->commit();
+        } catch (\Throwable $exception) {
+            $connection->rollBack();
+            throw $exception;
+        }
+
+        $this->categoryHierarchy = null;
         return $this;
     }
 
@@ -119,16 +184,14 @@ class Categories
 
     public function getChildrensCategories(int $id): array
     {
-        $childrens = [];
-        foreach ($this->getCategories() as $category) {
-            if ($category->getParentId() === $id) {
-                $childrens[] = $category->getId();
-                $childrens = array_merge($childrens, $this->getChildrensCategories($category->getId()));
+        if ($this->categoryHierarchy === null) {
+            $parentByCategory = [];
+            foreach ($this->getCategories() as $category) {
+                $parentByCategory[$category->getId()] = $category->getParentId();
             }
-            if ($category->getId() === $id) {
-                $childrens[] = $category->getId();
-            }
+            $this->categoryHierarchy = new CategoryHierarchy($parentByCategory);
         }
-        return array_values(array_unique($childrens));
+
+        return $this->categoryHierarchy->descendants($id);
     }
 }

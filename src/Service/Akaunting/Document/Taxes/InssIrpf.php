@@ -32,8 +32,11 @@ use UnexpectedValueException;
 
 class InssIrpf extends Tax
 {
+    #[\Override]
     protected string $whoami = 'INSS_IRRF';
+    #[\Override]
     protected string $readableName = 'IRRF';
+    #[\Override]
     protected int $quantity = -1;
     private ADocument $document;
 
@@ -41,7 +44,7 @@ class InssIrpf extends Tax
     {
         try {
             $this->getDueAt();
-        } catch (UnexpectedValueException $e) {
+        } catch (UnexpectedValueException) {
             $this->changeDueAt($this->dates->getDataPagamento());
         }
         return parent::setUp();

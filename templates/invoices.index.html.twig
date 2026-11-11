@@ -1,10 +1,44 @@
 {% extends "layout/index.html.twig" %}
-
-{% block title %}Invoices{% endblock title %}
-
+{% block title %}{% if pendentes|default(false) %}Faturas para conferência{% else %}Entradas e saídas{% endif %}{% endblock %}
+{% block head %}
+    <link rel="stylesheet" href="/css/production-workflow.css{% if workflow_asset_version is defined %}?v={{ workflow_asset_version }}{% endif %}">
+{% endblock %}
 {% block body %}
-    <div>
-    Esta tabela retorna as <strong>transações de um mês</strong> específico. Para trocar o mês, altere o <strong>ano-mes</strong> na URL desta página.
+    <nav class="breadcrumbs" aria-label="Localização">
+        <a href="/acoes/make-producao?ano-mes={{ competencia }}">Fechamento</a><span aria-hidden="true">/</span><span aria-current="page">{% if pendentes|default(false) %}Faturas para conferência{% else %}Entradas e saídas{% endif %}</span>
+    </nav>
+    <header class="page-heading page-heading-compact">
+        <p class="eyebrow">Conferência financeira · Competência {{ competencia }}</p>
+        <h1>{% if pendentes|default(false) %}Faturas para conferência{% else %}Entradas e saídas{% endif %}</h1>
+        <p class="page-lead">{% if pendentes|default(false) %}Produção de {{ competencia }}, faturas da competência financeira {{ financial_month|default('mês seguinte') }}. <strong>Situação da fatura</strong> indica a etapa de faturamento no Akaunting; <strong>Recebimento registrado</strong> mostra pagamentos encontrados na base importada; <strong>O que fazer</strong> orienta a próxima conferência. Rascunhos precisam de revisão antes da emissão ou envio; faturas marcadas como enviadas precisam ter seus recebimentos verificados, pois o envio não comprova pagamento. Abra a fatura no Akaunting, faça os ajustes necessários e reimporte esta competência para atualizar a conferência, sem limpar o banco. Este relatório não consulta o extrato bancário em tempo real.{% else %}Confira os lançamentos de entradas e saídas importados para a competência financeira seguinte ao trabalho, sem depender do cálculo de distribuição. O registro nesta tabela não comprova, por si só, a quitação. As faturas que exigem revisão de emissão ou recebimento estão disponíveis em “Faturas para conferência”.{% endif %}</p>
+    </header>
+    <div class="production-report-tools">
+        <form method="get" action="{{ pendentes|default(false) ? '/relatorios/faturas-conferencia' : '/relatorios/invoices' }}" class="production-month-picker">
+            <label for="invoices-competence">Competência do trabalho</label>
+            <input type="month" id="invoices-competence" name="ano-mes" value="{{ competencia }}" required>
+            <button type="submit" class="button button-primary">Consultar</button>
+        </form>
+        <nav aria-label="Relatórios financeiros relacionados" class="production-report-nav">
+            {% if pendentes|default(false) %}
+                <a href="/relatorios/invoices?ano-mes={{ competencia }}">Entradas e saídas financeiras</a>
+                <span aria-current="page">Faturas para conferência</span>
+            {% else %}
+                <span aria-current="page">Entradas e saídas financeiras</span>
+                <a href="/relatorios/faturas-conferencia?ano-mes={{ competencia }}">Faturas para conferência</a>
+            {% endif %}
+            <a href="/relatorios/calculos?ano-mes={{ competencia }}">Memória de cálculo</a>
+            <a href="/acoes/make-producao?ano-mes={{ competencia }}">Voltar ao processamento</a>
+        </nav>
     </div>
-    {{ include('layout/components/datatable.html.twig') }}
+    <p class="production-help">{% if pendentes|default(false) %}Este é um relatório próprio de faturas para revisão, não um filtro das movimentações financeiras. Inclui documentos em rascunho, mesmo sem recebimento.{% else %}Este relatório contém movimentações financeiras registradas. As faturas ainda em rascunho ou que exigem conciliação aparecem no relatório separado “Faturas para conferência”.{% endif %}</p>
+    {% if pendentes|default(false) %}
+        <p id="pending-invoice-summary" class="production-help" role="status" aria-live="polite">Carregando faturas da base importada…</p>
+    {% endif %}
+    {{ include('layout/components/datatable.html.twig', {
+        pendingInvoices: pendentes|default(false),
+        financialMovements: not pendentes|default(false),
+        filterColumns: pendentes|default(false)
+            ? ['metadata', 'id', 'URL']
+            : ['metadata', 'URL', 'contact_id', 'contact_url', 'category_url']
+    }) }}
 {% endblock %}

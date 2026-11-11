@@ -46,8 +46,14 @@ doctrine:
 when@test:
     doctrine:
         dbal:
-            # "TEST_TOKEN" is typically set by ParaTest
-            dbname_suffix: '_test%env(default::TEST_TOKEN)%'
+            # With multiple named connections, the suffix MUST be applied to
+            # each connection. A root-level dbname_suffix leaves the default
+            # ETL database pointing at the non-test schema.
+            connections:
+                main:
+                    dbname_suffix: '_test%env(default::TEST_TOKEN)%'
+                akaunting:
+                    dbname_suffix: '_test%env(default::TEST_TOKEN)%'
 
 when@prod:
     doctrine:

@@ -43,9 +43,9 @@ class Customer
     #[ORM\Column(length: 150)]
     private string $name;
     #[ORM\Column(length: 50, nullable: true)]
-    private ?string $number;
+    private ?string $number = null;
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    private ?string $comment;
+    private ?string $comment = null;
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $visible;
     #[ORM\Column(type: Types::BOOLEAN)]
@@ -53,9 +53,9 @@ class Customer
     #[ORM\Column(length: 3)]
     private string $currency;
     #[ORM\Column(length: 7, nullable: true)]
-    private ?string $color;
+    private ?string $color = null;
     #[ORM\Column(unique: true, nullable: true, length: 100)]
-    private ?string $vatId;
+    private ?string $vatId = null;
     #[ORM\Column(type: Types::BIGINT)]
-    private ?int $timeBudget;
+    private ?int $timeBudget = null;
 }

@@ -37,7 +37,7 @@ use Tests\Php\TestCase;
 
 final class ADocumentEnvironmentTest extends TestCase
 {
-    private const ITEM_IDS_JSON = '{"bruto":26,"INSS":28,"IRRF":29,"Auxílio":32,"desconto":31,"frra":27}';
+    private const string ITEM_IDS_JSON = '{"bruto":26,"INSS":28,"IRRF":29,"Auxílio":32,"desconto":31,"frra":27}';
 
     private EntityManagerInterface $entityManager;
     private Dates $dates;

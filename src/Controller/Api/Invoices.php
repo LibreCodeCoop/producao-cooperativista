@@ -26,15 +26,18 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
+use App\Domain\Competencia;
 use App\Service\Akaunting\Source\Categories;
+use App\Service\Calculation\ImportedSourceReview;
+use App\Service\Calculation\DecimalAllocation;
 use App\Service\Movimentacao;
 use DateTime;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Service\Calculation\ApiProblemResponder;
 
 class Invoices extends AbstractController
 {
@@ -43,6 +46,8 @@ class Invoices extends AbstractController
         RequestStack $requestStack,
         private Categories $categories,
         private Movimentacao $movimentacao,
+        private ImportedSourceReview $sourceReview,
+        private ApiProblemResponder $apiErrors,
     ) {
         $this->request = $requestStack->getCurrentRequest();
     }
@@ -50,11 +55,17 @@ class Invoices extends AbstractController
     #[Route('/api/v1/invoices', methods: ['GET'])]
     public function index(): JsonResponse
     {
+        // Retain compatibility with earlier clients of the query-string
+        // variant, but never present it as a filter on financial movements.
+        if ($this->request->query->getString('pendentes') === '1') {
+            return $this->pending();
+        }
+
         $this->movimentacao->dates->setDiaUtilPagamento(
             $this->request->query->getInt('dia-util-pagamento', (int) getenv('DIA_UTIL_PAGAMENTO'))
         );
 
-        $inicio = DateTime::createFromFormat('Y-m', $this->request->query->getString('ano-mes'));
+        $inicio = DateTime::createFromFormat('!Y-m', $this->request->query->getString('ano-mes'));
         if (!$inicio instanceof DateTime) {
             throw new \Exception('ano-mes precisa estar no formato YYYY-MM');
         }
@@ -69,26 +80,17 @@ class Invoices extends AbstractController
 
         $type = $this->request->query->getString('type', 'all');
         try {
-            switch ($type) {
-                case 'income':
-                    $movimentacao = $this->movimentacao->getEntradas();
-                    break;
-                case 'expense':
-                    $movimentacao = $this->movimentacao->getSaidas();
-                    break;
-                case 'all':
-                    $movimentacao = $this->movimentacao->getMovimentacaoFinanceira();
-                    break;
-                default:
-                    throw new \Exception('Tipo de movimentação invpalido: ' . print_r($type, true));
-            }
+            // A financial movements report is not a distribution simulation.
+            // Avoid blocking inspection when the settlement base is insufficient.
+            $movimentacao = $this->movimentacao->getMovimentacaoParaRelatorio();
+            $movimentacao = match ($type) {
+                'income' => array_filter($movimentacao, static fn (array $row): bool => $row['category_type'] === 'income'),
+                'expense' => array_filter($movimentacao, static fn (array $row): bool => $row['category_type'] === 'expense'),
+                'all' => $movimentacao,
+                default => throw new \InvalidArgumentException('Tipo de movimentação inválido.'),
+            };
         } catch (\Throwable $th) {
-            return new JsonResponse(
-                [
-                    'erro' => $th->getMessage()
-                ],
-                Response::HTTP_FORBIDDEN
-            );
+            return $this->apiErrors->fromThrowable($th, 'Invoices');
         }
 
         $movimentacao = $this->addUrlToAccount($movimentacao);
@@ -112,15 +114,39 @@ class Invoices extends AbstractController
             'data' => array_values($movimentacao),
             'metadata' => [
                 'total' => count($movimentacao),
-                'date' => $this->movimentacao->dates->getInicioProximoMes()->format('Y-m')
+                'date' => $this->movimentacao->dates->getInicioProximoMes()->format('Y-m'),
+                'report_kind' => 'financial_movements',
             ],
         ];
         return new JsonResponse($response);
     }
 
+    #[Route('/api/v1/faturas-conferencia', name: 'app_api_invoices_pending', methods: ['GET'])]
+    public function pending(): JsonResponse
+    {
+        try {
+            $competence = Competencia::fromString($this->request->query->getString('ano-mes'));
+            $report = $this->sourceReview->pendingInvoiceReport($competence);
+            $base = rtrim((string) getenv('AKAUNTING_API_BASE_URL'), '/');
+            $company = (string) getenv('AKAUNTING_COMPANY_ID');
+            foreach ($report['data'] as &$row) {
+                $row['URL'] = $base . '/' . $company . '/sales/invoices/' . $row['id'];
+            }
+            unset($row);
+            $report['metadata']['report_kind'] = 'invoices_for_reconciliation';
+
+            return new JsonResponse($report);
+        } catch (\Throwable $error) {
+            return $this->apiErrors->fromThrowable($error, 'InvoicesPendingReview');
+        }
+    }
+
     private function addUrlToAccount(array $movimentacao): array
     {
         $movimentacao = array_map(function ($row) {
+            // Present amounts at BRL precision. Do not modify the calculation
+            // or persist the rounded value back into the imported ledger.
+            $row['bruto'] = DecimalAllocation::amount(DecimalAllocation::cents((string) $row['bruto']));
             if ($row['table'] === 'transaction') {
                 $path = '/banking/transactions/';
             } elseif ($row['type'] === 'bill') {
@@ -128,11 +154,20 @@ class Invoices extends AbstractController
             } else {
                 $path = '/sales/invoices/';
             }
-            $row['URL'] = '<a href="' . getenv('AKAUNTING_API_BASE_URL') .
-                '/' . getenv('AKAUNTING_COMPANY_ID') .
-                $path . $row['id'] .
-                '" target="_blank">' .
-                $row['type'] . '</a>';
+            $base = rtrim((string) getenv('AKAUNTING_API_BASE_URL'), '/')
+                . '/' . getenv('AKAUNTING_COMPANY_ID');
+            $row['URL'] = $base . $path . $row['id'];
+            $contactId = (int) ($row['contact_id'] ?? 0);
+            $contactPath = match ($row['contact_type'] ?? null) {
+                'customer' => '/sales/customers/',
+                'vendor' => '/purchases/vendors/',
+                default => null,
+            };
+            $row['contact_url'] = $contactId > 0 && $contactPath !== null
+                ? $base . $contactPath . $contactId : null;
+            $categoryId = (int) ($row['category_id'] ?? 0);
+            $row['category_url'] = $categoryId > 0
+                ? $this->generateUrl('app_categorias_index', ['id' => $categoryId]) : null;
             return $row;
         }, $movimentacao);
         return $movimentacao;

@@ -7,6 +7,18 @@ parameters:
     locale: '%env(LOCALE)%'
 
 services:
+    _instanceof:
+        App\Service\Cooperative\CooperativeProfile:
+            tags: ['app.cooperative_profile']
+        App\Service\Policy\MetricStrategy:
+            tags: ['app.production_metric']
+        App\Service\Policy\AllocationPolicy:
+            tags: ['app.allocation_policy']
+        App\Service\Cooperative\ProductionPublisher:
+            tags: ['app.production_publisher']
+        App\Service\Import\SourceStep:
+            tags: ['app.etl_source']
+
     # default configuration for services in *this* file
     _defaults:
         autowire: true      # Automatically injects dependencies in your services.
@@ -21,17 +33,52 @@ services:
             - '../src/Entity/'
             - '../src/Kernel.php'
             - '../src/Service/Akaunting/DocumentConfiguration.php'
+    App\Service\Cooperative\ProfileRegistry:
+        arguments:
+            $profiles: !tagged_iterator app.cooperative_profile
+    App\Service\Cooperative\PublicationRouter:
+        arguments:
+            $publishers: !tagged_iterator app.production_publisher
+    App\Service\Policy\MetricRegistry:
+        arguments:
+            $strategies: !tagged_iterator app.production_metric
+    App\Service\Policy\AllocationPolicyRegistry:
+        arguments:
+            $policies: !tagged_iterator app.allocation_policy
+    App\Service\Import\SourcePipeline:
+        arguments:
+            $steps: !tagged_iterator app.etl_source
+    App\Service\Akaunting\PublicationWriteJournal:
+        arguments:
+            $main: '@doctrine.dbal.main_connection'
+    App\Service\Akaunting\CapitalSocialSettings:
+        factory: ['App\Service\Akaunting\CapitalSocialSettings', 'fromEnvironment']
+    App\Service\Akaunting\Source\CapitalSocial:
+        arguments:
+            $accounting: '@doctrine.dbal.akaunting_connection'
     App\Service\Akaunting\DocumentConfiguration:
     NumberFormatter:
         class: NumberFormatter
         arguments:
             $locale: '%env(LOCALE)%'
             $style: !php/const NumberFormatter::CURRENCY
+    App\Service\Audit\StagingInputReader:
+        arguments:
+            $main: '@doctrine.dbal.main_connection'
+    App\Service\Kimai\Source\WorkMetricsReader:
+        arguments:
+            $staging: '@doctrine.dbal.main_connection'
+    App\Service\Import\StagingDatabaseResetter:
+        arguments:
+            $main: '@doctrine.dbal.main_connection'
+            $akaunting: '@doctrine.dbal.akaunting_connection'
+    App\Service\Akaunting\CooperadoContactRegistry:
+        arguments:
+            $akauntingManager: '@doctrine.orm.akaunting_entity_manager'
     Monolog\Processor\PsrLogMessageProcessor:
     App\Helper\SseLogHandler:
         arguments:
             $sse: '@App\Helper\Sse'
-            $handler: '@monolog.handler.main'
             $processor: '@Monolog\Processor\PsrLogMessageProcessor'
 
     # add more service definitions when explicit configuration is needed

@@ -32,9 +32,13 @@ use Doctrine\DBAL\ParameterType;
 use Exception;
 use App\Helper\MagicGetterSetterTrait;
 use App\Provider\Akaunting\Dataset;
-use App\Provider\Akaunting\ParseText;
+use App\Provider\Akaunting\FieldStudio;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use App\Service\Import\BatchPersistence;
+use App\Service\Import\ExistingEntityIndex;
+use App\Service\Import\FinancialMonthScope;
+use App\Service\Import\AssociatedDocumentResolver;
 
 /**
  * @method self setCategoryId(int $value)
@@ -46,17 +50,20 @@ use Psr\Log\LoggerInterface;
 class Transactions
 {
     use MagicGetterSetterTrait;
-    private ?DateTime $date;
+    private ?DateTime $date = null;
     private int $companyId;
     private ?int $categoryId = null;
     /** @var Transaction[] */
-    private array $list = [];
+    private ?array $list = null;
 
     public function __construct(
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
-        private ParseText $parseText,
+        private FieldStudio $fieldStudio,
         private Dataset $dataset,
+        private BatchPersistence $batchPersistence,
+        private ExistingEntityIndex $entityIndex,
+        private AssociatedDocumentResolver $associatedDocumentResolver,
     ) {
         $this->companyId = (int) getenv('AKAUNTING_COMPANY_ID');
     }
@@ -66,19 +73,16 @@ class Transactions
      */
     public function getList(): array
     {
-        if (!empty($this->list)) {
+        if ($this->list !== null) {
             return $this->list;
         }
         $this->logger->info('Baixando dados de transactions');
-        $begin = $this->getDate()
-            ->modify('first day of this month');
-        $today = new DateTime();
-        if ($begin->format('m') <= $today->format('m')) {
-            $end = $today->modify('last day of this month');
-        } else {
-            $end = clone $begin;
-            $end = $end->modify('last day of this month');
-        }
+        $begin = (clone $this->getDate())->modify('first day of this month');
+        $today = new DateTime('first day of this month');
+        // The historical import intentionally covers subsequent receipts up to
+        // today, but month-only comparisons caused cross-year ranges to reverse.
+        $end = (clone ($begin <= $today ? $today : $begin))
+            ->modify('last day of this month');
 
         $search = [];
         if ($this->getCategoryId()) {
@@ -89,9 +93,30 @@ class Transactions
         $list = $this->dataset->list('/api/transactions', [
             'company_id' => $this->getCompanyId(),
             'search' => implode(' ', $search),
+            'include_field_studio' => '1',
         ]);
+        $list = new FinancialMonthScope()->complete(
+            $this->dataset,
+            $list,
+            'transaction',
+            $begin->format('Y-m'),
+            $this->getCompanyId(),
+            $this->getCategoryId()
+        );
+        $this->list = [];
+        $existing = $this->entityIndex->byId($this->entityManager, Transaction::class, array_column($list, 'id'));
+        // Always resolve the current source documents through bounded API
+        // filters; a previously imported month must never change attribution.
+        $linkedDocs = $this->associatedDocumentResolver->resolve($list, $this->getCompanyId());
+        $structured = $this->fieldStudio->fromRecords('transaction', $list, $this->getCompanyId());
         foreach ($list as $row) {
-            $transaction = $this->fromArray($row);
+            $linked = $linkedDocs[(int) ($row['document_id'] ?? 0)] ?? false;
+            $transaction = $this->fromArray(
+                $row,
+                $existing[$row['id']] ?? new Transaction(),
+                $linked,
+                $structured[(int) $row['id']]
+            );
             $this->list[] = $transaction;
         }
         $this->logger->info('Dados de transactions salvos com sucesso. Total: {total}', [
@@ -100,16 +125,24 @@ class Transactions
         return $this->list;
     }
 
-    public function fromArray(array $array): Transaction
-    {
-        $array = $this->getDataFromAssociatedDocument($array);
-        $array = array_merge($array, $this->parseText->do((string) $array['description']));
+    public function fromArray(
+        array $array,
+        ?Transaction $existingTransaction = null,
+        array|false|null $associatedDocument = null,
+        ?array $structured = null,
+    ): Transaction {
+        $array = $this->getDataFromAssociatedDocument($array, $associatedDocument);
+        $structured ??= $this->fieldStudio->fromRecords('transaction', [$array], $this->getCompanyId())[(int) $array['id']];
+        $array = array_merge($array, $structured);
         $array = $this->defineTransactionOfMonth($array);
         $array = $this->defineCustomerReference($array);
         $array = $this->convertFields($array);
-        $entity = $this->entityManager->find(Transaction::class, $array['id']);
-        if (!$entity instanceof Transaction) {
-            $entity = new Transaction();
+        $entity = $existingTransaction;
+        if ($entity === null) {
+            $entity = $this->entityManager->find(Transaction::class, $array['id']);
+            if (!$entity instanceof Transaction) {
+                $entity = new Transaction();
+            }
         }
         $entity->fromArray($array);
         return $entity;
@@ -117,10 +150,7 @@ class Transactions
 
     public function saveList(): self
     {
-        $this->getList();
-        foreach ($this->list as $row) {
-            $this->saveRow($row);
-        }
+        $this->batchPersistence->save($this->entityManager, $this->getList());
         return $this;
     }
 
@@ -132,6 +162,13 @@ class Transactions
         return $this;
     }
 
+    public function setDate(DateTime $date): self
+    {
+        $this->date = clone $date;
+        $this->list = null;
+        return $this;
+    }
+
     private function getDate(): DateTime
     {
         if (!$this->date instanceof DateTime) {
@@ -140,29 +177,37 @@ class Transactions
         return $this->date;
     }
 
-    private function getDataFromAssociatedDocument(array $item): array
+    private function getDataFromAssociatedDocument(array $item, array|false|null $associatedDocument = null): array
     {
-        $item['invoice_notes'] = null;
-        if (!$item['document_id']) {
+        if (empty($item['document_id'])) {
             return $item;
         }
-        $qb = $this->entityManager->getConnection()->createQueryBuilder();
-        $qb->select('i.id')
-            ->addSelect('i.customer_reference')
-            ->addSelect("i.metadata as metadata")
-            ->from('invoices', 'i')
-            ->where($qb->expr()->eq('i.id', $qb->createNamedParameter($item['document_id'], ParameterType::INTEGER)))
-            ->andWhere('i.customer_reference IS NOT NULL');
-        $row = $qb->executeQuery()->fetchAssociative();
+        $row = $associatedDocument;
+        if ($row === null) {
+            // Standalone import still supports one-record lookup; bulk import
+            // explicitly passes false for missing documents to avoid N+1.
+            $qb = $this->entityManager->getConnection()->createQueryBuilder();
+            $qb->select('i.id')
+                ->addSelect('i.customer_reference')
+                ->addSelect('i.metadata')
+                ->from('invoices', 'i')
+                ->where($qb->expr()->eq('i.id', $qb->createNamedParameter($item['document_id'], ParameterType::INTEGER)))
+                ->andWhere('i.customer_reference IS NOT NULL');
+            $row = $qb->executeQuery()->fetchAssociative();
+        }
         if (!$row) {
             return $item;
         }
-        if (json_validate($row['metadata'])) {
-            $metadata = json_decode($row['metadata'], true);
-            if (isset($metadata['notes']) && is_string($metadata['notes'])) {
-                $item = array_merge($item, $this->parseText->do($metadata['notes']));
+        if (!isset($row['field_values'])) {
+            $metadata = json_decode((string) ($row['metadata'] ?? '{}'), true);
+            $type = $metadata['type'] ?? null;
+            if (!in_array($type, ['invoice', 'bill'], true)) {
+                throw new \DomainException('Linked document type is unavailable for structured metadata.');
             }
+            $id = (int) $item['document_id'];
+            $row['field_values'] = $this->fieldStudio->fromRecords($type, [$metadata], $this->getCompanyId())[$id];
         }
+        $item = array_merge($item, $row['field_values']);
         if (empty($item['customer_reference'])) {
             $item['customer_reference'] = $row['customer_reference'];
         }
@@ -193,14 +238,21 @@ class Transactions
         } elseif (!empty($row['contact']['tax_number'])) {
             $row['customer_reference'] = $row['contact']['tax_number'];
         } else {
-            $row['customer_reference'] = getenv('CNPJ_COMPANY');
+            // Unknown customer identity is not the same as an internal
+            // cooperative transaction. Keep it unresolved so categories
+            // requiring a customer reference fail during reconciliation.
+            $row['customer_reference'] = '';
         }
         return $row;
     }
 
     private function convertFields(array $row): array
     {
-        $row['archive'] = strtolower($row['archive'] ?? 'não') === 'sim' ? 1 : 0;
+        // The single selector overrides the former boolean; old records keep their archived state.
+        $decision = (string) ($row['production_treatment'] ?? '');
+        $row['archive'] = $decision !== ''
+            ? (int) ($decision === 'ignorar')
+            : (int) (strtolower($row['archive'] ?? 'não') === 'sim');
         $row['category_id'] = $row['category_id'];
         $row['category_name'] = $row['category']['name'];
         $row['category_type'] = $row['category']['type'];

@@ -1,64 +1,286 @@
 {% extends "layout/index.html.twig" %}
 
-{% block title %}Calculos{% endblock title %}
+{% block title %}Memória de cálculo da produção{% endblock title %}
 
 {% block head %}
-    <script type="text/javascript" language="javascript" src="https://code.jquery.com/jquery-3.7.0.js"></script>
+    <link rel="stylesheet" href="/css/calculation-report.css">
+    <script src="/js/calculation-highlights.js" defer></script>
     <style>
         :root {
-        {%~ for key, item in data %}
-            --color_background_{{key}}: rgb({{item.color.0}}, {{item.color.1}}, {{item.color.2}});
-            --color_font_{{key}}: rgb({{item.font_color.0}}, {{item.font_color.1}}, {{item.font_color.2}});
-        {%~ endfor %}
+        {% for key, item in data %}
+            --color_background_{{ key }}: rgb({{ item.color.0 }}, {{ item.color.1 }}, {{ item.color.2 }});
+            --color_font_{{ key }}: rgb({{ item.font_color.0 }}, {{ item.font_color.1 }}, {{ item.font_color.2 }});
+        {% endfor %}
         }
-    {%~ for key, item in data %}
-        .label_{{ key }} {
+        {% for key, item in data %}
+        .calc-report .label_{{ key }}, .calc-report .{{ key }} {
             background-color: var(--color_background_{{ key }});
-            color:  var(--color_font_{{ key }});
-            border-width: 0;
-            padding: 3px;
+            color: var(--color_font_{{ key }});
         }
-        .{{ key }} {
-            background-color: var(--color_background_{{ key }});
-            color:  var(--color_font_{{ key }});
-            border-width: 0;
-            padding: 3px;
-        }
-    {%~ endfor %}
-        .active {
-            border: dashed red;
-            border-width: 3px;
-            padding: 0;
-        }
+        {% endfor %}
     </style>
 {% endblock %}
 
 {% block body %}
-    <div>
-    Cálculos <strong>produções de um mês</strong> específico. Para trocar o mês, altere o <strong>ano-mes</strong> na URL desta página.
+    {% set glossary = {
+        'total_notas_clientes': 'Prévia das receitas de clientes na competência, incluindo faturas ainda não recebidas. Não representa disponibilidade para pagamento.',
+        'total_notas_percentual_fixo': 'Receitas previstas de contratos com desconto administrativo fixo, excluídas da base móvel.',
+        'total_notas_percentual_movel': 'Receitas previstas com desconto administrativo móvel.',
+        'total_percentual_desconto_fixo': 'Desconto contratual aplicado apenas aos recebimentos com percentual fixo.',
+        'total_sobras_clientes_percentual_fixo': 'Ajuste residual dos recebimentos com desconto fixo e respectivas retenções.',
+        'total_dispendios_clientes_percentual_movel': 'Custos atribuídos aos clientes, reconciliáveis com os lançamentos de saída.',
+        'total_notas_para_percentual_movel_sem_custo_cliente': 'Base móvel disponível após a dedução dos custos por cliente.',
+        'total_dispendios_internos': 'Despesas internas elegíveis, conforme a hierarquia das categorias configuradas.',
+        'taxa_minima': 'Piso administrativo definido pelo total dos dispêndios internos.',
+        'taxa_maxima': 'Referência superior calculada como duas vezes os dispêndios internos.',
+        'percentual_seguranca': 'Parâmetro interno de referência sobre a base móvel, não uma alíquota tributária nem um percentual legal obrigatório.',
+        'valor_seguranca': 'Aplicação do percentual de referência sobre a base móvel líquida dos custos por cliente.',
+        'taxa_administrativa': 'Valor que cobre pelo menos os dispêndios internos e observa a regra condicional entre piso, referência e teto.',
+        'percentual_administrativo': 'Razão efetiva entre taxa administrativa e base móvel; pode superar a referência quando o piso de custos exigir.',
+        'base_producao': 'Base projetada das receitas previstas, após custos atribuídos e desconto aplicável, antes do rateio por trabalho.',
+        'reserva': 'Parcela gerencial prevista da taxa administrativa acima dos dispêndios internos; não é automaticamente o Fundo de Reserva legal.',
+        'total_sobras_do_mes': 'Saldo gerencial apurado da competência, distinto das sobras líquidas anuais destinadas pela assembleia.',
+        'total_sobras_distribuidas': 'Combinação do saldo mensal apurado com os documentos de distribuição já registrados.',
+        'total_horas_trabalhadas': 'Tempo efetivamente registrado na origem de apontamentos de trabalho.',
+        'total_horas_possiveis': 'Capacidade teórica: cooperados × 8 horas × dias úteis configurados.',
+        'total_cooperados': 'Cooperados considerados na produção, com link para o relatório de trabalho.',
+        'dias_uteis_no_mes': 'Dias úteis adotados na competência.',
+        'transacao_do_mes': 'Competência contábil da transação, que pode diferir do mês do trabalho.',
+        'ano_mes_trabalhado': 'Competência do trabalho que originou o cálculo.'
+    } %}
+    {% set groups = [
+        {'title': '1. Receitas previstas', 'description': 'Inclui faturas em rascunho, enviadas e recebimentos confirmados; separe contratos fixos dos móveis.', 'keys': ['total_notas_clientes', 'receita', 'total_notas_percentual_fixo', 'total_notas_percentual_movel', 'total_percentual_desconto_fixo', 'total_sobras_clientes_percentual_fixo']},
+        {'title': '2. Custos e base móvel', 'description': 'Confira custos por cliente, despesas internas e a base que suporta a taxa administrativa.', 'keys': ['total_dispendios_clientes_percentual_movel', 'total_notas_para_percentual_movel_sem_custo_cliente', 'total_dispendios_internos']},
+        {'title': '3. Taxa administrativa', 'description': 'Acompanhe o piso dos custos, o limite de referência, o percentual efetivo e a decisão condicional.', 'keys': ['taxa_minima', 'taxa_maxima', 'percentual_seguranca', 'valor_seguranca', 'taxa_administrativa', 'percentual_administrativo']},
+        {'title': '4. Produção, reserva e saldo', 'description': 'Entenda a base destinada ao trabalho, a reserva gerencial e o fechamento do mês.', 'keys': ['base_producao', 'reserva', 'total_sobras_do_mes', 'total_sobras_distribuidas']},
+        {'title': '5. Trabalho e competências', 'description': 'Parâmetros de rateio e períodos de referência, que também precisam ser conferidos.', 'keys': ['total_horas_trabalhadas', 'total_horas_possiveis', 'total_cooperados', 'dias_uteis_no_mes', 'transacao_do_mes', 'ano_mes_trabalhado']}
+    ] %}
+
+    <nav class="breadcrumbs" aria-label="Localização">
+        <a href="/acoes/make-producao">Fechamento</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">Memória de cálculo</span>
+    </nav>
+    <header class="page-heading calc-page-heading">
+        <p class="eyebrow">Apuração econômica · Rastreabilidade</p>
+        <h1>Memória de cálculo da produção</h1>
+        <p class="page-lead">Cada indicador apresenta o valor, sua composição matemática e, quando disponível, um caminho para verificar os documentos de origem.</p>
+        <p class="production-help"><strong>Competência do trabalho: {{ competencia }}</strong> · Mês financeiro das movimentações: <strong>{{ financial_month|default('') }}</strong>. A competência financeira posterior não substitui a do trabalho.</p>
+    </header>
+
+    <div class="calc-toolbar">
+        <form method="get" action="/relatorios/calculos" class="calc-period-form">
+            <label for="calc-competence">Competência do trabalho</label>
+            <input type="month" id="calc-competence" name="ano-mes" value="{{ competencia|default('') }}" required>
+            <button type="submit">Consultar</button>
+        </form>
+        <a class="calc-help-link" href="/relatorios/calculos/ajuda">Entenda as regras e as referências</a>
+        <a class="calc-help-link" href="/configuracao/cooperados">Corrigir dados nas fontes</a>
+        <a class="calc-help-link" href="/relatorios/producao?ano-mes={{ competencia }}">Produção por cooperado</a>
+        <a class="calc-help-link" href="/relatorios/invoices?ano-mes={{ competencia }}">Entradas e saídas</a>
+        <a class="calc-help-link" href="/relatorios/faturas-conferencia?ano-mes={{ competencia }}">Faturas para conferir</a>
+        <a class="calc-help-link" href="/relatorios/trabalhado-summarized?ano-mes={{ competencia }}">Horas por cooperado</a>
+        <a class="calc-help-link" href="/relatorios/apontamentos?ano-mes={{ competencia }}">Apontamentos detalhados</a>
+        <a class="calc-help-link" href="/acoes/make-producao?ano-mes={{ competencia }}">Voltar ao processamento</a>
     </div>
-    <div id="erros">
-        <ul>
-            {% for erro in erros %}
-                <li>{{ erro }}</li>
+
+    {% if simulation|default(false) %}
+        <div class="calc-notice calc-notice-warning" role="status">
+            <strong>Simulação com parâmetros alterados na URL.</strong>
+            Este resultado usa um ou mais parâmetros informados na requisição, que podem ser diferentes da política configurada no servidor. Não utilize esta simulação para autorizar pagamentos.
+        </div>
+    {% endif %}
+    <div class="calc-notice calc-notice-warning" role="note">
+        <strong>Previsão, não autorização de pagamento.</strong>
+        Esta memória inclui faturas em rascunho, enviadas e ainda sem pagamento, além de recebimentos.
+        A validação financeira e a confirmação dos pagamentos devem ocorrer antes da emissão de documentos
+        de distribuição. Valores previstos podem mudar após a conciliação.
+    </div>
+
+    {% if unclassified_income.count|default(0) > 0 %}
+        <section class="calc-notice calc-notice-warning" id="unclassified-income"
+            aria-labelledby="unclassified-income-title">
+            <h2 id="unclassified-income-title">Receitas pendentes de identificação do cliente</h2>
+            <p>
+                <strong>R$ {{ unclassified_income.amount|number_format(2, ',', '.') }}</strong>
+                em {{ unclassified_income.count }} lançamento(s) foram mantidos nos dados importados,
+                mas não foram atribuídos a cooperados nesta previsão.
+                Por isso, <strong>a memória é parcial</strong>: os valores individuais podem mudar
+                após a classificação e a reimportação.
+            </p>
+            <ul>
+                {% for movement in unclassified_income.records %}
+                    <li>
+                        <a href="/relatorios/invoices?ano-mes={{ competencia }}&amp;id={{ movement.id }}">
+                            Lançamento {{ movement.origin }} #{{ movement.id }}
+                        </a>:
+                        R$ {{ movement.amount|number_format(2, ',', '.') }}
+                        — categoria {{ movement.category }}.
+                    </li>
+                {% endfor %}
+            </ul>
+            <p>
+                Confira a natureza de cada receita no Akaunting. Não atribua um CPF/CNPJ fictício
+                nem altere a categoria automaticamente. A publicação permanece bloqueada até a conciliação.
+            </p>
+        </section>
+    {% endif %}
+
+    {% if source_review is not empty %}
+        {% set pending = source_review.unconfirmed_invoices %}
+        {% if pending.count > 0 %}
+            <section class="calc-notice calc-notice-warning" id="pending-invoice-review" aria-labelledby="pending-invoice-title">
+                <h2 id="pending-invoice-title">Faturas que precisam de conferência antes do pagamento</h2>
+                <p>
+                    {{ pending.count }} fatura(s) sem recebimento totalmente confirmado nesta competência,
+                    no valor nominal de <strong>R$ {{ pending.amount|number_format(2, ',', '.') }}</strong>.
+                    Estes documentos entram na previsão, mas não comprovam dinheiro recebido.
+                </p>
+                <ul>
+                    {% for document in pending.documents|default([])|slice(0, 10) %}
+                        {% set statusLabel = {
+                            'draft': 'Rascunho',
+                            'sent': 'Enviada',
+                            'overdue': 'Vencida',
+                            'partial': 'Parcialmente recebida',
+                            'paid': 'Marcada como paga; conferir recebimento da competência'
+                        }[document.status]|default('Situação a conferir') %}
+                        <li>
+                            <strong>{{ document.number|default('#' ~ document.id) }}</strong>:
+                            {{ statusLabel }} — R$ {{ document.amount|number_format(2, ',', '.') }}
+                            (recebido na competência: R$ {{ document.received_amount|number_format(2, ',', '.') }}).
+                        </li>
+                    {% endfor %}
+                </ul>
+                <a href="/relatorios/faturas-conferencia?ano-mes={{ competencia }}">
+                    Conferir todas as faturas e seus vínculos no Akaunting
+                </a>
+                <p>O valor nominal pode incluir documentos repetidos ou ainda não validados; a conferência é obrigatória.</p>
+            </section>
+        {% endif %}
+    {% else %}
+        <div class="calc-notice calc-notice-warning" role="note">
+            Não foi possível verificar os estados das faturas importadas.
+            Confira os registros no Akaunting antes de qualquer pagamento.
+        </div>
+    {% endif %}
+
+    <div class="calc-notice" role="note">
+        <strong>Leitura importante:</strong> o percentual de segurança é uma referência gerencial configurada pela cooperativa, não uma alíquota legal. A “reserva” mensal não equivale automaticamente ao Fundo de Reserva nem ao FATES estatutários. As sobras do exercício dependem da contabilidade e da deliberação assemblear.
+    </div>
+
+    {% if erros is not empty %}
+        <section id="erros" class="calc-notice calc-notice-error" role="alert" aria-live="polite">
+            <h2>Não foi possível concluir a apuração</h2>
+            <ul>{% for erro in erros %}<li>{{ erro }}</li>{% endfor %}</ul>
+            {% if source_review is not empty and data is empty %}
+                {% set eligible_receipts = source_review.income_transactions.amount %}
+                {% set client_costs = source_review.client_cost_transactions.amount %}
+                {% set internal_costs = source_review.internal_expense_transactions.amount %}
+                <p>
+                    <strong>Dados importados do mês financeiro {{ source_review.financial_month }}:</strong>
+                    recebimentos classificados de R$ {{ eligible_receipts|number_format(2, ',', '.') }},
+                    custos de clientes de R$ {{ client_costs|number_format(2, ',', '.') }}
+                    e diferença preliminar de R$ {{ (eligible_receipts - client_costs)|number_format(2, ',', '.') }}.
+                    Despesas internas identificadas: R$ {{ internal_costs|number_format(2, ',', '.') }}.
+                </p>
+                <p>
+                    Há {{ source_review.unconfirmed_invoices.count }} faturas de clientes que exigem conferência
+                    nesta competência. <a href="#source-review">Ver fontes e vínculos para conciliação</a>.
+                    Esta leitura não constitui base aprovada para distribuição ou pagamento.
+                </p>
+            {% endif %}
+        </section>
+    {% endif %}
+
+    {% if source_review is not empty and data is empty %}
+        <section class="calc-section" id="source-review" aria-labelledby="source-review-title">
+            <div class="calc-section-heading">
+                <h2 id="source-review-title">Fontes importadas disponíveis para conferência</h2>
+                <p>A apuração completa não está disponível. Os valores abaixo são registros da importação, não resultados de distribuição, retiradas ou sobras calculadas.</p>
+            </div>
+            <div class="calc-table-scroll" tabindex="0" role="region" aria-label="Dados importados da competência">
+                <table class="calc-report">
+                    <thead><tr><th scope="col">Dado da origem</th><th scope="col">Quantidade ou valor</th><th scope="col">Conferir</th></tr></thead>
+                    <tbody>
+                        <tr><th scope="row">Competência do trabalho</th><td>{{ source_review.competence }}</td><td><a href="/relatorios/producao?ano-mes={{ competencia }}">Produção por cooperado</a></td></tr>
+                        <tr><th scope="row">Mês financeiro</th><td>{{ source_review.financial_month }}</td><td><a href="/relatorios/invoices?ano-mes={{ competencia }}">Movimentações financeiras</a></td></tr>
+                        <tr><th scope="row">Cooperados com horas</th><td>{{ source_review.hours.members }}</td><td><a href="/relatorios/trabalhado-summarized?ano-mes={{ competencia }}">Horas por cooperado</a></td></tr>
+                        <tr><th scope="row">Apontamentos do trabalho</th><td>{{ source_review.hours.entries }}</td><td><a href="/relatorios/producao?ano-mes={{ competencia }}">Detalhes da produção</a></td></tr>
+                        <tr><th scope="row">Recebimentos classificados como elegíveis</th><td>R$ {{ source_review.income_transactions.amount|number_format(2, ',', '.') }}</td><td><a href="/relatorios/invoices?ano-mes={{ competencia }}&amp;category_type=income">Conferir entradas</a></td></tr>
+                        <tr><th scope="row">Custos de clientes identificados</th><td>R$ {{ source_review.client_cost_transactions.amount|number_format(2, ',', '.') }}</td><td><a href="/relatorios/invoices?ano-mes={{ competencia }}&amp;custos_clientes=sim">Conferir custos</a></td></tr>
+                        <tr><th scope="row">Despesas internas identificadas</th><td>R$ {{ source_review.internal_expense_transactions.amount|number_format(2, ',', '.') }}</td><td><a href="/relatorios/invoices?ano-mes={{ competencia }}&amp;dispendio_interno=sim">Conferir despesas</a></td></tr>
+                        <tr><th scope="row">Faturas que exigem revisão (inclui rascunhos)</th><td>{{ source_review.unconfirmed_invoices.count }} (valor nominal R$ {{ source_review.unconfirmed_invoices.amount|number_format(2, ',', '.') }})</td><td><a href="/relatorios/faturas-conferencia?ano-mes={{ competencia }}">Conferir faturas</a></td></tr>
+                        <tr><th scope="row">Base de produção e distribuição</th><td><strong>A apurar</strong></td><td>Depende de conciliação financeira</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% endif %}
+
+    {% if data is not empty %}
+        <section class="calc-summary" aria-label="Indicadores principais">
+            {% for key, caption in {
+                'total_notas_clientes': 'Receitas previstas de clientes',
+                'total_dispendios_internos': 'Dispêndios internos',
+                'base_producao': 'Base de produção',
+                'total_sobras_do_mes': 'Saldo gerencial do mês'
+            } %}
+                {% if data[key] is defined %}
+                    <div class="calc-summary-item">
+                        <small>{{ caption }}</small>
+                        <strong>R$ {{ data[key].valor|number_format(2, ',', '.') }}</strong>
+                        <a href="#{{ key }}">Ver memória de cálculo</a>
+                    </div>
+                {% endif %}
             {% endfor %}
-        </ul>
-    </div>
-    <table>
-    {%~ for nome, item in data %}
-        <tr>
-            <td class="label_{{nome}}">{{item.label}}</td>
-            <td class="formula_{{nome}}">{{item.formula|raw}}</td>
-        </tr>
-    {%~ endfor %}
-    </table>
-    <script>
-        $(document).ready( function () {
-        {%~ for nome, item in data %}
-            $('.{{nome}},.label_{{nome}}').hover(function() {
-                $('.{{nome}},.label_{{nome}}').toggleClass('active')
-            })
-        {%~ endfor %}
-        })
-    </script>
+        </section>
+
+        <p class="calc-instructions" id="calc-instructions">
+            <strong>Como auditar:</strong> passe o mouse sobre qualquer valor colorido para realçar todas as ocorrências do mesmo indicador. Use Tab e Enter/Espaço para fixar um destaque; pressione Esc para limpar. Os links nas fórmulas abrem os registros que originaram os valores.
+        </p>
+
+        {% for group in groups %}
+            <section class="calc-section" aria-labelledby="calc-stage-{{ loop.index }}">
+                <div class="calc-section-heading">
+                    <h2 id="calc-stage-{{ loop.index }}">{{ group.title }}</h2>
+                    <p>{{ group.description }}</p>
+                </div>
+                <div class="calc-table-scroll" tabindex="0" role="region" aria-label="{{ group.title }} — tabela rolável horizontalmente">
+                    <table class="calc-report" aria-describedby="calc-instructions">
+                        <thead><tr><th scope="col">Indicador</th><th scope="col">Valor apurado</th><th scope="col">Composição e referências de origem</th></tr></thead>
+                        <tbody>
+                        {% for nome, item in data %}
+                            {% if nome in group.keys %}
+                            <tr id="{{ nome }}" data-calc-row="{{ nome }}">
+                                <th scope="row" class="label_{{ nome }}" data-highlight-key="{{ nome }}" tabindex="0">
+                                    <span>{% if nome == 'transacao_do_mes' %}Mês financeiro das movimentações{% elseif nome == 'ano_mes_trabalhado' %}Competência do trabalho{% else %}{{ item.label }}{% endif %}</span>
+                                    <a class="calc-definition" href="/relatorios/calculos/ajuda#{{ nome }}" data-help="{{ glossary[nome]|default(item.label) }}" aria-label="Ajuda sobre {{ item.label }}: {{ glossary[nome]|default(item.label) }}">?</a>
+                                </th>
+                                <td class="calc-value">
+                                    {% if nome in ['percentual_seguranca', 'percentual_administrativo'] %}
+                                        {{ item.valor|number_format(2, ',', '.') }}%
+                                    {% elseif nome in ['ano_mes_trabalhado', 'transacao_do_mes'] %}
+                                        {{ item.valor }}
+                                    {% elseif nome in ['total_cooperados', 'dias_uteis_no_mes'] %}
+                                        {{ item.valor|number_format(0, ',', '.') }}
+                                    {% elseif nome in ['total_horas_trabalhadas', 'total_horas_possiveis'] %}
+                                        {{ item.valor|number_format(2, ',', '.') }} h
+                                    {% else %}
+                                        R$ {{ item.valor|number_format(2, ',', '.') }}
+                                    {% endif %}
+                                </td>
+                                <td class="calc-formula">{{ item.formula|raw }}</td>
+                            </tr>
+                            {% endif %}
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        {% endfor %}
+        <p class="calc-footer-note">Esta memória permite revisar os critérios de uma competência; não substitui a conciliação contábil, a validação tributária nem a decisão de destinação de sobras da assembleia.</p>
+    {% elseif erros is empty %}
+        <div class="calc-notice">Não há dados de apuração para exibir nesta competência.</div>
+    {% endif %}
 {% endblock %}

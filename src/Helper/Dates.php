@@ -57,18 +57,19 @@ class Dates
         private int $pagamentoFrraMesPadrao = 12,
         private DateTime $now = new DateTime(),
     ) {
-        BusinessDay::enable('Carbon\Carbon', $this->locationHolydays);
+        $this->now = clone $now;
+        BusinessDay::enable(\Carbon\Carbon::class, $this->locationHolydays);
         $this->calculaPrevisaoPagamentoFrra();
     }
 
     private function calculaPrevisaoPagamentoFrra(): void
     {
-        if ((int) $this->hoje()->format('m') === $this->pagamentoFrraMesPadrao) {
-            $ano = $this->hoje()->modify('+1 year')->format('Y');
-        } else {
-            $ano = $this->hoje()->format('Y');
+        $agora = $this->hoje();
+        $ano = (int) $agora->format('Y');
+        if ((int) $agora->format('n') >= $this->pagamentoFrraMesPadrao) {
+            ++$ano;
         }
-        $this->previsaoPagamentoFrra = \DateTime::createFromFormat('Y-m', $ano . '-' . (string) $this->pagamentoFrraMesPadrao)
+        $this->previsaoPagamentoFrra = \DateTime::createFromFormat('!Y-m', $ano . '-' . (string) $this->pagamentoFrraMesPadrao)
             ->modify('first day of this month')
             ->setTime(00, 00, 00);
         $carbon = Carbon::parse($this->previsaoPagamentoFrra);
@@ -77,36 +78,53 @@ class Dates
 
     public function hoje(): DateTime
     {
-        return $this->now;
+        return clone $this->now;
+    }
+
+    /**
+     * Used only for historical previews. Actual financial publication must use
+     * the real processing date to avoid backdated billing or payment documents.
+     */
+    public function setEvaluationTime(DateTime $instant): void
+    {
+        $this->now = clone $instant;
+        unset($this->dataPagamento, $this->dataProcessamento);
+        $this->calculaPrevisaoPagamentoFrra();
     }
 
     public function setInicio(DateTime $inicio): void
     {
-        $this->inicio = $inicio
+        $this->inicio = (clone $inicio)
             ->modify('first day of this month')
             ->setTime(00, 00, 00);
-        $fim = clone $inicio;
+        $fim = clone $this->inicio;
         $this->fim = $fim->modify('last day of this month')
             ->setTime(23, 59, 59);
 
-        $this->inicioProximoMes = (clone $inicio)->modify('first day of next month');
+        $this->inicioProximoMes = (clone $this->inicio)->modify('first day of next month');
         $this->fimProximoMes = (clone $fim)->modify('last day of next month');
+        unset($this->dataPagamento, $this->dataProcessamento);
+        $this->diasUteis = 0;
     }
 
     public function setDiaUtilPagamento(int $dia): void
     {
         $this->pagamentoNoDiaUtil = $dia;
+        unset($this->dataPagamento, $this->dataProcessamento);
+        $this->calculaPrevisaoPagamentoFrra();
     }
 
     public function getDataPagamento(): DateTime
     {
         try {
             return $this->dataPagamento;
-        } catch (\Throwable $th) {
+        } catch (\Throwable) {
             $inicoMes = (clone $this->inicioProximoMes)->modify('first day of next month');
             $carbon = Carbon::parse($inicoMes);
             $dataPagamento = $carbon->addBusinessDays($this->pagamentoNoDiaUtil);
-            $this->dataProcessamento = new DateTime();
+            // Capture the evaluation instant once; historical backfills are
+            // reproducible when a test or audit supplies the same clock.
+            $this->dataProcessamento = $this->hoje();
             $string = $dataPagamento->format('Y-m-d H:i:s');
             if ($string > $this->dataProcessamento->format('Y-m-d H:i:s')) {
                 $this->dataPagamento = new DateTime($string);
