@@ -250,8 +250,8 @@ final class ProductionBillHttpContractTest extends KernelTestCase
 
     public function testSeptemberPublicationKeepsOldFrraDraftUntouchedAndUsesNovemberPaymentMonth(): void
     {
-        $legacyNumber = 'PDC_12345678000190-2026-10';
-        $newNumber = 'PDC_12345678000190-TRAB-2026-09-FIN-2026-10-PAG-2026-11';
+        $legacyNumber = 'PDC_12345678000190-2026-11';
+        $newNumber = 'PDC_12345678000190-2026-10';
         $db = $this->em->getConnection();
         $db->executeStatement('DELETE FROM invoices WHERE id IN (994906, 994907)');
         $draft = new Invoice();

@@ -36,22 +36,15 @@ class ProducaoCooperativista extends ADocument
     protected string $whoami = 'PDC';
 
     /**
-     * Historical PDC numbers were based only on the financial month. That
-     * namespace also contains accumulated FRRA obligations from prior work
-     * months. Preserve it for old competencies; new settlements use a clearly
-     * versioned identity that cannot collide with those protected drafts.
+     * The payable's accounting month and the PDC number are intentionally
+     * separate: work in September uses October income and is paid in November.
+     * Legacy work months retain their original accounting-month behavior.
      */
-    private const string NUMBERING_V2_FROM_WORK_MONTH = '2026-09';
+    private const string PAYMENT_MONTH_FROM_WORK_MONTH = '2026-09';
 
-    private function usesSettlementIdentity(): bool
+    private function usesPaymentMonthAccounting(): bool
     {
-        return $this->dates->getInicio()->format('Y-m') >= self::NUMBERING_V2_FROM_WORK_MONTH;
-    }
-
-    private function nominalPaymentMonth(): string
-    {
-        return (clone $this->dates->getInicioProximoMes())
-            ->modify('first day of next month')->format('Y-m');
+        return $this->dates->getInicio()->format('Y-m') >= self::PAYMENT_MONTH_FROM_WORK_MONTH;
     }
 
     /**
@@ -65,7 +58,7 @@ class ProducaoCooperativista extends ADocument
         // The *income* feeding this production is from the following month.
         // The resulting cooperator payable belongs to the payment month, not
         // to the earlier income month. Keep old documents' month untouched.
-        return $this->usesSettlementIdentity()
+        return $this->usesPaymentMonthAccounting()
             ? $this->getDueAt()->format('Y-m')
             : $this->dates->getInicioProximoMes()->format('Y-m');
     }
@@ -349,15 +342,13 @@ class ProducaoCooperativista extends ADocument
     protected function getDocumentNumber(): string
     {
         if (empty($this->documentNumber)) {
-            $number = 'PDC_' . $this->getCooperado()->getTaxNumber();
-            if ($this->usesSettlementIdentity()) {
-                $number .= '-TRAB-' . $this->dates->getInicio()->format('Y-m')
-                    . '-FIN-' . $this->dates->getInicioProximoMes()->format('Y-m')
-                    . '-PAG-' . $this->nominalPaymentMonth();
-            } else {
-                $number .= '-' . $this->dates->getInicioProximoMes()->format('Y-m');
-            }
-            $this->setDocumentNumber($number);
+            // The identifier follows the *income month*, not the payout
+            // month. Historical FRRA drafts were renumbered separately;
+            // the compatibility guard in ADocument still blocks any collision.
+            $this->setDocumentNumber(
+                'PDC_' . $this->getCooperado()->getTaxNumber()
+                . '-' . $this->dates->getInicioProximoMes()->format('Y-m')
+            );
         }
         return $this->documentNumber;
     }
