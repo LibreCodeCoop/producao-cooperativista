@@ -23,5 +23,8 @@ jobs:
       - name: Syntax-check all module classes
         run: find akaunting-module -type f -name '*.php' -print0 | xargs -0 -n1 php -l
 
+      - name: Validate Kimai read-only source contract
+        run: php akaunting-module/tests/kimai-source-contract.php
+
       - name: Verify exact financial parity with the legacy fixtures
         run: php akaunting-module/tests/runtime-compatibility.php
