@@ -20,3 +20,5 @@ amounts as zero. Both small-screen cards and graph labels use text equivalents.
 **Visual review status:** a static synthetic wireframe is a review aid, not
 evidence of an Akaunting browser test. A real isolated Akaunting portal must
 still be checked for menus, styling, role ACL, mobile layout and accessibility.
+
+![Synthetic desktop and mobile member portal wireframe](figures/member-portal-synthetic.svg)
