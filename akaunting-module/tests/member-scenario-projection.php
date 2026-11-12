@@ -82,12 +82,18 @@ $assert(in_array('conditional_receipts_are_unreceived', $conditional['limitation
 
 $incomplete = $source;
 $incomplete['evidence']['cohort_complete'] = false;
-$assert($service->project('member-a', $incomplete, [], $at)['money']['estimated_production_cents'] === null,
-    'Incomplete source produced financial estimate');
-$assert($service->project('member-a', $source, [], '2026-11-16T00:00:00Z')['state'] === 'unavailable',
-    'Stale data was accepted');
-$assert($service->project('member-unknown', $source, [], $at)['money']['estimated_production_cents'] === null,
-    'Unlinked member was assigned zero');
+$assert(
+    $service->project('member-a', $incomplete, [], $at)['money']['estimated_production_cents'] === null,
+    'Incomplete source produced financial estimate'
+);
+$assert(
+    $service->project('member-a', $source, [], '2026-11-16T00:00:00Z')['state'] === 'unavailable',
+    'Stale data was accepted'
+);
+$assert(
+    $service->project('member-unknown', $source, [], $at)['money']['estimated_production_cents'] === null,
+    'Unlinked member was assigned zero'
+);
 $assert($service->project('member-a', $source, [
     'type' => 'additional-hours', 'additional_seconds' => 7201,
     'customer_reference' => 'example-customer',
@@ -99,12 +105,16 @@ $assert($service->project('member-a', $source, [
 
 $unverified = $source;
 $unverified['conditional_incomes'][0]['classification_verified'] = false;
-$assert($service->project('member-a', $unverified, ['type' => 'conditional-receipts'], $at)['state'] === 'unavailable',
-    'Unverified pending invoice produced a financial estimate');
+$assert(
+    $service->project('member-a', $unverified, ['type' => 'conditional-receipts'], $at)['state'] === 'unavailable',
+    'Unverified pending invoice produced a financial estimate'
+);
 $zero = $source;
 $zero['incomes'][0]['base_producao'] = '0.00';
-$assert($service->project('member-a', $zero, [], $at)['money']['estimated_production_cents'] === 0,
-    'Known zero must not be unavailable');
+$assert(
+    $service->project('member-a', $zero, [], $at)['money']['estimated_production_cents'] === 0,
+    'Known zero must not be unavailable'
+);
 
 foreach ([
     [[], 'invalid timestamp'],
