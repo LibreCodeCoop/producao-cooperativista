@@ -18,11 +18,13 @@ final class Main extends ServiceProvider
     public function register(): void
     {
         $this->loadRoutesFrom(__DIR__ . '/../Routes/api.php');
+        $this->loadRoutesFrom(__DIR__ . '/../Routes/portal.php');
     }
 
     public function boot(): void
     {
         $this->loadTranslationsFrom(__DIR__ . '/../Resources/lang', 'cooperative-production');
         $this->loadMigrationsFrom(__DIR__ . '/../Database/Migrations');
+        $this->loadViewsFrom(__DIR__ . '/../Resources/views', 'cooperative-production');
     }
 }
