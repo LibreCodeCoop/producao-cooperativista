@@ -48,7 +48,8 @@ final class SnapshotStore
                 if (!hash_equals((string) $existing->payload_sha256, $digest)
                     || !hash_equals((string) $existing->source_sha256, $meta['source_sha256'])
                     || $existing->financial_competence !== $meta['financial_competence']
-                    || $existing->payment_competence !== $meta['payment_competence']) {
+                    || $existing->payment_competence !== $meta['payment_competence']
+                    || $existing->schema_version !== $meta['schema_version']) {
                     throw new DomainException('Source revision conflict: preserve the prior snapshot for reconciliation.');
                 }
 
@@ -144,7 +145,8 @@ final class SnapshotStore
         }
 
         if (!is_string($meta['collected_at'] ?? null)
-            || \DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $meta['collected_at']) === false) {
+            || ($capturedAt = \DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $meta['collected_at'])) === false
+            || $capturedAt->format('Y-m-d H:i:s') !== $meta['collected_at']) {
             throw new DomainException('Snapshot capture time must be explicit.');
         }
     }
