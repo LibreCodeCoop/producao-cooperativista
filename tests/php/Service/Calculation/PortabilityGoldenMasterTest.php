@@ -23,7 +23,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class PortabilityGoldenMasterTest extends TestCase
 {
-    private const FIXTURE = __DIR__ . '/../../Fixtures/portability/calculation-v1.json';
+    private const string FIXTURE = __DIR__ . '/../../Fixtures/portability/calculation-v1.json';
 
     /** @return iterable<string, array{0: array<string, mixed>}> */
     public static function scenarios(): iterable
