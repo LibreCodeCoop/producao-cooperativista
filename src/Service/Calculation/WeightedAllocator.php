@@ -23,6 +23,7 @@ final class WeightedAllocator
      * @param list<array<string, mixed>> $rows
      * @return array<string, float>
      */
+    /** @psalm-suppress PossiblyUnusedMethod Called by existing profile consumers. */
     public function weightsFromRows(array $rows, string $context): array
     {
         return $this->native()->weightsFromRows($rows, $context);

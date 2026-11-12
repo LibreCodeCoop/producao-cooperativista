@@ -28,7 +28,7 @@ final readonly class ProductionDistributionPlanner
      */
     public function plan(array $incomes, array $work): ProductionDistributionPlan
     {
-        $native = (new PortableProductionDistributionPlanner($this->allocator->native()))->plan($incomes, $work);
+        $native = new PortableProductionDistributionPlanner($this->allocator->native()))->plan($incomes, $work);
         return new ProductionDistributionPlan(
             $native->amounts,
             $native->variableWeights,

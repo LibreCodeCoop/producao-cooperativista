@@ -21,7 +21,7 @@ final class CustomerCostAllocator
      */
     public function unmatchedCosts(array $invoices, array $costs): array
     {
-        return (new PortableCustomerCostAllocator())->unmatchedCosts($invoices, $costs);
+        return new PortableCustomerCostAllocator()->unmatchedCosts($invoices, $costs);
     }
 
     /**
@@ -31,6 +31,6 @@ final class CustomerCostAllocator
      */
     public function allocate(array $invoices, array $costs): array
     {
-        return (new PortableCustomerCostAllocator())->allocate($invoices, $costs);
+        return new PortableCustomerCostAllocator()->allocate($invoices, $costs);
     }
 }

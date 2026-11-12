@@ -11,6 +11,6 @@ final class AdministrativeRate
 {
     public function evaluate(float $eligibleBase, float $expenses, int $referencePercent): array
     {
-        return (new PortableAdministrativeRate())->evaluate($eligibleBase, $expenses, $referencePercent);
+        return new PortableAdministrativeRate()->evaluate($eligibleBase, $expenses, $referencePercent);
     }
 }
