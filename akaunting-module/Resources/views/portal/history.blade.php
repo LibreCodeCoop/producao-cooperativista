@@ -14,6 +14,30 @@
                 </p>
             </header>
 
+            <form method="get" class="flex flex-wrap items-end gap-3 rounded-lg border p-4"
+                aria-label="{{ trans('cooperative-production::general.history_filters') }}">
+                <div>
+                    <label for="history-from" class="block text-sm font-medium mb-1">
+                        {{ trans('cooperative-production::general.from_worked_month') }}
+                    </label>
+                    <input id="history-from" type="month" name="from" value="{{ $filters['from'] ?? '' }}"
+                        class="rounded border px-3 py-2" />
+                </div>
+                <div>
+                    <label for="history-to" class="block text-sm font-medium mb-1">
+                        {{ trans('cooperative-production::general.to_worked_month') }}
+                    </label>
+                    <input id="history-to" type="month" name="to" value="{{ $filters['to'] ?? '' }}"
+                        class="rounded border px-3 py-2" />
+                </div>
+                <button type="submit" class="rounded bg-blue-700 text-white px-4 py-2">
+                    {{ trans('cooperative-production::general.apply_filters') }}
+                </button>
+                <a href="{{ url()->current() }}" class="text-sm underline px-2 py-2">
+                    {{ trans('cooperative-production::general.clear_filters') }}
+                </a>
+            </form>
+
             @forelse ($records as $record)
                 @if ($loop->first)
                     <section aria-labelledby="production-chart-title" class="rounded-lg border p-4">

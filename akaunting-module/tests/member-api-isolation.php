@@ -127,6 +127,7 @@ foreach ([
     ]);
 }
 
+require __DIR__ . '/../Domain/MemberHistoryFilters.php';
 require __DIR__ . '/../Domain/MemberRead.php';
 $reader = new Modules\CooperativeProduction\Domain\MemberRead();
 $assert = static function (bool $condition, string $message): void {
@@ -134,9 +135,9 @@ $assert = static function (bool $condition, string $message): void {
         throw new RuntimeException($message);
     }
 };
-$expectError = static function (int $code) use ($reader, $assert): void {
+$expectError = static function (int $code, mixed $from = null, mixed $to = null) use ($reader, $assert): void {
     try {
-        $reader->history();
+        $reader->history($from, $to);
     } catch (Symfony\Component\HttpKernel\Exception\HttpException $error) {
         $assert($error->getStatusCode() === $code, 'Wrong denial status');
         return;
@@ -175,4 +176,66 @@ $db->table('lcc_pdc_member_links')->where('company_id', 1)
     ->where('akaunting_user_id', 10)->update(['expires_at' => $future, 'state' => 'disabled']);
 $expectError(403);
 
-echo "PASS: isolated member API schema, 2 members, 2 companies, missing company, expiry, disabled link, anonymous access, null money\n";
+// Re-enable only the synthetic link to test malformed and stale evidence.
+$db->table('lcc_pdc_member_links')->where('company_id', 1)
+    ->where('akaunting_user_id', 10)->update(['expires_at' => $future, 'state' => 'active']);
+
+$expectError(422, '2026-00');
+$expectError(422, '2026-12', '2026-01');
+$expectError(422, ['2026-01']);
+$expectError(422, '2026-01 OR 1=1');
+
+$db->table('lcc_pdc_member_links')->where('company_id', 1)
+    ->where('akaunting_user_id', 10)->update(['nextcloud_user_id' => '']);
+$expectError(409);
+$db->table('lcc_pdc_member_links')->where('company_id', 1)
+    ->where('akaunting_user_id', 10)->update(['nextcloud_user_id' => 'example-a', 'verified_at' => $future]);
+$expectError(409);
+$db->table('lcc_pdc_member_links')->where('company_id', 1)
+    ->where('akaunting_user_id', 10)->update(['verified_at' => $past, 'kimai_user_id' => 0]);
+$expectError(409);
+$db->table('lcc_pdc_member_links')->where('company_id', 1)
+    ->where('akaunting_user_id', 10)->update(['kimai_user_id' => 1000, 'source_revision_sha256' => str_repeat('z', 64)]);
+$expectError(409);
+$db->table('lcc_pdc_member_links')->where('company_id', 1)
+    ->where('akaunting_user_id', 10)->update(['source_revision_sha256' => str_repeat('a', 64)]);
+
+// Older month must survive even if the newest month has 125 revisions.
+$statement = [
+    'company_id' => 1, 'akaunting_contact_id' => 100,
+    'worked_competence' => '2025-12', 'financial_competence' => '2026-01',
+    'payment_competence' => '2026-02', 'status' => 'approved',
+    'observed_seconds' => 7200, 'eligible_production_cents' => 321,
+    'paid_cents' => null, 'observed_at' => $past,
+    'source_revision_sha256' => hash('sha256', 'older synthetic month'),
+];
+$db->table('lcc_pdc_member_statements')->insert($statement);
+for ($i = 1; $i <= 125; $i++) {
+    $db->table('lcc_pdc_member_statements')->insert([
+        ...$statement,
+        'worked_competence' => '2026-09',
+        'financial_competence' => '2026-10',
+        'payment_competence' => '2026-11',
+        'eligible_production_cents' => $i,
+        'paid_cents' => 0,
+        'source_revision_sha256' => hash('sha256', 'latest synthetic revision ' . $i),
+    ]);
+}
+$data = $reader->history()['data'];
+$assert(count($data) === 2, 'Older month hidden by many newer revisions');
+$assert($data[0]['money']['eligible_production_cents'] === 125, 'Latest revision not selected');
+$assert($data[0]['money']['paid_cents'] === 0, 'Known zero payment was replaced with unavailable');
+$assert($data[1]['worked_competence'] === '2025-12', 'Older month absent');
+$assert(count($reader->history('2026-09', '2026-09')['data']) === 1, 'Month filter not applied');
+$assert($reader->history('2025-12', '2025-12')['data'][0]['money']['eligible_production_cents'] === 321,
+    'Historical filter lost old month');
+
+$auth->userId = 20;
+$assert(count($reader->history()['data']) === 1, 'Member 20 inherited member 10 history');
+$auth->userId = 10;
+$company->id = 2;
+$assert($reader->history()['data'][0]['money']['eligible_production_cents'] === 300,
+    'Cross-company history leaked after tenant switch');
+$company->id = 1;
+
+echo "PASS: isolated member API schema, tenant/member/link denial, missing vs zero, revision window, filters\n";
