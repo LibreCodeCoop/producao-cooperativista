@@ -227,15 +227,19 @@ $assert($data[0]['money']['eligible_production_cents'] === 125, 'Latest revision
 $assert($data[0]['money']['paid_cents'] === 0, 'Known zero payment was replaced with unavailable');
 $assert($data[1]['worked_competence'] === '2025-12', 'Older month absent');
 $assert(count($reader->history('2026-09', '2026-09')['data']) === 1, 'Month filter not applied');
-$assert($reader->history('2025-12', '2025-12')['data'][0]['money']['eligible_production_cents'] === 321,
-    'Historical filter lost old month');
+$assert(
+    $reader->history('2025-12', '2025-12')['data'][0]['money']['eligible_production_cents'] === 321,
+    'Historical filter lost old month'
+);
 
 $auth->userId = 20;
 $assert(count($reader->history()['data']) === 1, 'Member 20 inherited member 10 history');
 $auth->userId = 10;
 $company->id = 2;
-$assert($reader->history()['data'][0]['money']['eligible_production_cents'] === 300,
-    'Cross-company history leaked after tenant switch');
+$assert(
+    $reader->history()['data'][0]['money']['eligible_production_cents'] === 300,
+    'Cross-company history leaked after tenant switch'
+);
 $company->id = 1;
 
 echo "PASS: isolated member API schema, tenant/member/link denial, missing vs zero, revision window, filters\n";
