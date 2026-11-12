@@ -1,0 +1,15 @@
+{
+  "alias": "cooperative-production",
+  "icon": "assessment",
+  "version": "0.1.0-dev",
+  "active": 1,
+  "providers": [
+    "Modules\\CooperativeProduction\\Providers\\Main"
+  ],
+  "aliases": {},
+  "files": [],
+  "requires": [],
+  "reports": [],
+  "widgets": [],
+  "settings": []
+}

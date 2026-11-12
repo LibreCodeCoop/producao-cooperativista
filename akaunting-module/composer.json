@@ -1,0 +1,15 @@
+{
+    "name": "librecodecoop/akaunting-cooperative-production",
+    "description": "Native Akaunting module for cooperative production and member reporting",
+    "type": "akaunting-module",
+    "license": "AGPL-3.0-or-later",
+    "require": {
+        "php": "^8.3",
+        "ext-bcmath": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\CooperativeProduction\\": "./"
+        }
+    }
+}
