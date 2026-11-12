@@ -1,0 +1,27 @@
+name: Akaunting Native PHP 8.3 Kernel
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  native-kernel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up native Akaunting PHP runtime
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath
+          coverage: none
+
+      - name: Syntax-check all module classes
+        run: find akaunting-module -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Verify exact financial parity with the legacy fixtures
+        run: php akaunting-module/tests/runtime-compatibility.php

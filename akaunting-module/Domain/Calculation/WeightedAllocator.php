@@ -80,7 +80,7 @@ final class WeightedAllocator
             ));
         }
 
-        $shares = new DecimalAllocation()->allocate($eligibleAmount, $weights);
+        $shares = (new DecimalAllocation())->allocate($eligibleAmount, $weights);
         $result = [];
         foreach ($weights as $cooperado => $_weight) {
             $result[$cooperado] = $shares[$cooperado];
