@@ -1,0 +1,527 @@
+{
+  "schema_version": 1,
+  "baseline_source": "LibreCodeCoop/producao-cooperativista",
+  "baseline_revision": "9f73d31bbad15ef9a4fd510acf9b81f571f0be6e",
+  "currency": "BRL",
+  "meaning": "Synthetic characterization of observed legacy calculation behavior, not approval of financial policy",
+  "cases": [
+    {
+      "id": "underworked-contract-retains-undistributed-amount",
+      "kind": "distribution",
+      "input": {
+        "incomes": [
+          {
+            "customer_reference": "client-a",
+            "base_producao": 9000,
+            "percentual_desconto_fixo": false
+          }
+        ],
+        "work": [
+          {
+            "customer_reference": "client-a",
+            "tax_number": "member-a",
+            "trabalhado": 3600,
+            "peso": 2,
+            "total_cliente": 18000
+          },
+          {
+            "customer_reference": "client-a",
+            "tax_number": "member-b",
+            "trabalhado": 7200,
+            "peso": 1,
+            "total_cliente": 18000
+          }
+        ]
+      },
+      "expected": {
+        "amounts_cents": {
+          "member-a": 270000,
+          "member-b": 270000
+        },
+        "fixed_eligible_cents": 0,
+        "variable_eligible_cents": 900000,
+        "variable_allocated_cents": 540000
+      }
+    },
+    {
+      "id": "fixed-and-variable-multi-client",
+      "kind": "distribution",
+      "input": {
+        "incomes": [
+          {
+            "customer_reference": "client-a",
+            "base_producao": 1000,
+            "percentual_desconto_fixo": true
+          },
+          {
+            "customer_reference": "client-b",
+            "base_producao": 2000,
+            "percentual_desconto_fixo": false
+          }
+        ],
+        "work": [
+          {
+            "customer_reference": "client-a",
+            "tax_number": "member-a",
+            "trabalhado": 1000,
+            "peso": 1,
+            "total_cliente": 4000
+          },
+          {
+            "customer_reference": "client-a",
+            "tax_number": "member-b",
+            "trabalhado": 3000,
+            "peso": 1,
+            "total_cliente": 4000
+          },
+          {
+            "customer_reference": "client-b",
+            "tax_number": "member-a",
+            "trabalhado": 2000,
+            "peso": 2,
+            "total_cliente": 4000
+          },
+          {
+            "customer_reference": "client-b",
+            "tax_number": "member-b",
+            "trabalhado": 2000,
+            "peso": 1,
+            "total_cliente": 4000
+          }
+        ]
+      },
+      "expected": {
+        "amounts_cents": {
+          "member-a": 158333,
+          "member-b": 141667
+        },
+        "fixed_eligible_cents": 100000,
+        "variable_eligible_cents": 200000,
+        "variable_allocated_cents": 200000
+      }
+    },
+    {
+      "id": "general-support-across-fixed-work",
+      "kind": "distribution",
+      "input": {
+        "incomes": [
+          {
+            "customer_reference": "client-a",
+            "base_producao": 100,
+            "percentual_desconto_fixo": true
+          },
+          {
+            "customer_reference": "",
+            "general_income": true,
+            "base_producao": 300,
+            "percentual_desconto_fixo": false
+          }
+        ],
+        "work": [
+          {
+            "customer_reference": "client-a",
+            "tax_number": "member-a",
+            "trabalhado": 3600,
+            "peso": 2,
+            "total_cliente": 3600
+          },
+          {
+            "customer_reference": "client-a",
+            "tax_number": "member-b",
+            "trabalhado": 3600,
+            "peso": 1,
+            "total_cliente": 3600
+          }
+        ]
+      },
+      "expected": {
+        "amounts_cents": {
+          "member-a": 26667,
+          "member-b": 13333
+        },
+        "fixed_eligible_cents": 10000,
+        "variable_eligible_cents": 30000,
+        "variable_allocated_cents": 30000
+      }
+    },
+    {
+      "id": "five-cents-tie-broken-by-member-id",
+      "kind": "distribution",
+      "input": {
+        "incomes": [
+          {
+            "customer_reference": "client-a",
+            "base_producao": 0.05,
+            "percentual_desconto_fixo": true
+          }
+        ],
+        "work": [
+          {
+            "customer_reference": "client-a",
+            "tax_number": "c",
+            "trabalhado": 3600,
+            "peso": 1,
+            "total_cliente": 10800
+          },
+          {
+            "customer_reference": "client-a",
+            "tax_number": "a",
+            "trabalhado": 3600,
+            "peso": 1,
+            "total_cliente": 10800
+          },
+          {
+            "customer_reference": "client-a",
+            "tax_number": "b",
+            "trabalhado": 3600,
+            "peso": 1,
+            "total_cliente": 10800
+          }
+        ]
+      },
+      "expected": {
+        "amounts_cents": {
+          "a": 2,
+          "b": 2,
+          "c": 1
+        },
+        "fixed_eligible_cents": 5,
+        "variable_eligible_cents": 0,
+        "variable_allocated_cents": 0
+      }
+    },
+    {
+      "id": "empty-period-is-zero-not-bank-balance",
+      "kind": "distribution",
+      "input": {
+        "incomes": [],
+        "work": []
+      },
+      "expected": {
+        "amounts_cents": {},
+        "fixed_eligible_cents": 0,
+        "variable_eligible_cents": 0,
+        "variable_allocated_cents": 0
+      }
+    },
+    {
+      "id": "missing-member-work-must-block",
+      "kind": "distribution",
+      "input": {
+        "incomes": [
+          {
+            "customer_reference": "client-a",
+            "base_producao": 100,
+            "percentual_desconto_fixo": true
+          }
+        ],
+        "work": []
+      },
+      "error": {
+        "class": "DomainException",
+        "contains": "não há horas ponderadas"
+      }
+    },
+    {
+      "id": "mixed-customer-policy-must-block",
+      "kind": "distribution",
+      "input": {
+        "incomes": [
+          {
+            "customer_reference": "client-a",
+            "base_producao": 100,
+            "percentual_desconto_fixo": true
+          },
+          {
+            "customer_reference": "client-a",
+            "base_producao": 100,
+            "percentual_desconto_fixo": false
+          }
+        ],
+        "work": [
+          {
+            "customer_reference": "client-a",
+            "tax_number": "a",
+            "trabalhado": 100,
+            "peso": 1,
+            "total_cliente": 100
+          }
+        ]
+      },
+      "error": {
+        "class": "DomainException",
+        "contains": "fixos e móveis"
+      }
+    },
+    {
+      "id": "general-support-cannot-be-fixed",
+      "kind": "distribution",
+      "input": {
+        "incomes": [
+          {
+            "customer_reference": "",
+            "general_income": true,
+            "base_producao": 100,
+            "percentual_desconto_fixo": true
+          }
+        ],
+        "work": [
+          {
+            "customer_reference": "client-a",
+            "tax_number": "a",
+            "trabalhado": 3600,
+            "peso": 1,
+            "total_cliente": 3600
+          }
+        ]
+      },
+      "error": {
+        "class": "DomainException",
+        "contains": "Receita elegível"
+      }
+    },
+    {
+      "id": "negative-receipt-must-block",
+      "kind": "distribution",
+      "input": {
+        "incomes": [
+          {
+            "customer_reference": "client-a",
+            "base_producao": -1,
+            "percentual_desconto_fixo": true
+          }
+        ],
+        "work": [
+          {
+            "customer_reference": "client-a",
+            "tax_number": "a",
+            "trabalhado": 3600,
+            "peso": 1,
+            "total_cliente": 3600
+          }
+        ]
+      },
+      "error": {
+        "class": "DomainException",
+        "contains": "Receita elegível"
+      }
+    },
+    {
+      "id": "invalid-work-weight-must-block",
+      "kind": "distribution",
+      "input": {
+        "incomes": [
+          {
+            "customer_reference": "client-a",
+            "base_producao": 10,
+            "percentual_desconto_fixo": true
+          }
+        ],
+        "work": [
+          {
+            "customer_reference": "client-a",
+            "tax_number": "a",
+            "trabalhado": 3600,
+            "peso": -1,
+            "total_cliente": 3600
+          }
+        ]
+      },
+      "error": {
+        "class": "DomainException",
+        "contains": "peso inválido"
+      }
+    },
+    {
+      "id": "admin-rate-floor-can-exceed-reference-percent",
+      "kind": "admin-rate",
+      "input": {
+        "eligible_base": 10000,
+        "expenses": 3000,
+        "reference_percent": 25
+      },
+      "expected": {
+        "minimum_cents": 300000,
+        "maximum_cents": 600000,
+        "safety_cents": 250000,
+        "rate_cents": 300000,
+        "effective_percent_basis_points": 3000
+      }
+    },
+    {
+      "id": "admin-rate-between-floor-and-double",
+      "kind": "admin-rate",
+      "input": {
+        "eligible_base": 10000,
+        "expenses": 2000,
+        "reference_percent": 25
+      },
+      "expected": {
+        "minimum_cents": 200000,
+        "maximum_cents": 400000,
+        "safety_cents": 250000,
+        "rate_cents": 250000,
+        "effective_percent_basis_points": 2500
+      }
+    },
+    {
+      "id": "admin-rate-cap-is-double-expenses",
+      "kind": "admin-rate",
+      "input": {
+        "eligible_base": 20000,
+        "expenses": 2000,
+        "reference_percent": 25
+      },
+      "expected": {
+        "minimum_cents": 200000,
+        "maximum_cents": 400000,
+        "safety_cents": 500000,
+        "rate_cents": 400000,
+        "effective_percent_basis_points": 2000
+      }
+    },
+    {
+      "id": "admin-rate-rejects-unfunded-expenses",
+      "kind": "admin-rate",
+      "input": {
+        "eligible_base": 0,
+        "expenses": 1,
+        "reference_percent": 25
+      },
+      "error": {
+        "class": "DomainException",
+        "contains": "Base móvel insuficiente"
+      }
+    },
+    {
+      "id": "customer-costs-stay-with-own-customer",
+      "kind": "customer-cost",
+      "input": {
+        "invoices": {
+          "invoice:2": {
+            "amount": 300,
+            "customer_reference": "client-a"
+          },
+          "invoice:1": {
+            "amount": 100,
+            "customer_reference": "client-a"
+          },
+          "invoice:3": {
+            "amount": 500,
+            "customer_reference": "client-b"
+          }
+        },
+        "costs": {
+          "client-a": 120,
+          "client-b": 50
+        }
+      },
+      "expected": {
+        "amounts_cents": {
+          "invoice:1": 3000,
+          "invoice:2": 9000,
+          "invoice:3": 5000
+        }
+      }
+    },
+    {
+      "id": "customer-costs-exceeding-receipt-block",
+      "kind": "customer-cost",
+      "input": {
+        "invoices": {
+          "invoice:1": {
+            "amount": 100,
+            "customer_reference": "client-a"
+          }
+        },
+        "costs": {
+          "client-a": 200
+        }
+      },
+      "error": {
+        "class": "DomainException",
+        "contains": "excedem receitas"
+      }
+    },
+    {
+      "id": "unmatched-costs-are-not-transferred",
+      "kind": "unmatched-costs",
+      "input": {
+        "invoices": [
+          {
+            "amount": 250,
+            "customer_reference": "paid-client"
+          },
+          {
+            "amount": 0,
+            "customer_reference": "unpaid-client"
+          }
+        ],
+        "costs": {
+          "paid-client": 35,
+          "unpaid-client": 20,
+          "unknown-client": 15
+        }
+      },
+      "expected": {
+        "amounts_cents": {
+          "unpaid-client": 2000,
+          "unknown-client": 1500
+        }
+      }
+    },
+    {
+      "id": "positive-half-away-from-zero",
+      "kind": "round-cents",
+      "input": {
+        "amount": "0.105"
+      },
+      "expected": {
+        "cents": 11
+      }
+    },
+    {
+      "id": "negative-half-away-from-zero",
+      "kind": "round-cents",
+      "input": {
+        "amount": "-0.105"
+      },
+      "expected": {
+        "cents": -11
+      }
+    },
+    {
+      "id": "largest-remainder-stable-lexical-tie",
+      "kind": "allocate-cents",
+      "input": {
+        "amount": "0.05",
+        "weights": {
+          "c": 1,
+          "a": 1,
+          "b": 1
+        }
+      },
+      "expected": {
+        "amounts_cents": {
+          "a": 2,
+          "b": 2,
+          "c": 1
+        }
+      }
+    },
+    {
+      "id": "positive-cents-with-no-weight-block",
+      "kind": "allocate-cents",
+      "input": {
+        "amount": "0.01",
+        "weights": {
+          "a": 0
+        }
+      },
+      "error": {
+        "class": "DomainException",
+        "contains": "Distribuição sem pesos positivos"
+      }
+    }
+  ]
+}
