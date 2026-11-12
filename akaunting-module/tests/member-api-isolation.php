@@ -29,7 +29,7 @@ $app->instance('db', $database->getDatabaseManager());
 $app->instance('db.schema', $database->getConnection()->getSchemaBuilder());
 Illuminate\Support\Facades\Facade::setFacadeApplication($app);
 
-$auth = new class {
+$auth = new class () {
     public int $userId = 10;
     public bool $authenticated = true;
 
