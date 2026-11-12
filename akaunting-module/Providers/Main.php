@@ -15,6 +15,11 @@ use Illuminate\Support\ServiceProvider;
  */
 final class Main extends ServiceProvider
 {
+    public function register(): void
+    {
+        $this->loadRoutesFrom(__DIR__ . '/../Routes/api.php');
+    }
+
     public function boot(): void
     {
         $this->loadTranslationsFrom(__DIR__ . '/../Resources/lang', 'cooperative-production');
