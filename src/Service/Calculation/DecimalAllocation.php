@@ -30,8 +30,8 @@ final class DecimalAllocation
     /**
      * @param array<int|string, float|int|string> $weights
      * @return array<int|string, float>
+     * @psalm-suppress PossiblyUnusedMethod Called by legacy integration consumers.
      */
-    /** @psalm-suppress PossiblyUnusedMethod Called by legacy integration consumers. */
     public function allocate(float|int|string $amount, array $weights): array
     {
         return new PortableDecimalAllocation()->allocate($amount, $weights);
