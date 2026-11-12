@@ -25,3 +25,6 @@ jobs:
 
       - name: Verify exact financial parity with the legacy fixtures
         run: php akaunting-module/tests/runtime-compatibility.php
+
+      - name: Verify deterministic member forecast scenarios with synthetic data
+        run: php akaunting-module/tests/member-scenario-projection.php
