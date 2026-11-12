@@ -18,5 +18,6 @@ final class Main extends ServiceProvider
     public function boot(): void
     {
         $this->loadTranslationsFrom(__DIR__ . '/../Resources/lang', 'cooperative-production');
+        $this->loadMigrationsFrom(__DIR__ . '/../Database/Migrations');
     }
 }
