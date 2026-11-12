@@ -25,3 +25,6 @@ jobs:
 
       - name: Verify exact financial parity with the legacy fixtures
         run: php akaunting-module/tests/runtime-compatibility.php
+
+      - name: Verify strict worked-month filters without a database
+        run: php akaunting-module/tests/member-history-filters.php

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: 2026 LibreCode coop and contributors
+     SPDX-License-Identifier: AGPL-3.0-or-later -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1070 610" role="img" aria-labelledby="title desc">
+<title id="title">Synthetic member portal desktop and mobile wireframe</title>
+<desc id="desc">Example only, with fictitious values and no real member information. Not an Akaunting browser screenshot.</desc>
+<rect x="0" y="0" width="1070" height="610" rx="0" fill="#f3f6f9" stroke="#f3f6f9"/>
+<text x="24" y="29" fill="#142e49" font-family="sans-serif" font-size="21" font-weight="bold">Portal individual — wireframe com dados sintéticos</text>
+<text x="24" y="48" fill="#56677b" font-family="sans-serif" font-size="12" font-weight="normal">Exemplo visual; não é captura de uma instalação Akaunting.</text>
+<rect x="24" y="66" width="722" height="510" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+<rect x="770" y="66" width="276" height="510" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="42" y="100" fill="#142e49" font-family="sans-serif" font-size="22" font-weight="bold">Meu histórico de produção</text>
+<text x="42" y="122" fill="#56677b" font-family="sans-serif" font-size="12" font-weight="normal">Estimativas não representam pagamento garantido.</text>
+<rect x="42" y="139" width="685" height="81" rx="8" fill="#f8fafc" stroke="#cbd5e1"/>
+<text x="54" y="159" fill="#142e49" font-family="sans-serif" font-size="12" font-weight="normal">Do mês trabalhado</text>
+<text x="249" y="159" fill="#142e49" font-family="sans-serif" font-size="12" font-weight="normal">Até o mês trabalhado</text>
+<rect x="54" y="169" width="178" height="35" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+<rect x="249" y="169" width="178" height="35" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="68" y="192" fill="#142e49" font-family="sans-serif" font-size="14" font-weight="normal">2026-01</text>
+<text x="263" y="192" fill="#142e49" font-family="sans-serif" font-size="14" font-weight="normal">2026-12</text>
+<rect x="447" y="169" width="130" height="35" rx="5" fill="#1c528a" stroke="#1c528a"/>
+<text x="459" y="192" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="normal">Aplicar filtros</text>
+<text x="597" y="192" fill="#1c528a" font-family="sans-serif" font-size="13" font-weight="normal">Limpar filtros</text>
+<rect x="42" y="238" width="685" height="142" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="57" y="265" fill="#142e49" font-family="sans-serif" font-size="16" font-weight="bold">Pagamentos registrados por competência</text>
+<text x="57" y="283" fill="#56677b" font-family="sans-serif" font-size="11" font-weight="normal">Valores ausentes não são representados como zero.</text>
+<text x="57" y="320" fill="#142e49" font-family="sans-serif" font-size="13" font-weight="normal">2026-09</text>
+<rect x="150" y="307" width="370" height="16" rx="4" fill="#e7edf3" stroke="#e7edf3"/>
+<rect x="150" y="307" width="295" height="16" rx="4" fill="#1c528a" stroke="#1c528a"/>
+<text x="535" y="320" fill="#142e49" font-family="sans-serif" font-size="13" font-weight="normal">R$ 1.200,00</text>
+<text x="57" y="351" fill="#142e49" font-family="sans-serif" font-size="13" font-weight="normal">2026-08</text>
+<rect x="150" y="338" width="370" height="16" rx="4" fill="#e7edf3" stroke="#e7edf3"/>
+<rect x="150" y="338" width="166" height="16" rx="4" fill="#1c528a" stroke="#1c528a"/>
+<text x="535" y="351" fill="#142e49" font-family="sans-serif" font-size="13" font-weight="normal">R$ 740,00</text>
+<text x="57" y="371" fill="#56677b" font-family="sans-serif" font-size="11" font-weight="normal">2026-07: pagamento indisponível — sem barra no gráfico</text>
+<rect x="42" y="396" width="685" height="161" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="57" y="424" fill="#142e49" font-family="sans-serif" font-size="18" font-weight="bold">2026-09</text>
+<text x="579" y="424" fill="#142e49" font-family="sans-serif" font-size="13" font-weight="normal">Parcialmente pago</text>
+<text x="57" y="466" fill="#56677b" font-family="sans-serif" font-size="12" font-weight="normal">Horas observadas</text>
+<text x="57" y="489" fill="#142e49" font-family="sans-serif" font-size="15" font-weight="normal">80,00 h</text>
+<text x="263" y="466" fill="#56677b" font-family="sans-serif" font-size="12" font-weight="normal">Líquido aprovado</text>
+<text x="263" y="489" fill="#142e49" font-family="sans-serif" font-size="15" font-weight="normal">R$ 1.500,00</text>
+<text x="489" y="466" fill="#56677b" font-family="sans-serif" font-size="12" font-weight="normal">Valor pago</text>
+<text x="489" y="489" fill="#142e49" font-family="sans-serif" font-size="15" font-weight="normal">R$ 1.200,00</text>
+<text x="57" y="527" fill="#56677b" font-family="sans-serif" font-size="11" font-weight="normal">Última atualização: 12/11/2026 — valor de exemplo</text>
+<text x="791" y="100" fill="#142e49" font-family="sans-serif" font-size="17" font-weight="bold">Visão móvel</text>
+<rect x="790" y="118" width="235" height="157" rx="8" fill="#f8fafc" stroke="#cbd5e1"/>
+<text x="805" y="139" fill="#142e49" font-family="sans-serif" font-size="12" font-weight="normal">Do mês</text>
+<rect x="805" y="147" width="204" height="30" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="818" y="167" fill="#142e49" font-family="sans-serif" font-size="12" font-weight="normal">2026-01</text>
+<text x="805" y="193" fill="#142e49" font-family="sans-serif" font-size="12" font-weight="normal">Até o mês</text>
+<rect x="805" y="201" width="204" height="30" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="818" y="221" fill="#142e49" font-family="sans-serif" font-size="12" font-weight="normal">2026-12</text>
+<rect x="805" y="239" width="204" height="27" rx="5" fill="#1c528a" stroke="#1c528a"/>
+<text x="876" y="258" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="normal">Filtrar</text>
+<rect x="790" y="292" width="235" height="116" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="805" y="313" fill="#142e49" font-family="sans-serif" font-size="13" font-weight="bold">Pagamentos registrados</text>
+<text x="805" y="341" fill="#142e49" font-family="sans-serif" font-size="11" font-weight="normal">2026-09</text>
+<rect x="873" y="329" width="137" height="13" rx="4" fill="#e7edf3" stroke="#e7edf3"/>
+<rect x="873" y="329" width="92" height="13" rx="4" fill="#1c528a" stroke="#1c528a"/>
+<text x="805" y="369" fill="#142e49" font-family="sans-serif" font-size="11" font-weight="normal">2026-08</text>
+<rect x="873" y="357" width="137" height="13" rx="4" fill="#e7edf3" stroke="#e7edf3"/>
+<rect x="873" y="357" width="55" height="13" rx="4" fill="#1c528a" stroke="#1c528a"/>
+<text x="805" y="395" fill="#56677b" font-family="sans-serif" font-size="10" font-weight="normal">Sem dados individuais de terceiros</text>
+<rect x="790" y="423" width="235" height="133" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="805" y="448" fill="#142e49" font-family="sans-serif" font-size="17" font-weight="bold">2026-09</text>
+<text x="805" y="472" fill="#56677b" font-family="sans-serif" font-size="12" font-weight="normal">Parcialmente pago</text>
+<text x="805" y="506" fill="#142e49" font-family="sans-serif" font-size="12" font-weight="normal">Horas registradas: 80,00 h</text>
+<text x="805" y="529" fill="#142e49" font-family="sans-serif" font-size="12" font-weight="normal">Pago: R$ 1.200,00</text>
+</svg>
