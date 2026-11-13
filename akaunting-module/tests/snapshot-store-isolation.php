@@ -71,6 +71,18 @@ try {
 } catch (DomainException) {
     // Expected: an earlier revision must remain immutable.
 }
+try {
+    $store->capture([...$metadata, 'schema_version' => 'v2'], $input);
+    throw new LogicException('The same source revision changed schema without conflict.');
+} catch (DomainException) {
+    // Source schema changes require a distinct revision.
+}
+try {
+    $store->capture([...$metadata, 'collected_at' => '2026-02-31 01:00:00'], $input);
+    throw new LogicException('Invalid source capture time was accepted.');
+} catch (DomainException) {
+    // Date overflow must not normalize an invalid provenance timestamp.
+}
 $connection->table('lcc_pdc_snapshots')->where('id', $id)->update([
     'payload_sha256' => str_repeat('b', 64),
 ]);
