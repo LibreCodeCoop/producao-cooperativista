@@ -11,7 +11,7 @@
     "scss:lint:fix": "stylelint \"resources/scss/**/*.scss\" --fix"
   },
   "devDependencies": {
-    "prettier": "3.9.10",
+    "prettier": "3.10.1",
     "sass": "1.108.1",
     "stylelint": "17.16.0",
     "stylelint-config-recommended-scss": "17.0.1"
